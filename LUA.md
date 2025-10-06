@@ -55,11 +55,11 @@ This document outlines the implementation plan for adding Lua as a compilation t
 ### Phase 2: Runtime Foundation (Week 2-3)
 
 #### Task 2.1: Core Runtime Structure
-- [ ] Create `runtime/lua/` directory
-- [ ] Create `runtime/lua/core.lua` with module system
-- [ ] Implement basic module loading mechanism
-- **Output**: ~200 lines
-- **Test**: Load and execute empty Lua module
+- [x] Create `runtime/lua/` directory
+- [x] Create `runtime/lua/core.lua` with module system
+- [x] Implement basic module loading mechanism
+- **Output**: ~200 lines (210 lines actual)
+- **Test**: Load and execute empty Lua module ✓
 - **Commit**: "feat: Initialize Lua runtime structure"
 
 #### Task 2.2: Integer Operations Runtime
