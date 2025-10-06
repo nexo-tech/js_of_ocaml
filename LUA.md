@@ -63,11 +63,11 @@ This document outlines the implementation plan for adding Lua as a compilation t
 - **Commit**: "feat: Initialize Lua runtime structure"
 
 #### Task 2.2: Integer Operations Runtime
-- [ ] Create `runtime/lua/ints.lua`
-- [ ] Implement 32-bit integer arithmetic with overflow
-- [ ] Implement bitwise operations
-- **Output**: ~300 lines
-- **Test**: Test integer arithmetic matches OCaml semantics
+- [x] Create `runtime/lua/ints.lua`
+- [x] Implement 32-bit integer arithmetic with overflow
+- [x] Implement bitwise operations
+- **Output**: ~300 lines (418 lines actual)
+- **Test**: Test integer arithmetic matches OCaml semantics ✓
 - **Commit**: "feat: Implement integer operations for Lua"
 
 #### Task 2.3: String and Bytes Runtime
