@@ -1,0 +1,29 @@
+(executable
+ (name lua_of_ocaml)
+ (public_name lua_of_ocaml)
+ (package lua_of_ocaml-compiler)
+ (libraries
+  jsoo_cmdline
+  lua_of_ocaml-compiler
+  cmdliner
+  compiler-libs.common
+  js_of_ocaml-compiler.runtime-files
+  yojson
+  unix)
+ (modes
+  byte
+  (best exe))
+ (flags
+  (:standard -safe-string)))
+
+(rule
+ (targets lua_of_ocaml.1)
+ (action
+  (with-stdout-to
+   %{targets}
+   (run %{bin:lua_of_ocaml} --help=groff))))
+
+(install
+ (section man)
+ (package lua_of_ocaml-compiler)
+ (files lua_of_ocaml.1))
