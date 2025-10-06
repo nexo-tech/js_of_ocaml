@@ -29,9 +29,9 @@ This document outlines the implementation plan for adding Lua as a compilation t
 - **Commit**: "feat: Define Lua AST types"
 
 #### Task 1.3: Lua AST Extensions and Tables
-- [ ] Extend AST with table operations and metatables
-- [ ] Add function definitions and closures
-- [ ] Add module and require support
+- [x] Extend AST with table operations and metatables
+- [x] Add function definitions and closures
+- [x] Add module and require support
 - **Output**: ~200 lines
 - **Test**: Unit tests for AST construction
 - **Commit**: "feat: Complete Lua AST with tables and functions"
