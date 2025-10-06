@@ -139,6 +139,33 @@ The repository contains multiple related packages:
 - `.expected` files contain expected output
 - Use `dune promote` to accept new test outputs
 
+## Common Gotchas
+
+### Dune Library Module Wrapping
+
+When a dune library has multiple .ml files, dune automatically wraps them with a `__` prefix:
+
+```ocaml
+(* If you have a library named "lua_of_ocaml_compiler" with files:
+   - lua_of_ocaml_compiler.ml
+   - lua_ast.ml
+
+   Dune creates wrapped modules:
+   - Lua_of_ocaml_compiler (main module)
+   - Lua_of_ocaml_compiler__Lua_ast (wrapped submodule)
+*)
+
+(* In tests or other code, access submodules like this: *)
+module Lua_ast = struct
+  include Lua_of_ocaml_compiler__Lua_ast  (* Note the __ prefix *)
+end
+
+(* NOT like this: *)
+module Lua_ast = Lua_of_ocaml_compiler.Lua_ast  (* ❌ Won't work *)
+```
+
+This is the default behavior when you don't specify `(wrapped false)` in your dune library stanza. The wrapping prevents name conflicts between libraries.
+
 ## JavaScript/Biome Configuration
 
 JavaScript code uses Biome for formatting and linting (`biome.json`):
