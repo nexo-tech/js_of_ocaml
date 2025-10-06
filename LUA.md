@@ -21,9 +21,9 @@ This document outlines the implementation plan for adding Lua as a compilation t
 - **Commit**: "feat: Initialize lua_of_ocaml package structure"
 
 #### Task 1.2: Lua AST Definition
-- [ ] Create `compiler/lib-lua/lua_ast.ml` with core AST types
-- [ ] Define expressions: literals, variables, operators, function calls
-- [ ] Define statements: assignments, control flow, returns
+- [x] Create `compiler/lib-lua/lua_ast.ml` with core AST types
+- [x] Define expressions: literals, variables, operators, function calls
+- [x] Define statements: assignments, control flow, returns
 - **Output**: ~250 lines
 - **Test**: `dune build compiler/lib-lua` compiles
 - **Commit**: "feat: Define Lua AST types"
