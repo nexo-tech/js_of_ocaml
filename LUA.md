@@ -45,11 +45,11 @@ This document outlines the implementation plan for adding Lua as a compilation t
 - **Commit**: "feat: Implement Lua code pretty printer"
 
 #### Task 1.5: Lua Reserved Words and Identifier Handling
-- [ ] Create `compiler/lib-lua/lua_reserved.ml`
-- [ ] Handle Lua keywords and reserved identifiers
-- [ ] Implement name mangling for OCaml identifiers
-- **Output**: ~150 lines
-- **Test**: Test all OCaml stdlib names can be safely used
+- [x] Create `compiler/lib-lua/lua_reserved.ml`
+- [x] Handle Lua keywords and reserved identifiers
+- [x] Implement name mangling for OCaml identifiers
+- **Output**: ~150 lines (217 lines actual)
+- **Test**: Test all OCaml stdlib names can be safely used ✓
 - **Commit**: "feat: Add Lua identifier safety handling"
 
 ### Phase 2: Runtime Foundation (Week 2-3)

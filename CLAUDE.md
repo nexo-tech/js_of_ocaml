@@ -166,6 +166,28 @@ module Lua_ast = Lua_of_ocaml_compiler.Lua_ast  (* ❌ Won't work *)
 
 This is the default behavior when you don't specify `(wrapped false)` in your dune library stanza. The wrapping prevents name conflicts between libraries.
 
+### Js_of_ocaml_compiler Stdlib Module
+
+The `js_of_ocaml_compiler` library includes a custom `Stdlib` module (in `compiler/lib/stdlib.ml`) that:
+
+- Uses **labeled arguments** for common functions (`List.fold_left ~f ~init`, `String.iter ~f`, etc.)
+- Provides `StringSet`, `StringMap`, `IntSet`, `IntMap` from `Set.Make` and `Map.Make`
+- Is automatically opened when using lua_of_ocaml_compiler via the dune `(flags (:standard -open Js_of_ocaml_compiler))`
+
+When writing code in `compiler/lib-lua/`, remember to:
+
+```ocaml
+(* Use labeled arguments *)
+List.fold_left ~f:(fun acc x -> ...) ~init:StringSet.empty [...]
+String.iter ~f:(fun c -> ...) str
+String.for_all ~f:(fun c -> ...) str
+
+(* Pattern match chars instead of >= <= comparisons *)
+match c with
+| 'a' .. 'z' | 'A' .. 'Z' -> true
+| _ -> false
+```
+
 ## JavaScript/Biome Configuration
 
 JavaScript code uses Biome for formatting and linting (`biome.json`):
