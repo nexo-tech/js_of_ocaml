@@ -79,11 +79,11 @@ This document outlines the implementation plan for adding Lua as a compilation t
 - **Commit**: "feat: Add string and bytes runtime support"
 
 #### Task 2.4: Array Operations Runtime
-- [ ] Create `runtime/lua/array.lua`
-- [ ] Implement OCaml arrays using Lua tables
-- [ ] Handle bounds checking
-- **Output**: ~200 lines
-- **Test**: Array access and mutation tests
+- [x] Create `runtime/lua/array.lua`
+- [x] Implement OCaml arrays using Lua tables
+- [x] Handle bounds checking
+- **Output**: ~200 lines (347 lines actual)
+- **Test**: Array access and mutation tests ✓
 - **Commit**: "feat: Implement array operations for Lua"
 
 #### Task 2.5: Exception Handling Runtime
