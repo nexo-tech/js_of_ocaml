@@ -71,11 +71,11 @@ This document outlines the implementation plan for adding Lua as a compilation t
 - **Commit**: "feat: Implement integer operations for Lua"
 
 #### Task 2.3: String and Bytes Runtime
-- [ ] Create `runtime/lua/mlBytes.lua`
-- [ ] Implement mutable bytes (using tables)
-- [ ] Implement string/bytes conversion
-- **Output**: ~250 lines
-- **Test**: String manipulation tests
+- [x] Create `runtime/lua/mlBytes.lua`
+- [x] Implement mutable bytes (using tables)
+- [x] Implement string/bytes conversion
+- **Output**: ~250 lines (385 lines actual)
+- **Test**: String manipulation tests ✓
 - **Commit**: "feat: Add string and bytes runtime support"
 
 #### Task 2.4: Array Operations Runtime
