@@ -8,6 +8,11 @@
  (libraries lua_of_ocaml_compiler)
  (modules test_ast_construction))
 
+(executable
+ (name test_output)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_output))
+
 (rule
  (alias runtest)
  (package lua_of_ocaml-compiler)
@@ -19,3 +24,9 @@
  (package lua_of_ocaml-compiler)
  (action
   (run ./test_ast_construction.exe)))
+
+(rule
+ (alias runtest)
+ (package lua_of_ocaml-compiler)
+ (action
+  (run ./test_output.exe)))

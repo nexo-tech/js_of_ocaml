@@ -37,9 +37,9 @@ This document outlines the implementation plan for adding Lua as a compilation t
 - **Commit**: "feat: Complete Lua AST with tables and functions"
 
 #### Task 1.4: Lua Pretty Printer
-- [ ] Create `compiler/lib-lua/lua_output.ml`
-- [ ] Implement expression printing
-- [ ] Implement statement printing with proper indentation
+- [x] Create `compiler/lib-lua/lua_output.ml`
+- [x] Implement expression printing
+- [x] Implement statement printing with proper indentation
 - **Output**: ~300 lines
 - **Test**: Roundtrip test (AST → string → parse in Lua)
 - **Commit**: "feat: Implement Lua code pretty printer"
