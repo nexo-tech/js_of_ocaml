@@ -212,9 +212,9 @@ Generate Lua code that:
 - **Test**: Generated code provides proper closing comment
 - **Status**: COMPLETED - Commit ea1f2c5d
 
-### Task 4.4: Complete generate_loader
+### Task 4.4: Complete generate_loader ✅
 - **File**: `compiler/lib-lua/lua_link.ml`
-- **Lines**: ~50
+- **Lines**: ~15
 - **Function**: `generate_loader : fragment list -> string`
 - **Logic**:
   - Generate prologue
@@ -224,8 +224,9 @@ Generate Lua code that:
   - Concatenate all parts
   - Return complete loader code
 - **Test**: Multiple fragments → complete, valid Lua loader
+- **Status**: COMPLETED - Commit e8f3d1a9
 
-**Checkpoint**: Module loader generation complete
+**Checkpoint**: ✅ Module loader generation complete
 
 ## Phase 5: Linking Integration (60 lines)
 

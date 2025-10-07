@@ -438,13 +438,19 @@ let generate_loader_epilogue (_fragments : fragment list) : string =
 
 let generate_loader fragments =
   let buf = Buffer.create 1024 in
-  Buffer.add_string buf "-- Module loader\n";
+
+  (* Add prologue *)
+  Buffer.add_string buf (generate_loader_prologue ());
+
+  (* Add module registration for each fragment *)
   List.iter
     ~f:(fun frag ->
-      Buffer.add_string buf ("-- " ^ frag.name ^ "\n");
-      Buffer.add_string buf frag.code;
-      Buffer.add_char buf '\n')
+      Buffer.add_string buf (generate_module_registration frag))
     fragments;
+
+  (* Add epilogue *)
+  Buffer.add_string buf (generate_loader_epilogue fragments);
+
   Buffer.contents buf
 
 let link ~state ~program ~linkall:_ =

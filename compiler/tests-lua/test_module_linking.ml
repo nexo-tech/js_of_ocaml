@@ -1540,25 +1540,113 @@ let%expect_test "generate_loader_epilogue starts with newline" =
   print_endline (if starts_with_newline then "starts with newline" else "no newline");
   [%expect {| starts with newline |}]
 
-let%expect_test "generate module loader" =
-  let frag1 = { Lua_link.
-    name = "module1";
-    provides = ["f1"];
+(* Task 4.4: Complete generate_loader Tests *)
+
+let%expect_test "generate_loader with empty fragments" =
+  let loader = Lua_link.generate_loader [] in
+  print_string loader;
+  [%expect {|
+    -- Lua_of_ocaml runtime loader
+    -- This code registers runtime modules in package.loaded
+
+
+    -- End of runtime loader
+    |}]
+
+let%expect_test "generate_loader with single fragment" =
+  let frag = { Lua_link.
+    name = "test";
+    provides = ["test_func"];
     requires = [];
-    code = "function f1() return 1 end"
+    code = "return 42"
+  } in
+  let loader = Lua_link.generate_loader [frag] in
+  print_string loader;
+  [%expect {|
+    -- Lua_of_ocaml runtime loader
+    -- This code registers runtime modules in package.loaded
+
+    -- Fragment: test
+    package.loaded["test_func"] = function()
+      return 42
+    end
+
+    -- End of runtime loader
+    |}]
+
+let%expect_test "generate_loader with multiple fragments" =
+  let frag1 = { Lua_link.
+    name = "base";
+    provides = ["base_func"];
+    requires = [];
+    code = "local x = 10"
   } in
   let frag2 = { Lua_link.
-    name = "module2";
-    provides = ["f2"];
-    requires = ["f1"];
-    code = "function f2() return f1() + 1 end"
+    name = "derived";
+    provides = ["derived_func"];
+    requires = ["base_func"];
+    code = "local y = 20"
   } in
   let loader = Lua_link.generate_loader [frag1; frag2] in
-  (* Check that loader contains module structure *)
-  let has_module_loader = String.contains loader 'r' in
-  let has_modules = String.contains loader 'm' in
-  print_endline (if has_module_loader && has_modules then "loader generated" else "loader failed");
-  [%expect {| loader generated |}]
+  print_string loader;
+  [%expect {|
+    -- Lua_of_ocaml runtime loader
+    -- This code registers runtime modules in package.loaded
+
+    -- Fragment: base
+    package.loaded["base_func"] = function()
+      local x = 10
+    end
+    -- Fragment: derived
+    package.loaded["derived_func"] = function()
+      local y = 20
+    end
+
+    -- End of runtime loader
+    |}]
+
+let%expect_test "generate_loader with multi-symbol fragment" =
+  let frag = { Lua_link.
+    name = "multi";
+    provides = ["func1"; "func2"];
+    requires = [];
+    code = "return true"
+  } in
+  let loader = Lua_link.generate_loader [frag] in
+  print_string loader;
+  [%expect {|
+    -- Lua_of_ocaml runtime loader
+    -- This code registers runtime modules in package.loaded
+
+    -- Fragment: multi
+    package.loaded["func1"] = function()
+      return true
+    end
+    package.loaded["func2"] = function()
+      return true
+    end
+
+    -- End of runtime loader
+    |}]
+
+let%expect_test "generate_loader structure validation" =
+  let frag = { Lua_link.
+    name = "test";
+    provides = ["test"];
+    requires = [];
+    code = "x = 1"
+  } in
+  let loader = Lua_link.generate_loader [frag] in
+  (* Verify it has prologue *)
+  let has_prologue = String.contains loader 'L' in  (* "Lua_of_ocaml" *)
+  (* Verify it has registration *)
+  let has_registration = String.contains loader '[' in  (* package.loaded["..."] *)
+  (* Verify it has epilogue *)
+  let has_epilogue = String.contains loader 'E' in  (* "End" *)
+  print_endline (if has_prologue && has_registration && has_epilogue
+                 then "complete structure"
+                 else "incomplete structure");
+  [%expect {| complete structure |}]
 
 let%expect_test "link with empty program" =
   let state = Lua_link.init () in
