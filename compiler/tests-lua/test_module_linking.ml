@@ -1221,13 +1221,14 @@ let%expect_test "detect missing dependencies" =
     code = "-- code"
   } in
   let state = Lua_link.add_fragment state frag in
-  let ordered, missing = Lua_link.resolve_deps state ["func"] in
-  print_endline ("ordered: " ^ String.concat ~sep:", " ordered);
-  print_endline ("missing: " ^ String.concat ~sep:", " missing);
-  [%expect {|
-    ordered: incomplete
-    missing: missing_dep
-    |}]
+  (* Now raises error instead of returning missing in tuple *)
+  (try
+    let _ordered, _missing = Lua_link.resolve_deps state ["func"] in
+    print_endline "should have failed"
+  with Failure msg ->
+    let has_missing = String.contains msg 'M' in
+    print_endline (if has_missing then "missing dependency error raised" else "wrong error"));
+  [%expect {| missing dependency error raised |}]
 
 (* Task 3.3: Additional resolve_deps Integration Tests *)
 
@@ -1363,14 +1364,16 @@ let%expect_test "resolve_deps with complex missing dependencies" =
   } in
   let state = Lua_link.add_fragment state frag1 in
   let state = Lua_link.add_fragment state frag2 in
-  let ordered, missing = Lua_link.resolve_deps state ["b"] in
-  let missing_sorted = List.sort ~cmp:String.compare missing in
-  print_endline ("ordered: " ^ String.concat ~sep:", " ordered);
-  print_endline ("missing: " ^ String.concat ~sep:", " missing_sorted);
-  [%expect {|
-    ordered: a, b
-    missing: missing1, missing2
-    |}]
+  (* Now raises error instead of returning missing in tuple *)
+  (try
+    let _ordered, _missing = Lua_link.resolve_deps state ["b"] in
+    print_endline "should have failed"
+  with Failure msg ->
+    (* Should detect both missing1 and missing2 *)
+    let has_missing1 = String.contains msg '1' in
+    let has_missing2 = String.contains msg '2' in
+    print_endline (if has_missing1 && has_missing2 then "both missing detected" else "incomplete error"));
+  [%expect {| both missing detected |}]
 
 (* Task 4.1: Generate Module Registration Tests *)
 
@@ -2060,6 +2063,163 @@ let%expect_test "no cycle with complex dependencies" =
   print_int (List.length sorted);
   print_newline ();
   [%expect {| 4 |}]
+
+(* Task 6.2: Missing Dependency Reporting Tests *)
+
+let%expect_test "format_missing_error with empty set" =
+  let fragments = StringMap.empty in
+  let missing = StringSet.empty in
+  let error_msg = Lua_link.format_missing_error missing fragments in
+  print_string error_msg;
+  [%expect {| |}]
+
+let%expect_test "format_missing_error with single missing symbol" =
+  let frag = { Lua_link.
+    name = "test";
+    provides = [];
+    requires = ["missing_func"];
+    code = ""
+  } in
+  let fragments = StringMap.singleton "test" frag in
+  let missing = StringSet.singleton "missing_func" in
+  let error_msg = Lua_link.format_missing_error missing fragments in
+  print_string error_msg;
+  [%expect {|
+    Missing dependencies detected:
+      Symbol 'missing_func' required by:
+        - test
+
+      Possible solutions:
+        - Add runtime fragments that provide these symbols
+        - Check for typos in symbol names
+        - Ensure all required runtime files are loaded
+    |}]
+
+let%expect_test "format_missing_error with multiple missing symbols" =
+  let frag1 = { Lua_link.
+    name = "frag1";
+    provides = [];
+    requires = ["missing_a"; "missing_b"];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "frag2";
+    provides = [];
+    requires = ["missing_b"];
+    code = ""
+  } in
+  let fragments = StringMap.empty
+    |> StringMap.add "frag1" frag1
+    |> StringMap.add "frag2" frag2
+  in
+  let missing = StringSet.empty
+    |> StringSet.add "missing_a"
+    |> StringSet.add "missing_b"
+  in
+  let error_msg = Lua_link.format_missing_error missing fragments in
+  print_string error_msg;
+  [%expect {|
+    Missing dependencies detected:
+      Symbol 'missing_a' required by:
+        - frag1
+      Symbol 'missing_b' required by:
+        - frag1
+        - frag2
+
+      Possible solutions:
+        - Add runtime fragments that provide these symbols
+        - Check for typos in symbol names
+        - Ensure all required runtime files are loaded
+    |}]
+
+let%expect_test "missing dependency detection - single missing" =
+  let state = Lua_link.init () in
+  let frag = { Lua_link.
+    name = "test";
+    provides = ["test"];
+    requires = ["nonexistent"];
+    code = ""
+  } in
+  let state = Lua_link.add_fragment state frag in
+  (* Try to resolve - should fail with missing dependency error *)
+  (try
+    let _sorted, _missing = Lua_link.resolve_deps state ["test"] in
+    print_endline "should have failed"
+  with Failure msg ->
+    (* Check that error mentions missing dependency *)
+    let has_missing = String.contains msg 'M' in  (* "Missing" *)
+    let has_symbol = String.contains msg 's' in  (* "symbol" *)
+    print_endline (if has_missing && has_symbol then "missing dependency detected" else "wrong error"));
+  [%expect {| missing dependency detected |}]
+
+let%expect_test "missing dependency detection - multiple fragments" =
+  let state = Lua_link.init () in
+  let frag1 = { Lua_link.
+    name = "base";
+    provides = ["base"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "derived";
+    provides = ["derived"];
+    requires = ["base"; "unknown"];
+    code = ""
+  } in
+  let state = Lua_link.add_fragment state frag1 in
+  let state = Lua_link.add_fragment state frag2 in
+  (* Should detect unknown symbol *)
+  (try
+    let _sorted, _missing = Lua_link.resolve_deps state ["derived"] in
+    print_endline "should have failed"
+  with Failure msg ->
+    let has_error = String.contains msg 'M' in
+    print_endline (if has_error then "missing detected" else "wrong error"));
+  [%expect {| missing detected |}]
+
+let%expect_test "no missing dependencies - all provided" =
+  let state = Lua_link.init () in
+  let frag1 = { Lua_link.
+    name = "base";
+    provides = ["base"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "derived";
+    provides = ["derived"];
+    requires = ["base"];
+    code = ""
+  } in
+  let state = Lua_link.add_fragment state frag1 in
+  let state = Lua_link.add_fragment state frag2 in
+  (* Should succeed - all dependencies provided *)
+  let sorted, missing = Lua_link.resolve_deps state ["derived"] in
+  print_endline ("sorted: " ^ string_of_int (List.length sorted));
+  print_endline ("missing: " ^ string_of_int (List.length missing));
+  [%expect {|
+    sorted: 2
+    missing: 0
+    |}]
+
+let%expect_test "missing dependency error shows fragment names" =
+  let state = Lua_link.init () in
+  let frag = { Lua_link.
+    name = "my_fragment";
+    provides = ["my_func"];
+    requires = ["mystery_func"];
+    code = ""
+  } in
+  let state = Lua_link.add_fragment state frag in
+  (try
+    let _sorted, _missing = Lua_link.resolve_deps state ["my_func"] in
+    print_endline "should have failed"
+  with Failure msg ->
+    (* Check that error includes fragment name *)
+    let has_fragment_name = String.contains msg 'y' in  (* "my_fragment" has 'y' *)
+    let has_missing_symbol = String.contains msg 't' in  (* "mystery_func" has 't' *)
+    print_endline (if has_fragment_name && has_missing_symbol then "error shows details" else "incomplete error"));
+  [%expect {| error shows details |}]
 
 let%expect_test "multiple fragments with same provides" =
   let state = Lua_link.init () in

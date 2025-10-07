@@ -335,6 +335,36 @@ let format_cycle_error (cycle_nodes : string list) : string =
 
     Buffer.contents buf
 
+(* Format missing dependency error message *)
+let format_missing_error
+    (missing_symbols : StringSet.t)
+    (fragments : fragment StringMap.t)
+    : string =
+  if StringSet.is_empty missing_symbols
+  then ""
+  else
+    let buf = Buffer.create 256 in
+    Buffer.add_string buf "Missing dependencies detected:\n";
+
+    (* For each missing symbol, find which fragments require it *)
+    StringSet.iter
+      (fun symbol ->
+        Buffer.add_string buf ("  Symbol '" ^ symbol ^ "' required by:\n");
+        StringMap.iter
+          (fun _frag_name fragment ->
+            if List.mem ~eq:String.equal symbol fragment.requires
+            then Buffer.add_string buf ("    - " ^ fragment.name ^ "\n"))
+          fragments)
+      missing_symbols;
+
+    Buffer.add_string buf "\n";
+    Buffer.add_string buf "  Possible solutions:\n";
+    Buffer.add_string buf "    - Add runtime fragments that provide these symbols\n";
+    Buffer.add_string buf "    - Check for typos in symbol names\n";
+    Buffer.add_string buf "    - Ensure all required runtime files are loaded";
+
+    Buffer.contents buf
+
 (* Find missing dependencies: symbols required but not provided *)
 let find_missing_deps
     (fragments : fragment StringMap.t)
@@ -415,9 +445,15 @@ let resolve_deps state required =
   else
     (* Find missing dependencies *)
     let missing_set = find_missing_deps state.fragments provides_map in
-    let missing = StringSet.elements missing_set in
 
-    (sorted, missing)
+    (* Check for missing dependencies and report error *)
+    if not (StringSet.is_empty missing_set)
+    then
+      let error_msg = format_missing_error missing_set state.fragments in
+      failwith error_msg
+    else
+      let missing = StringSet.elements missing_set in
+      (sorted, missing)
 
 (* Generate module registration code for a fragment *)
 let generate_module_registration (fragment : fragment) : string =

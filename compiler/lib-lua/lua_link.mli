@@ -103,6 +103,12 @@ val format_cycle_error : string list -> string
     dependencies. Shows the fragments involved in the cycle chain. Returns empty string
     if cycle_nodes is empty. *)
 
+(** Format missing dependency error message *)
+val format_missing_error : StringSet.t -> fragment StringMap.t -> string
+(** [format_missing_error missing_symbols fragments] formats a user-friendly error message
+    for missing dependencies. Lists each missing symbol and which fragments require it.
+    Includes suggestions for resolving the issue. Returns empty string if no missing symbols. *)
+
 (** Find missing dependencies *)
 val find_missing_deps : fragment StringMap.t -> string StringMap.t -> StringSet.t
 (** [find_missing_deps fragments provides_map] returns the set of symbols that are required
@@ -113,8 +119,10 @@ val find_missing_deps : fragment StringMap.t -> string StringMap.t -> StringSet.
 val resolve_deps : state -> string list -> string list * string list
 (** [resolve_deps state required] returns [(ordered, missing)] where:
     - [ordered] is the topologically sorted list of required modules
-    - [missing] is the list of missing dependencies
-    Raises [Failure] with a formatted error message if circular dependencies are detected. *)
+    - [missing] is the list of missing dependencies (always empty on success)
+    Raises [Failure] with a formatted error message if:
+    - Circular dependencies are detected
+    - Missing dependencies are found *)
 
 (** Generate module registration code for a fragment *)
 val generate_module_registration : fragment -> string

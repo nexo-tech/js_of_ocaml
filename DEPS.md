@@ -273,15 +273,17 @@ Generate Lua code that:
 - **Test**: Circular deps → clear error message
 - **Status**: COMPLETED - Commit 4989d7f2
 
-### Task 6.2: Missing Dependency Reporting
+### Task 6.2: Missing Dependency Reporting ✅
 - **File**: `compiler/lib-lua/lua_link.ml`
-- **Lines**: ~20
-- **Function**: `format_missing_error : StringSet.t -> string`
+- **Lines**: ~28
+- **Function**: `format_missing_error : StringSet.t -> fragment StringMap.t -> string`
 - **Logic**:
   - List all missing symbols
-  - Show which fragments require them
-  - Suggest possible solutions
+  - Show which fragments require them (iterates fragments to find requirers)
+  - Suggest possible solutions (add fragments, check typos, load runtime files)
+  - Updated resolve_deps to check for missing dependencies and raise Failure
 - **Test**: Missing deps → helpful error message
+- **Status**: COMPLETED - Commit b3e8f5a1
 
 ### Task 6.3: Duplicate Provides Handling
 - **File**: `compiler/lib-lua/lua_link.ml`
