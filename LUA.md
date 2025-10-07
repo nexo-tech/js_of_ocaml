@@ -87,11 +87,11 @@ This document outlines the implementation plan for adding Lua as a compilation t
 - **Commit**: "feat: Implement array operations for Lua"
 
 #### Task 2.5: Exception Handling Runtime
-- [ ] Create `runtime/lua/exceptions.lua`
-- [ ] Implement OCaml exception propagation
-- [ ] Map to Lua error handling with pcall
-- **Output**: ~250 lines
-- **Test**: Exception raising and catching tests
+- [x] Create `runtime/lua/fail.lua`
+- [x] Implement OCaml exception propagation
+- [x] Map to Lua error handling with pcall
+- **Output**: ~250 lines (304 lines actual)
+- **Test**: Exception raising and catching tests ✓
 - **Commit**: "feat: Add exception handling runtime"
 
 ### Phase 3: Value Representation (Week 3-4)
