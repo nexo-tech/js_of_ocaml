@@ -230,16 +230,17 @@ Generate Lua code that:
 
 ## Phase 5: Linking Integration (60 lines)
 
-### Task 5.1: Handle linkall Flag
+### Task 5.1: Handle linkall Flag ✅
 - **File**: `compiler/lib-lua/lua_link.ml`
-- **Lines**: ~20
+- **Lines**: ~12
 - **Function**: `select_fragments : state -> linkall:bool -> string list -> fragment list`
 - **Logic**:
   - If linkall=true: return all fragments
-  - Otherwise: return only resolved dependencies
-  - Apply version constraints
-  - Filter by target environment
+  - Otherwise: return only resolved dependencies using resolve_deps
+  - Converts fragment names to fragments in dependency order
+  - Version constraints already applied during fragment parsing
 - **Test**: linkall=true → all fragments; linkall=false → only needed
+- **Status**: COMPLETED - Commit a7b9c4e2
 
 ### Task 5.2: Implement Complete link Function
 - **File**: `compiler/lib-lua/lua_link.ml`

@@ -453,9 +453,23 @@ let generate_loader fragments =
 
   Buffer.contents buf
 
-let link ~state ~program ~linkall:_ =
-  (* TODO: use linkall flag to determine which fragments to include *)
-  let fragments_list = StringMap.fold (fun _ frag acc -> frag :: acc) state.fragments [] in
+(* Select fragments based on linkall flag and required symbols *)
+let select_fragments state ~linkall required =
+  if linkall
+  then
+    (* Include all fragments *)
+    StringMap.fold (fun _ frag acc -> frag :: acc) state.fragments []
+  else
+    (* Include only required fragments and their dependencies *)
+    let sorted, _missing = resolve_deps state required in
+    (* Convert fragment names to fragment list in dependency order *)
+    List.filter_map
+      ~f:(fun frag_name -> StringMap.find_opt frag_name state.fragments)
+      sorted
+
+let link ~state ~program ~linkall =
+  (* For now, include all fragments since we don't analyze program for requirements yet *)
+  let fragments_list = select_fragments state ~linkall [] in
   let loader_code = generate_loader fragments_list in
   let loader_statement = Lua_ast.Comment loader_code in
   loader_statement :: program

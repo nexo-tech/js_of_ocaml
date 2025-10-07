@@ -1648,6 +1648,135 @@ let%expect_test "generate_loader structure validation" =
                  else "incomplete structure");
   [%expect {| complete structure |}]
 
+(* Task 5.1: Select Fragments Tests *)
+
+let%expect_test "select_fragments with linkall=true includes all" =
+  let state = Lua_link.init () in
+  let frag1 = { Lua_link.
+    name = "frag1";
+    provides = ["f1"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "frag2";
+    provides = ["f2"];
+    requires = [];
+    code = ""
+  } in
+  let state = Lua_link.add_fragment state frag1 in
+  let state = Lua_link.add_fragment state frag2 in
+  let fragments = Lua_link.select_fragments state ~linkall:true [] in
+  print_int (List.length fragments);
+  print_newline ();
+  [%expect {| 2 |}]
+
+let%expect_test "select_fragments with linkall=false and empty required" =
+  let state = Lua_link.init () in
+  let frag = { Lua_link.
+    name = "frag";
+    provides = ["f"];
+    requires = [];
+    code = ""
+  } in
+  let state = Lua_link.add_fragment state frag in
+  let fragments = Lua_link.select_fragments state ~linkall:false [] in
+  print_int (List.length fragments);
+  print_newline ();
+  [%expect {| 0 |}]
+
+let%expect_test "select_fragments with linkall=false and required symbols" =
+  let state = Lua_link.init () in
+  let frag1 = { Lua_link.
+    name = "base";
+    provides = ["base_func"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "derived";
+    provides = ["derived_func"];
+    requires = ["base_func"];
+    code = ""
+  } in
+  let frag3 = { Lua_link.
+    name = "unused";
+    provides = ["unused_func"];
+    requires = [];
+    code = ""
+  } in
+  let state = Lua_link.add_fragment state frag1 in
+  let state = Lua_link.add_fragment state frag2 in
+  let state = Lua_link.add_fragment state frag3 in
+  (* Request only derived_func, should get both base and derived *)
+  let fragments = Lua_link.select_fragments state ~linkall:false ["derived_func"] in
+  let names = List.map ~f:(fun f -> f.Lua_link.name) fragments in
+  List.iter ~f:(fun name -> print_endline name) names;
+  [%expect {|
+    base
+    derived
+    |}]
+
+let%expect_test "select_fragments respects dependency order" =
+  let state = Lua_link.init () in
+  let frag1 = { Lua_link.
+    name = "a";
+    provides = ["a"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "b";
+    provides = ["b"];
+    requires = ["a"];
+    code = ""
+  } in
+  let frag3 = { Lua_link.
+    name = "c";
+    provides = ["c"];
+    requires = ["b"];
+    code = ""
+  } in
+  let state = Lua_link.add_fragment state frag1 in
+  let state = Lua_link.add_fragment state frag2 in
+  let state = Lua_link.add_fragment state frag3 in
+  let fragments = Lua_link.select_fragments state ~linkall:false ["c"] in
+  let names = List.map ~f:(fun f -> f.Lua_link.name) fragments in
+  List.iter ~f:(fun name -> print_endline name) names;
+  [%expect {|
+    a
+    b
+    c
+    |}]
+
+let%expect_test "select_fragments with multiple required symbols" =
+  let state = Lua_link.init () in
+  let frag1 = { Lua_link.
+    name = "f1";
+    provides = ["s1"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "f2";
+    provides = ["s2"];
+    requires = [];
+    code = ""
+  } in
+  let frag3 = { Lua_link.
+    name = "f3";
+    provides = ["s3"];
+    requires = [];
+    code = ""
+  } in
+  let state = Lua_link.add_fragment state frag1 in
+  let state = Lua_link.add_fragment state frag2 in
+  let state = Lua_link.add_fragment state frag3 in
+  let fragments = Lua_link.select_fragments state ~linkall:false ["s1"; "s3"] in
+  print_int (List.length fragments);
+  print_newline ();
+  [%expect {| 2 |}]
+
 let%expect_test "link with empty program" =
   let state = Lua_link.init () in
   let program = [] in

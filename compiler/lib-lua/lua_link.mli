@@ -127,6 +127,12 @@ val generate_loader_epilogue : fragment list -> string
 val generate_loader : fragment list -> string
 (** Generates Lua code that registers all modules using Lua's module system *)
 
+(** Select fragments based on linkall flag and required symbols *)
+val select_fragments : state -> linkall:bool -> string list -> fragment list
+(** [select_fragments state ~linkall required] selects which fragments to include in the link.
+    If [linkall] is true, returns all fragments. Otherwise, returns only fragments needed to
+    satisfy [required] symbols and their transitive dependencies, in dependency order. *)
+
 (** Link fragments with a main program *)
 val link :
      state:state
