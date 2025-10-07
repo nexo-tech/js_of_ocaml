@@ -328,7 +328,7 @@ Generate Lua code that:
   - Trailing/leading commas in symbol lists
   - Case sensitivity in header directives
   - Header parsing stops at first code line
-- **Status**: COMPLETED - Commit TBD
+- **Status**: COMPLETED - Commit 52a5c9dc
 
 ### Task 7.2: Unit Tests for Dependency Resolution
 - **File**: `compiler/tests-lua/test_module_linking.ml`
