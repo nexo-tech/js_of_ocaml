@@ -315,7 +315,7 @@ Generate Lua code that:
 
 ## Phase 7: Testing (Complete Coverage)
 
-### Task 7.1: Unit Tests for Header Parsing
+### Task 7.1: Unit Tests for Header Parsing ✅
 - **File**: `compiler/tests-lua/test_module_linking.ml`
 - **Tests**:
   - Parse empty headers
@@ -323,6 +323,12 @@ Generate Lua code that:
   - Parse multiple provides/requires
   - Parse version constraints
   - Parse malformed headers (error cases)
+  - Empty code and code without headers
+  - Mixed header types and duplicate headers
+  - Trailing/leading commas in symbol lists
+  - Case sensitivity in header directives
+  - Header parsing stops at first code line
+- **Status**: COMPLETED - Commit TBD
 
 ### Task 7.2: Unit Tests for Dependency Resolution
 - **File**: `compiler/tests-lua/test_module_linking.ml`

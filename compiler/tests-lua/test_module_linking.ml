@@ -2451,3 +2451,114 @@ let%expect_test "version constraint affects fragment loading" =
     frag1 provides: 1
     frag2 provides: 0
     |}]
+
+(* Task 7.1: Additional Header Parsing Edge Cases for Complete Coverage *)
+
+let%expect_test "parse_provides with malformed header - missing colon" =
+  let line = "--// Provides foo, bar" in
+  let result = Lua_link.parse_provides line in
+  print_endline (String.concat ~sep:", " result);
+  [%expect {| |}]
+
+let%expect_test "parse_requires with malformed header - missing colon" =
+  let line = "--// Requires foo, bar" in
+  let result = Lua_link.parse_requires line in
+  print_endline (String.concat ~sep:", " result);
+  [%expect {| |}]
+
+let%expect_test "parse_version with malformed operator" =
+  let line = "--// Version: >> 5.0" in
+  (* Malformed version will cause int_of_string exception during parsing *)
+  (try
+     let result = Lua_link.parse_version line in
+     print_endline (if result then "accepted" else "rejected")
+   with Failure _ -> print_endline "parse error");
+  [%expect {| parse error |}]
+
+let%expect_test "parse_fragment_header with empty code" =
+  let code = "" in
+  let fragment = Lua_link.parse_fragment_header ~name:"empty" code in
+  print_endline ("name: " ^ fragment.name);
+  print_endline ("provides: " ^ String.concat ~sep:", " fragment.provides);
+  print_endline ("requires: " ^ String.concat ~sep:", " fragment.requires);
+  [%expect {|
+    name: empty
+    provides: empty
+    requires:
+    |}]
+
+let%expect_test "parse_fragment_header with only code, no headers" =
+  let code = "local x = 1\nreturn x" in
+  let fragment = Lua_link.parse_fragment_header ~name:"no_headers" code in
+  print_endline ("name: " ^ fragment.name);
+  print_endline ("provides: " ^ String.concat ~sep:", " fragment.provides);
+  print_endline ("requires: " ^ String.concat ~sep:", " fragment.requires);
+  [%expect {|
+    name: no_headers
+    provides: no_headers
+    requires:
+    |}]
+
+let%expect_test "parse_fragment_header with mixed header types" =
+  let code = {|--// Provides: api
+-- Regular comment
+--// Requires: base
+--// Version: >= 4.14
+-- Another comment
+--// Provides: utils
+
+local function api() end
+|} in
+  let fragment = Lua_link.parse_fragment_header ~name:"mixed" code in
+  (* Last Provides overrides earlier ones *)
+  print_endline ("provides: " ^ String.concat ~sep:", " fragment.provides);
+  print_endline ("requires: " ^ String.concat ~sep:", " fragment.requires);
+  [%expect {|
+    provides: utils
+    requires: base
+    |}]
+
+let%expect_test "parse_provides handles trailing comma" =
+  let line = "--// Provides: foo, bar," in
+  let result = Lua_link.parse_provides line in
+  print_endline (String.concat ~sep:", " result);
+  [%expect {| foo, bar |}]
+
+let%expect_test "parse_requires handles leading comma" =
+  let line = "--// Requires: , foo, bar" in
+  let result = Lua_link.parse_requires line in
+  print_endline (String.concat ~sep:", " result);
+  [%expect {| foo, bar |}]
+
+let%expect_test "parse_fragment_header case sensitivity in headers" =
+  let code = {|--// provides: foo
+--// REQUIRES: bar
+--// VERSION: >= 5.0
+
+return true
+|} in
+  let fragment = Lua_link.parse_fragment_header ~name:"case_test" code in
+  (* Should not match due to case sensitivity *)
+  print_endline ("provides: " ^ String.concat ~sep:", " fragment.provides);
+  print_endline ("requires: " ^ String.concat ~sep:", " fragment.requires);
+  [%expect {|
+    provides: case_test
+    requires:
+    |}]
+
+let%expect_test "parse_fragment_header stops at first code line" =
+  let code = {|--// Provides: foo
+--// Requires: bar
+local x = 1
+--// Provides: ignored
+--// Requires: also_ignored
+
+return x
+|} in
+  let fragment = Lua_link.parse_fragment_header ~name:"stops" code in
+  print_endline ("provides: " ^ String.concat ~sep:", " fragment.provides);
+  print_endline ("requires: " ^ String.concat ~sep:", " fragment.requires);
+  [%expect {|
+    provides: foo
+    requires: bar
+    |}]
