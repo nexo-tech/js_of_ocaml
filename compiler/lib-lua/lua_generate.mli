@@ -26,6 +26,12 @@ val make_context : debug:bool -> context
     @param debug Enable debug output
     @return Fresh context *)
 
+val make_context_with_program : debug:bool -> Code.program -> context
+(** Create a context with program for closure generation
+    @param debug Enable debug output
+    @param program Full program for closure generation
+    @return Context with program *)
+
 val var_name : context -> Code.Var.t -> string
 (** Get or create Lua variable name for an IR variable
     @param context Code generation context

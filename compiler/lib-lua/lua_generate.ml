@@ -44,6 +44,7 @@ type var_context =
 type context =
   { vars : var_context  (** Variable name mapping *)
   ; _debug : bool  (** Enable debug output *)
+  ; program : Code.program option  (** Full program for closure generation *)
   }
 
 (** {2 Context Operations} *)
@@ -52,7 +53,11 @@ type context =
 let make_var_context () = { var_map = Code.Var.Map.empty; var_counter = 0 }
 
 (** Create a new code generation context *)
-let make_context ~debug = { vars = make_var_context (); _debug = debug }
+let make_context ~debug = { vars = make_var_context (); _debug = debug; program = None }
+
+(** Create a context with program for closure generation *)
+let make_context_with_program ~debug program =
+  { vars = make_var_context (); _debug = debug; program = Some program }
 
 (** Generate a fresh Lua variable name
     @param ctx Variable context
@@ -202,12 +207,14 @@ let generate_prim ctx prim args =
       in
       L.Call (L.Ident ("caml_prim_" ^ prim_name), arg_exprs)
 
+(** {2 Expression and Statement Generation (mutually recursive with control flow)} *)
+
 (** Generate Lua expression from Code expression
     @param ctx Code generation context
     @param expr IR expression
     @return Lua expression
 *)
-let generate_expr ctx expr =
+let rec generate_expr ctx expr =
   match expr with
   | Code.Constant c -> generate_constant c
   | Code.Apply { f; args; exact = _ } ->
@@ -227,10 +234,9 @@ let generate_expr ctx expr =
       (* Field access: v[idx + 1] (adjust for Lua 1-indexing) *)
       let obj = var_ident ctx v in
       L.Index (obj, L.Number (string_of_int (idx + 1)))
-  | Code.Closure _ ->
-      (* Closure generation - placeholder for now *)
-      (* Will be fully implemented when we handle function definitions *)
-      L.Ident "caml_closure"
+  | Code.Closure (params, (pc, _args), _loc) ->
+      (* Generate function closure *)
+      generate_closure ctx params pc
   | Code.Prim (prim, args) -> generate_prim ctx prim args
   | Code.Special _ ->
       (* Special forms - placeholder *)
@@ -243,7 +249,7 @@ let generate_expr ctx expr =
     @param instr IR instruction
     @return Lua statement
 *)
-let generate_instr ctx instr =
+and generate_instr ctx instr =
   match instr with
   | Code.Let (var, expr) ->
       (* Generate local variable declaration with initialization *)
@@ -287,8 +293,10 @@ let generate_instr ctx instr =
     @param instrs List of IR instructions
     @return List of Lua statements
 *)
-let generate_instrs ctx instrs =
+and generate_instrs ctx instrs =
   List.map ~f:(generate_instr ctx) instrs
+
+(** {2 Control Flow Generation} *)
 
 (** Generate Lua statement(s) from Code last (terminator)
     This version handles control flow by generating inline statements.
@@ -299,7 +307,7 @@ let generate_instrs ctx instrs =
     @param last IR terminator
     @return List of Lua statements
 *)
-let rec generate_last_with_program ctx program last =
+and generate_last_with_program ctx program last =
   match last with
   | Code.Return var ->
       (* Generate return statement *)
@@ -403,6 +411,51 @@ and generate_block_with_program ctx program block =
   let last_stmts = generate_last_with_program ctx program block.Code.branch in
   body_stmts @ last_stmts
 
+(** {2 Function/Closure Generation} *)
+
+(** Detect if a last is a tail call to the given address
+    @param last Last instruction
+    @param target_pc Target address to check for tail recursion
+    @return true if this is a tail call to target_pc
+*)
+and is_tail_call_to last target_pc =
+  match last with
+  | Code.Branch (pc, _) when pc = target_pc -> true
+  | _ -> false
+
+(** Generate Lua function from closure with tail call optimization
+    @param ctx Code generation context
+    @param params Parameter list
+    @param pc Program counter pointing to function body
+    @return Lua function expression
+*)
+and generate_closure ctx params pc =
+  match ctx.program with
+  | None ->
+      (* No program context - return placeholder *)
+      L.Ident "caml_closure"
+  | Some program -> (
+      match Code.Addr.Map.find_opt pc program.Code.blocks with
+      | None ->
+          (* Block not found - return placeholder *)
+          L.Ident "caml_closure"
+      | Some block ->
+          (* Generate function with parameters *)
+          let param_names = List.map ~f:(var_name ctx) params in
+          (* Check if this function has tail recursion *)
+          let has_tail_recursion = is_tail_call_to block.Code.branch pc in
+          let body_stmts =
+            if has_tail_recursion
+            then
+              (* Wrap body in while true loop with tail_call label *)
+              let label_stmt = L.Label "tail_call" in
+              let inner_body = generate_block_with_program ctx program block in
+              let while_loop = L.While (L.Bool true, label_stmt :: inner_body) in
+              [ while_loop ]
+            else generate_block_with_program ctx program block
+          in
+          L.Function (param_names, false, body_stmts))
+
 (** Backward compatibility: generate_last without program
     This version generates placeholder blocks for control flow
 *)
@@ -458,7 +511,7 @@ let generate_main ctx =
     @return Lua program (list of statements)
 *)
 let generate ~debug program =
-  let ctx = make_context ~debug in
+  let ctx = make_context_with_program ~debug program in
 
   (* For now, just generate minimal structure *)
   (* TODO: Implement full program generation in later tasks *)
