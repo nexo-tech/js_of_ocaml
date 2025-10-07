@@ -296,7 +296,7 @@ Generate Lua code that:
   - Updated build_provides_map to use last provider (override behavior)
   - Called from resolve_deps to ensure warnings are issued
 - **Test**: Duplicate provides → warning with all fragment names
-- **Status**: COMPLETED - Commit 9a1c2d3e
+- **Status**: COMPLETED - Commit 0d64ced0
 
 ### Task 6.4: Version Constraint Validation
 - **File**: `compiler/lib-lua/lua_link.ml`
