@@ -6,6 +6,7 @@ This document outlines the implementation plan for adding Lua as a compilation t
 **Documentation References**:
 - [ARCH.md](ARCH.md) - Detailed architectural guidance, code reuse strategies, and implementation patterns
 - [RUNTIME.md](RUNTIME.md) - Runtime API design, OCaml-Lua interop, stdlib implementation, and Neovim plugin examples
+- [COMPAT.md](COMPAT.md) - Lua version compatibility implementation plan (Lua 5.1, 5.4, LuaJIT, Luau)
 
 ## Master Checklist
 
