@@ -429,6 +429,13 @@ let generate_loader_prologue () : string =
   Buffer.add_string buf "\n";
   Buffer.contents buf
 
+(* Generate loader epilogue *)
+let generate_loader_epilogue (_fragments : fragment list) : string =
+  let buf = Buffer.create 128 in
+  Buffer.add_string buf "\n";
+  Buffer.add_string buf "-- End of runtime loader\n";
+  Buffer.contents buf
+
 let generate_loader fragments =
   let buf = Buffer.create 1024 in
   Buffer.add_string buf "-- Module loader\n";

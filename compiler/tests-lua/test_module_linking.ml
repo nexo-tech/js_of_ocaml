@@ -1494,6 +1494,52 @@ let%expect_test "generate_loader_prologue ends with newline" =
   print_endline (if ends_with_newline then "ends with newline" else "no newline");
   [%expect {| ends with newline |}]
 
+(* Task 4.3: Generate Loader Epilogue Tests *)
+
+let%expect_test "generate_loader_epilogue produces footer" =
+  let fragments = [] in
+  let epilogue = Lua_link.generate_loader_epilogue fragments in
+  print_string epilogue;
+  [%expect {|
+
+    -- End of runtime loader
+    |}]
+
+let%expect_test "generate_loader_epilogue with fragments" =
+  let frag1 = { Lua_link.
+    name = "test";
+    provides = ["test"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "other";
+    provides = ["other"];
+    requires = [];
+    code = ""
+  } in
+  let epilogue = Lua_link.generate_loader_epilogue [frag1; frag2] in
+  print_string epilogue;
+  [%expect {|
+
+    -- End of runtime loader
+    |}]
+
+let%expect_test "generate_loader_epilogue is consistent" =
+  let fragments = [] in
+  let epilogue1 = Lua_link.generate_loader_epilogue fragments in
+  let epilogue2 = Lua_link.generate_loader_epilogue fragments in
+  print_endline (if String.equal epilogue1 epilogue2 then "consistent" else "inconsistent");
+  [%expect {| consistent |}]
+
+let%expect_test "generate_loader_epilogue starts with newline" =
+  let fragments = [] in
+  let epilogue = Lua_link.generate_loader_epilogue fragments in
+  let starts_with_newline = String.length epilogue > 0 &&
+                            Char.equal (String.get epilogue 0) '\n' in
+  print_endline (if starts_with_newline then "starts with newline" else "no newline");
+  [%expect {| starts with newline |}]
+
 let%expect_test "generate module loader" =
   let frag1 = { Lua_link.
     name = "module1";

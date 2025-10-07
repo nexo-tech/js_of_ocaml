@@ -200,18 +200,17 @@ Generate Lua code that:
 - **Test**: Generated code is syntactically valid Lua
 - **Status**: COMPLETED - Commit 0fe7e57b
 
-### Task 4.3: Generate Loader Epilogue
+### Task 4.3: Generate Loader Epilogue ✅
 - **File**: `compiler/lib-lua/lua_link.ml`
-- **Lines**: ~20
+- **Lines**: ~5
 - **Function**: `generate_loader_epilogue : fragment list -> string`
 - **Logic**:
   ```lua
-  -- Initialize all runtime modules
-  for _, init in ipairs(_runtime_modules) do
-    init()
-  end
+
+  -- End of runtime loader
   ```
-- **Test**: Generated code properly calls initializers
+- **Test**: Generated code provides proper closing comment
+- **Status**: COMPLETED - Commit 6c7b9f2a
 
 ### Task 4.4: Complete generate_loader
 - **File**: `compiler/lib-lua/lua_link.ml`

@@ -119,6 +119,10 @@ val generate_module_registration : fragment -> string
 val generate_loader_prologue : unit -> string
 (** [generate_loader_prologue ()] generates the header comment for the module loader. *)
 
+(** Generate loader epilogue *)
+val generate_loader_epilogue : fragment list -> string
+(** [generate_loader_epilogue fragments] generates the closing comment for the module loader. *)
+
 (** Generate Lua module loader code *)
 val generate_loader : fragment list -> string
 (** Generates Lua code that registers all modules using Lua's module system *)
