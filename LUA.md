@@ -165,11 +165,11 @@ This document outlines the implementation plan for adding Lua as a compilation t
 ### Phase 5: Primitive Operations (Week 5-6)
 
 #### Task 5.1: Arithmetic Primitives
-- [ ] Map OCaml arithmetic to Lua operations
-- [ ] Handle overflow semantics
-- [ ] Implement comparison operations
-- **Output**: ~250 lines
-- **Test**: Arithmetic primitive tests
+- [x] Map OCaml arithmetic to Lua operations
+- [x] Handle overflow semantics
+- [x] Implement comparison operations
+- **Output**: ~250 lines (~80 lines implementation + 390 lines tests)
+- **Test**: Arithmetic primitive tests ✓ (42 tests covering int, int32, nativeint, float, bitwise ops)
 - **Commit**: "feat: Implement arithmetic primitives"
 
 #### Task 5.2: String Primitives

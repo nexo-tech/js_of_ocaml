@@ -66,9 +66,10 @@ let%expect_test "generate closure - simple function" =
   [%expect
     {|
     function(v0, v1)
-      local v2 = caml_add(v0, v1)
+      local v2 = v0 + v1
       return v2
-    end |}]
+    end
+    |}]
 
 let%expect_test "generate closure - zero parameters" =
   let result = var_of_int 1 in
@@ -239,7 +240,7 @@ let%expect_test "generate closure - nested closures" =
     {|
     function(v0)
       local v1 = function(v2)
-        local v3 = caml_add(v0, v2)
+        local v3 = v0 + v2
         return v3
       end
       return v1
@@ -361,10 +362,11 @@ let%expect_test "generate closure - three parameters" =
   [%expect
     {|
     function(v0, v1, v2)
-      local v3 = caml_add(v0, v1)
-      local v4 = caml_add(v3, v2)
+      local v3 = v0 + v1
+      local v4 = v3 + v2
       return v4
-    end |}]
+    end
+    |}]
 
 (* Closure without program context (placeholder) *)
 

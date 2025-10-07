@@ -184,11 +184,85 @@ let generate_prim ctx prim args =
   | Code.Array_get, [ arr; idx ] ->
       (* Array access: arr[idx + 1] (Lua is 1-indexed) *)
       L.Index (arr, L.BinOp (L.Add, idx, L.Number "1"))
-  (* External primitive call *)
-  | Code.Extern name, args ->
-      (* Call external primitive function *)
-      let prim_func = L.Ident ("caml_" ^ name) in
-      L.Call (prim_func, args)
+  (* External primitive call - map common operations to Lua operators *)
+  | Code.Extern name, args -> (
+      match name, args with
+      (* Integer arithmetic operations *)
+      | "add", [ e1; e2 ] -> L.BinOp (L.Add, e1, e2)
+      | "sub", [ e1; e2 ] -> L.BinOp (L.Sub, e1, e2)
+      | "mul", [ e1; e2 ] -> L.BinOp (L.Mul, e1, e2)
+      | "div", [ e1; e2 ] ->
+          (* Integer division in Lua 5.3+ *)
+          L.BinOp (L.IDiv, e1, e2)
+      | "mod", [ e1; e2 ] -> L.BinOp (L.Mod, e1, e2)
+      (* Int32/NativeInt operations (aliases for int operations) *)
+      | "int32_add", [ e1; e2 ] -> L.BinOp (L.Add, e1, e2)
+      | "int32_sub", [ e1; e2 ] -> L.BinOp (L.Sub, e1, e2)
+      | "int32_mul", [ e1; e2 ] -> L.BinOp (L.Mul, e1, e2)
+      | "int32_div", [ e1; e2 ] -> L.BinOp (L.IDiv, e1, e2)
+      | "int32_mod", [ e1; e2 ] -> L.BinOp (L.Mod, e1, e2)
+      | "nativeint_add", [ e1; e2 ] -> L.BinOp (L.Add, e1, e2)
+      | "nativeint_sub", [ e1; e2 ] -> L.BinOp (L.Sub, e1, e2)
+      | "nativeint_mul", [ e1; e2 ] -> L.BinOp (L.Mul, e1, e2)
+      | "nativeint_div", [ e1; e2 ] -> L.BinOp (L.IDiv, e1, e2)
+      | "nativeint_mod", [ e1; e2 ] -> L.BinOp (L.Mod, e1, e2)
+      (* Floating point arithmetic *)
+      | "float_add", [ e1; e2 ] -> L.BinOp (L.Add, e1, e2)
+      | "float_sub", [ e1; e2 ] -> L.BinOp (L.Sub, e1, e2)
+      | "float_mul", [ e1; e2 ] -> L.BinOp (L.Mul, e1, e2)
+      | "float_div", [ e1; e2 ] -> L.BinOp (L.Div, e1, e2)
+      | "float_mod", [ e1; e2 ] -> L.BinOp (L.Mod, e1, e2)
+      | "float_pow", [ e1; e2 ] -> L.BinOp (L.Pow, e1, e2)
+      (* Unary operations *)
+      | "neg", [ e ] -> L.UnOp (L.Neg, e)
+      | "int32_neg", [ e ] -> L.UnOp (L.Neg, e)
+      | "nativeint_neg", [ e ] -> L.UnOp (L.Neg, e)
+      | "float_neg", [ e ] -> L.UnOp (L.Neg, e)
+      (* Bitwise operations (Lua 5.3+) *)
+      | "and", [ e1; e2 ] -> L.BinOp (L.BAnd, e1, e2)
+      | "or", [ e1; e2 ] -> L.BinOp (L.BOr, e1, e2)
+      | "xor", [ e1; e2 ] -> L.BinOp (L.BXor, e1, e2)
+      | "lsl", [ e1; e2 ] -> L.BinOp (L.Shl, e1, e2)
+      | "lsr", [ e1; e2 ] -> L.BinOp (L.Shr, e1, e2)
+      | "asr", [ e1; e2 ] -> L.BinOp (L.Shr, e1, e2) (* arithmetic shift right *)
+      | "int32_and", [ e1; e2 ] -> L.BinOp (L.BAnd, e1, e2)
+      | "int32_or", [ e1; e2 ] -> L.BinOp (L.BOr, e1, e2)
+      | "int32_xor", [ e1; e2 ] -> L.BinOp (L.BXor, e1, e2)
+      | "int32_lsl", [ e1; e2 ] -> L.BinOp (L.Shl, e1, e2)
+      | "int32_lsr", [ e1; e2 ] -> L.BinOp (L.Shr, e1, e2)
+      | "int32_asr", [ e1; e2 ] -> L.BinOp (L.Shr, e1, e2)
+      | "nativeint_and", [ e1; e2 ] -> L.BinOp (L.BAnd, e1, e2)
+      | "nativeint_or", [ e1; e2 ] -> L.BinOp (L.BOr, e1, e2)
+      | "nativeint_xor", [ e1; e2 ] -> L.BinOp (L.BXor, e1, e2)
+      | "nativeint_lsl", [ e1; e2 ] -> L.BinOp (L.Shl, e1, e2)
+      | "nativeint_lsr", [ e1; e2 ] -> L.BinOp (L.Shr, e1, e2)
+      | "nativeint_asr", [ e1; e2 ] -> L.BinOp (L.Shr, e1, e2)
+      (* Integer comparison *)
+      | "int_compare", [ e1; e2 ] ->
+          (* Returns -1, 0, or 1 *)
+          L.Call
+            ( L.Ident "caml_int_compare"
+            , [ e1; e2 ] )
+      | "int32_compare", [ e1; e2 ] ->
+          L.Call (L.Ident "caml_int32_compare", [ e1; e2 ])
+      | "nativeint_compare", [ e1; e2 ] ->
+          L.Call (L.Ident "caml_nativeint_compare", [ e1; e2 ])
+      (* Float comparison *)
+      | "float_compare", [ e1; e2 ] ->
+          L.Call (L.Ident "caml_float_compare", [ e1; e2 ])
+      (* Greater than comparisons *)
+      | "gt", [ e1; e2 ] -> L.BinOp (L.Gt, e1, e2)
+      | "ge", [ e1; e2 ] -> L.BinOp (L.Ge, e1, e2)
+      (* Type conversions *)
+      | "int_of_float", [ e ] ->
+          L.Call (L.Ident "math.floor", [ e ])
+      | "float_of_int", [ e ] ->
+          (* In Lua, numbers are already float-compatible *)
+          e
+      (* Default: call external primitive function *)
+      | _, args ->
+          let prim_func = L.Ident ("caml_" ^ name) in
+          L.Call (prim_func, args))
   (* Fallback for other cases *)
   | _ ->
       (* Generate runtime call for unhandled primitives *)
