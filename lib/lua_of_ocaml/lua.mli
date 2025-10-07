@@ -219,3 +219,104 @@ module Opt : sig
 
   val to_option : 'a t -> 'a option
 end
+
+(** {1 Convenience Functions for Calling Lua from OCaml} *)
+
+(** {2 Function Call Helpers} *)
+
+(** [call0 fn] calls a Lua function with no arguments *)
+val call0 : (unit, 'b) fn t -> 'b t
+
+(** [call1 fn arg] calls a Lua function with one argument *)
+val call1 : ('a, 'b) fn t -> 'a t -> 'b t
+
+(** [call2 fn arg1 arg2] calls a Lua function with two arguments *)
+val call2 : ('a * 'b, 'c) fn t -> 'a t -> 'b t -> 'c t
+
+(** [call3 fn arg1 arg2 arg3] calls a Lua function with three arguments *)
+val call3 : ('a * 'b * 'c, 'd) fn t -> 'a t -> 'b t -> 'c t -> 'd t
+
+(** [calln fn args] calls a Lua function with an array of arguments *)
+val calln : ('a, 'b) fn t -> any array -> 'b t
+
+(** {2 Global Variable Helpers} *)
+
+(** [get_global_fn name] gets a global Lua function *)
+val get_global_fn : string -> ('a, 'b) fn t
+
+(** [get_global_table name] gets a global Lua table *)
+val get_global_table : string -> 'a table t
+
+(** [get_global_int name] gets a global Lua integer *)
+val get_global_int : string -> int
+
+(** [get_global_number name] gets a global Lua number *)
+val get_global_number : string -> float
+
+(** [get_global_string name] gets a global Lua string *)
+val get_global_string : string -> string
+
+(** [get_global_bool name] gets a global Lua boolean *)
+val get_global_bool : string -> bool
+
+(** [set_global_int name value] sets a global Lua integer *)
+val set_global_int : string -> int -> unit
+
+(** [set_global_number name value] sets a global Lua number *)
+val set_global_number : string -> float -> unit
+
+(** [set_global_string name value] sets a global Lua string *)
+val set_global_string : string -> string -> unit
+
+(** [set_global_bool name value] sets a global Lua boolean *)
+val set_global_bool : string -> bool -> unit
+
+(** {2 Table Access Helpers} *)
+
+(** [get_int tbl key] gets an integer field from a table *)
+val get_int : 'a table t -> 'b t -> int
+
+(** [get_number tbl key] gets a number field from a table *)
+val get_number : 'a table t -> 'b t -> float
+
+(** [get_string tbl key] gets a string field from a table *)
+val get_string : 'a table t -> 'b t -> string
+
+(** [get_bool tbl key] gets a boolean field from a table *)
+val get_bool : 'a table t -> 'b t -> bool
+
+(** [get_table tbl key] gets a table field from a table *)
+val get_table : 'a table t -> 'b t -> 'c table t
+
+(** [get_fn tbl key] gets a function field from a table *)
+val get_fn : 'a table t -> 'b t -> ('c, 'd) fn t
+
+(** [set_int tbl key value] sets an integer field in a table *)
+val set_int : 'a table t -> 'b t -> int -> unit
+
+(** [set_number tbl key value] sets a number field in a table *)
+val set_number : 'a table t -> 'b t -> float -> unit
+
+(** [set_string tbl key value] sets a string field in a table *)
+val set_string : 'a table t -> 'b t -> string -> unit
+
+(** [set_bool tbl key value] sets a boolean field in a table *)
+val set_bool : 'a table t -> 'b t -> bool -> unit
+
+(** {2 Index Operators} *)
+
+(** [tbl.%{key}] gets a field from a table (equivalent to tbl[key] in Lua) *)
+val ( .%{} ) : 'a table t -> 'b t -> 'c t
+
+(** [tbl.%{key} <- value] sets a field in a table (equivalent to tbl[key] = value in Lua) *)
+val ( .%{}<- ) : 'a table t -> 'b t -> 'c t -> unit
+
+(** {2 Module Loading} *)
+
+(** [require name] requires a Lua module and returns it as a table *)
+val require : string -> 'a table t
+
+(** {2 Method Calls} *)
+
+(** [call_method tbl method_name args] calls a method on a Lua table (equivalent to tbl:method(args)) *)
+val call_method : 'a table t -> string -> any array -> 'b t

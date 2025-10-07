@@ -177,3 +177,84 @@ module Opt = struct
 
   let to_option (x : 'a t) : 'a option = if test x then Some x else None
 end
+
+(* Convenience functions for calling Lua from OCaml *)
+
+(* Function call helpers *)
+let call0 (fn : (unit, 'b) fn t) : 'b t = call fn [||]
+
+let call1 (fn : ('a, 'b) fn t) (arg : 'a t) : 'b t = call fn [| arg |]
+
+let call2 (fn : ('a * 'b, 'c) fn t) (arg1 : 'a t) (arg2 : 'b t) : 'c t =
+  call fn [| arg1; arg2 |]
+
+let call3 (fn : ('a * 'b * 'c, 'd) fn t) (arg1 : 'a t) (arg2 : 'b t) (arg3 : 'c t) : 'd t
+    =
+  call fn [| arg1; arg2; arg3 |]
+
+let calln (fn : ('a, 'b) fn t) (args : any array) : 'b t = call fn args
+
+(* Global variable helpers *)
+let get_global_fn (name : string) : ('a, 'b) fn t = Unsafe.get_global name
+
+let get_global_table (name : string) : 'a table t = Unsafe.get_global name
+
+let get_global_int (name : string) : int = to_integer (Unsafe.get_global name)
+
+let get_global_number (name : string) : float = to_number (Unsafe.get_global name)
+
+let get_global_string (name : string) : string = to_string (Unsafe.get_global name)
+
+let get_global_bool (name : string) : bool = to_bool (Unsafe.get_global name)
+
+let set_global_int (name : string) (value : int) : unit =
+  Unsafe.set_global name (integer value)
+
+let set_global_number (name : string) (value : float) : unit =
+  Unsafe.set_global name (number value)
+
+let set_global_string (name : string) (value : string) : unit =
+  Unsafe.set_global name (string value)
+
+let set_global_bool (name : string) (value : bool) : unit =
+  Unsafe.set_global name (bool value)
+
+(* Table access helpers *)
+let get_int (tbl : 'a table t) (key : 'b t) : int = to_integer (get tbl key)
+
+let get_number (tbl : 'a table t) (key : 'b t) : float = to_number (get tbl key)
+
+let get_string (tbl : 'a table t) (key : 'b t) : string = to_string (get tbl key)
+
+let get_bool (tbl : 'a table t) (key : 'b t) : bool = to_bool (get tbl key)
+
+let get_table (tbl : 'a table t) (key : 'b t) : 'c table t = Obj.magic (get tbl key)
+
+let get_fn (tbl : 'a table t) (key : 'b t) : ('c, 'd) fn t = Obj.magic (get tbl key)
+
+let set_int (tbl : 'a table t) (key : 'b t) (value : int) : unit =
+  set tbl key (integer value)
+
+let set_number (tbl : 'a table t) (key : 'b t) (value : float) : unit =
+  set tbl key (number value)
+
+let set_string (tbl : 'a table t) (key : 'b t) (value : string) : unit =
+  set tbl key (string value)
+
+let set_bool (tbl : 'a table t) (key : 'b t) (value : bool) : unit =
+  set tbl key (bool value)
+
+(* Index operators *)
+let ( .%{} ) (tbl : 'a table t) (key : 'b t) : 'c t = get tbl key
+
+let ( .%{}<- ) (tbl : 'a table t) (key : 'b t) (value : 'c t) : unit = set tbl key value
+
+(* Module loading *)
+external require : string -> 'a table t = "caml_lua_require"
+
+(* Method calls *)
+let call_method (tbl : 'a table t) (method_name : string) (args : any array) : 'b t =
+  let method_fn : ('c, 'b) fn t = get_fn tbl (string method_name) in
+  (* Prepend table as first argument for method call *)
+  let all_args = Array.append [| Unsafe.inject tbl |] args in
+  calln method_fn all_args

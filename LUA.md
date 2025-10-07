@@ -267,11 +267,11 @@ This document outlines the implementation plan for adding Lua as a compilation t
 - **Commit**: "feat: Create Lua FFI bindings"
 
 #### Task 8.2: Calling Lua from OCaml
-- [ ] Implement Lua function calls
-- [ ] Handle Lua tables access
-- [ ] Support Lua global access
-- **Output**: ~300 lines
-- **Test**: Lua function invocation tests
+- [x] Implement Lua function calls
+- [x] Handle Lua tables access
+- [x] Support Lua global access
+- **Output**: ~80 lines added to lua.ml, ~100 lines added to lua.mli
+- **Test**: Lua function invocation tests ✓ (All tests passed)
 - **Commit**: "feat: Enable calling Lua from OCaml"
 
 #### Task 8.3: Exposing OCaml to Lua

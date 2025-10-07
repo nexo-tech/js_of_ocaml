@@ -337,3 +337,185 @@ let%expect_test "lua value - closure representation" =
     end
     __caml_init__()
     |}]
+
+(** Test convenience function calls **)
+
+let%expect_test "lua interop - function call with call1" =
+  (* Simulates calling a Lua function with one argument *)
+  let v_fn = var_of_int 1 in
+  let v_arg = var_of_int 2 in
+  let v_result = var_of_int 3 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_fn, Code.Prim (Extern "get_global_fn", [ Pc (String "print") ]))
+        ; Code.Let (v_arg, Code.Constant (Code.String "Hello from OCaml"))
+        ; Code.Let (v_result, Code.Prim (Extern "call1", [ Pv v_fn; Pv v_arg ]))
+        ]
+    ; branch = Code.Return v_result
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- Runtime initialized by require statements
+    function __caml_init__()
+      -- Module initialization code
+      local v0 = caml_get_global_fn("print")
+      local v1 = "Hello from OCaml"
+      local v2 = caml_call1(v0, v1)
+      return v2
+    end
+    __caml_init__() |}]
+
+let%expect_test "lua interop - table field access with get_int" =
+  (* Simulates getting an integer field from a Lua table *)
+  let v_tbl = var_of_int 1 in
+  let v_key = var_of_int 2 in
+  let v_result = var_of_int 3 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_tbl, Code.Prim (Extern "get_global_table", [ Pc (String "my_table") ]))
+        ; Code.Let (v_key, Code.Constant (Code.String "count"))
+        ; Code.Let (v_result, Code.Prim (Extern "get_int", [ Pv v_tbl; Pv v_key ]))
+        ]
+    ; branch = Code.Return v_result
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- Runtime initialized by require statements
+    function __caml_init__()
+      -- Module initialization code
+      local v0 = caml_get_global_table("my_table")
+      local v1 = "count"
+      local v2 = caml_get_int(v0, v1)
+      return v2
+    end
+    __caml_init__() |}]
+
+let%expect_test "lua interop - global variable access" =
+  (* Simulates getting and setting global variables *)
+  let v_value = var_of_int 1 in
+  let v_result = var_of_int 2 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_value, Code.Constant (Code.Int32 42l))
+        ; Code.Let
+            ( v_result
+            , Code.Prim (Extern "set_global_int", [ Pc (String "my_var"); Pv v_value ]) )
+        ]
+    ; branch = Code.Return v_result
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- Runtime initialized by require statements
+    function __caml_init__()
+      -- Module initialization code
+      local v0 = 42
+      local v1 = caml_set_global_int("my_var", v0)
+      return v1
+    end
+    __caml_init__() |}]
+
+let%expect_test "lua interop - module require" =
+  (* Simulates requiring a Lua module *)
+  let v_module = var_of_int 1 in
+  let entry_block =
+    { Code.params = []
+    ; body = [ Code.Let (v_module, Code.Prim (Extern "require", [ Pc (String "os") ])) ]
+    ; branch = Code.Return v_module
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- Runtime initialized by require statements
+    function __caml_init__()
+      -- Module initialization code
+      local v0 = caml_require("os")
+      return v0
+    end
+    __caml_init__() |}]
+
+let%expect_test "lua interop - method call" =
+  (* Simulates calling a method on a Lua table *)
+  let v_tbl = var_of_int 1 in
+  let v_method = var_of_int 2 in
+  let v_args = var_of_int 3 in
+  let v_result = var_of_int 4 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_tbl, Code.Prim (Extern "get_global_table", [ Pc (String "string") ]))
+        ; Code.Let (v_method, Code.Constant (Code.String "upper"))
+        ; Code.Let (v_args, Code.Block (0, [||], Code.Array, Code.Immutable))
+        ; Code.Let
+            ( v_result
+            , Code.Prim (Extern "call_method", [ Pv v_tbl; Pv v_method; Pv v_args ]) )
+        ]
+    ; branch = Code.Return v_result
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- Runtime initialized by require statements
+    function __caml_init__()
+      -- Module initialization code
+      local v0 = caml_get_global_table("string")
+      local v1 = "upper"
+      local v2 = {tag = 0}
+      local v3 = caml_call_method(v0, v1, v2)
+      return v3
+    end
+    __caml_init__() |}]
+
+let%expect_test "lua interop - table set operations" =
+  (* Simulates setting fields in a Lua table *)
+  let v_tbl = var_of_int 1 in
+  let v_key = var_of_int 2 in
+  let v_value = var_of_int 3 in
+  let v_result = var_of_int 4 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_tbl, Code.Prim (Extern "table", []))
+        ; Code.Let (v_key, Code.Constant (Code.String "name"))
+        ; Code.Let (v_value, Code.Constant (Code.String "Lua"))
+        ; Code.Let
+            (v_result, Code.Prim (Extern "set_string", [ Pv v_tbl; Pv v_key; Pv v_value ]))
+        ]
+    ; branch = Code.Return v_result
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- Runtime initialized by require statements
+    function __caml_init__()
+      -- Module initialization code
+      local v0 = caml_table()
+      local v1 = "name"
+      local v2 = "Lua"
+      local v3 = caml_set_string(v0, v1, v2)
+      return v3
+    end
+    __caml_init__() |}]
