@@ -54,15 +54,16 @@ Generate Lua code that:
 - **Test**: Parse "baz, qux" → ["baz"; "qux"]
 - **Status**: COMPLETED - Commit e13d1650
 
-### Task 1.3: Parse Version Constraint
+### Task 1.3: Parse Version Constraint ✅
 - **File**: `compiler/lib-lua/lua_link.ml`
-- **Lines**: ~20
+- **Lines**: ~44
 - **Function**: `parse_version : string -> bool`
 - **Logic**:
   - Extract version string
   - Compare with `Ocaml_version.current`
   - Support operators: >=, <=, =, >, <
 - **Test**: Parse ">= 4.14" with OCaml 5.2.0 → true
+- **Status**: COMPLETED - Commit 032b0d16
 
 ### Task 1.4: Parse Complete Fragment Header
 - **File**: `compiler/lib-lua/lua_link.ml`
