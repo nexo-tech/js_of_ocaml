@@ -18,6 +18,13 @@
  (libraries lua_of_ocaml_compiler)
  (modules test_reserved))
 
+(library
+ (name test_mlvalue)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_mlvalue)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
 (rule
  (alias runtest)
  (package lua_of_ocaml-compiler)

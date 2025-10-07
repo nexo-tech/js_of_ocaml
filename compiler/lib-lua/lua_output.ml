@@ -439,3 +439,24 @@ let output_program ctx program =
 let program_to_string program =
   let ctx = make_context () in
   output_program ctx program
+
+(** Convert an expression to a string *)
+let expr_to_string e =
+  let ctx = make_context () in
+  output_expr ctx 0 e;
+  get_output ctx
+
+(** Convert a statement to a string *)
+let stat_to_string s =
+  let ctx = make_context () in
+  output_stat ctx s;
+  get_output ctx
+
+(** Simple API for writing to a buffer *)
+let expr buf e =
+  let ctx = { indent = 0; col = 0; line = 1; buffer = buf } in
+  output_expr ctx 0 e
+
+let stat buf s =
+  let ctx = { indent = 0; col = 0; line = 1; buffer = buf } in
+  output_stat ctx s
