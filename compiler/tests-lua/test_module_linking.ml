@@ -1036,6 +1036,126 @@ let%expect_test "add fragment to state" =
   print_endline "fragment added";
   [%expect {| fragment added |}]
 
+(* Task 3.2: Find Missing Dependencies Tests *)
+
+let%expect_test "find_missing_deps with no missing" =
+  let frag1 = { Lua_link.
+    name = "a";
+    provides = ["a"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "b";
+    provides = ["b"];
+    requires = ["a"];
+    code = ""
+  } in
+  let fragments = StringMap.empty
+    |> StringMap.add "a" frag1
+    |> StringMap.add "b" frag2
+  in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let missing = Lua_link.find_missing_deps fragments provides_map in
+  let is_empty = StringSet.is_empty missing in
+  print_endline (if is_empty then "no missing" else "has missing");
+  [%expect {| no missing |}]
+
+let%expect_test "find_missing_deps with single missing" =
+  let frag = { Lua_link.
+    name = "incomplete";
+    provides = ["func"];
+    requires = ["missing_dep"];
+    code = ""
+  } in
+  let fragments = StringMap.singleton "incomplete" frag in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let missing = Lua_link.find_missing_deps fragments provides_map in
+  let missing_list = StringSet.elements missing in
+  print_endline ("missing: " ^ String.concat ~sep:", " missing_list);
+  [%expect {| missing: missing_dep |}]
+
+let%expect_test "find_missing_deps with multiple missing" =
+  let frag1 = { Lua_link.
+    name = "a";
+    provides = ["a"];
+    requires = ["dep1"; "dep2"];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "b";
+    provides = ["b"];
+    requires = ["dep3"];
+    code = ""
+  } in
+  let fragments = StringMap.empty
+    |> StringMap.add "a" frag1
+    |> StringMap.add "b" frag2
+  in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let missing = Lua_link.find_missing_deps fragments provides_map in
+  let missing_list = StringSet.elements missing |> List.sort ~cmp:String.compare in
+  print_endline ("missing: " ^ String.concat ~sep:", " missing_list);
+  [%expect {| missing: dep1, dep2, dep3 |}]
+
+let%expect_test "find_missing_deps with partial satisfaction" =
+  let frag1 = { Lua_link.
+    name = "provider";
+    provides = ["dep1"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "consumer";
+    provides = ["func"];
+    requires = ["dep1"; "dep2"; "dep3"];
+    code = ""
+  } in
+  let fragments = StringMap.empty
+    |> StringMap.add "provider" frag1
+    |> StringMap.add "consumer" frag2
+  in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let missing = Lua_link.find_missing_deps fragments provides_map in
+  let missing_list = StringSet.elements missing |> List.sort ~cmp:String.compare in
+  print_endline ("missing: " ^ String.concat ~sep:", " missing_list);
+  [%expect {| missing: dep2, dep3 |}]
+
+let%expect_test "find_missing_deps with duplicate requirements" =
+  let frag1 = { Lua_link.
+    name = "a";
+    provides = ["a"];
+    requires = ["missing"];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "b";
+    provides = ["b"];
+    requires = ["missing"];
+    code = ""
+  } in
+  let fragments = StringMap.empty
+    |> StringMap.add "a" frag1
+    |> StringMap.add "b" frag2
+  in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let missing = Lua_link.find_missing_deps fragments provides_map in
+  let missing_list = StringSet.elements missing in
+  print_endline ("missing: " ^ String.concat ~sep:", " missing_list);
+  print_endline ("count: " ^ string_of_int (List.length missing_list));
+  [%expect {|
+    missing: missing
+    count: 1
+    |}]
+
+let%expect_test "find_missing_deps with empty fragments" =
+  let fragments = StringMap.empty in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let missing = Lua_link.find_missing_deps fragments provides_map in
+  let is_empty = StringSet.is_empty missing in
+  print_endline (if is_empty then "no missing" else "has missing");
+  [%expect {| no missing |}]
+
 let%expect_test "resolve simple dependencies" =
   let state = Lua_link.init () in
   let frag1 = { Lua_link.

@@ -97,6 +97,12 @@ val topological_sort :
     - [cycles] is the list of fragments involved in cycles (empty if no cycles).
     Uses Kahn's algorithm: starts with zero in-degree nodes, processes dependencies. *)
 
+(** Find missing dependencies *)
+val find_missing_deps : fragment StringMap.t -> string StringMap.t -> StringSet.t
+(** [find_missing_deps fragments provides_map] returns the set of symbols that are required
+    by fragments but not provided by any fragment. Collects all required symbols across all
+    fragments and checks each against the provides_map. *)
+
 (** Resolve dependencies and determine load order *)
 val resolve_deps : state -> string list -> string list * string list
 (** [resolve_deps state required] returns [(ordered, missing)] where:

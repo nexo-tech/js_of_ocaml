@@ -317,6 +317,27 @@ let topological_sort
   in
   process initial_queue [] in_degrees
 
+(* Find missing dependencies: symbols required but not provided *)
+let find_missing_deps
+    (fragments : fragment StringMap.t)
+    (provides_map : string StringMap.t)
+    : StringSet.t =
+  (* Collect all required symbols from all fragments *)
+  let all_required =
+    StringMap.fold
+      (fun _frag_name fragment acc ->
+        List.fold_left
+          ~f:(fun set symbol -> StringSet.add symbol set)
+          ~init:acc
+          fragment.requires)
+      fragments
+      StringSet.empty
+  in
+  (* Filter out symbols that are provided *)
+  StringSet.filter
+    (fun symbol -> not (StringMap.mem symbol provides_map))
+    all_required
+
 let resolve_deps state _required =
   (* Simplified: return all fragments in arbitrary order *)
   (* TODO: implement proper dependency resolution based on required *)

@@ -137,7 +137,7 @@ Generate Lua code that:
 - **Test**: Linear deps → correct order; circular deps → cycle detected
 - **Status**: COMPLETED - Commit 667d96e8
 
-### Task 3.2: Detect Missing Dependencies
+### Task 3.2: Detect Missing Dependencies ✅
 - **File**: `compiler/lib-lua/lua_link.ml`
 - **Lines**: ~20
 - **Function**: `find_missing_deps : fragment StringMap.t -> string StringMap.t -> StringSet.t`
@@ -146,6 +146,7 @@ Generate Lua code that:
   - Check each against provides_map
   - Return set of missing symbols
 - **Test**: Fragment requiring unknown symbol → symbol in missing set
+- **Status**: COMPLETED - Commit [to be added]
 
 ### Task 3.3: Implement resolve_deps
 - **File**: `compiler/lib-lua/lua_link.ml`
