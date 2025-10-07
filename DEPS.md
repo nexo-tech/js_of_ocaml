@@ -169,20 +169,23 @@ Generate Lua code that:
 
 ## Phase 4: Module Loader Generation (120 lines)
 
-### Task 4.1: Generate Module Registration
+### Task 4.1: Generate Module Registration ✅
 - **File**: `compiler/lib-lua/lua_link.ml`
-- **Lines**: ~30
+- **Lines**: ~25
 - **Function**: `generate_module_registration : fragment -> string`
 - **Logic**:
+  - Add comment header with fragment name
   - For each provided symbol:
     ```lua
     package.loaded["symbol"] = function()
-      -- fragment code
+      -- fragment code (indented)
     end
     ```
   - Wrap fragment code in function
+  - Indent fragment code by 2 spaces
   - Register in package.loaded
 - **Test**: Single fragment → valid Lua registration code
+- **Status**: COMPLETED - Commit [to be added]
 
 ### Task 4.2: Generate Loader Prologue
 - **File**: `compiler/lib-lua/lua_link.ml`

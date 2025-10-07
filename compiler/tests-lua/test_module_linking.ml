@@ -1371,6 +1371,105 @@ let%expect_test "resolve_deps with complex missing dependencies" =
     missing: missing1, missing2
     |}]
 
+(* Task 4.1: Generate Module Registration Tests *)
+
+let%expect_test "generate_module_registration with single symbol" =
+  let fragment = { Lua_link.
+    name = "simple";
+    provides = ["foo"];
+    requires = [];
+    code = "local function foo()\n  return 42\nend"
+  } in
+  let registration = Lua_link.generate_module_registration fragment in
+  print_string registration;
+  [%expect {|
+    -- Fragment: simple
+    package.loaded["foo"] = function()
+      local function foo()
+        return 42
+      end
+    end
+    |}]
+
+let%expect_test "generate_module_registration with multiple symbols" =
+  let fragment = { Lua_link.
+    name = "multi";
+    provides = ["bar"; "baz"];
+    requires = [];
+    code = "function bar() return 1 end\nfunction baz() return 2 end"
+  } in
+  let registration = Lua_link.generate_module_registration fragment in
+  print_string registration;
+  [%expect {|
+    -- Fragment: multi
+    package.loaded["bar"] = function()
+      function bar() return 1 end
+      function baz() return 2 end
+    end
+    package.loaded["baz"] = function()
+      function bar() return 1 end
+      function baz() return 2 end
+    end
+    |}]
+
+let%expect_test "generate_module_registration with empty code" =
+  let fragment = { Lua_link.
+    name = "empty";
+    provides = ["empty_module"];
+    requires = [];
+    code = ""
+  } in
+  let registration = Lua_link.generate_module_registration fragment in
+  print_string registration;
+  [%expect {|
+    -- Fragment: empty
+    package.loaded["empty_module"] = function()
+
+    end
+    |}]
+
+let%expect_test "generate_module_registration with complex code" =
+  let fragment = { Lua_link.
+    name = "complex";
+    provides = ["module"];
+    requires = [];
+    code = {|local M = {}
+function M.add(a, b)
+  return a + b
+end
+return M|}
+  } in
+  let registration = Lua_link.generate_module_registration fragment in
+  print_string registration;
+  [%expect {|
+    -- Fragment: complex
+    package.loaded["module"] = function()
+      local M = {}
+      function M.add(a, b)
+        return a + b
+      end
+      return M
+    end
+    |}]
+
+let%expect_test "generate_module_registration preserves blank lines" =
+  let fragment = { Lua_link.
+    name = "blanks";
+    provides = ["test"];
+    requires = [];
+    code = "line1\n\nline3"
+  } in
+  let registration = Lua_link.generate_module_registration fragment in
+  print_string registration;
+  [%expect {|
+    -- Fragment: blanks
+    package.loaded["test"] = function()
+      line1
+
+      line3
+    end
+    |}]
+
 let%expect_test "generate module loader" =
   let frag1 = { Lua_link.
     name = "module1";

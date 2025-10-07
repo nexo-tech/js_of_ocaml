@@ -109,6 +109,12 @@ val resolve_deps : state -> string list -> string list * string list
     - [ordered] is the topologically sorted list of required modules
     - [missing] is the list of missing dependencies *)
 
+(** Generate module registration code for a fragment *)
+val generate_module_registration : fragment -> string
+(** [generate_module_registration fragment] generates Lua code that registers the fragment's
+    provided symbols in package.loaded. Each symbol is wrapped in a function containing
+    the fragment's code. *)
+
 (** Generate Lua module loader code *)
 val generate_loader : fragment list -> string
 (** Generates Lua code that registers all modules using Lua's module system *)

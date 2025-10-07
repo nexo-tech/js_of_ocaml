@@ -395,6 +395,32 @@ let resolve_deps state required =
 
   (sorted, missing)
 
+(* Generate module registration code for a fragment *)
+let generate_module_registration (fragment : fragment) : string =
+  let buf = Buffer.create 256 in
+
+  (* Add comment header *)
+  Buffer.add_string buf ("-- Fragment: " ^ fragment.name ^ "\n");
+
+  (* Generate registration for each provided symbol *)
+  List.iter
+    ~f:(fun symbol ->
+      Buffer.add_string buf ("package.loaded[\"" ^ symbol ^ "\"] = function()\n");
+
+      (* Indent the fragment code *)
+      let lines = String.split_on_char ~sep:'\n' fragment.code in
+      List.iter
+        ~f:(fun line ->
+          if String.length line > 0
+          then Buffer.add_string buf ("  " ^ line ^ "\n")
+          else Buffer.add_char buf '\n')
+        lines;
+
+      Buffer.add_string buf "end\n")
+    fragment.provides;
+
+  Buffer.contents buf
+
 let generate_loader fragments =
   let buf = Buffer.create 1024 in
   Buffer.add_string buf "-- Module loader\n";
