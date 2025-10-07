@@ -21,6 +21,7 @@
 -- matching OCaml's Int32 and native int behavior, along with bitwise operations.
 
 local core = require("core")
+local bit = require("compat_bit")
 local M = {}
 
 -- Constants
@@ -38,7 +39,7 @@ local function to_int32(n)
   if core.has_bitops then
     -- Lua 5.3+ has native integers and bitwise ops
     -- Mask to 32 bits and convert to signed via arithmetic shift
-    n = math.floor(n) & 0xFFFFFFFF
+    n = bit.band(math.floor(n), 0xFFFFFFFF)
     -- Sign extend from bit 31
     if n >= 0x80000000 then
       return n - 0x100000000
@@ -131,22 +132,7 @@ end
 -- @param b number Second operand
 -- @return number Result of a & b
 function M.band(a, b)
-  if core.has_bitops then
-    return to_int32(a & b)
-  else
-    -- Fallback implementation for Lua 5.1/5.2
-    local result = 0
-    local bit = 1
-    for i = 0, 31 do
-      if (a % 2 == 1 or a % 2 == -1) and (b % 2 == 1 or b % 2 == -1) then
-        result = result + bit
-      end
-      a = math.floor(a / 2)
-      b = math.floor(b / 2)
-      bit = bit * 2
-    end
-    return to_int32(result)
-  end
+  return to_int32(bit.band(a, b))
 end
 
 --- Bitwise OR
@@ -154,22 +140,7 @@ end
 -- @param b number Second operand
 -- @return number Result of a | b
 function M.bor(a, b)
-  if core.has_bitops then
-    return to_int32(a | b)
-  else
-    -- Fallback implementation
-    local result = 0
-    local bit = 1
-    for i = 0, 31 do
-      if (a % 2 == 1 or a % 2 == -1) or (b % 2 == 1 or b % 2 == -1) then
-        result = result + bit
-      end
-      a = math.floor(a / 2)
-      b = math.floor(b / 2)
-      bit = bit * 2
-    end
-    return to_int32(result)
-  end
+  return to_int32(bit.bor(a, b))
 end
 
 --- Bitwise XOR
@@ -177,36 +148,14 @@ end
 -- @param b number Second operand
 -- @return number Result of a ^ b
 function M.bxor(a, b)
-  if core.has_bitops then
-    return to_int32(a ~ b)
-  else
-    -- Fallback implementation
-    local result = 0
-    local bit = 1
-    for i = 0, 31 do
-      local a_bit = (a % 2 == 1 or a % 2 == -1)
-      local b_bit = (b % 2 == 1 or b % 2 == -1)
-      if a_bit ~= b_bit then
-        result = result + bit
-      end
-      a = math.floor(a / 2)
-      b = math.floor(b / 2)
-      bit = bit * 2
-    end
-    return to_int32(result)
-  end
+  return to_int32(bit.bxor(a, b))
 end
 
 --- Bitwise NOT
 -- @param n number The operand
 -- @return number Result of ~n
 function M.bnot(n)
-  if core.has_bitops then
-    return to_int32(~n)
-  else
-    -- Fallback: XOR with all 1s
-    return M.bxor(n, -1)
-  end
+  return to_int32(bit.bnot(n))
 end
 
 --- Left shift
@@ -215,11 +164,7 @@ end
 -- @return number Result of n << count
 function M.lsl(n, count)
   count = count % 32
-  if core.has_bitops then
-    return to_int32(n << count)
-  else
-    return to_int32(n * (2 ^ count))
-  end
+  return to_int32(bit.lshift(n, count))
 end
 
 --- Logical right shift (zero-fill)
@@ -228,18 +173,9 @@ end
 -- @return number Result of n >>> count
 function M.lsr(n, count)
   count = count % 32
-  if core.has_bitops then
-    -- Convert to unsigned, shift, then back to signed
-    local unsigned = n & 0xFFFFFFFF
-    return to_int32(unsigned >> count)
-  else
-    -- Convert to unsigned range, shift, convert back
-    local unsigned = n % 0x100000000
-    if unsigned < 0 then
-      unsigned = unsigned + 0x100000000
-    end
-    return to_int32(math.floor(unsigned / (2 ^ count)))
-  end
+  -- Convert to unsigned, shift, then back to signed
+  local unsigned = n < 0 and (n + 0x100000000) or n
+  return to_int32(bit.rshift(unsigned, count))
 end
 
 --- Arithmetic right shift (sign-extend)
@@ -248,11 +184,7 @@ end
 -- @return number Result of n >> count
 function M.asr(n, count)
   count = count % 32
-  if core.has_bitops then
-    return to_int32(n >> count)
-  else
-    return to_int32(math.floor(n / (2 ^ count)))
-  end
+  return to_int32(bit.arshift(n, count))
 end
 
 --- Compare two integers
@@ -292,26 +224,13 @@ end
 -- @return number Integer with bytes reversed
 function M.bswap(n)
   n = to_int32(n)
-
-  if core.has_bitops then
-    -- Convert to unsigned for bit manipulation
-    local unsigned = n < 0 and (n + 0x100000000) or n
-    local b0 = (unsigned & 0x000000FF) << 24
-    local b1 = (unsigned & 0x0000FF00) << 8
-    local b2 = (unsigned & 0x00FF0000) >> 8
-    local b3 = (unsigned & 0xFF000000) >> 24
-    return to_int32(b0 | b1 | b2 | b3)
-  else
-    -- Manual byte extraction and reassembly
-    local unsigned = n < 0 and (n + 0x100000000) or n
-
-    local b0 = math.floor(unsigned % 0x100)
-    local b1 = math.floor((unsigned / 0x100) % 0x100)
-    local b2 = math.floor((unsigned / 0x10000) % 0x100)
-    local b3 = math.floor((unsigned / 0x1000000) % 0x100)
-
-    return to_int32(b0 * 0x1000000 + b1 * 0x10000 + b2 * 0x100 + b3)
-  end
+  -- Convert to unsigned for bit manipulation
+  local unsigned = n < 0 and (n + 0x100000000) or n
+  local b0 = bit.lshift(bit.band(unsigned, 0x000000FF), 24)
+  local b1 = bit.lshift(bit.band(unsigned, 0x0000FF00), 8)
+  local b2 = bit.rshift(bit.band(unsigned, 0x00FF0000), 8)
+  local b3 = bit.rshift(bit.band(unsigned, 0xFF000000), 24)
+  return to_int32(bit.bor(bit.bor(bit.bor(b0, b1), b2), b3))
 end
 
 --- Count leading zeros
@@ -329,14 +248,8 @@ function M.clz(n)
   local mask = 0x80000000
 
   for i = 0, 31 do
-    if core.has_bitops then
-      if (unsigned & mask) ~= 0 then
-        break
-      end
-    else
-      if math.floor(unsigned / (2 ^ (31 - i))) % 2 == 1 then
-        break
-      end
+    if bit.band(unsigned, mask) ~= 0 then
+      break
     end
     count = count + 1
     mask = math.floor(mask / 2)
@@ -357,14 +270,8 @@ function M.ctz(n)
   local mask = 1
 
   for i = 0, 31 do
-    if core.has_bitops then
-      if (n & mask) ~= 0 then
-        break
-      end
-    else
-      if math.floor(n / (2 ^ i)) % 2 == 1 then
-        break
-      end
+    if bit.band(n, mask) ~= 0 then
+      break
     end
     count = count + 1
     mask = mask * 2
@@ -382,16 +289,10 @@ function M.popcnt(n)
 
   local count = 0
   for i = 0, 31 do
-    if core.has_bitops then
-      if (unsigned & 1) ~= 0 then
-        count = count + 1
-      end
-      unsigned = unsigned >> 1
-    else
-      if math.floor(unsigned / (2 ^ i)) % 2 == 1 then
-        count = count + 1
-      end
+    if bit.band(unsigned, 1) ~= 0 then
+      count = count + 1
     end
+    unsigned = bit.rshift(unsigned, 1)
   end
 
   return count

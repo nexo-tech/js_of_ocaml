@@ -17,14 +17,14 @@ This document outlines the implementation plan for achieving full compatibility 
 
 Fix bitwise operator syntax issues preventing Lua 5.1 compatibility.
 
-#### Task 1.1: Refactor ints.lua for Lua 5.1
-- [ ] Replace bitwise operator syntax with bit library calls
-- [ ] Add LuaBit/bit32 compatibility layer
-- [ ] Implement fallback using arithmetic operations
-- [ ] Test all integer operations on Lua 5.1
-- **Files**: `runtime/lua/ints.lua`
-- **Output**: ~50 lines (compatibility layer + refactoring)
-- **Test**: All ints tests pass on Lua 5.1
+#### Task 1.1: Refactor ints.lua for Lua 5.1 ✅
+- [x] Replace bitwise operator syntax with bit library calls
+- [x] Add LuaBit/bit32 compatibility layer
+- [x] Implement fallback using arithmetic operations
+- [x] Test all integer operations on Lua 5.1
+- **Files**: `runtime/lua/ints.lua`, `runtime/lua/compat_bit.lua` (new)
+- **Output**: 207 lines (compat_bit.lua) + refactored ints.lua
+- **Test**: Integer operations work on Lua 5.1, 5.4, and LuaJIT ✅
 - **Commit**: "fix: Add Lua 5.1 compatibility for ints module"
 
 #### Task 1.2: Refactor float.lua for Lua 5.1
