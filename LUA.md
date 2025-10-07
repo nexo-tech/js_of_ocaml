@@ -131,11 +131,11 @@ This document outlines the implementation plan for adding Lua as a compilation t
 - **Commit**: "feat: Initialize Lua code generator"
 
 #### Task 4.2: Expression Generation
-- [ ] Generate literals and variables
-- [ ] Generate arithmetic operations
-- [ ] Generate function calls
-- **Output**: ~300 lines
-- **Test**: Simple expression compilation tests
+- [x] Generate literals and variables
+- [x] Generate arithmetic operations
+- [x] Generate function calls
+- **Output**: ~300 lines (139 lines implementation + 267 lines tests = 406 lines total)
+- **Test**: Simple expression compilation tests ✓
 - **Commit**: "feat: Implement expression code generation"
 
 #### Task 4.3: Block and Let Binding Generation

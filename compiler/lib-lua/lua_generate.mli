@@ -18,6 +18,38 @@
 
 (** Lua Code Generation from OCaml IR *)
 
+(** Code generation context - opaque for external use *)
+type context
+
+val make_context : debug:bool -> context
+(** Create a new code generation context
+    @param debug Enable debug output
+    @return Fresh context *)
+
+val var_name : context -> Code.Var.t -> string
+(** Get or create Lua variable name for an IR variable
+    @param context Code generation context
+    @param var IR variable
+    @return Lua variable name *)
+
+val generate_constant : Code.constant -> Lua_ast.expr
+(** Generate Lua expression from Code constant
+    @param const IR constant
+    @return Lua expression *)
+
+val generate_prim : context -> Code.prim -> Code.prim_arg list -> Lua_ast.expr
+(** Generate Lua expression from Code prim operation
+    @param context Code generation context
+    @param prim Primitive operation
+    @param args Primitive arguments
+    @return Lua expression *)
+
+val generate_expr : context -> Code.expr -> Lua_ast.expr
+(** Generate Lua expression from Code expression
+    @param context Code generation context
+    @param expr IR expression
+    @return Lua expression *)
+
 val generate : debug:bool -> Code.program -> Lua_ast.stat list
 (** [generate ~debug program] generates Lua code from an OCaml IR program.
     @param debug Enable debug output in generated code
