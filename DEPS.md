@@ -146,7 +146,7 @@ Generate Lua code that:
   - Check each against provides_map
   - Return set of missing symbols
 - **Test**: Fragment requiring unknown symbol → symbol in missing set
-- **Status**: COMPLETED - Commit [to be added]
+- **Status**: COMPLETED - Commit b645006f
 
 ### Task 3.3: Implement resolve_deps
 - **File**: `compiler/lib-lua/lua_link.ml`
