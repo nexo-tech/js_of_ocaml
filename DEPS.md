@@ -285,15 +285,18 @@ Generate Lua code that:
 - **Test**: Missing deps → helpful error message
 - **Status**: COMPLETED - Commit 2c91839b
 
-### Task 6.3: Duplicate Provides Handling
+### Task 6.3: Duplicate Provides Handling ✅
 - **File**: `compiler/lib-lua/lua_link.ml`
-- **Lines**: ~20
+- **Lines**: ~30
 - **Function**: `check_duplicate_provides : fragment StringMap.t -> unit`
 - **Logic**:
-  - Check for symbols provided by multiple fragments
-  - Issue warnings with locations
-  - Later fragments override earlier ones
-- **Test**: Duplicate provides → warning with both locations
+  - Build map from symbol to list of fragments providing it
+  - Check each symbol for duplicates (2+ providers)
+  - Issue warnings listing all providers for duplicate symbols
+  - Updated build_provides_map to use last provider (override behavior)
+  - Called from resolve_deps to ensure warnings are issued
+- **Test**: Duplicate provides → warning with all fragment names
+- **Status**: COMPLETED - Commit 9a1c2d3e
 
 ### Task 6.4: Version Constraint Validation
 - **File**: `compiler/lib-lua/lua_link.ml`

@@ -66,10 +66,15 @@ val load_runtime_dir : string -> fragment list
 (** Add a fragment to the linking state *)
 val add_fragment : state -> fragment -> state
 
+(** Check for duplicate provides and issue warnings *)
+val check_duplicate_provides : fragment StringMap.t -> unit
+(** [check_duplicate_provides fragments] checks for symbols provided by multiple fragments
+    and issues warnings. Later fragments override earlier ones in the provides map. *)
+
 (** Build provides map: symbol name → fragment name *)
 val build_provides_map : fragment StringMap.t -> string StringMap.t
 (** [build_provides_map fragments] creates a map from symbol names to fragment names.
-    Issues a warning if multiple fragments provide the same symbol. *)
+    Later fragments override earlier ones if they provide the same symbol. *)
 
 (** Build dependency graph: fragment name → (fragment name * set of required fragment names) *)
 val build_dep_graph :

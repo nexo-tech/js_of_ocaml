@@ -376,12 +376,10 @@ let%expect_test "build_provides_map with duplicate provides" =
     |> StringMap.add "module1" frag1
     |> StringMap.add "module2" frag2
   in
+  (* build_provides_map no longer issues warnings - use check_duplicate_provides *)
   let _provides_map = Lua_link.build_provides_map fragments in
-  print_endline "warning issued for duplicate";
-  [%expect {|
-    Warning [overriding-primitive]: symbol "foo" provided by both fragment "module1" and fragment "module2"
-    warning issued for duplicate
-    |}]
+  print_endline "map built";
+  [%expect {| map built |}]
 
 let%expect_test "build_provides_map with empty fragments" =
   let fragments = StringMap.empty in
@@ -415,7 +413,7 @@ let%expect_test "build_provides_map with fragment providing multiple symbols" =
     pairs -> stdlib
     |}]
 
-let%expect_test "build_provides_map preserves first provider on duplicate" =
+let%expect_test "build_provides_map uses last provider on duplicate" =
   let frag1 = { Lua_link.
     name = "first";
     provides = ["shared"];
@@ -432,13 +430,11 @@ let%expect_test "build_provides_map preserves first provider on duplicate" =
     |> StringMap.add "first" frag1
     |> StringMap.add "second" frag2
   in
+  (* Now uses last provider (second overrides first) *)
   let provides_map = Lua_link.build_provides_map fragments in
   let provider = StringMap.find_opt "shared" provides_map in
   print_endline ("shared -> " ^ Option.value ~default:"none" provider);
-  [%expect {|
-    Warning [overriding-primitive]: symbol "shared" provided by both fragment "first" and fragment "second"
-    shared -> first
-    |}]
+  [%expect {| shared -> second |}]
 
 (* Task 2.2: Build Dependency Graph Tests *)
 
@@ -2221,7 +2217,86 @@ let%expect_test "missing dependency error shows fragment names" =
     print_endline (if has_fragment_name && has_missing_symbol then "error shows details" else "incomplete error"));
   [%expect {| error shows details |}]
 
-let%expect_test "multiple fragments with same provides" =
+(* Task 6.3: Duplicate Provides Handling Tests *)
+
+let%expect_test "check_duplicate_provides with no duplicates" =
+  let frag1 = { Lua_link.
+    name = "frag1";
+    provides = ["sym1"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "frag2";
+    provides = ["sym2"];
+    requires = [];
+    code = ""
+  } in
+  let fragments = StringMap.empty
+    |> StringMap.add "frag1" frag1
+    |> StringMap.add "frag2" frag2
+  in
+  Lua_link.check_duplicate_provides fragments;
+  print_endline "no warnings";
+  [%expect {| no warnings |}]
+
+let%expect_test "check_duplicate_provides with single duplicate" =
+  let frag1 = { Lua_link.
+    name = "impl1";
+    provides = ["func"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "impl2";
+    provides = ["func"];
+    requires = [];
+    code = ""
+  } in
+  let fragments = StringMap.empty
+    |> StringMap.add "impl1" frag1
+    |> StringMap.add "impl2" frag2
+  in
+  Lua_link.check_duplicate_provides fragments;
+  print_endline "checked";
+  [%expect {|
+    Warning [overriding-primitive]: symbol "func" provided by multiple fragments: impl1, impl2 (later fragments override earlier ones)
+    checked
+    |}]
+
+let%expect_test "check_duplicate_provides with multiple duplicates" =
+  let frag1 = { Lua_link.
+    name = "a";
+    provides = ["x"; "y"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "b";
+    provides = ["x"];
+    requires = [];
+    code = ""
+  } in
+  let frag3 = { Lua_link.
+    name = "c";
+    provides = ["y"; "z"];
+    requires = [];
+    code = ""
+  } in
+  let fragments = StringMap.empty
+    |> StringMap.add "a" frag1
+    |> StringMap.add "b" frag2
+    |> StringMap.add "c" frag3
+  in
+  Lua_link.check_duplicate_provides fragments;
+  print_endline "checked";
+  [%expect {|
+    Warning [overriding-primitive]: symbol "x" provided by multiple fragments: a, b (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "y" provided by multiple fragments: a, c (later fragments override earlier ones)
+    checked
+    |}]
+
+let%expect_test "duplicate provides - later overrides earlier" =
   let state = Lua_link.init () in
   let frag1 = { Lua_link.
     name = "impl1";
@@ -2238,11 +2313,42 @@ let%expect_test "multiple fragments with same provides" =
   let state = Lua_link.add_fragment state frag1 in
   let state = Lua_link.add_fragment state frag2 in
   let ordered, missing = Lua_link.resolve_deps state ["func"] in
-  (* Should pick one implementation *)
-  print_endline ("ordered length: " ^ string_of_int (List.length ordered));
+  (* Should use impl2 (later fragment) *)
+  print_endline ("ordered: " ^ String.concat ~sep:", " ordered);
   print_endline ("missing: " ^ String.concat ~sep:", " missing);
   [%expect {|
-    Warning [overriding-primitive]: symbol "func" provided by both fragment "impl1" and fragment "impl2"
-    ordered length: 1
+    Warning [overriding-primitive]: symbol "func" provided by multiple fragments: impl1, impl2 (later fragments override earlier ones)
+    ordered: impl2
     missing:
+    |}]
+
+let%expect_test "three fragments providing same symbol" =
+  let state = Lua_link.init () in
+  let frag1 = { Lua_link.
+    name = "v1";
+    provides = ["api"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "v2";
+    provides = ["api"];
+    requires = [];
+    code = ""
+  } in
+  let frag3 = { Lua_link.
+    name = "v3";
+    provides = ["api"];
+    requires = [];
+    code = ""
+  } in
+  let state = Lua_link.add_fragment state frag1 in
+  let state = Lua_link.add_fragment state frag2 in
+  let state = Lua_link.add_fragment state frag3 in
+  let ordered, _missing = Lua_link.resolve_deps state ["api"] in
+  (* Should use v3 (latest) *)
+  print_endline ("ordered: " ^ String.concat ~sep:", " ordered);
+  [%expect {|
+    Warning [overriding-primitive]: symbol "api" provided by multiple fragments: v1, v2, v3 (later fragments override earlier ones)
+    ordered: v3
     |}]

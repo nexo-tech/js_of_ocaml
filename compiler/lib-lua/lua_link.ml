@@ -170,24 +170,46 @@ let load_runtime_dir dirname =
 let add_fragment state fragment =
   { state with fragments = StringMap.add fragment.name fragment state.fragments }
 
+(* Check for duplicate provides and issue warnings *)
+let check_duplicate_provides (fragments : fragment StringMap.t) : unit =
+  (* Build a map from symbol to list of fragments providing it *)
+  let symbol_providers =
+    StringMap.fold
+      (fun _frag_name fragment acc ->
+        List.fold_left
+          ~f:(fun map symbol ->
+            let providers =
+              StringMap.find_opt symbol map |> Option.value ~default:[]
+            in
+            StringMap.add symbol (fragment.name :: providers) map)
+          ~init:acc
+          fragment.provides)
+      fragments
+      StringMap.empty
+  in
+  (* Check each symbol for duplicates *)
+  StringMap.iter
+    (fun symbol providers ->
+      match providers with
+      | [] | [_] -> () (* No duplicates *)
+      | _ :: _ :: _ ->
+          (* Multiple providers - issue warning *)
+          let providers_str = String.concat ~sep:", " (List.rev providers) in
+          Warning.warn
+            `Overriding_primitive
+            "symbol %S provided by multiple fragments: %s (later fragments override earlier ones)@."
+            symbol
+            providers_str)
+    symbol_providers
+
 (* Build provides map: symbol name → fragment name *)
 let build_provides_map (fragments : fragment StringMap.t) : string StringMap.t =
   StringMap.fold
     (fun _frag_name fragment acc ->
       List.fold_left
         ~f:(fun map symbol ->
-          match StringMap.find_opt symbol map with
-          | None -> StringMap.add symbol fragment.name map
-          | Some existing_frag ->
-              if not (String.equal existing_frag fragment.name)
-              then
-                Warning.warn
-                  `Overriding_primitive
-                  "symbol %S provided by both fragment %S and fragment %S@."
-                  symbol
-                  existing_frag
-                  fragment.name;
-              map)
+          (* Later fragments override earlier ones *)
+          StringMap.add symbol fragment.name map)
         ~init:acc
         fragment.provides)
     fragments
@@ -387,6 +409,9 @@ let find_missing_deps
     all_required
 
 let resolve_deps state required =
+  (* Check for duplicate provides and issue warnings *)
+  check_duplicate_provides state.fragments;
+
   (* Build provides map: symbol name → fragment name *)
   let provides_map = build_provides_map state.fragments in
 
