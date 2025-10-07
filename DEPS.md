@@ -357,7 +357,7 @@ Generate Lua code that:
   - Special characters handling (quotes, backslashes, digits)
   - Large fragment set (10 fragments)
   - Registration happens before code execution
-- **Status**: COMPLETED - Commit TBD
+- **Status**: COMPLETED - Commit 3e7088c2
 
 ### Task 7.4: Integration Tests
 - **File**: `compiler/tests-lua/test_module_linking.ml`
