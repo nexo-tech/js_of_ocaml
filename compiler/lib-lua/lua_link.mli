@@ -16,6 +16,8 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *)
 
+open Stdlib
+
 (** Lua module linking and dependency resolution *)
 
 (** Runtime fragment representing a Lua module or runtime file *)
@@ -63,6 +65,11 @@ val load_runtime_dir : string -> fragment list
 
 (** Add a fragment to the linking state *)
 val add_fragment : state -> fragment -> state
+
+(** Build provides map: symbol name → fragment name *)
+val build_provides_map : fragment StringMap.t -> string StringMap.t
+(** [build_provides_map fragments] creates a map from symbol names to fragment names.
+    Issues a warning if multiple fragments provide the same symbol. *)
 
 (** Resolve dependencies and determine load order *)
 val resolve_deps : state -> string list -> string list * string list

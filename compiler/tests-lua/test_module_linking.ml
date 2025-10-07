@@ -311,6 +311,134 @@ let%expect_test "parse_fragment_header with empty code" =
   print_endline ("provides: " ^ String.concat ~sep:", " fragment.provides);
   [%expect {| provides: empty |}]
 
+(* Task 2.1: Build Provides Map Tests *)
+
+let%expect_test "build_provides_map with single fragment" =
+  let frag = { Lua_link.
+    name = "module1";
+    provides = ["foo"; "bar"];
+    requires = [];
+    code = ""
+  } in
+  let fragments = StringMap.singleton "module1" frag in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let foo_provider = StringMap.find_opt "foo" provides_map in
+  let bar_provider = StringMap.find_opt "bar" provides_map in
+  print_endline ("foo -> " ^ Option.value ~default:"none" foo_provider);
+  print_endline ("bar -> " ^ Option.value ~default:"none" bar_provider);
+  [%expect {|
+    foo -> module1
+    bar -> module1
+    |}]
+
+let%expect_test "build_provides_map with multiple fragments" =
+  let frag1 = { Lua_link.
+    name = "module1";
+    provides = ["foo"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "module2";
+    provides = ["bar"];
+    requires = [];
+    code = ""
+  } in
+  let fragments = StringMap.empty
+    |> StringMap.add "module1" frag1
+    |> StringMap.add "module2" frag2
+  in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let foo_provider = StringMap.find_opt "foo" provides_map in
+  let bar_provider = StringMap.find_opt "bar" provides_map in
+  print_endline ("foo -> " ^ Option.value ~default:"none" foo_provider);
+  print_endline ("bar -> " ^ Option.value ~default:"none" bar_provider);
+  [%expect {|
+    foo -> module1
+    bar -> module2
+    |}]
+
+let%expect_test "build_provides_map with duplicate provides" =
+  let frag1 = { Lua_link.
+    name = "module1";
+    provides = ["foo"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "module2";
+    provides = ["foo"];
+    requires = [];
+    code = ""
+  } in
+  let fragments = StringMap.empty
+    |> StringMap.add "module1" frag1
+    |> StringMap.add "module2" frag2
+  in
+  let _provides_map = Lua_link.build_provides_map fragments in
+  print_endline "warning issued for duplicate";
+  [%expect {|
+    Warning [overriding-primitive]: symbol "foo" provided by both fragment "module1" and fragment "module2"
+    warning issued for duplicate
+    |}]
+
+let%expect_test "build_provides_map with empty fragments" =
+  let fragments = StringMap.empty in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let is_empty = StringMap.is_empty provides_map in
+  print_endline (if is_empty then "empty" else "not empty");
+  [%expect {| empty |}]
+
+let%expect_test "build_provides_map with fragment providing multiple symbols" =
+  let frag = { Lua_link.
+    name = "stdlib";
+    provides = ["print"; "assert"; "type"; "pairs"];
+    requires = [];
+    code = ""
+  } in
+  let fragments = StringMap.singleton "stdlib" frag in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let count = StringMap.cardinal provides_map in
+  print_endline ("symbols: " ^ string_of_int count);
+  List.iter
+    ~f:(fun sym ->
+      match StringMap.find_opt sym provides_map with
+      | Some provider -> print_endline (sym ^ " -> " ^ provider)
+      | None -> ())
+    ["print"; "assert"; "type"; "pairs"];
+  [%expect {|
+    symbols: 4
+    print -> stdlib
+    assert -> stdlib
+    type -> stdlib
+    pairs -> stdlib
+    |}]
+
+let%expect_test "build_provides_map preserves first provider on duplicate" =
+  let frag1 = { Lua_link.
+    name = "first";
+    provides = ["shared"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "second";
+    provides = ["shared"];
+    requires = [];
+    code = ""
+  } in
+  let fragments = StringMap.empty
+    |> StringMap.add "first" frag1
+    |> StringMap.add "second" frag2
+  in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let provider = StringMap.find_opt "shared" provides_map in
+  print_endline ("shared -> " ^ Option.value ~default:"none" provider);
+  [%expect {|
+    Warning [overriding-primitive]: symbol "shared" provided by both fragment "first" and fragment "second"
+    shared -> first
+    |}]
+
 let%expect_test "parse fragment header with provides" =
   let code = {|
 --// Provides: foo, bar

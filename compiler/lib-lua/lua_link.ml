@@ -170,6 +170,29 @@ let load_runtime_dir dirname =
 let add_fragment state fragment =
   { state with fragments = StringMap.add fragment.name fragment state.fragments }
 
+(* Build provides map: symbol name → fragment name *)
+let build_provides_map (fragments : fragment StringMap.t) : string StringMap.t =
+  StringMap.fold
+    (fun _frag_name fragment acc ->
+      List.fold_left
+        ~f:(fun map symbol ->
+          match StringMap.find_opt symbol map with
+          | None -> StringMap.add symbol fragment.name map
+          | Some existing_frag ->
+              if not (String.equal existing_frag fragment.name)
+              then
+                Warning.warn
+                  `Overriding_primitive
+                  "symbol %S provided by both fragment %S and fragment %S@."
+                  symbol
+                  existing_frag
+                  fragment.name;
+              map)
+        ~init:acc
+        fragment.provides)
+    fragments
+    StringMap.empty
+
 let resolve_deps state _required =
   (* Simplified: return all fragments in arbitrary order *)
   (* TODO: implement proper dependency resolution based on required *)
