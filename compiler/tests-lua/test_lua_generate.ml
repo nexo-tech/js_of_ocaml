@@ -39,6 +39,7 @@ let rec stat_types = function
         | Lua_ast.Call_stat _ -> "call_stat"
         | Lua_ast.Block _ -> "block"
         | Lua_ast.Comment _ -> "comment"
+        | Lua_ast.Location_hint _ -> "location_hint"
       in
       ty :: stat_types rest
 

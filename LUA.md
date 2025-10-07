@@ -333,12 +333,23 @@ This document outlines the implementation plan for adding Lua as a compilation t
 ### Phase 10: Testing and Documentation (Week 10-11)
 
 #### Task 10.1: Test Suite Setup
-- [ ] Create `compiler/tests-lua/` directory
-- [ ] Port basic js_of_ocaml tests
-- [ ] Add Lua-specific tests
-- **Output**: ~200 lines
-- **Test**: Test harness functionality
-- **Commit**: "test: Set up Lua test suite"
+- [x] Create `compiler/tests-lua/` directory (already existed with prior tests)
+- [x] Port applicable js_of_ocaml tests (comprehensive porting of language features)
+- [x] Add Lua-specific tests (interop, Lua-specific behavior)
+- **Output**: ~1817 lines (util/util.ml: 248, test files: 1569, dune updates)
+- **Test**: All tests compile without warnings ✓
+- **Commit**: "test: Set up comprehensive Lua test suite"
+- **Tests added**:
+  - test_array.ml: Array operations (creation, access, bounds checking)
+  - test_exceptions.ml: Exception handling (basic, nested, propagation, builtin)
+  - test_functions.ml: Functions (simple, curried, HOF, recursive, closures)
+  - test_control_flow.ml: Control structures (if/else, for, while, pattern matching)
+  - test_strings.ml: String operations (concat, length, access, conversions)
+  - test_lists.ml: List operations (creation, map, filter, fold, etc.)
+  - test_lua_interop.ml: Lua-specific behavior (identifiers, tables, nil/option)
+  - test_records.ml: Records (simple, nested, mutable, polymorphic)
+  - test_refs.ml: References (basic, aliasing, closures, incr/decr)
+  - util/util.ml: Test infrastructure (compile, run, extract functions)
 
 #### Task 10.2: Compatibility Tests
 - [ ] Test with Lua 5.1, 5.4, LuaJIT

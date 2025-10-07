@@ -109,6 +109,69 @@
  (inline_tests)
  (preprocess (pps ppx_expect)))
 
+(library
+ (name test_array)
+ (libraries util str unix)
+ (modules test_array)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_exceptions)
+ (libraries util str unix)
+ (modules test_exceptions)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_functions)
+ (libraries util str unix)
+ (modules test_functions)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_control_flow)
+ (libraries util str unix)
+ (modules test_control_flow)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_strings)
+ (libraries util str unix)
+ (modules test_strings)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_lists)
+ (libraries util str unix)
+ (modules test_lists)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_lua_interop)
+ (libraries util str unix)
+ (modules test_lua_interop)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_records)
+ (libraries util str unix)
+ (modules test_records)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_refs)
+ (libraries util str unix)
+ (modules test_refs)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
 (rule
  (alias runtest)
  (package lua_of_ocaml-compiler)
