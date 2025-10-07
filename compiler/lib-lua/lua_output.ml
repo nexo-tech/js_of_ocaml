@@ -424,6 +424,9 @@ and output_stat ctx stat =
       unindent ctx;
       output_indent ctx;
       output_string ctx "end"
+  | Comment text ->
+      output_string ctx "-- ";
+      output_string ctx text
 
 (** Output a block (list of statements) - top-level *)
 let output_block ctx stmts = output_block_internal ctx stmts

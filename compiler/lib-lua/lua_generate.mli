@@ -96,9 +96,18 @@ val generate_block_with_program : context -> Code.program -> Code.block -> Lua_a
 
 val generate : debug:bool -> Code.program -> Lua_ast.stat list
 (** [generate ~debug program] generates Lua code from an OCaml IR program.
+    This generates a standalone program with initialization code.
     @param debug Enable debug output in generated code
     @param program OCaml intermediate representation
     @return List of Lua statements *)
+
+val generate_module_code : debug:bool -> module_name:string -> Code.program -> Lua_ast.stat list
+(** [generate_module_code ~debug ~module_name program] generates Lua module code
+    for separate compilation. The generated code can be loaded via require().
+    @param debug Enable debug output
+    @param module_name Name of the module
+    @param program OCaml IR program
+    @return List of Lua statements forming a module *)
 
 val generate_to_string : debug:bool -> Code.program -> string
 (** [generate_to_string ~debug program] generates Lua code and converts to string.

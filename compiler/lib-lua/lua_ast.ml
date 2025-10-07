@@ -126,6 +126,7 @@ and stat =
   (* Other statements *)
   | Call_stat of expr  (** function call as statement *)
   | Block of block  (** do block end *)
+  | Comment of string  (** -- comment *)
 
 (** Block is a list of statements *)
 and block = stat list

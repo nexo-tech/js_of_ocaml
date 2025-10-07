@@ -833,24 +833,86 @@ let generate_block ctx block =
   let last_stmts = generate_last ctx block.Code.branch in
   body_stmts @ last_stmts
 
-(** {2 Basic Code Generation} *)
+(** {2 Code.program Generation} *)
 
-(** Generate a minimal main function
-    This creates an empty main function that can be expanded later
+(** Generate module initialization code
+    This creates the entry point that initializes the module
 
     @param ctx Code generation context
-    @return Lua program with main function
+    @param program OCaml IR program
+    @return Lua statements for module initialization
 *)
-let generate_main ctx =
-  let _ = ctx in
-  (* Suppress unused warning *)
-  let main_func =
-    L.Function_decl ("main", [], false, [ L.Return [ L.Number "0" ] ])
+let generate_module_init ctx program =
+  (* Get the entry block *)
+  let entry_block =
+    match Code.Addr.Map.find_opt program.Code.start program.Code.blocks with
+    | Some block -> block
+    | None -> failwith "Program entry block not found"
   in
-  let call_main = L.Call_stat (L.Call (L.Ident "main", [])) in
-  [ main_func; call_main ]
 
-(** {2 Code.program Generation} *)
+  (* Generate code for the entry block *)
+  let entry_stmts = generate_block_with_program ctx program entry_block in
+
+  (* Wrap in a module initialization function *)
+  let init_func =
+    L.Function_decl
+      ( "__caml_init__"
+      , []
+      , false
+      , [ L.Comment "Module initialization code" ] @ entry_stmts )
+  in
+
+  [ init_func; L.Call_stat (L.Call (L.Ident "__caml_init__", [])) ]
+
+(** Generate standalone program
+    Creates a complete Lua program that can be executed directly
+
+    @param ctx Code generation context
+    @param program OCaml IR program
+    @return Lua statements for standalone program
+*)
+let generate_standalone ctx program =
+  (* Generate module initialization *)
+  let init_code = generate_module_init ctx program in
+
+  (* Add runtime setup if needed *)
+  let runtime_setup = [ L.Comment "Runtime initialized by require statements" ] in
+
+  runtime_setup @ init_code
+
+(** Generate module code for separate compilation
+    Creates module code that can be loaded via require()
+
+    @param ctx Code generation context
+    @param program OCaml IR program
+    @param module_name Module name for exports
+    @return Lua statements for module
+*)
+let generate_module ctx program module_name =
+  (* Get the entry block *)
+  let entry_block =
+    match Code.Addr.Map.find_opt program.Code.start program.Code.blocks with
+    | Some block -> block
+    | None -> failwith "Program entry block not found"
+  in
+
+  (* Generate code for the entry block *)
+  let entry_stmts = generate_block_with_program ctx program entry_block in
+
+  (* Create module table *)
+  let module_var = "M" in
+  let module_init = [ L.Local ([ module_var ], Some [ L.Table [] ]) ] in
+
+  (* Add initialization code *)
+  let init_code = entry_stmts in
+
+  (* Export module table *)
+  let module_export = [ L.Return [ L.Ident module_var ] ] in
+
+  [ L.Comment ("Module: " ^ module_name) ]
+  @ module_init
+  @ init_code
+  @ module_export
 
 (** Generate Lua code from OCaml IR program
     This is the main entry point for code generation
@@ -859,15 +921,19 @@ let generate_main ctx =
     @param debug Enable debug output
     @return Lua program (list of statements)
 *)
-let generate ~debug program =
+let generate ~debug program = generate_standalone (make_context_with_program ~debug program) program
+
+(** Generate Lua module code
+    Entry point for separate module compilation
+
+    @param program OCaml IR program
+    @param debug Enable debug output
+    @param module_name Module name
+    @return Lua program (list of statements)
+*)
+let generate_module_code ~debug ~module_name program =
   let ctx = make_context_with_program ~debug program in
-
-  (* For now, just generate minimal structure *)
-  (* TODO: Implement full program generation in later tasks *)
-  let _ = program in
-  (* Suppress unused warning *)
-
-  generate_main ctx
+  generate_module ctx program module_name
 
 (** Generate Lua code and convert to string
     @param program OCaml IR program
