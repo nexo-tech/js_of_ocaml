@@ -249,11 +249,11 @@ This document outlines the implementation plan for adding Lua as a compilation t
 - **Commit**: "feat: Add GC integration"
 
 #### Task 7.4: Float Operations
-- [ ] Create `runtime/lua/float.lua`
-- [ ] Implement float array support
-- [ ] Handle NaN and infinity
-- **Output**: ~250 lines
-- **Test**: Float arithmetic tests
+- [x] Create `runtime/lua/float.lua`
+- [x] Implement float array support
+- [x] Handle NaN and infinity
+- **Output**: ~370 lines (float.lua)
+- **Test**: Float arithmetic tests ✓ (All tests passed)
 - **Commit**: "feat: Implement float operations"
 
 ### Phase 8: Lua Interop (Week 8-9)
