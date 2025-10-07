@@ -172,3 +172,12 @@
  (conflicts
   (js_of_ocaml (< 3.0))
 ))
+
+(package
+ (name lua_of_ocaml)
+ (synopsis "FFI library for OCaml-Lua interop")
+ (description
+  "Lua_of_ocaml FFI library provides type-safe bindings for OCaml-Lua interoperability in lua_of_ocaml compiled programs")
+ (depends
+  (ocaml (>= 4.13))
+  (lua_of_ocaml-compiler (= :version))))

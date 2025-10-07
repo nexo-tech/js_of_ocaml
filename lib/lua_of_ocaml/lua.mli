@@ -1,0 +1,221 @@
+(* Lua_of_ocaml library
+ * FFI bindings for OCaml-Lua interop
+ * Copyright (C) 2025
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, with linking exception;
+ * either version 2.1 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ *)
+
+(** Lua FFI bindings for OCaml-Lua interop *)
+
+(** {1 Lua Value Types} *)
+
+(** Abstract type representing a Lua value *)
+type +'a t
+
+(** Type for any Lua value *)
+type any = < > t
+
+(** {1 Basic Types} *)
+
+(** Lua nil type *)
+type nil
+
+(** Lua boolean type *)
+type bool_t = bool
+
+(** Lua number type (floating point) *)
+type number = float
+
+(** Lua integer type (Lua 5.3+) *)
+type integer = int
+
+(** Lua string type *)
+type string_t = string
+
+(** Lua table type *)
+type 'a table
+
+(** Lua function type *)
+type (-'a, +'b) fn
+
+(** Lua userdata type *)
+type userdata
+
+(** Lua thread (coroutine) type *)
+type thread
+
+(** {1 Type Classification} *)
+
+type lua_type =
+  | Nil
+  | Boolean
+  | Number
+  | String
+  | Table
+  | Function
+  | Userdata
+  | Thread
+
+(** {1 Unsafe Operations} *)
+
+module Unsafe : sig
+  (** Inject any OCaml value as a Lua value *)
+  external inject : 'a -> any = "%identity"
+
+  (** Coerce between Lua types *)
+  external coerce : _ t -> _ t = "%identity"
+
+  (** Get a field from a Lua table *)
+  external get : 'a table t -> 'b -> 'c = "caml_lua_get"
+
+  (** Set a field in a Lua table *)
+  external set : 'a table t -> 'b -> 'c -> unit = "caml_lua_set"
+
+  (** Call a Lua function *)
+  external call : ('a, 'b) fn t -> any array -> 'b = "caml_lua_call"
+
+  (** Create a Lua table from key-value pairs *)
+  external table : (string * any) array -> 'a table t = "caml_lua_table"
+
+  (** Check equality using Lua's == operator *)
+  external equals : 'a -> 'b -> bool = "caml_lua_equals"
+
+  (** Get the Lua global table *)
+  val global : any table t
+
+  (** Get a Lua global variable *)
+  external get_global : string -> 'a = "caml_lua_get_global"
+
+  (** Set a Lua global variable *)
+  external set_global : string -> 'a -> unit = "caml_lua_set_global"
+
+  (** Evaluate Lua code *)
+  external eval : string -> 'a = "caml_lua_eval"
+
+  (** Create a Lua callback from an OCaml function *)
+  external callback : ('a -> 'b) -> ('a, 'b) fn t = "caml_lua_wrap_callback"
+end
+
+(** {1 Type Conversions} *)
+
+(** [to_any x] converts any Lua value to the [any] type *)
+val to_any : 'a t -> any
+
+(** [typeof x] returns the Lua type of a value *)
+external typeof : 'a t -> lua_type = "caml_lua_type"
+
+(** {2 Nil} *)
+
+(** The Lua nil value *)
+val nil : nil t
+
+(** [is_nil x] checks if a value is nil *)
+val is_nil : 'a t -> bool
+
+(** {2 Booleans} *)
+
+(** [bool b] converts an OCaml bool to a Lua boolean *)
+val bool : bool -> bool_t t
+
+(** [to_bool x] converts a Lua value to an OCaml bool *)
+val to_bool : 'a t -> bool
+
+(** {2 Numbers} *)
+
+(** [number f] creates a Lua number from a float *)
+val number : float -> number t
+
+(** [to_number x] converts a Lua value to a float *)
+val to_number : 'a t -> float
+
+(** [integer i] creates a Lua integer *)
+val integer : int -> integer t
+
+(** [to_integer x] converts a Lua value to an int *)
+val to_integer : 'a t -> int
+
+(** {2 Strings} *)
+
+(** [string s] creates a Lua string *)
+val string : string -> string_t t
+
+(** [to_string x] converts a Lua value to a string *)
+val to_string : 'a t -> string
+
+(** {2 Tables} *)
+
+(** [table ()] creates an empty Lua table *)
+val table : unit -> 'a table t
+
+(** [get tbl key] gets a value from a table *)
+val get : 'a table t -> 'b t -> 'c t
+
+(** [set tbl key value] sets a value in a table *)
+val set : 'a table t -> 'b t -> 'c t -> unit
+
+(** [array arr] creates a Lua array from an OCaml array *)
+val array : 'a t array -> 'a table t
+
+(** [to_array tbl] converts a Lua array to an OCaml array *)
+val to_array : 'a table t -> 'a t array
+
+(** {2 Functions} *)
+
+(** [callback f] creates a Lua function from an OCaml function *)
+val callback : ('a t -> 'b t) -> ('a, 'b) fn t
+
+(** [call fn args] calls a Lua function with arguments *)
+val call : ('a, 'b) fn t -> 'a t array -> 'b t
+
+(** {1 Option Types} *)
+
+(** Optional value type (can be nil) *)
+type 'a opt = 'a
+
+(** [some x] wraps a value as present *)
+external some : 'a t -> 'a opt t = "%identity"
+
+(** [test_opt x] checks if an optional value is present *)
+val test_opt : 'a opt t -> bool
+
+(** [to_option x] converts a Lua optional to an OCaml option *)
+val to_option : 'a opt t -> 'a t option
+
+(** [of_option x] converts an OCaml option to a Lua optional *)
+val of_option : 'a t option -> 'a opt t
+
+module Opt : sig
+  type 'a t = 'a opt
+
+  val empty : 'a t
+
+  val return : 'a -> 'a t
+
+  val map : 'a t -> ('a -> 'b) -> 'b t
+
+  val bind : 'a t -> ('a -> 'b t) -> 'b t
+
+  val test : 'a t -> bool
+
+  val iter : 'a t -> ('a -> unit) -> unit
+
+  val case : 'a t -> (unit -> 'b) -> ('a -> 'b) -> 'b
+
+  val get : 'a t -> (unit -> 'a) -> 'a
+
+  val option : 'a option -> 'a t
+
+  val to_option : 'a t -> 'a option
+end

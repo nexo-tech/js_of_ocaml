@@ -259,11 +259,11 @@ This document outlines the implementation plan for adding Lua as a compilation t
 ### Phase 8: Lua Interop (Week 8-9)
 
 #### Task 8.1: Lua FFI Bindings
-- [ ] Create `lib/lua_of_ocaml/lua.ml`
-- [ ] Define Lua value types
-- [ ] Implement type conversions
-- **Output**: ~250 lines
-- **Test**: FFI type conversion tests
+- [x] Create `lib/lua_of_ocaml/lua.ml`
+- [x] Define Lua value types
+- [x] Implement type conversions
+- **Output**: ~180 lines (lua.ml) + ~221 lines (lua.mli)
+- **Test**: FFI type conversion tests ✓ (All tests passed)
 - **Commit**: "feat: Create Lua FFI bindings"
 
 #### Task 8.2: Calling Lua from OCaml
