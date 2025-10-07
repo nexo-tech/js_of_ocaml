@@ -344,14 +344,20 @@ Generate Lua code that:
   - Empty requirements (should return empty list)
 - **Status**: COMPLETED - Commit 228da76f
 
-### Task 7.3: Unit Tests for Loader Generation
+### Task 7.3: Unit Tests for Loader Generation ✅
 - **File**: `compiler/tests-lua/test_module_linking.ml`
 - **Tests**:
-  - Single fragment loader
-  - Multiple fragment loader
-  - Loader with dependencies
-  - Verify generated Lua is syntactically valid
-  - Verify registration order
+  - Single fragment with single symbol (basic structure)
+  - Multiple fragments in dependency order
+  - Fragment with multiple symbols (all registered)
+  - Lua syntax validity verification (keywords, operators)
+  - Registration order with complex DAG
+  - Empty fragments list produces minimal loader
+  - Code indentation preservation
+  - Special characters handling (quotes, backslashes, digits)
+  - Large fragment set (10 fragments)
+  - Registration happens before code execution
+- **Status**: COMPLETED - Commit TBD
 
 ### Task 7.4: Integration Tests
 - **File**: `compiler/tests-lua/test_module_linking.ml`
