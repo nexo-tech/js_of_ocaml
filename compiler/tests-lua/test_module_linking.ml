@@ -184,6 +184,133 @@ let%expect_test "parse_version with no constraint returns true" =
   print_endline (if result then "satisfied" else "not satisfied");
   [%expect {| satisfied |}]
 
+(* Task 1.4: Parse Complete Fragment Header Tests *)
+
+let%expect_test "parse_fragment_header with all directives" =
+  let code = {|--// Provides: foo, bar
+--// Requires: baz, qux
+--// Version: >= 4.14
+
+local function foo()
+  return 42
+end
+|} in
+  let fragment = Lua_link.parse_fragment_header ~name:"test" code in
+  print_endline ("name: " ^ fragment.name);
+  print_endline ("provides: " ^ String.concat ~sep:", " fragment.provides);
+  print_endline ("requires: " ^ String.concat ~sep:", " fragment.requires);
+  [%expect {|
+    name: test
+    provides: foo, bar
+    requires: baz, qux
+    |}]
+
+let%expect_test "parse_fragment_header with only provides" =
+  let code = {|--// Provides: single_symbol
+
+local x = 10
+|} in
+  let fragment = Lua_link.parse_fragment_header ~name:"test" code in
+  print_endline ("provides: " ^ String.concat ~sep:", " fragment.provides);
+  print_endline ("requires: " ^ String.concat ~sep:", " fragment.requires);
+  [%expect {|
+    provides: single_symbol
+    requires:
+    |}]
+
+let%expect_test "parse_fragment_header with no headers" =
+  let code = {|-- Just a regular comment
+local x = 10
+|} in
+  let fragment = Lua_link.parse_fragment_header ~name:"mymodule" code in
+  print_endline ("provides: " ^ String.concat ~sep:", " fragment.provides);
+  print_endline ("requires: " ^ String.concat ~sep:", " fragment.requires);
+  [%expect {|
+    provides: mymodule
+    requires:
+    |}]
+
+let%expect_test "parse_fragment_header stops at first non-comment" =
+  let code = {|--// Provides: foo
+local x = 10
+--// Requires: bar
+|} in
+  let fragment = Lua_link.parse_fragment_header ~name:"test" code in
+  print_endline ("provides: " ^ String.concat ~sep:", " fragment.provides);
+  print_endline ("requires: " ^ String.concat ~sep:", " fragment.requires);
+  [%expect {|
+    provides: foo
+    requires:
+    |}]
+
+let%expect_test "parse_fragment_header with version constraint satisfied" =
+  let code = {|--// Provides: foo
+--// Version: >= 4.14
+--// Requires: bar
+
+local function foo() end
+|} in
+  let fragment = Lua_link.parse_fragment_header ~name:"test" code in
+  print_endline ("provides: " ^ String.concat ~sep:", " fragment.provides);
+  print_endline ("requires: " ^ String.concat ~sep:", " fragment.requires);
+  [%expect {|
+    provides: foo
+    requires: bar
+    |}]
+
+let%expect_test "parse_fragment_header with version constraint not satisfied" =
+  let code = {|--// Provides: foo
+--// Version: >= 6.0
+--// Requires: bar
+
+local function foo() end
+|} in
+  let fragment = Lua_link.parse_fragment_header ~name:"test" code in
+  print_endline ("provides: " ^ String.concat ~sep:", " fragment.provides);
+  print_endline ("requires: " ^ String.concat ~sep:", " fragment.requires);
+  [%expect {|
+    provides:
+    requires:
+    |}]
+
+let%expect_test "parse_fragment_header with multiple requires" =
+  let code = {|--// Provides: main
+--// Requires: dep1, dep2
+--// Requires: dep3
+
+local function main() end
+|} in
+  let fragment = Lua_link.parse_fragment_header ~name:"test" code in
+  print_endline ("provides: " ^ String.concat ~sep:", " fragment.provides);
+  print_endline ("requires: " ^ String.concat ~sep:", " fragment.requires);
+  [%expect {|
+    provides: main
+    requires: dep3, dep1, dep2
+    |}]
+
+let%expect_test "parse_fragment_header with mixed comments" =
+  let code = {|-- Regular comment
+--// Provides: foo
+-- Another regular comment
+--// Requires: bar
+-- Yet another comment
+
+local function foo() end
+|} in
+  let fragment = Lua_link.parse_fragment_header ~name:"test" code in
+  print_endline ("provides: " ^ String.concat ~sep:", " fragment.provides);
+  print_endline ("requires: " ^ String.concat ~sep:", " fragment.requires);
+  [%expect {|
+    provides: foo
+    requires: bar
+    |}]
+
+let%expect_test "parse_fragment_header with empty code" =
+  let code = "" in
+  let fragment = Lua_link.parse_fragment_header ~name:"empty" code in
+  print_endline ("provides: " ^ String.concat ~sep:", " fragment.provides);
+  [%expect {| provides: empty |}]
+
 let%expect_test "parse fragment header with provides" =
   let code = {|
 --// Provides: foo, bar

@@ -109,13 +109,51 @@ let parse_version (line : string) : bool =
         op Ocaml_version.(compare current (split ver_str)) 0
   else true (* No version header means accept all *)
 
+(* Parse complete fragment header from code string *)
+let parse_fragment_header ~name (code : string) : fragment =
+  let lines = String.split_on_char ~sep:'\n' code in
+  let rec parse_headers provides requires version_ok = function
+    | [] -> provides, requires, version_ok
+    | line :: rest ->
+        let trimmed = String.trim line in
+        (* Stop at first non-comment line *)
+        if String.length trimmed > 0
+           && not (String.length trimmed >= 2
+                   && String.equal (String.sub trimmed ~pos:0 ~len:2) "--")
+        then provides, requires, version_ok
+        (* Parse header directives *)
+        else if String.length trimmed >= 4
+                && String.equal (String.sub trimmed ~pos:0 ~len:4) "--//"
+        then
+          let new_provides =
+            let p = parse_provides trimmed in
+            if List.length p > 0 then p else provides
+          in
+          let new_requires =
+            let r = parse_requires trimmed in
+            if List.length r > 0 then r @ requires else requires
+          in
+          let new_version_ok = version_ok && parse_version trimmed in
+          parse_headers new_provides new_requires new_version_ok rest
+        else
+          (* Regular comment, continue *)
+          parse_headers provides requires version_ok rest
+  in
+  let provides, requires, version_ok = parse_headers [] [] true lines in
+  (* If version constraint not satisfied, return empty provides/requires *)
+  if not version_ok
+  then { name; provides = []; requires = []; code }
+  else
+    (* If no provides found, default to fragment name *)
+    let provides = if List.length provides = 0 then [name] else provides in
+    { name; provides; requires; code }
+
 let load_runtime_file filename =
   let ic = open_in_bin filename in
   let code = really_input_string ic (in_channel_length ic) in
   close_in ic;
   let name = Filename.basename filename |> Filename.chop_extension in
-  (* Simplified: no header parsing for now *)
-  { name; provides = [name]; requires = []; code }
+  parse_fragment_header ~name code
 
 let load_runtime_dir dirname =
   if Sys.file_exists dirname && Sys.is_directory dirname

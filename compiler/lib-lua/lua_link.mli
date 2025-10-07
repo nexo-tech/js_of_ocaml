@@ -48,6 +48,13 @@ val parse_version : string -> bool
     is satisfied by the current OCaml version. Returns true if constraint is satisfied or
     if line doesn't match the format. Supports operators: >=, <=, >, <, = *)
 
+(** Parse complete fragment header from code string *)
+val parse_fragment_header : name:string -> string -> fragment
+(** [parse_fragment_header ~name code] parses all header directives from a Lua code string.
+    Extracts Provides, Requires, and Version directives. Returns fragment with parsed metadata.
+    Stops parsing at first non-comment line. If version constraint not satisfied, returns
+    fragment with empty provides/requires. Defaults to [name] if no Provides header found. *)
+
 (** Load a runtime Lua file as a fragment *)
 val load_runtime_file : string -> fragment
 
