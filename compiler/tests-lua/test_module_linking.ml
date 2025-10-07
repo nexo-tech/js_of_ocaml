@@ -1176,7 +1176,7 @@ let%expect_test "resolve simple dependencies" =
   print_endline ("ordered: " ^ String.concat ~sep:", " ordered);
   print_endline ("missing: " ^ String.concat ~sep:", " missing);
   [%expect {|
-    ordered: derived, base
+    ordered: base, derived
     missing:
     |}]
 
@@ -1207,7 +1207,7 @@ let%expect_test "resolve transitive dependencies" =
   print_endline ("ordered: " ^ String.concat ~sep:", " ordered);
   print_endline ("missing: " ^ String.concat ~sep:", " missing);
   [%expect {|
-    ordered: c, b, a
+    ordered: a, b, c
     missing:
     |}]
 
@@ -1225,7 +1225,150 @@ let%expect_test "detect missing dependencies" =
   print_endline ("missing: " ^ String.concat ~sep:", " missing);
   [%expect {|
     ordered: incomplete
+    missing: missing_dep
+    |}]
+
+(* Task 3.3: Additional resolve_deps Integration Tests *)
+
+let%expect_test "resolve_deps with diamond dependency" =
+  let state = Lua_link.init () in
+  let frag_a = { Lua_link.
+    name = "a";
+    provides = ["a"];
+    requires = [];
+    code = ""
+  } in
+  let frag_b = { Lua_link.
+    name = "b";
+    provides = ["b"];
+    requires = ["a"];
+    code = ""
+  } in
+  let frag_c = { Lua_link.
+    name = "c";
+    provides = ["c"];
+    requires = ["a"];
+    code = ""
+  } in
+  let frag_d = { Lua_link.
+    name = "d";
+    provides = ["d"];
+    requires = ["b"; "c"];
+    code = ""
+  } in
+  let state = Lua_link.add_fragment state frag_a in
+  let state = Lua_link.add_fragment state frag_b in
+  let state = Lua_link.add_fragment state frag_c in
+  let state = Lua_link.add_fragment state frag_d in
+  let ordered, missing = Lua_link.resolve_deps state ["d"] in
+  (* Check that 'a' comes before both 'b' and 'c', and both come before 'd' *)
+  let a_pos = List.find_index ~f:(String.equal "a") ordered |> Option.value ~default:(-1) in
+  let b_pos = List.find_index ~f:(String.equal "b") ordered |> Option.value ~default:(-1) in
+  let c_pos = List.find_index ~f:(String.equal "c") ordered |> Option.value ~default:(-1) in
+  let d_pos = List.find_index ~f:(String.equal "d") ordered |> Option.value ~default:(-1) in
+  print_endline ("a before b: " ^ string_of_bool (a_pos < b_pos));
+  print_endline ("a before c: " ^ string_of_bool (a_pos < c_pos));
+  print_endline ("b before d: " ^ string_of_bool (b_pos < d_pos));
+  print_endline ("c before d: " ^ string_of_bool (c_pos < d_pos));
+  print_endline ("no missing: " ^ string_of_bool (List.length missing = 0));
+  [%expect {|
+    a before b: true
+    a before c: true
+    b before d: true
+    c before d: true
+    no missing: true
+    |}]
+
+let%expect_test "resolve_deps with multiple required symbols" =
+  let state = Lua_link.init () in
+  let frag1 = { Lua_link.
+    name = "utils";
+    provides = ["util1"; "util2"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "app";
+    provides = ["app"];
+    requires = ["util1"];
+    code = ""
+  } in
+  let state = Lua_link.add_fragment state frag1 in
+  let state = Lua_link.add_fragment state frag2 in
+  let ordered, missing = Lua_link.resolve_deps state ["util1"; "util2"; "app"] in
+  print_endline ("ordered: " ^ String.concat ~sep:", " ordered);
+  print_endline ("missing: " ^ String.concat ~sep:", " missing);
+  [%expect {|
+    ordered: utils, app
     missing:
+    |}]
+
+let%expect_test "resolve_deps with unused fragments" =
+  let state = Lua_link.init () in
+  let frag1 = { Lua_link.
+    name = "needed";
+    provides = ["needed"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "unused";
+    provides = ["unused"];
+    requires = [];
+    code = ""
+  } in
+  let state = Lua_link.add_fragment state frag1 in
+  let state = Lua_link.add_fragment state frag2 in
+  let ordered, missing = Lua_link.resolve_deps state ["needed"] in
+  print_endline ("ordered: " ^ String.concat ~sep:", " ordered);
+  print_endline ("unused included: " ^ string_of_bool (List.mem ~eq:String.equal "unused" ordered));
+  print_endline ("missing: " ^ String.concat ~sep:", " missing);
+  [%expect {|
+    ordered: needed
+    unused included: false
+    missing:
+    |}]
+
+let%expect_test "resolve_deps with empty requirements" =
+  let state = Lua_link.init () in
+  let frag = { Lua_link.
+    name = "frag";
+    provides = ["symbol"];
+    requires = [];
+    code = ""
+  } in
+  let state = Lua_link.add_fragment state frag in
+  let ordered, missing = Lua_link.resolve_deps state [] in
+  print_endline ("ordered: " ^ String.concat ~sep:", " ordered);
+  print_endline ("missing: " ^ String.concat ~sep:", " missing);
+  [%expect {|
+    ordered:
+    missing:
+    |}]
+
+let%expect_test "resolve_deps with complex missing dependencies" =
+  let state = Lua_link.init () in
+  let frag1 = { Lua_link.
+    name = "a";
+    provides = ["a"];
+    requires = ["missing1"];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "b";
+    provides = ["b"];
+    requires = ["a"; "missing2"];
+    code = ""
+  } in
+  let state = Lua_link.add_fragment state frag1 in
+  let state = Lua_link.add_fragment state frag2 in
+  let ordered, missing = Lua_link.resolve_deps state ["b"] in
+  let missing_sorted = List.sort ~cmp:String.compare missing in
+  print_endline ("ordered: " ^ String.concat ~sep:", " ordered);
+  print_endline ("missing: " ^ String.concat ~sep:", " missing_sorted);
+  [%expect {|
+    ordered: a, b
+    missing: missing1, missing2
     |}]
 
 let%expect_test "generate module loader" =
@@ -1293,6 +1436,7 @@ let%expect_test "multiple fragments with same provides" =
   print_endline ("ordered length: " ^ string_of_int (List.length ordered));
   print_endline ("missing: " ^ String.concat ~sep:", " missing);
   [%expect {|
-    ordered length: 2
+    Warning [overriding-primitive]: symbol "func" provided by both fragment "impl1" and fragment "impl2"
+    ordered length: 1
     missing:
     |}]

@@ -338,11 +338,62 @@ let find_missing_deps
     (fun symbol -> not (StringMap.mem symbol provides_map))
     all_required
 
-let resolve_deps state _required =
-  (* Simplified: return all fragments in arbitrary order *)
-  (* TODO: implement proper dependency resolution based on required *)
-  let all_names = StringMap.fold (fun name _ acc -> name :: acc) state.fragments [] in
-  (all_names, [])
+let resolve_deps state required =
+  (* Build provides map: symbol name → fragment name *)
+  let provides_map = build_provides_map state.fragments in
+
+  (* Find which fragments provide the required symbols *)
+  let required_fragments =
+    List.fold_left
+      ~f:(fun acc symbol ->
+        match StringMap.find_opt symbol provides_map with
+        | Some frag_name -> StringSet.add frag_name acc
+        | None -> acc (* Missing symbols will be detected later *))
+      ~init:StringSet.empty
+      required
+  in
+
+  (* Build dependency graph *)
+  let dep_graph = build_dep_graph state.fragments provides_map in
+
+  (* Calculate in-degrees *)
+  let in_degrees = calculate_in_degrees dep_graph in
+
+  (* Collect all fragments needed (required + their transitive dependencies) *)
+  let rec collect_deps acc to_visit =
+    match to_visit with
+    | [] -> acc
+    | frag_name :: rest ->
+        if StringSet.mem frag_name acc
+        then collect_deps acc rest
+        else
+          let acc' = StringSet.add frag_name acc in
+          (* Get dependencies of this fragment *)
+          let deps =
+            match StringMap.find_opt frag_name dep_graph with
+            | Some (_name, dep_set) -> StringSet.elements dep_set
+            | None -> []
+          in
+          collect_deps acc' (deps @ rest)
+  in
+  let all_needed = collect_deps StringSet.empty (StringSet.elements required_fragments) in
+
+  (* Filter dep_graph and in_degrees to only include needed fragments *)
+  let filtered_dep_graph =
+    StringMap.filter (fun frag_name _ -> StringSet.mem frag_name all_needed) dep_graph
+  in
+  let filtered_in_degrees =
+    StringMap.filter (fun frag_name _ -> StringSet.mem frag_name all_needed) in_degrees
+  in
+
+  (* Run topological sort on the filtered graph *)
+  let sorted, _cycles = topological_sort filtered_dep_graph filtered_in_degrees in
+
+  (* Find missing dependencies *)
+  let missing_set = find_missing_deps state.fragments provides_map in
+  let missing = StringSet.elements missing_set in
+
+  (sorted, missing)
 
 let generate_loader fragments =
   let buf = Buffer.create 1024 in

@@ -148,20 +148,24 @@ Generate Lua code that:
 - **Test**: Fragment requiring unknown symbol → symbol in missing set
 - **Status**: COMPLETED - Commit b645006f
 
-### Task 3.3: Implement resolve_deps
+### Task 3.3: Implement resolve_deps ✅
 - **File**: `compiler/lib-lua/lua_link.ml`
-- **Lines**: ~40
+- **Lines**: ~56
 - **Function**: `resolve_deps : state -> string list -> string list * string list`
 - **Logic**:
   - Build provides map
+  - Find fragments providing required symbols
   - Build dependency graph
   - Calculate in-degrees
+  - Collect all needed fragments (required + transitive dependencies)
+  - Filter graph to only include needed fragments
   - Run topological sort
   - Find missing dependencies
   - Return (ordered_fragments, missing_symbols)
 - **Test**: Complete integration test with multiple fragments
+- **Status**: COMPLETED - Commit [to be added]
 
-**Checkpoint**: Dependency resolution fully working
+**Checkpoint**: ✅ Dependency resolution fully working
 
 ## Phase 4: Module Loader Generation (120 lines)
 
