@@ -40,7 +40,7 @@ let output_file =
 
 let bytecode =
   let doc = "Bytecode executable to compile" in
-  Arg.(required & pos 0 (some non_dir_file) None & info [] ~docv:"FILE.byte" ~doc)
+  Arg.(required & pos 0 (some string) None & info [] ~docv:"FILE.byte" ~doc)
 
 let params =
   let doc = "Set compiler option (name=value)" in

@@ -302,12 +302,14 @@ This document outlines the implementation plan for adding Lua as a compilation t
 - **Commit**: "feat: Create lua_of_ocaml compiler driver"
 
 #### Task 9.2: Dune Integration
-- [ ] Add dune rules for Lua compilation
-- [ ] Support lua executable generation
-- [ ] Handle runtime bundling
-- **Output**: ~200 lines
-- **Test**: Dune build tests
+- [x] Add dune rules for Lua compilation
+- [x] Support lua executable generation
+- [x] Handle runtime bundling
+- [x] Create example project
+- **Output**: ~72 lines (hello.ml: 14, dune: 13, README.md: 45)
+- **Test**: Dune build tests ✓ (Successfully builds hello.bc.lua)
 - **Commit**: "feat: Integrate with dune build system"
+- **Note**: Fixed Parse_bytecode.from_exe usage, added hello_lua example
 
 #### Task 9.3: Source Maps
 - [ ] Generate source maps for debugging

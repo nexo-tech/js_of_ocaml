@@ -35,10 +35,19 @@ let run { Cmd_arg.common; bytecode; output_file; params; include_dirs; linkall }
   let include_dirs = List.filter_map include_dirs ~f:(fun d -> Findlib.find [] d) in
 
   (* Load and link bytecode *)
-  let ic = open_in_bin bytecode in
-  let bc = Parse_bytecode.from_exe ~includes:include_dirs ic in
-  close_in ic;
-  let one = bc ~linkall ~link_info:false ~include_cmis:false in
+  let one =
+    let ic = open_in_bin bytecode in
+    let result =
+      Parse_bytecode.from_exe
+        ~includes:include_dirs
+        ~linkall
+        ~link_info:false
+        ~include_cmis:false
+        ic
+    in
+    close_in ic;
+    result
+  in
   if times () then Format.eprintf "parsing: %a@." Timer.print t;
 
   (* Get the program from the bytecode *)
