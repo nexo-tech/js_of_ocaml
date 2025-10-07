@@ -2352,3 +2352,102 @@ let%expect_test "three fragments providing same symbol" =
     Warning [overriding-primitive]: symbol "api" provided by multiple fragments: v1, v2, v3 (later fragments override earlier ones)
     ordered: v3
     |}]
+
+(* Task 6.4: Version Constraint Validation Tests *)
+
+let%expect_test "check_version_constraints with no version header" =
+  let frag = { Lua_link.
+    name = "test";
+    provides = ["test"];
+    requires = [];
+    code = "-- No version header\nreturn true"
+  } in
+  let result = Lua_link.check_version_constraints frag in
+  print_endline (if result then "accepted" else "rejected");
+  [%expect {| accepted |}]
+
+let%expect_test "check_version_constraints with satisfied constraint" =
+  let frag = { Lua_link.
+    name = "test";
+    provides = ["test"];
+    requires = [];
+    code = "--// Version: >= 4.14\nreturn true"
+  } in
+  (* OCaml 5.2.0 >= 4.14 is true *)
+  let result = Lua_link.check_version_constraints frag in
+  print_endline (if result then "accepted" else "rejected");
+  [%expect {| accepted |}]
+
+let%expect_test "check_version_constraints with unsatisfied constraint" =
+  let frag = { Lua_link.
+    name = "test";
+    provides = ["test"];
+    requires = [];
+    code = "--// Version: >= 10.0\nreturn true"
+  } in
+  (* OCaml 5.2.0 >= 10.0 is false *)
+  let result = Lua_link.check_version_constraints frag in
+  print_endline (if result then "accepted" else "rejected");
+  [%expect {| rejected |}]
+
+let%expect_test "check_version_constraints with less than constraint" =
+  let frag = { Lua_link.
+    name = "test";
+    provides = ["test"];
+    requires = [];
+    code = "--// Version: < 10.0\nreturn true"
+  } in
+  (* OCaml 5.2.0 < 10.0 is true *)
+  let result = Lua_link.check_version_constraints frag in
+  print_endline (if result then "accepted" else "rejected");
+  [%expect {| accepted |}]
+
+let%expect_test "check_version_constraints with equals constraint" =
+  let frag = { Lua_link.
+    name = "test";
+    provides = ["test"];
+    requires = [];
+    code = "--// Version: = 5.2.0\nreturn true"
+  } in
+  (* OCaml 5.2.0 = 5.2.0 is true *)
+  let result = Lua_link.check_version_constraints frag in
+  print_endline (if result then "accepted" else "rejected");
+  [%expect {| accepted |}]
+
+let%expect_test "check_version_constraints with multiple constraints" =
+  let frag = { Lua_link.
+    name = "test";
+    provides = ["test"];
+    requires = [];
+    code = "--// Version: >= 4.14\n--// Version: < 10.0\nreturn true"
+  } in
+  (* Both constraints must be satisfied *)
+  let result = Lua_link.check_version_constraints frag in
+  print_endline (if result then "all satisfied" else "some failed");
+  [%expect {| all satisfied |}]
+
+let%expect_test "check_version_constraints with failing constraint among multiple" =
+  let frag = { Lua_link.
+    name = "test";
+    provides = ["test"];
+    requires = [];
+    code = "--// Version: >= 4.14\n--// Version: < 5.0\nreturn true"
+  } in
+  (* OCaml 5.2.0 >= 4.14 is true, but 5.2.0 < 5.0 is false *)
+  let result = Lua_link.check_version_constraints frag in
+  print_endline (if result then "all satisfied" else "some failed");
+  [%expect {| some failed |}]
+
+let%expect_test "version constraint affects fragment loading" =
+  let code_satisfied = "--// Provides: new_feature\n--// Version: >= 4.14\nreturn 42" in
+  let code_unsatisfied = "--// Provides: future_feature\n--// Version: >= 10.0\nreturn 99" in
+
+  let frag1 = Lua_link.parse_fragment_header ~name:"satisfied" code_satisfied in
+  let frag2 = Lua_link.parse_fragment_header ~name:"unsatisfied" code_unsatisfied in
+
+  print_endline ("frag1 provides: " ^ string_of_int (List.length frag1.provides));
+  print_endline ("frag2 provides: " ^ string_of_int (List.length frag2.provides));
+  [%expect {|
+    frag1 provides: 1
+    frag2 provides: 0
+    |}]

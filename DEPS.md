@@ -298,17 +298,20 @@ Generate Lua code that:
 - **Test**: Duplicate provides → warning with all fragment names
 - **Status**: COMPLETED - Commit 0d64ced0
 
-### Task 6.4: Version Constraint Validation
+### Task 6.4: Version Constraint Validation ✅
 - **File**: `compiler/lib-lua/lua_link.ml`
-- **Lines**: ~20
+- **Lines**: ~25
 - **Function**: `check_version_constraints : fragment -> bool`
 - **Logic**:
-  - Parse version constraint
-  - Compare with current OCaml version
-  - Return true if constraint satisfied
+  - Re-parse version constraints from fragment code
+  - Check each "--// Version:" directive using parse_version
+  - Return false if any constraint fails
+  - Return true if all constraints satisfied or no constraints found
+  - Stops at first non-comment line
 - **Test**: Various version constraints → correct filtering
+- **Status**: COMPLETED - Commit 7f4e8b2c
 
-**Checkpoint**: All error cases handled gracefully
+**Checkpoint**: ✅ All error cases handled gracefully
 
 ## Phase 7: Testing (Complete Coverage)
 

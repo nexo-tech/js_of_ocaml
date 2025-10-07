@@ -109,6 +109,33 @@ let parse_version (line : string) : bool =
         op Ocaml_version.(compare current (split ver_str)) 0
   else true (* No version header means accept all *)
 
+(* Check if a fragment's version constraints are satisfied *)
+let check_version_constraints (fragment : fragment) : bool =
+  (* Re-parse version constraints from the fragment code *)
+  let lines = String.split_on_char ~sep:'\n' fragment.code in
+  let rec check_lines = function
+    | [] -> true (* No version constraint found means accept *)
+    | line :: rest ->
+        let trimmed = String.trim line in
+        (* Stop at first non-comment line *)
+        if String.length trimmed > 0
+           && not (String.length trimmed >= 2
+                   && String.equal (String.sub trimmed ~pos:0 ~len:2) "--")
+        then true (* No more headers, accept *)
+        (* Check for version directive *)
+        else if String.length trimmed >= 4
+                && String.equal (String.sub trimmed ~pos:0 ~len:4) "--//"
+        then
+          let version_satisfied = parse_version trimmed in
+          if not version_satisfied
+          then false (* Version constraint failed *)
+          else check_lines rest
+        else
+          (* Regular comment, continue *)
+          check_lines rest
+  in
+  check_lines lines
+
 (* Parse complete fragment header from code string *)
 let parse_fragment_header ~name (code : string) : fragment =
   let lines = String.split_on_char ~sep:'\n' code in

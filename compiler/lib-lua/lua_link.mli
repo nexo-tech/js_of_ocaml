@@ -50,6 +50,12 @@ val parse_version : string -> bool
     is satisfied by the current OCaml version. Returns true if constraint is satisfied or
     if line doesn't match the format. Supports operators: >=, <=, >, <, = *)
 
+(** Check if a fragment's version constraints are satisfied *)
+val check_version_constraints : fragment -> bool
+(** [check_version_constraints fragment] checks if all version constraints in the fragment's
+    code are satisfied by the current OCaml version. Returns true if all constraints are
+    satisfied or if no version constraints are found. Returns false if any constraint fails. *)
+
 (** Parse complete fragment header from code string *)
 val parse_fragment_header : name:string -> string -> fragment
 (** [parse_fragment_header ~name code] parses all header directives from a Lua code string.
