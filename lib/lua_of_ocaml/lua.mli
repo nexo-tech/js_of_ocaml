@@ -398,3 +398,72 @@ val export_wrapped2 :
   -> (module Marshallable with type t = 'c)
   -> ('a -> 'b -> 'c)
   -> unit
+
+(** {1 Library Wrapping Utilities} *)
+
+(** {2 Method Binding Helpers} *)
+
+(** [method0 obj method_name] creates a function that calls a 0-arg method on obj *)
+val method0 : 'a table t -> string -> unit -> 'b t
+
+(** [method1 obj method_name] creates a function that calls a 1-arg method on obj *)
+val method1 : 'a table t -> string -> 'b t -> 'c t
+
+(** [method2 obj method_name] creates a function that calls a 2-arg method on obj *)
+val method2 : 'a table t -> string -> 'b t -> 'c t -> 'd t
+
+(** [method3 obj method_name] creates a function that calls a 3-arg method on obj *)
+val method3 : 'a table t -> string -> 'b t -> 'c t -> 'd t -> 'e t
+
+(** [methodn obj method_name] creates a function that calls an n-arg method on obj *)
+val methodn : 'a table t -> string -> any array -> 'b t
+
+(** {2 Property Access Helpers} *)
+
+(** [prop_get obj prop_name] gets a property from an object as a specific type *)
+val prop_get : 'a table t -> string -> 'b t
+
+(** [prop_set obj prop_name value] sets a property on an object *)
+val prop_set : 'a table t -> string -> 'b t -> unit
+
+(** [prop_get_int obj prop_name] gets an integer property *)
+val prop_get_int : 'a table t -> string -> int
+
+(** [prop_get_string obj prop_name] gets a string property *)
+val prop_get_string : 'a table t -> string -> string
+
+(** [prop_get_bool obj prop_name] gets a boolean property *)
+val prop_get_bool : 'a table t -> string -> bool
+
+(** [prop_get_table obj prop_name] gets a table property *)
+val prop_get_table : 'a table t -> string -> 'b table t
+
+(** {2 Chaining Utilities} *)
+
+(** [pipe x f] applies f to x (for method chaining), equivalent to x |> f *)
+val pipe : 'a -> ('a -> 'b) -> 'b
+
+(** [chain obj methods] applies a list of methods in sequence to obj *)
+val chain : 'a -> ('a -> 'a) list -> 'a
+
+(** {2 Optional Parameter Handling} *)
+
+(** [opt_param default opt] returns the value from opt or default if None *)
+val opt_param : 'a t -> 'a opt t -> 'a t
+
+(** [opt_map f opt] maps f over opt if present, otherwise returns nil *)
+val opt_map : ('a t -> 'b t) -> 'a opt t -> 'b opt t
+
+(** {2 Binding Generators} *)
+
+(** [bind_function module_name fn_name marshaller] creates a typed wrapper for a Lua function *)
+val bind_function : string -> string -> (module Marshallable with type t = 'a) -> (module Marshallable with type t = 'b) -> ('a -> 'b)
+
+(** [bind_method obj method_name arg_marsh ret_marsh] creates a typed method wrapper *)
+val bind_method : 'a table t -> string -> (module Marshallable with type t = 'b) -> (module Marshallable with type t = 'c) -> ('b -> 'c)
+
+(** [bind_property_get obj prop_name marshaller] creates a typed property getter *)
+val bind_property_get : 'a table t -> string -> (module Marshallable with type t = 'b) -> unit -> 'b
+
+(** [bind_property_set obj prop_name marshaller] creates a typed property setter *)
+val bind_property_set : 'a table t -> string -> (module Marshallable with type t = 'b) -> 'b -> unit

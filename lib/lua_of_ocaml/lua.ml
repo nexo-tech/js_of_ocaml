@@ -397,3 +397,87 @@ let export_wrapped2 (type a b c) (name : string)
   in
   export_fn2 name (fun x y ->
       Unsafe.coerce (wrapped (Unsafe.inject x) (Unsafe.inject y)))
+
+(* Library Wrapping Utilities *)
+
+(* Method Binding Helpers *)
+let method0 (obj : 'a table t) (method_name : string) : unit -> 'b t =
+  fun () -> call_method obj method_name [||]
+
+let method1 (obj : 'a table t) (method_name : string) : 'b t -> 'c t =
+  fun arg -> call_method obj method_name [| Unsafe.inject arg |]
+
+let method2 (obj : 'a table t) (method_name : string) : 'b t -> 'c t -> 'd t =
+  fun arg1 arg2 ->
+    call_method obj method_name [| Unsafe.inject arg1; Unsafe.inject arg2 |]
+
+let method3 (obj : 'a table t) (method_name : string) : 'b t -> 'c t -> 'd t -> 'e t =
+  fun arg1 arg2 arg3 ->
+    call_method
+      obj
+      method_name
+      [| Unsafe.inject arg1; Unsafe.inject arg2; Unsafe.inject arg3 |]
+
+let methodn (obj : 'a table t) (method_name : string) : any array -> 'b t =
+  fun args -> call_method obj method_name args
+
+(* Property Access Helpers *)
+let prop_get (obj : 'a table t) (prop_name : string) : 'b t = get obj (string prop_name)
+
+let prop_set (obj : 'a table t) (prop_name : string) (value : 'b t) : unit =
+  set obj (string prop_name) value
+
+let prop_get_int (obj : 'a table t) (prop_name : string) : int =
+  get_int obj (string prop_name)
+
+let prop_get_string (obj : 'a table t) (prop_name : string) : string =
+  get_string obj (string prop_name)
+
+let prop_get_bool (obj : 'a table t) (prop_name : string) : bool =
+  get_bool obj (string prop_name)
+
+let prop_get_table (obj : 'a table t) (prop_name : string) : 'b table t =
+  get_table obj (string prop_name)
+
+(* Chaining Utilities *)
+let pipe x f = f x
+
+let chain obj methods = List.fold_left (fun acc f -> f acc) obj methods
+
+(* Optional Parameter Handling *)
+let opt_param (default : 'a t) (opt : 'a opt t) : 'a t =
+  if test_opt opt then Unsafe.coerce opt else default
+
+let opt_map (f : 'a t -> 'b t) (opt : 'a opt t) : 'b opt t =
+  if test_opt opt then Unsafe.coerce (f (Unsafe.coerce opt)) else Unsafe.coerce nil
+
+(* Binding Generators *)
+let bind_function (type a b) (module_name : string) (fn_name : string)
+    (module A : Marshallable with type t = a) (module B : Marshallable with type t = b)
+    : a -> b =
+  let mod_table : _ table t = get_global_table module_name in
+  let fn : (_, _) fn t = get_fn mod_table (string fn_name) in
+  fun (x : a) ->
+    let x_lua = A.to_lua x in
+    let result_lua : any = Unsafe.call (Obj.magic fn) [| x_lua |] in
+    B.of_lua result_lua
+
+let bind_method (type b c) (obj : 'a table t) (method_name : string)
+    (module B : Marshallable with type t = b) (module C : Marshallable with type t = c)
+    : b -> c =
+  fun (x : b) ->
+    let x_lua = B.to_lua x in
+    let result : any = call_method obj method_name [| x_lua |] in
+    C.of_lua result
+
+let bind_property_get (type b) (obj : 'a table t) (prop_name : string)
+    (module B : Marshallable with type t = b) : unit -> b =
+  fun () ->
+    let prop_val = prop_get obj prop_name in
+    B.of_lua (Unsafe.inject prop_val)
+
+let bind_property_set (type b) (obj : 'a table t) (prop_name : string)
+    (module B : Marshallable with type t = b) : b -> unit =
+  fun (x : b) ->
+    let x_lua = B.to_lua x in
+    prop_set obj prop_name (Unsafe.coerce x_lua)

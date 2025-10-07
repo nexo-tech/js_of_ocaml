@@ -669,3 +669,215 @@ let%expect_test "lua export - wrapped function with marshalling" =
       return v0
     end
     __caml_init__() |}]
+
+(** Library Wrapping Tests **)
+
+let%expect_test "library wrapping - method0 binding" =
+  (* Simulates: let get_current_buf = method0 vim_api "nvim_get_current_buf" *)
+  let v_api = var_of_int 1 in
+  let v_method_name = var_of_int 2 in
+  let v_method = var_of_int 3 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_api, Code.Prim (Extern "caml_lua_get_global", [ Pc (String "vim") ]))
+        ; Code.Let (v_method_name, Code.Constant (Code.String "nvim_get_current_buf"))
+        ; Code.Let (v_method, Code.Prim (Extern "caml_lua_method0", [ Pv v_api; Pv v_method_name ]))
+        ]
+    ; branch = Code.Return v_method
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- Runtime initialized by require statements
+    function __caml_init__()
+      -- Module initialization code
+      local v0 = caml_caml_lua_get_global("vim")
+      local v1 = "nvim_get_current_buf"
+      local v2 = caml_caml_lua_method0(v0, v1)
+      return v2
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "library wrapping - method1 binding" =
+  (* Simulates: let set_line = method1 buf "set_line" *)
+  let v_buf = var_of_int 1 in
+  let v_method_name = var_of_int 2 in
+  let v_method = var_of_int 3 in
+  let v_line = var_of_int 4 in
+  let v_result = var_of_int 5 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_buf, Code.Prim (Extern "caml_lua_create_table", []))
+        ; Code.Let (v_method_name, Code.Constant (Code.String "set_line"))
+        ; Code.Let (v_method, Code.Prim (Extern "caml_lua_method1", [ Pv v_buf; Pv v_method_name ]))
+        ; Code.Let (v_line, Code.Constant (Code.String "Hello, Lua!"))
+        ; Code.Let (v_result, Code.Apply { f = v_method; args = [ v_line ]; exact = true })
+        ]
+    ; branch = Code.Return v_result
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- Runtime initialized by require statements
+    function __caml_init__()
+      -- Module initialization code
+      local v0 = caml_caml_lua_create_table()
+      local v1 = "set_line"
+      local v2 = caml_caml_lua_method1(v0, v1)
+      local v3 = "Hello, Lua!"
+      local v4 = v2(v3)
+      return v4
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "library wrapping - property access" =
+  (* Simulates: prop_get obj "name" *)
+  let v_obj = var_of_int 1 in
+  let v_prop_name = var_of_int 2 in
+  let v_value = var_of_int 3 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_obj, Code.Prim (Extern "caml_lua_create_table", []))
+        ; Code.Let (v_prop_name, Code.Constant (Code.String "name"))
+        ; Code.Let (v_value, Code.Prim (Extern "caml_lua_prop_get", [ Pv v_obj; Pv v_prop_name ]))
+        ]
+    ; branch = Code.Return v_value
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- Runtime initialized by require statements
+    function __caml_init__()
+      -- Module initialization code
+      local v0 = caml_caml_lua_create_table()
+      local v1 = "name"
+      local v2 = caml_caml_lua_prop_get(v0, v1)
+      return v2
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "library wrapping - method chaining with pipe" =
+  (* Simulates: obj |> method1 "foo" arg1 |> method1 "bar" arg2 *)
+  let v_obj = var_of_int 1 in
+  let v_arg1 = var_of_int 2 in
+  let v_arg2 = var_of_int 3 in
+  let v_foo_method = var_of_int 4 in
+  let v_bar_method = var_of_int 5 in
+  let v_intermediate = var_of_int 6 in
+  let v_result = var_of_int 7 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_obj, Code.Prim (Extern "caml_lua_create_table", []))
+        ; Code.Let (v_arg1, Code.Constant (Code.Int32 10l))
+        ; Code.Let (v_arg2, Code.Constant (Code.Int32 20l))
+        ; Code.Let (v_foo_method, Code.Prim (Extern "caml_lua_method1", [ Pv v_obj; Pc (String "foo") ]))
+        ; Code.Let (v_intermediate, Code.Apply { f = v_foo_method; args = [ v_arg1 ]; exact = true })
+        ; Code.Let (v_bar_method, Code.Prim (Extern "caml_lua_method1", [ Pv v_intermediate; Pc (String "bar") ]))
+        ; Code.Let (v_result, Code.Apply { f = v_bar_method; args = [ v_arg2 ]; exact = true })
+        ]
+    ; branch = Code.Return v_result
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- Runtime initialized by require statements
+    function __caml_init__()
+      -- Module initialization code
+      local v0 = caml_caml_lua_create_table()
+      local v1 = 10
+      local v2 = 20
+      local v3 = caml_caml_lua_method1(v0, "foo")
+      local v4 = v3(v1)
+      local v5 = caml_caml_lua_method1(v4, "bar")
+      local v6 = v5(v2)
+      return v6
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "library wrapping - optional parameter with opt_param" =
+  (* Simulates: opt_param default_val opt_val *)
+  let v_default = var_of_int 1 in
+  let v_opt = var_of_int 2 in
+  let v_result = var_of_int 3 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_default, Code.Constant (Code.Int32 42l))
+        ; Code.Let (v_opt, Code.Constant (Code.Int32 0l))
+        ; Code.Let (v_result, Code.Prim (Extern "caml_lua_opt_param", [ Pv v_default; Pv v_opt ]))
+        ]
+    ; branch = Code.Return v_result
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- Runtime initialized by require statements
+    function __caml_init__()
+      -- Module initialization code
+      local v0 = 42
+      local v1 = 0
+      local v2 = caml_caml_lua_opt_param(v0, v1)
+      return v2
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "library wrapping - bind_function typed wrapper" =
+  (* Simulates: bind_function "math" "sqrt" Float_marshal Float_marshal *)
+  let v_module_name = var_of_int 1 in
+  let v_fn_name = var_of_int 2 in
+  let v_arg_marsh = var_of_int 3 in
+  let v_ret_marsh = var_of_int 4 in
+  let v_wrapper = var_of_int 5 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_module_name, Code.Constant (Code.String "math"))
+        ; Code.Let (v_fn_name, Code.Constant (Code.String "sqrt"))
+        ; Code.Let (v_arg_marsh, Code.Constant (Code.String "Float_marshal"))
+        ; Code.Let (v_ret_marsh, Code.Constant (Code.String "Float_marshal"))
+        ; Code.Let (v_wrapper, Code.Prim (Extern "caml_lua_bind_function", [ Pv v_module_name; Pv v_fn_name; Pv v_arg_marsh; Pv v_ret_marsh ]))
+        ]
+    ; branch = Code.Return v_wrapper
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- Runtime initialized by require statements
+    function __caml_init__()
+      -- Module initialization code
+      local v0 = "math"
+      local v1 = "sqrt"
+      local v2 = "Float_marshal"
+      local v3 = "Float_marshal"
+      local v4 = caml_caml_lua_bind_function(v0, v1, v2, v3)
+      return v4
+    end
+    __caml_init__()
+    |}]
