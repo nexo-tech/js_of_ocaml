@@ -163,7 +163,7 @@ Generate Lua code that:
   - Find missing dependencies
   - Return (ordered_fragments, missing_symbols)
 - **Test**: Complete integration test with multiple fragments
-- **Status**: COMPLETED - Commit [to be added]
+- **Status**: COMPLETED - Commit 6d7aa5bd
 
 **Checkpoint**: ✅ Dependency resolution fully working
 
