@@ -54,6 +54,56 @@ let%expect_test "parse_provides case sensitive" =
   print_endline (String.concat ~sep:", " result);
   [%expect {| Foo, BAR, baz |}]
 
+(* Task 1.2: Parse Requires Header Tests *)
+
+let%expect_test "parse_requires with single symbol" =
+  let line = "--// Requires: foo" in
+  let result = Lua_link.parse_requires line in
+  print_endline (String.concat ~sep:", " result);
+  [%expect {| foo |}]
+
+let%expect_test "parse_requires with multiple symbols" =
+  let line = "--// Requires: foo, bar, baz" in
+  let result = Lua_link.parse_requires line in
+  print_endline (String.concat ~sep:", " result);
+  [%expect {| foo, bar, baz |}]
+
+let%expect_test "parse_requires with whitespace" =
+  let line = "--// Requires:  foo  ,  bar  ,  baz  " in
+  let result = Lua_link.parse_requires line in
+  print_endline (String.concat ~sep:", " result);
+  [%expect {| foo, bar, baz |}]
+
+let%expect_test "parse_requires with empty list" =
+  let line = "--// Requires: " in
+  let result = Lua_link.parse_requires line in
+  print_endline (if List.length result = 0 then "empty" else "not empty");
+  [%expect {| empty |}]
+
+let%expect_test "parse_requires with non-matching line" =
+  let line = "-- This is just a comment" in
+  let result = Lua_link.parse_requires line in
+  print_endline (if List.length result = 0 then "empty" else "not empty");
+  [%expect {| empty |}]
+
+let%expect_test "parse_requires with empty commas" =
+  let line = "--// Requires: foo, , bar" in
+  let result = Lua_link.parse_requires line in
+  print_endline (String.concat ~sep:", " result);
+  [%expect {| foo, bar |}]
+
+let%expect_test "parse_requires case sensitive" =
+  let line = "--// Requires: Foo, BAR, baz" in
+  let result = Lua_link.parse_requires line in
+  print_endline (String.concat ~sep:", " result);
+  [%expect {| Foo, BAR, baz |}]
+
+let%expect_test "parse_requires does not match provides" =
+  let line = "--// Provides: foo, bar" in
+  let result = Lua_link.parse_requires line in
+  print_endline (if List.length result = 0 then "empty" else "not empty");
+  [%expect {| empty |}]
+
 let%expect_test "parse fragment header with provides" =
   let code = {|
 --// Provides: foo, bar

@@ -37,6 +37,11 @@ val parse_provides : string -> string list
 (** [parse_provides line] extracts symbols from a "--// Provides: sym1, sym2" header.
     Returns empty list if line doesn't match the format. *)
 
+(** Parse requires header from a line *)
+val parse_requires : string -> string list
+(** [parse_requires line] extracts symbols from a "--// Requires: sym1, sym2" header.
+    Returns empty list if line doesn't match the format. *)
+
 (** Load a runtime Lua file as a fragment *)
 val load_runtime_file : string -> fragment
 

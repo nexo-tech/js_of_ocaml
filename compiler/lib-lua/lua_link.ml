@@ -48,6 +48,22 @@ let parse_provides (line : string) : string list =
       symbols
   else []
 
+(* Parse requires header: "--// Requires: foo, bar" -> ["foo"; "bar"] *)
+let parse_requires (line : string) : string list =
+  let prefix = "--// Requires:" in
+  let prefix_len = String.length prefix in
+  if String.length line >= prefix_len
+     && String.equal (String.sub line ~pos:0 ~len:prefix_len) prefix
+  then
+    let rest = String.sub line ~pos:prefix_len ~len:(String.length line - prefix_len) in
+    let symbols = String.split_on_char ~sep:',' rest in
+    List.filter_map
+      ~f:(fun s ->
+        let trimmed = String.trim s in
+        if String.length trimmed > 0 then Some trimmed else None)
+      symbols
+  else []
+
 let load_runtime_file filename =
   let ic = open_in_bin filename in
   let code = really_input_string ic (in_channel_length ic) in
