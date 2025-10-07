@@ -189,11 +189,11 @@ This document outlines the implementation plan for adding Lua as a compilation t
 - **Commit**: "feat: Implement array and reference primitives"
 
 #### Task 5.4: I/O Primitives
-- [ ] Create `runtime/lua/io.lua`
-- [ ] Implement file operations
-- [ ] Support stdin/stdout/stderr
-- **Output**: ~300 lines
-- **Test**: Basic I/O operation tests
+- [x] Create `runtime/lua/io.lua`
+- [x] Implement file operations
+- [x] Support stdin/stdout/stderr
+- **Output**: ~300 lines (~113 lines primitives + 550 lines runtime + 385 lines tests + dune updates)
+- **Test**: I/O operation tests ✓ (39 tests covering file descriptors, channels, input/output, positioning, configuration)
 - **Commit**: "feat: Add I/O primitive support"
 
 ### Phase 6: Module System (Week 6-7)

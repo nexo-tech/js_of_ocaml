@@ -421,6 +421,119 @@ let generate_prim ctx prim args =
       | "weak_check", [ weak; idx ] ->
           (* Check if weak reference is alive *)
           L.Call (L.Ident "caml_weak_check", [ weak; idx ])
+      (* I/O operations - file descriptors and channels *)
+      | "caml_sys_open", [ name; flags; perms ] ->
+          (* Open file and return file descriptor *)
+          L.Call (L.Ident "caml_sys_open", [ name; flags; perms ])
+      | "caml_sys_close", [ fd ] ->
+          (* Close file descriptor *)
+          L.Call (L.Ident "caml_sys_close", [ fd ])
+      | "caml_ml_open_descriptor_in", [ fd ] ->
+          (* Create input channel from file descriptor *)
+          L.Call (L.Ident "caml_ml_open_descriptor_in", [ fd ])
+      | "caml_ml_open_descriptor_out", [ fd ] ->
+          (* Create output channel from file descriptor *)
+          L.Call (L.Ident "caml_ml_open_descriptor_out", [ fd ])
+      | "caml_ml_open_descriptor_in_with_flags", [ fd; flags ] ->
+          (* Create input channel from file descriptor with flags (OCaml 5.1+) *)
+          L.Call (L.Ident "caml_ml_open_descriptor_in_with_flags", [ fd; flags ])
+      | "caml_ml_open_descriptor_out_with_flags", [ fd; flags ] ->
+          (* Create output channel from file descriptor with flags (OCaml 5.1+) *)
+          L.Call (L.Ident "caml_ml_open_descriptor_out_with_flags", [ fd; flags ])
+      | "caml_ml_close_channel", [ chan ] ->
+          (* Close channel *)
+          L.Call (L.Ident "caml_ml_close_channel", [ chan ])
+      | "caml_ml_flush", [ chan ] ->
+          (* Flush output channel *)
+          L.Call (L.Ident "caml_ml_flush", [ chan ])
+      (* Input operations *)
+      | "caml_ml_input_char", [ chan ] ->
+          (* Read single character from input channel *)
+          L.Call (L.Ident "caml_ml_input_char", [ chan ])
+      | "caml_ml_input", [ chan; buf; offset; len ] ->
+          (* Read bytes into buffer *)
+          L.Call (L.Ident "caml_ml_input", [ chan; buf; offset; len ])
+      | "caml_ml_input_int", [ chan ] ->
+          (* Read binary integer *)
+          L.Call (L.Ident "caml_ml_input_int", [ chan ])
+      | "caml_ml_input_scan_line", [ chan ] ->
+          (* Scan for newline in input buffer *)
+          L.Call (L.Ident "caml_ml_input_scan_line", [ chan ])
+      | "caml_input_value", [ chan ] ->
+          (* Read marshaled value *)
+          L.Call (L.Ident "caml_input_value", [ chan ])
+      | "caml_input_value_to_outside_heap", [ chan ] ->
+          (* Read marshaled value (OCaml 5.0+) *)
+          L.Call (L.Ident "caml_input_value_to_outside_heap", [ chan ])
+      (* Output operations *)
+      | "caml_ml_output_char", [ chan; c ] ->
+          (* Write single character to output channel *)
+          L.Call (L.Ident "caml_ml_output_char", [ chan; c ])
+      | "caml_ml_output", [ chan; buf; offset; len ] ->
+          (* Write string to output channel *)
+          L.Call (L.Ident "caml_ml_output", [ chan; buf; offset; len ])
+      | "caml_ml_output_bytes", [ chan; buf; offset; len ] ->
+          (* Write bytes to output channel *)
+          L.Call (L.Ident "caml_ml_output_bytes", [ chan; buf; offset; len ])
+      | "caml_ml_output_int", [ chan; i ] ->
+          (* Write binary integer *)
+          L.Call (L.Ident "caml_ml_output_int", [ chan; i ])
+      | "caml_output_value", [ chan; v; flags ] ->
+          (* Write marshaled value *)
+          L.Call (L.Ident "caml_output_value", [ chan; v; flags ])
+      (* Channel positioning *)
+      | "caml_ml_seek_in", [ chan; pos ] ->
+          (* Seek in input channel *)
+          L.Call (L.Ident "caml_ml_seek_in", [ chan; pos ])
+      | "caml_ml_seek_in_64", [ chan; pos ] ->
+          (* Seek in input channel (64-bit) *)
+          L.Call (L.Ident "caml_ml_seek_in_64", [ chan; pos ])
+      | "caml_ml_seek_out", [ chan; pos ] ->
+          (* Seek in output channel *)
+          L.Call (L.Ident "caml_ml_seek_out", [ chan; pos ])
+      | "caml_ml_seek_out_64", [ chan; pos ] ->
+          (* Seek in output channel (64-bit) *)
+          L.Call (L.Ident "caml_ml_seek_out_64", [ chan; pos ])
+      | "caml_ml_pos_in", [ chan ] ->
+          (* Get input channel position *)
+          L.Call (L.Ident "caml_ml_pos_in", [ chan ])
+      | "caml_ml_pos_in_64", [ chan ] ->
+          (* Get input channel position (64-bit) *)
+          L.Call (L.Ident "caml_ml_pos_in_64", [ chan ])
+      | "caml_ml_pos_out", [ chan ] ->
+          (* Get output channel position *)
+          L.Call (L.Ident "caml_ml_pos_out", [ chan ])
+      | "caml_ml_pos_out_64", [ chan ] ->
+          (* Get output channel position (64-bit) *)
+          L.Call (L.Ident "caml_ml_pos_out_64", [ chan ])
+      | "caml_ml_channel_size", [ chan ] ->
+          (* Get channel size *)
+          L.Call (L.Ident "caml_ml_channel_size", [ chan ])
+      | "caml_ml_channel_size_64", [ chan ] ->
+          (* Get channel size (64-bit) *)
+          L.Call (L.Ident "caml_ml_channel_size_64", [ chan ])
+      (* Channel configuration *)
+      | "caml_ml_set_binary_mode", [ chan; mode ] ->
+          (* Set binary mode *)
+          L.Call (L.Ident "caml_ml_set_binary_mode", [ chan; mode ])
+      | "caml_ml_is_binary_mode", [ chan ] ->
+          (* Check if channel is in binary mode (OCaml 5.2+) *)
+          L.Call (L.Ident "caml_ml_is_binary_mode", [ chan ])
+      | "caml_ml_set_channel_name", [ chan; name ] ->
+          (* Set channel name *)
+          L.Call (L.Ident "caml_ml_set_channel_name", [ chan; name ])
+      | "caml_channel_descriptor", [ chan ] ->
+          (* Get file descriptor from channel *)
+          L.Call (L.Ident "caml_channel_descriptor", [ chan ])
+      | "caml_ml_out_channels_list", [] ->
+          (* Get list of all output channels *)
+          L.Call (L.Ident "caml_ml_out_channels_list", [])
+      | "caml_ml_is_buffered", [ chan ] ->
+          (* Check if channel is buffered *)
+          L.Call (L.Ident "caml_ml_is_buffered", [ chan ])
+      | "caml_ml_set_buffered", [ chan; v ] ->
+          (* Set channel buffering *)
+          L.Call (L.Ident "caml_ml_set_buffered", [ chan; v ])
       (* Default: call external primitive function *)
       | _, args ->
           let prim_func = L.Ident ("caml_" ^ name) in
