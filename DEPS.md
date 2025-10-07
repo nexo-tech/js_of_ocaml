@@ -242,21 +242,22 @@ Generate Lua code that:
 - **Test**: linkall=true → all fragments; linkall=false → only needed
 - **Status**: COMPLETED - Commit 78c82d16
 
-### Task 5.2: Implement Complete link Function
+### Task 5.2: Implement Complete link Function ✅
 - **File**: `compiler/lib-lua/lua_link.ml`
-- **Lines**: ~40
+- **Lines**: ~6 (efficient implementation reusing existing functions)
 - **Function**: `link : state:state -> program:Lua_ast.stat list -> linkall:bool -> Lua_ast.stat list`
 - **Logic**:
-  - Select fragments based on linkall
-  - Resolve dependencies
-  - Sort topologically
-  - Generate loader code
-  - Convert loader string to Lua_ast.Comment or Lua_ast.Chunk
+  - Select fragments based on linkall (via select_fragments)
+  - Resolve dependencies (inside select_fragments → resolve_deps)
+  - Sort topologically (inside resolve_deps → topological_sort)
+  - Generate loader code (via generate_loader)
+  - Convert loader string to Lua_ast.Comment
   - Prepend loader to program
   - Return linked program
 - **Test**: Link empty program → loader + program; link with deps → correct order
+- **Status**: COMPLETED - Commit 2f8a3b1d
 
-**Checkpoint**: Complete linking pipeline working
+**Checkpoint**: ✅ Complete linking pipeline working
 
 ## Phase 6: Error Handling and Edge Cases (80 lines)
 

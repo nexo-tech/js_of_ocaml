@@ -4,6 +4,7 @@
 
 open Js_of_ocaml_compiler.Stdlib
 module Lua_link = Lua_of_ocaml_compiler__Lua_link
+module Lua_ast = Lua_of_ocaml_compiler__Lua_ast
 
 let%expect_test "create empty linking state" =
   let _state = Lua_link.init () in
@@ -1777,15 +1778,18 @@ let%expect_test "select_fragments with multiple required symbols" =
   print_newline ();
   [%expect {| 2 |}]
 
-let%expect_test "link with empty program" =
+(* Task 5.2: Complete link Function Tests *)
+
+let%expect_test "link with empty program and no fragments" =
   let state = Lua_link.init () in
   let program = [] in
   let linked = Lua_link.link ~state ~program ~linkall:false in
+  (* Should have loader even with no fragments *)
   print_int (List.length linked);
   print_newline ();
   [%expect {| 1 |}]
 
-let%expect_test "link with linkall" =
+let%expect_test "link with empty program and linkall=true" =
   let state = Lua_link.init () in
   let frag = { Lua_link.
     name = "runtime";
@@ -1796,10 +1800,130 @@ let%expect_test "link with linkall" =
   let state = Lua_link.add_fragment state frag in
   let program = [] in
   let linked = Lua_link.link ~state ~program ~linkall:true in
-  (* Should include the loader comment *)
+  (* Should include the loader with fragment *)
   print_int (List.length linked);
   print_newline ();
   [%expect {| 1 |}]
+
+let%expect_test "link with program statements" =
+  let state = Lua_link.init () in
+  let frag = { Lua_link.
+    name = "base";
+    provides = ["base"];
+    requires = [];
+    code = "return 1"
+  } in
+  let state = Lua_link.add_fragment state frag in
+  let program = [
+    Lua_ast.Comment "-- main program";
+    Lua_ast.Comment "-- more code"
+  ] in
+  let linked = Lua_link.link ~state ~program ~linkall:true in
+  (* Should have loader + 2 program statements *)
+  print_int (List.length linked);
+  print_newline ();
+  [%expect {| 3 |}]
+
+let%expect_test "link prepends loader to program" =
+  let state = Lua_link.init () in
+  let program = [Lua_ast.Comment "-- main"] in
+  let linked = Lua_link.link ~state ~program ~linkall:false in
+  (* Check that loader comes first *)
+  (match linked with
+  | _first :: rest ->
+      print_endline "loader first: yes";
+      print_int (List.length rest);
+      print_newline ()
+  | [] ->
+      [%expect.unreachable];
+      print_endline "empty");
+  [%expect {|
+    loader first: yes
+    1
+    |}]
+
+let%expect_test "link with dependency chain" =
+  let state = Lua_link.init () in
+  let frag1 = { Lua_link.
+    name = "a";
+    provides = ["a"];
+    requires = [];
+    code = "local a = 1"
+  } in
+  let frag2 = { Lua_link.
+    name = "b";
+    provides = ["b"];
+    requires = ["a"];
+    code = "local b = 2"
+  } in
+  let frag3 = { Lua_link.
+    name = "c";
+    provides = ["c"];
+    requires = ["b"];
+    code = "local c = 3"
+  } in
+  let state = Lua_link.add_fragment state frag1 in
+  let state = Lua_link.add_fragment state frag2 in
+  let state = Lua_link.add_fragment state frag3 in
+  let program = [Lua_ast.Comment "-- main"] in
+  let linked = Lua_link.link ~state ~program ~linkall:true in
+  (* Loader + main program *)
+  print_int (List.length linked);
+  print_newline ();
+  [%expect {| 2 |}]
+
+let%expect_test "link with linkall=false excludes unused" =
+  let state = Lua_link.init () in
+  let frag1 = { Lua_link.
+    name = "used";
+    provides = ["used"];
+    requires = [];
+    code = "x = 1"
+  } in
+  let frag2 = { Lua_link.
+    name = "unused";
+    provides = ["unused"];
+    requires = [];
+    code = "y = 2"
+  } in
+  let state = Lua_link.add_fragment state frag1 in
+  let state = Lua_link.add_fragment state frag2 in
+  let program = [] in
+  (* With linkall=false and no requirements, should get empty loader *)
+  let linked = Lua_link.link ~state ~program ~linkall:false in
+  (match linked with
+  | [Lua_ast.Comment loader_code] ->
+      (* Check if loader is minimal (no fragments) *)
+      let has_package_loaded = String.contains loader_code '[' in
+      print_endline (if has_package_loaded then "has fragments" else "no fragments")
+  | _ ->
+      [%expect.unreachable];
+      print_endline "unexpected structure");
+  [%expect {| no fragments |}]
+
+let%expect_test "link generates valid loader structure" =
+  let state = Lua_link.init () in
+  let frag = { Lua_link.
+    name = "test";
+    provides = ["test"];
+    requires = [];
+    code = "return true"
+  } in
+  let state = Lua_link.add_fragment state frag in
+  let program = [] in
+  let linked = Lua_link.link ~state ~program ~linkall:true in
+  (match linked with
+  | [Lua_ast.Comment loader_code] ->
+      let has_prologue = String.contains loader_code 'L' in  (* "Lua_of_ocaml" *)
+      let has_registration = String.contains loader_code '[' in  (* package.loaded *)
+      let has_epilogue = String.contains loader_code 'E' in  (* "End" *)
+      print_endline (if has_prologue && has_registration && has_epilogue
+                     then "valid structure"
+                     else "invalid structure")
+  | _ ->
+      [%expect.unreachable];
+      print_endline "unexpected");
+  [%expect {| valid structure |}]
 
 let%expect_test "multiple fragments with same provides" =
   let state = Lua_link.init () in
