@@ -81,9 +81,9 @@ Generate Lua code that:
 
 ## Phase 2: Dependency Graph Construction (60 lines)
 
-### Task 2.1: Build Provides Map
+### Task 2.1: Build Provides Map ✅
 - **File**: `compiler/lib-lua/lua_link.ml`
-- **Lines**: ~15
+- **Lines**: ~22
 - **Function**: `build_provides_map : fragment StringMap.t -> string StringMap.t`
 - **Logic**:
   - Map: symbol name → fragment name
@@ -91,6 +91,7 @@ Generate Lua code that:
   - For each provides list, map symbol → fragment
   - Detect duplicate provides (warning)
 - **Test**: Two fragments providing same symbol → warning
+- **Status**: COMPLETED - Commit 49980c93
 
 ### Task 2.2: Build Dependency Graph
 - **File**: `compiler/lib-lua/lua_link.ml`
