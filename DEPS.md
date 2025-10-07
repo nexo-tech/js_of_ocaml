@@ -240,7 +240,7 @@ Generate Lua code that:
   - Converts fragment names to fragments in dependency order
   - Version constraints already applied during fragment parsing
 - **Test**: linkall=true → all fragments; linkall=false → only needed
-- **Status**: COMPLETED - Commit a7b9c4e2
+- **Status**: COMPLETED - Commit 78c82d16
 
 ### Task 5.2: Implement Complete link Function
 - **File**: `compiler/lib-lua/lua_link.ml`
