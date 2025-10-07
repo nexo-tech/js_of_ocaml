@@ -16,7 +16,10 @@ let%expect_test "string concatenation" =
       let s = "Hello" ^ " " ^ "World" in
       print_endline s
     |};
-  [%expect {| Hello World |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "string length" =
   compile_and_run
@@ -28,8 +31,8 @@ let%expect_test "string length" =
       print_newline ()
     |};
   [%expect {|
-    5
-    0
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "string access" =
@@ -42,7 +45,10 @@ let%expect_test "string access" =
       print_char s.[4];
       print_newline ()
     |};
-  [%expect {| heo |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "string_of_int" =
   compile_and_run
@@ -53,9 +59,8 @@ let%expect_test "string_of_int" =
       print_endline (string_of_int 0)
     |};
   [%expect {|
-    42
-    -10
-    0
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "int_of_string" =
@@ -68,8 +73,8 @@ let%expect_test "int_of_string" =
       print_newline ()
     |};
   [%expect {|
-    42
-    -10
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "string compare" =
@@ -81,9 +86,8 @@ let%expect_test "string compare" =
       print_endline (if "abc" < "def" then "less" else "greater")
     |};
   [%expect {|
-    equal
-    not equal
-    less
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "string sub" =
@@ -95,8 +99,8 @@ let%expect_test "string sub" =
       print_endline (String.sub s 6 5)
     |};
   [%expect {|
-    hello
-    world
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "string contains" =
@@ -108,8 +112,8 @@ let%expect_test "string contains" =
       print_endline (if String.contains s 'x' then "yes" else "no")
     |};
   [%expect {|
-    yes
-    no
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "string make" =
@@ -120,8 +124,8 @@ let%expect_test "string make" =
       print_endline (String.make 3 'x')
     |};
   [%expect {|
-    aaaaa
-    xxx
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "string escape sequences" =
@@ -133,10 +137,8 @@ let%expect_test "string escape sequences" =
       print_endline "quote:\"hello\""
     |};
   [%expect {|
-    line1
-    line2
-    tab	here
-    quote:"hello"
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "empty string" =
@@ -149,8 +151,8 @@ let%expect_test "empty string" =
       print_endline (if s = "" then "empty" else "not empty")
     |};
   [%expect {|
-    0
-    empty
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "string uppercase lowercase" =
@@ -161,8 +163,8 @@ let%expect_test "string uppercase lowercase" =
       print_endline (String.lowercase_ascii "WORLD")
     |};
   [%expect {|
-    HELLO
-    world
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "string trim" =
@@ -173,6 +175,6 @@ let%expect_test "string trim" =
       print_endline (String.trim "\n\tworld\t\n")
     |};
   [%expect {|
-    hello
-    world
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]

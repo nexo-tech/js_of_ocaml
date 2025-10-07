@@ -229,16 +229,93 @@ let calculate_in_degrees (dep_graph : (string * StringSet.t) StringMap.t) : int 
       StringMap.empty
   in
   (* Then, count incoming edges for each node *)
+  (* If fragment A depends on fragment B, then there's an edge B→A, so A's in-degree increases *)
   StringMap.fold
-    (fun _frag_name (_name, deps) acc ->
-      StringSet.fold
-        (fun dep_frag acc ->
-          let current = StringMap.find_opt dep_frag acc |> Option.value ~default:0 in
-          StringMap.add dep_frag (current + 1) acc)
-        deps
-        acc)
+    (fun frag_name (_name, deps) acc ->
+      (* frag_name depends on each element in deps *)
+      (* So each dependency is a source, and frag_name is the target *)
+      (* Therefore, frag_name's in-degree should equal the size of deps *)
+      StringMap.add frag_name (StringSet.cardinal deps) acc)
     dep_graph
     in_degrees
+
+(* Topological sort using Kahn's algorithm *)
+let topological_sort
+    (dep_graph : (string * StringSet.t) StringMap.t)
+    (in_degrees : int StringMap.t)
+    : string list * string list =
+  (* Build reverse graph: fragment name → set of fragments that depend on it *)
+  let reverse_graph =
+    StringMap.fold
+      (fun frag_name (_name, deps) acc ->
+        StringSet.fold
+          (fun dep reverse_acc ->
+            let dependents =
+              StringMap.find_opt dep reverse_acc
+              |> Option.value ~default:StringSet.empty
+            in
+            StringMap.add dep (StringSet.add frag_name dependents) reverse_acc)
+          deps
+          acc)
+      dep_graph
+      StringMap.empty
+  in
+  (* Initialize queue with all nodes that have in-degree 0 *)
+  let initial_queue =
+    StringMap.fold
+      (fun frag_name degree acc ->
+        if degree = 0 then frag_name :: acc else acc)
+      in_degrees
+      []
+  in
+  (* Process nodes using Kahn's algorithm *)
+  let rec process queue sorted remaining_in_degrees =
+    match queue with
+    | [] ->
+        (* All nodes processed - check if all nodes were visited *)
+        let total_nodes = StringMap.cardinal dep_graph in
+        let sorted_count = List.length sorted in
+        if sorted_count < total_nodes
+        then
+          (* Cycle detected - return sorted nodes and nodes still in graph *)
+          let cycle_nodes =
+            StringMap.fold
+              (fun frag_name _ acc ->
+                if List.mem ~eq:String.equal frag_name sorted
+                then acc
+                else frag_name :: acc)
+              dep_graph
+              []
+          in
+          List.rev sorted, cycle_nodes
+        else List.rev sorted, []
+    | node :: rest_queue ->
+        (* Process current node *)
+        let sorted' = node :: sorted in
+        (* Get fragments that depend on current node *)
+        let dependents =
+          StringMap.find_opt node reverse_graph
+          |> Option.value ~default:StringSet.empty
+        in
+        (* Update in-degrees and queue for all dependents *)
+        let remaining_in_degrees', new_queue =
+          StringSet.fold
+            (fun dependent (in_deg_map, queue_acc) ->
+              let current_degree =
+                StringMap.find_opt dependent in_deg_map |> Option.value ~default:0
+              in
+              let new_degree = current_degree - 1 in
+              let in_deg_map' = StringMap.add dependent new_degree in_deg_map in
+              let queue_acc' =
+                if new_degree = 0 then dependent :: queue_acc else queue_acc
+              in
+              in_deg_map', queue_acc')
+            dependents
+            (remaining_in_degrees, rest_queue)
+        in
+        process new_queue sorted' remaining_in_degrees'
+  in
+  process initial_queue [] in_degrees
 
 let resolve_deps state _required =
   (* Simplified: return all fragments in arbitrary order *)

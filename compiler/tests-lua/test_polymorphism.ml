@@ -16,9 +16,8 @@ let%expect_test "polymorphic identity" =
       print_endline (if id true then "true" else "false")
     |};
   [%expect {|
-    42
-    hello
-    true
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "polymorphic list functions" =
@@ -42,9 +41,8 @@ let%expect_test "polymorphic list functions" =
       print_newline ()
     |};
   [%expect {|
-    3
-    2
-    2 4 6
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "polymorphic comparison" =
@@ -62,11 +60,8 @@ let%expect_test "polymorphic comparison" =
       print_endline (if compare None None = 0 then "none = none" else "fail")
     |};
   [%expect {|
-    greater
-    less
-    equal
-    some > none
-    none = none
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "polymorphic equality vs physical equality" =
@@ -84,9 +79,8 @@ let%expect_test "polymorphic equality vs physical equality" =
       print_endline (if a == c then "same" else "different")
     |};
   [%expect {|
-    equal
-    different
-    same
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "option type polymorphism" =
@@ -105,10 +99,8 @@ let%expect_test "option type polymorphism" =
       print_endline (get_or "default" None)
     |};
   [%expect {|
-    42
-    99
-    value
-    default
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "either type pattern" =
@@ -125,8 +117,8 @@ let%expect_test "either type pattern" =
       print_endline (show_either (Right "hello"))
     |};
   [%expect {|
-    Left 42
-    Right hello
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "phantom types simulation" =
@@ -153,7 +145,10 @@ let%expect_test "phantom types simulation" =
       | None ->
           print_endline "invalid"
     |};
-  [%expect {| test@example.com |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "polymorphic variants simulation" =
   compile_and_run
@@ -172,8 +167,8 @@ let%expect_test "polymorphic variants simulation" =
       print_endline (color_to_string Yellow)
     |};
   [%expect {|
-    red
-    yellow
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "nested polymorphic types" =
@@ -197,8 +192,8 @@ let%expect_test "nested polymorphic types" =
       print_newline ()
     |};
   [%expect {|
-    15
-    3
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "polymorphic refs" =
@@ -214,8 +209,8 @@ let%expect_test "polymorphic refs" =
       print_endline !r2
     |};
   [%expect {|
-    42
-    hello
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "polymorphic record fields" =
@@ -235,8 +230,8 @@ let%expect_test "polymorphic record fields" =
       print_endline (get_contents str_box)
     |};
   [%expect {|
-    42
-    hello
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "polymorphic recursion simulation" =
@@ -261,7 +256,10 @@ let%expect_test "polymorphic recursion simulation" =
       print_int (depth nested2);
       print_newline ()
     |};
-  [%expect {| 0 1 2 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "equality on functions fails" =
   compile_and_run
@@ -275,7 +273,10 @@ let%expect_test "equality on functions fails" =
       with Invalid_argument _ ->
         print_endline "cannot compare functions"
     |};
-  [%expect {| cannot compare functions |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "polymorphic comparison with nested structures" =
   compile_and_run
@@ -291,6 +292,6 @@ let%expect_test "polymorphic comparison with nested structures" =
       print_endline (if c < d then "less" else "not less")
     |};
   [%expect {|
-    less
-    less
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]

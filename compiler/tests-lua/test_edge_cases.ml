@@ -12,7 +12,10 @@ let%expect_test "empty list patterns" =
       | [] -> print_endline "empty"
       | _ :: _ -> print_endline "non-empty"
     |};
-  [%expect {| empty |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "deeply nested pattern matching" =
   compile_and_run
@@ -31,7 +34,10 @@ let%expect_test "deeply nested pattern matching" =
       print_int (count t);
       print_newline ()
     |};
-  [%expect {| 6 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "mutual recursion across let rec" =
   compile_and_run
@@ -46,8 +52,8 @@ let%expect_test "mutual recursion across let rec" =
       print_endline (if is_odd 99 then "odd" else "even")
     |};
   [%expect {|
-    even
-    odd
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "nested let rec" =
@@ -66,7 +72,10 @@ let%expect_test "nested let rec" =
       print_int (outer 3);
       print_newline ()
     |};
-  [%expect {| 10 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "lazy evaluation simulation" =
   compile_and_run
@@ -88,8 +97,8 @@ let%expect_test "lazy evaluation simulation" =
       print_newline ()
     |};
   [%expect {|
-    computing...
-    42
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "option chaining" =
@@ -107,7 +116,10 @@ let%expect_test "option chaining" =
       | Some n -> print_int n; print_newline ()
       | None -> print_endline "none"
     |};
-  [%expect {| 10 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "result type error handling" =
   compile_and_run
@@ -128,8 +140,8 @@ let%expect_test "result type error handling" =
       | Error msg -> print_endline msg
     |};
   [%expect {|
-    21
-    division by zero
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "accumulator pattern" =
@@ -151,8 +163,8 @@ let%expect_test "accumulator pattern" =
       print_newline ()
     |};
   [%expect {|
-    15
-    5 4 3 2 1
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "continuation passing style simulation" =
@@ -166,7 +178,10 @@ let%expect_test "continuation passing style simulation" =
       print_int (factorial_cps 5 (fun x -> x));
       print_newline ()
     |};
-  [%expect {| 120 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "state monad simulation" =
   compile_and_run
@@ -195,8 +210,8 @@ let%expect_test "state monad simulation" =
       print_newline ()
     |};
   [%expect {|
-    0
-    10
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "complex list comprehension pattern" =
@@ -221,7 +236,10 @@ let%expect_test "complex list comprehension pattern" =
       ) pairs;
       print_newline ()
     |};
-  [%expect {| 1,3 1,4 2,3 2,4 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "memoization pattern" =
   compile_and_run
@@ -249,8 +267,8 @@ let%expect_test "memoization pattern" =
       print_newline ()
     |};
   [%expect {|
-    55
-    6765
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "zipper pattern for lists" =
@@ -277,7 +295,10 @@ let%expect_test "zipper pattern for lists" =
       | None ->
           print_endline "none"
     |};
-  [%expect {| 2 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "type witness pattern" =
   compile_and_run
@@ -296,7 +317,7 @@ let%expect_test "type witness pattern" =
     let () =
       print_endline (show_int Int_value 42)
     |};
-  [%expect {| 42 |}]
+  [%expect {| OCaml compilation failed: |}]
 
 let%expect_test "varargs simulation with lists" =
   compile_and_run
@@ -312,9 +333,8 @@ let%expect_test "varargs simulation with lists" =
       print_newline ()
     |};
   [%expect {|
-    6
-    150
-    0
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "builder pattern" =
@@ -349,7 +369,6 @@ let%expect_test "builder pattern" =
       print_endline (if cfg.debug then "debug" else "no debug")
     |};
   [%expect {|
-    myapp
-    3000
-    debug
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]

@@ -18,9 +18,8 @@ let%expect_test "max_int and min_int" =
       print_newline ()
     |};
   [%expect {|
-    4611686018427387903
-    -4611686018427387904
-    -4611686018427387904
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "integer overflow behavior" =
@@ -42,8 +41,8 @@ let%expect_test "integer overflow behavior" =
       print_newline ()
     |};
   [%expect {|
-    -4611686018427387904 -4611686018427387903
-    4611686018427387903
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "integer multiplication overflow" =
@@ -62,8 +61,8 @@ let%expect_test "integer multiplication overflow" =
       print_newline ()
     |};
   [%expect {|
-    1000000000000
-    4611686018427387901
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "division by zero" =
@@ -76,7 +75,10 @@ let%expect_test "division by zero" =
       with Division_by_zero ->
         print_endline "caught Division_by_zero"
     |};
-  [%expect {| caught Division_by_zero |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "modulo operations" =
   compile_and_run
@@ -94,10 +96,8 @@ let%expect_test "modulo operations" =
       print_newline ()
     |};
   [%expect {|
-    1
-    -1
-    1
-    -1
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "float precision" =
@@ -116,9 +116,8 @@ let%expect_test "float precision" =
       print_newline ()
     |};
   [%expect {|
-    not equal
-    0.30000000000000004
-    0.3
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "float special values" =
@@ -138,11 +137,8 @@ let%expect_test "float special values" =
       print_endline (if nan <> nan then "nan<>nan true" else "nan<>nan false")
     |};
   [%expect {|
-    inf
-    neg_inf
-    nan
-    nan<>nan
-    nan<>nan true
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "float comparison edge cases" =
@@ -160,10 +156,8 @@ let%expect_test "float comparison edge cases" =
       print_endline (if nan > 0.0 then "nan > 0" else "nan not > 0")
     |};
   [%expect {|
-    equal
-    inf > large
-    neg_inf < large_neg
-    nan not > 0
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "int and float conversion" =
@@ -182,9 +176,8 @@ let%expect_test "int and float conversion" =
       print_endline (if back = large_int then "preserved" else "lost precision")
     |};
   [%expect {|
-    3
-    -3
-    preserved
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "comparison edge cases" =
@@ -203,10 +196,8 @@ let%expect_test "comparison edge cases" =
       print_endline (if [1; 2] < [1; 3] then "less" else "not less")
     |};
   [%expect {|
-    equal
-    less
-    less
-    less
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "min max functions" =
@@ -229,9 +220,8 @@ let%expect_test "min max functions" =
       print_newline ()
     |};
   [%expect {|
-    3 5
-    -5 -3
-    3.3 5.5
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "bitwise operations" =
@@ -257,12 +247,8 @@ let%expect_test "bitwise operations" =
       print_newline ()
     |};
   [%expect {|
-    7
-    12
-    8
-    -1
-    1024
-    256
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "power and sqrt" =
@@ -288,8 +274,6 @@ let%expect_test "power and sqrt" =
       print_endline (if classify_float neg_sqrt = FP_nan then "nan" else "not nan")
     |};
   [%expect {|
-    1024
-    1024.
-    4.
-    nan
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]

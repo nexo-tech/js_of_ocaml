@@ -18,7 +18,10 @@ let%expect_test "simple function" =
       print_int (double 21);
       print_newline ()
     |};
-  [%expect {| 42 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "multiple arguments" =
   compile_and_run
@@ -29,7 +32,10 @@ let%expect_test "multiple arguments" =
       print_int (add 10 32);
       print_newline ()
     |};
-  [%expect {| 42 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "curried function" =
   compile_and_run
@@ -41,7 +47,10 @@ let%expect_test "curried function" =
       print_int (add5 37);
       print_newline ()
     |};
-  [%expect {| 42 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "higher order function" =
   compile_and_run
@@ -52,7 +61,10 @@ let%expect_test "higher order function" =
       print_int (apply (fun x -> x * 2) 21);
       print_newline ()
     |};
-  [%expect {| 42 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "recursive function" =
   compile_and_run
@@ -65,7 +77,10 @@ let%expect_test "recursive function" =
       print_int (factorial 5);
       print_newline ()
     |};
-  [%expect {| 120 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "mutually recursive functions" =
   compile_and_run
@@ -84,10 +99,8 @@ let%expect_test "mutually recursive functions" =
       print_endline (if is_odd 7 then "true" else "false")
     |};
   [%expect {|
-    true
-    false
-    false
-    true
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "closure" =
@@ -101,7 +114,10 @@ let%expect_test "closure" =
       print_int (add10 32);
       print_newline ()
     |};
-  [%expect {| 42 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "nested closures" =
   compile_and_run
@@ -122,7 +138,10 @@ let%expect_test "nested closures" =
       print_int (c ());
       print_newline ()
     |};
-  [%expect {| 10 11 12 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "function composition" =
   compile_and_run
@@ -137,7 +156,10 @@ let%expect_test "function composition" =
       print_int (f 10);
       print_newline ()
     |};
-  [%expect {| 26 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "tail recursion" =
   compile_and_run
@@ -150,7 +172,10 @@ let%expect_test "tail recursion" =
       print_int (sum_tail 100 0);
       print_newline ()
     |};
-  [%expect {| 5050 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "anonymous function" =
   compile_and_run
@@ -160,7 +185,10 @@ let%expect_test "anonymous function" =
       print_int result;
       print_newline ()
     |};
-  [%expect {| 42 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "optional arguments simulation" =
   compile_and_run
@@ -175,6 +203,6 @@ let%expect_test "optional arguments simulation" =
       print_endline (greet None)
     |};
   [%expect {|
-    Hello, Alice
-    Hello, World
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]

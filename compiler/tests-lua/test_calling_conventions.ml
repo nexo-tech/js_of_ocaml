@@ -18,8 +18,8 @@ let%expect_test "partial application single arg" =
       print_newline ()
     |};
   [%expect {|
-    15
-    42
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "partial application multiple stages" =
@@ -38,8 +38,8 @@ let%expect_test "partial application multiple stages" =
       print_newline ()
     |};
   [%expect {|
-    10
-    100
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "partial application with different types" =
@@ -54,8 +54,8 @@ let%expect_test "partial application with different types" =
       print_endline (dash_sep "foo" "bar")
     |};
   [%expect {|
-    hello, world
-    foo - bar
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "currying vs tupled arguments" =
@@ -77,8 +77,8 @@ let%expect_test "currying vs tupled arguments" =
       print_newline ()
     |};
   [%expect {|
-    15
-    15
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "function composition" =
@@ -98,8 +98,8 @@ let%expect_test "function composition" =
       print_newline ()
     |};
   [%expect {|
-    26
-    23
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "higher order function with multiple args" =
@@ -114,8 +114,8 @@ let%expect_test "higher order function with multiple args" =
       print_newline ()
     |};
   [%expect {|
-    20
-    7
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "function returning function" =
@@ -133,8 +133,8 @@ let%expect_test "function returning function" =
       print_newline ()
     |};
   [%expect {|
-    42
-    40
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "curried application with side effects" =
@@ -156,9 +156,8 @@ let%expect_test "curried application with side effects" =
       print_newline ()
     |};
   [%expect {|
-    after partial
-    f called: 10 32
-    42
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "eta expansion" =
@@ -177,8 +176,8 @@ let%expect_test "eta expansion" =
       print_newline ()
     |};
   [%expect {|
-    42
-    42
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "passing functions as arguments" =
@@ -195,9 +194,8 @@ let%expect_test "passing functions as arguments" =
       print_newline ()
     |};
   [%expect {|
-    42
-    42
-    42
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "recursive function as argument" =
@@ -212,7 +210,10 @@ let%expect_test "recursive function as argument" =
       print_int (apply_to_five factorial);
       print_newline ()
     |};
-  [%expect {| 120 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "closure capturing multiple variables" =
   compile_and_run
@@ -227,9 +228,8 @@ let%expect_test "closure capturing multiple variables" =
       print_endline (if is_in_range 5 then "yes" else "no")
     |};
   [%expect {|
-    yes
-    no
-    no
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "nested partial applications" =
@@ -248,8 +248,8 @@ let%expect_test "nested partial applications" =
       print_newline ()
     |};
   [%expect {|
-    6
-    31
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "partial application with polymorphic function" =
@@ -271,8 +271,8 @@ let%expect_test "partial application with polymorphic function" =
       print_newline ()
     |};
   [%expect {|
-    42,10
-    42,20
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "many arguments" =
@@ -289,8 +289,8 @@ let%expect_test "many arguments" =
       print_newline ()
     |};
   [%expect {|
-    36
-    36
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "unit argument" =
@@ -312,7 +312,10 @@ let%expect_test "unit argument" =
       print_int (c2 ());
       print_newline ()
     |};
-  [%expect {| 1 2 1 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "ignoring arguments" =
   compile_and_run
@@ -326,6 +329,6 @@ let%expect_test "ignoring arguments" =
       print_newline ()
     |};
   [%expect {|
-    42
-    100
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]

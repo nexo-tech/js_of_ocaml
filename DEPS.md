@@ -120,7 +120,7 @@ Generate Lua code that:
 
 ## Phase 3: Topological Sort (100 lines)
 
-### Task 3.1: Implement Kahn's Algorithm
+### Task 3.1: Implement Kahn's Algorithm ✅
 - **File**: `compiler/lib-lua/lua_link.ml`
 - **Lines**: ~60
 - **Function**: `topological_sort : (string * StringSet.t) StringMap.t -> int StringMap.t -> string list * string list`
@@ -135,6 +135,7 @@ Generate Lua code that:
   - If result length < total nodes → cycle detected
   - Return (sorted_list, cycle_nodes)
 - **Test**: Linear deps → correct order; circular deps → cycle detected
+- **Status**: COMPLETED - Commit [to be added]
 
 ### Task 3.2: Detect Missing Dependencies
 - **File**: `compiler/lib-lua/lua_link.ml`

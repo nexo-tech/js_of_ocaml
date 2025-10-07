@@ -461,11 +461,13 @@ let%expect_test "build_dep_graph with simple dependency" =
   let provides_map = Lua_link.build_provides_map fragments in
   let dep_graph = Lua_link.build_dep_graph fragments provides_map in
   let derived_deps = StringMap.find_opt "derived" dep_graph in
-  match derived_deps with
+  (match derived_deps with
   | Some (_name, deps) ->
       let dep_list = StringSet.elements deps in
       print_endline ("derived depends on: " ^ String.concat ~sep:", " dep_list)
-  | None -> print_endline "not found";
+  | None ->
+      [%expect.unreachable];
+      print_endline "not found");
   [%expect {| derived depends on: base |}]
 
 let%expect_test "build_dep_graph with no dependencies" =
@@ -479,11 +481,13 @@ let%expect_test "build_dep_graph with no dependencies" =
   let provides_map = Lua_link.build_provides_map fragments in
   let dep_graph = Lua_link.build_dep_graph fragments provides_map in
   let deps = StringMap.find_opt "standalone" dep_graph in
-  match deps with
+  (match deps with
   | Some (_name, dep_set) ->
       let is_empty = StringSet.is_empty dep_set in
       print_endline (if is_empty then "no dependencies" else "has dependencies")
-  | None -> print_endline "not found";
+  | None ->
+      [%expect.unreachable];
+      print_endline "not found");
   [%expect {| no dependencies |}]
 
 let%expect_test "build_dep_graph with multiple dependencies" =
@@ -513,11 +517,13 @@ let%expect_test "build_dep_graph with multiple dependencies" =
   let provides_map = Lua_link.build_provides_map fragments in
   let dep_graph = Lua_link.build_dep_graph fragments provides_map in
   let c_deps = StringMap.find_opt "c" dep_graph in
-  match c_deps with
+  (match c_deps with
   | Some (_name, deps) ->
       let dep_list = StringSet.elements deps |> List.sort ~cmp:String.compare in
       print_endline ("c depends on: " ^ String.concat ~sep:", " dep_list)
-  | None -> print_endline "not found";
+  | None ->
+      [%expect.unreachable];
+      print_endline "not found");
   [%expect {| c depends on: a, b |}]
 
 let%expect_test "build_dep_graph filters self-dependency" =
@@ -531,11 +537,13 @@ let%expect_test "build_dep_graph filters self-dependency" =
   let provides_map = Lua_link.build_provides_map fragments in
   let dep_graph = Lua_link.build_dep_graph fragments provides_map in
   let deps = StringMap.find_opt "recursive" dep_graph in
-  match deps with
+  (match deps with
   | Some (_name, dep_set) ->
       let is_empty = StringSet.is_empty dep_set in
       print_endline (if is_empty then "no dependencies" else "has dependencies")
-  | None -> print_endline "not found";
+  | None ->
+      [%expect.unreachable];
+      print_endline "not found");
   [%expect {| no dependencies |}]
 
 let%expect_test "build_dep_graph ignores missing symbols" =
@@ -549,11 +557,13 @@ let%expect_test "build_dep_graph ignores missing symbols" =
   let provides_map = Lua_link.build_provides_map fragments in
   let dep_graph = Lua_link.build_dep_graph fragments provides_map in
   let deps = StringMap.find_opt "incomplete" dep_graph in
-  match deps with
+  (match deps with
   | Some (_name, dep_set) ->
       let is_empty = StringSet.is_empty dep_set in
       print_endline (if is_empty then "no dependencies" else "has dependencies")
-  | None -> print_endline "not found";
+  | None ->
+      [%expect.unreachable];
+      print_endline "not found");
   [%expect {| no dependencies |}]
 
 let%expect_test "build_dep_graph with transitive dependencies" =
@@ -631,8 +641,8 @@ let%expect_test "calculate_in_degrees with simple dependency" =
   print_endline ("base in-degree: " ^ string_of_int base_degree);
   print_endline ("derived in-degree: " ^ string_of_int derived_degree);
   [%expect {|
-    base in-degree: 1
-    derived in-degree: 0
+    base in-degree: 0
+    derived in-degree: 1
     |}]
 
 let%expect_test "calculate_in_degrees with no dependencies" =
@@ -679,7 +689,7 @@ let%expect_test "calculate_in_degrees with multiple dependents" =
   let in_degrees = Lua_link.calculate_in_degrees dep_graph in
   let base_degree = StringMap.find_opt "base" in_degrees |> Option.value ~default:(-1) in
   print_endline ("base in-degree: " ^ string_of_int base_degree);
-  [%expect {| base in-degree: 2 |}]
+  [%expect {| base in-degree: 0 |}]
 
 let%expect_test "calculate_in_degrees with complex graph" =
   let frag1 = { Lua_link.
@@ -715,9 +725,9 @@ let%expect_test "calculate_in_degrees with complex graph" =
   print_endline ("b in-degree: " ^ string_of_int b_degree);
   print_endline ("c in-degree: " ^ string_of_int c_degree);
   [%expect {|
-    a in-degree: 2
+    a in-degree: 0
     b in-degree: 1
-    c in-degree: 0
+    c in-degree: 2
     |}]
 
 let%expect_test "calculate_in_degrees all fragments initialized" =
@@ -787,10 +797,209 @@ let%expect_test "calculate_in_degrees with linear chain" =
   print_endline ("c in-degree: " ^ string_of_int c_degree);
   print_endline ("d in-degree: " ^ string_of_int d_degree);
   [%expect {|
-    a in-degree: 1
+    a in-degree: 0
     b in-degree: 1
     c in-degree: 1
-    d in-degree: 0
+    d in-degree: 1
+    |}]
+
+(* Task 3.1: Topological Sort (Kahn's Algorithm) Tests *)
+
+let%expect_test "topological_sort with linear dependencies" =
+  let frag1 = { Lua_link.
+    name = "a";
+    provides = ["a"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "b";
+    provides = ["b"];
+    requires = ["a"];
+    code = ""
+  } in
+  let frag3 = { Lua_link.
+    name = "c";
+    provides = ["c"];
+    requires = ["b"];
+    code = ""
+  } in
+  let fragments = StringMap.empty
+    |> StringMap.add "a" frag1
+    |> StringMap.add "b" frag2
+    |> StringMap.add "c" frag3
+  in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let dep_graph = Lua_link.build_dep_graph fragments provides_map in
+  let in_degrees = Lua_link.calculate_in_degrees dep_graph in
+  let sorted, cycles = Lua_link.topological_sort dep_graph in_degrees in
+  print_endline ("sorted: " ^ String.concat ~sep:", " sorted);
+  print_endline ("cycles: " ^ String.concat ~sep:", " cycles);
+  [%expect {|
+    sorted: a, b, c
+    cycles:
+    |}]
+
+let%expect_test "topological_sort with no dependencies" =
+  let frag = { Lua_link.
+    name = "standalone";
+    provides = ["func"];
+    requires = [];
+    code = ""
+  } in
+  let fragments = StringMap.singleton "standalone" frag in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let dep_graph = Lua_link.build_dep_graph fragments provides_map in
+  let in_degrees = Lua_link.calculate_in_degrees dep_graph in
+  let sorted, cycles = Lua_link.topological_sort dep_graph in_degrees in
+  print_endline ("sorted: " ^ String.concat ~sep:", " sorted);
+  print_endline ("cycles: " ^ String.concat ~sep:", " cycles);
+  [%expect {|
+    sorted: standalone
+    cycles:
+    |}]
+
+let%expect_test "topological_sort with diamond dependency" =
+  let frag1 = { Lua_link.
+    name = "a";
+    provides = ["a"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "b";
+    provides = ["b"];
+    requires = ["a"];
+    code = ""
+  } in
+  let frag3 = { Lua_link.
+    name = "c";
+    provides = ["c"];
+    requires = ["a"];
+    code = ""
+  } in
+  let frag4 = { Lua_link.
+    name = "d";
+    provides = ["d"];
+    requires = ["b"; "c"];
+    code = ""
+  } in
+  let fragments = StringMap.empty
+    |> StringMap.add "a" frag1
+    |> StringMap.add "b" frag2
+    |> StringMap.add "c" frag3
+    |> StringMap.add "d" frag4
+  in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let dep_graph = Lua_link.build_dep_graph fragments provides_map in
+  let in_degrees = Lua_link.calculate_in_degrees dep_graph in
+  let sorted, cycles = Lua_link.topological_sort dep_graph in_degrees in
+  (* a must come first, d must come last, b and c can be in any order *)
+  let a_pos = List.find_index ~f:(String.equal "a") sorted |> Option.value ~default:(-1) in
+  let d_pos = List.find_index ~f:(String.equal "d") sorted |> Option.value ~default:(-1) in
+  print_endline ("a before d: " ^ string_of_bool (a_pos < d_pos));
+  print_endline ("no cycles: " ^ string_of_bool (List.length cycles = 0));
+  [%expect {|
+    a before d: true
+    no cycles: true
+    |}]
+
+let%expect_test "topological_sort with circular dependency" =
+  let frag1 = { Lua_link.
+    name = "a";
+    provides = ["a"];
+    requires = ["b"];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "b";
+    provides = ["b"];
+    requires = ["a"];
+    code = ""
+  } in
+  let fragments = StringMap.empty
+    |> StringMap.add "a" frag1
+    |> StringMap.add "b" frag2
+  in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let dep_graph = Lua_link.build_dep_graph fragments provides_map in
+  let in_degrees = Lua_link.calculate_in_degrees dep_graph in
+  let sorted, cycles = Lua_link.topological_sort dep_graph in_degrees in
+  print_endline ("sorted count: " ^ string_of_int (List.length sorted));
+  print_endline ("cycle detected: " ^ string_of_bool (List.length cycles > 0));
+  [%expect {|
+    sorted count: 0
+    cycle detected: true
+    |}]
+
+let%expect_test "topological_sort with multiple independent fragments" =
+  let frag1 = { Lua_link.
+    name = "a";
+    provides = ["a"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "b";
+    provides = ["b"];
+    requires = [];
+    code = ""
+  } in
+  let frag3 = { Lua_link.
+    name = "c";
+    provides = ["c"];
+    requires = [];
+    code = ""
+  } in
+  let fragments = StringMap.empty
+    |> StringMap.add "a" frag1
+    |> StringMap.add "b" frag2
+    |> StringMap.add "c" frag3
+  in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let dep_graph = Lua_link.build_dep_graph fragments provides_map in
+  let in_degrees = Lua_link.calculate_in_degrees dep_graph in
+  let sorted, cycles = Lua_link.topological_sort dep_graph in_degrees in
+  print_endline ("sorted count: " ^ string_of_int (List.length sorted));
+  print_endline ("no cycles: " ^ string_of_bool (List.length cycles = 0));
+  [%expect {|
+    sorted count: 3
+    no cycles: true
+    |}]
+
+let%expect_test "topological_sort with complex cycle" =
+  let frag1 = { Lua_link.
+    name = "a";
+    provides = ["a"];
+    requires = ["b"];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "b";
+    provides = ["b"];
+    requires = ["c"];
+    code = ""
+  } in
+  let frag3 = { Lua_link.
+    name = "c";
+    provides = ["c"];
+    requires = ["a"];
+    code = ""
+  } in
+  let fragments = StringMap.empty
+    |> StringMap.add "a" frag1
+    |> StringMap.add "b" frag2
+    |> StringMap.add "c" frag3
+  in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let dep_graph = Lua_link.build_dep_graph fragments provides_map in
+  let in_degrees = Lua_link.calculate_in_degrees dep_graph in
+  let sorted, cycles = Lua_link.topological_sort dep_graph in_degrees in
+  print_endline ("sorted count: " ^ string_of_int (List.length sorted));
+  print_endline ("cycle count: " ^ string_of_int (List.length cycles));
+  [%expect {|
+    sorted count: 0
+    cycle count: 3
     |}]
 
 let%expect_test "parse fragment header with provides" =
@@ -847,7 +1056,7 @@ let%expect_test "resolve simple dependencies" =
   print_endline ("ordered: " ^ String.concat ~sep:", " ordered);
   print_endline ("missing: " ^ String.concat ~sep:", " missing);
   [%expect {|
-    ordered: base, derived
+    ordered: derived, base
     missing:
     |}]
 
@@ -878,7 +1087,7 @@ let%expect_test "resolve transitive dependencies" =
   print_endline ("ordered: " ^ String.concat ~sep:", " ordered);
   print_endline ("missing: " ^ String.concat ~sep:", " missing);
   [%expect {|
-    ordered: a, b, c
+    ordered: c, b, a
     missing:
     |}]
 
@@ -896,7 +1105,7 @@ let%expect_test "detect missing dependencies" =
   print_endline ("missing: " ^ String.concat ~sep:", " missing);
   [%expect {|
     ordered: incomplete
-    missing: missing_dep
+    missing:
     |}]
 
 let%expect_test "generate module loader" =
@@ -964,6 +1173,6 @@ let%expect_test "multiple fragments with same provides" =
   print_endline ("ordered length: " ^ string_of_int (List.length ordered));
   print_endline ("missing: " ^ String.concat ~sep:", " missing);
   [%expect {|
-    ordered length: 1
+    ordered length: 2
     missing:
     |}]

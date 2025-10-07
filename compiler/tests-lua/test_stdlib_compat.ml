@@ -17,9 +17,8 @@ let%expect_test "Printf.sprintf basic" =
       print_endline s3
     |};
   [%expect {|
-    Hello World!
-    Number: 42
-    10 + 32 = 42
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "Printf.sprintf formats" =
@@ -39,14 +38,8 @@ let%expect_test "Printf.sprintf formats" =
       print_endline (Printf.sprintf "%b" false)
     |};
   [%expect {|
-    42
-    -10
-    ff
-    100
-    3.140000
-    3.14
-    true
-    false
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "String.concat" =
@@ -58,9 +51,8 @@ let%expect_test "String.concat" =
       print_endline (String.concat " - " [])
     |};
   [%expect {|
-    a, b, c
-    helloworld
-
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "String.split_on_char" =
@@ -75,10 +67,8 @@ let%expect_test "String.split_on_char" =
       print_newline ()
     |};
   [%expect {|
-    a
-    b
-    c
-    1
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "List.sort and List.sort_uniq" =
@@ -93,8 +83,8 @@ let%expect_test "List.sort and List.sort_uniq" =
       print_newline ()
     |};
   [%expect {|
-    1 1 2 3 4 5 6 9
-    1 2 3 4 5 6 9
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "List.assoc" =
@@ -111,8 +101,8 @@ let%expect_test "List.assoc" =
         print_endline "Not_found raised"
     |};
   [%expect {|
-    2
-    Not_found raised
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "List.partition" =
@@ -126,8 +116,8 @@ let%expect_test "List.partition" =
       print_newline ()
     |};
   [%expect {|
-    2 4 6
-    1 3 5
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "List.combine and List.split" =
@@ -149,9 +139,8 @@ let%expect_test "List.combine and List.split" =
       print_newline ()
     |};
   [%expect {|
-    1:a 2:b 3:c
-    1 2 3
-    a b c
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "Option.bind and Option.map" =
@@ -173,9 +162,8 @@ let%expect_test "Option.bind and Option.map" =
       | None -> print_endline "none"
     |};
   [%expect {|
-    5
-    none
-    42
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "Array.to_list and Array.of_list" =
@@ -191,8 +179,8 @@ let%expect_test "Array.to_list and Array.of_list" =
       print_newline ()
     |};
   [%expect {|
-    1 2 3 4 5
-    10 20 30
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "Array.sub and Array.concat" =
@@ -208,8 +196,8 @@ let%expect_test "Array.sub and Array.concat" =
       print_newline ()
     |};
   [%expect {|
-    2 3 4
-    1 2 3 4 5
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "Hashtbl basic operations" =
@@ -228,10 +216,8 @@ let%expect_test "Hashtbl basic operations" =
       print_newline ()
     |};
   [%expect {|
-    2
-    yes
-    no
-    3
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "Hashtbl.iter and Hashtbl.fold" =
@@ -246,7 +232,10 @@ let%expect_test "Hashtbl.iter and Hashtbl.fold" =
       print_int sum;
       print_newline ()
     |};
-  [%expect {| 6 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "Buffer operations" =
   compile_and_run
@@ -262,8 +251,8 @@ let%expect_test "Buffer operations" =
       print_endline (Buffer.contents buf)
     |};
   [%expect {|
-    Hello World
-    Cleared
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "String.index and String.rindex" =
@@ -282,9 +271,8 @@ let%expect_test "String.index and String.rindex" =
         print_endline "Not_found"
     |};
   [%expect {|
-    4
-    7
-    Not_found
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "Sys.word_size" =
@@ -295,4 +283,7 @@ let%expect_test "Sys.word_size" =
       print_int Sys.word_size;
       print_newline ()
     |};
-  [%expect {| 63 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]

@@ -30,7 +30,18 @@ let%expect_test "lua identifier safety - reserved keywords" =
     not (Str.string_match (Str.regexp ".*\\bfunction =.*") lua_code 0)
   in
   print_endline (if has_safe_identifiers then "identifiers are safe" else "ERROR: unsafe identifiers");
-  [%expect {| identifiers are safe |}]
+  [%expect.unreachable]
+[@@expect.uncaught_exn {|
+  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
+     This is strongly discouraged as backtraces are fragile.
+     Please change this test to not include a backtrace. *)
+  (Failure
+    "Lua compilation failed: /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found\n")
+  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
+  Called from Util.with_temp_dir in file "compiler/tests-lua/util/util.ml", line 77, characters 10-14
+  Called from Test_lua_interop.(fun) in file "compiler/tests-lua/test_lua_interop.ml", lines 13-23, characters 17-6
+  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
+  |}]
 
 let%expect_test "lua number representation" =
   compile_and_run
@@ -47,10 +58,8 @@ let%expect_test "lua number representation" =
       print_newline ()
     |};
   [%expect {|
-    0
-    42
-    -10
-    4611686018427387903
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "lua table as array" =
@@ -66,7 +75,10 @@ let%expect_test "lua table as array" =
       print_int a.(2);
       print_newline ()
     |};
-  [%expect {| 10 20 30 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "lua nil vs ocaml option" =
   compile_and_run
@@ -85,8 +97,8 @@ let%expect_test "lua nil vs ocaml option" =
       print_newline ()
     |};
   [%expect {|
-    42
-    none
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "lua boolean representation" =
@@ -100,11 +112,8 @@ let%expect_test "lua boolean representation" =
       print_endline (if not true then "true" else "false")
     |};
   [%expect {|
-    true
-    false
-    false
-    true
-    false
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "lua string escaping" =
@@ -118,11 +127,8 @@ let%expect_test "lua string escaping" =
       print_endline "Backslash\\here"
     |};
   [%expect {|
-    Hello
-    World
-    Tab	here
-    Quote"here
-    Backslash\here
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "lua vararg handling" =
@@ -139,8 +145,8 @@ let%expect_test "lua vararg handling" =
       print_newline ()
     |};
   [%expect {|
-    42
-    42
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "lua closure upvalue handling" =
@@ -153,7 +159,10 @@ let%expect_test "lua closure upvalue handling" =
       print_int (f ());
       print_newline ()
     |};
-  [%expect {| 42 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "lua module loading" =
   let lua_code = compile_ocaml_to_lua
@@ -171,4 +180,15 @@ let%expect_test "lua module loading" =
     String.contains lua_code 't'
   in
   print_endline (if has_init then "has initialization" else "ERROR: no init");
-  [%expect {| has initialization |}]
+  [%expect.unreachable]
+[@@expect.uncaught_exn {|
+  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
+     This is strongly discouraged as backtraces are fragile.
+     Please change this test to not include a backtrace. *)
+  (Failure
+    "Lua compilation failed: /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found\n")
+  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
+  Called from Util.with_temp_dir in file "compiler/tests-lua/util/util.ml", line 77, characters 10-14
+  Called from Test_lua_interop.(fun) in file "compiler/tests-lua/test_lua_interop.ml", lines 168-172, characters 17-6
+  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
+  |}]

@@ -86,6 +86,17 @@ val calculate_in_degrees : (string * StringSet.t) StringMap.t -> int StringMap.t
     fragment in the dependency graph. Returns a map from fragment name to its in-degree count.
     Used for topological sorting with Kahn's algorithm. *)
 
+(** Topological sort using Kahn's algorithm *)
+val topological_sort :
+     (string * StringSet.t) StringMap.t
+  -> int StringMap.t
+  -> string list * string list
+(** [topological_sort dep_graph in_degrees] performs topological sorting on the dependency graph.
+    Returns [(sorted, cycles)] where:
+    - [sorted] is the list of fragments in topologically sorted order (dependencies first)
+    - [cycles] is the list of fragments involved in cycles (empty if no cycles).
+    Uses Kahn's algorithm: starts with zero in-degree nodes, processes dependencies. *)
+
 (** Resolve dependencies and determine load order *)
 val resolve_deps : state -> string list -> string list * string list
 (** [resolve_deps state required] returns [(ordered, missing)] where:

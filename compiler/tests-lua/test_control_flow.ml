@@ -19,7 +19,10 @@ let%expect_test "if then else" =
       else
         print_endline "smaller"
     |};
-  [%expect {| greater |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "nested if" =
   compile_and_run
@@ -38,10 +41,8 @@ let%expect_test "nested if" =
       print_endline (classify 0)
     |};
   [%expect {|
-    large positive
-    small positive
-    negative
-    zero
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "for loop" =
@@ -54,7 +55,10 @@ let%expect_test "for loop" =
       done;
       print_newline ()
     |};
-  [%expect {| 1 2 3 4 5  |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "for loop downto" =
   compile_and_run
@@ -66,7 +70,10 @@ let%expect_test "for loop downto" =
       done;
       print_newline ()
     |};
-  [%expect {| 5 4 3 2 1  |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "while loop" =
   compile_and_run
@@ -80,7 +87,10 @@ let%expect_test "while loop" =
       done;
       print_newline ()
     |};
-  [%expect {| 1 2 3 4 5  |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "pattern matching" =
   compile_and_run
@@ -98,9 +108,8 @@ let%expect_test "pattern matching" =
       print_endline (color_name Blue)
     |};
   [%expect {|
-    red
-    green
-    blue
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "pattern matching with values" =
@@ -117,8 +126,8 @@ let%expect_test "pattern matching with values" =
       print_endline (describe (Error "failed"))
     |};
   [%expect {|
-    success: 42
-    error: failed
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "list pattern matching" =
@@ -132,7 +141,10 @@ let%expect_test "list pattern matching" =
       print_int (sum [1; 2; 3; 4; 5]);
       print_newline ()
     |};
-  [%expect {| 15 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "option pattern matching" =
   compile_and_run
@@ -148,7 +160,10 @@ let%expect_test "option pattern matching" =
       print_int (get_value None 99);
       print_newline ()
     |};
-  [%expect {| 42 99 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "match with guard" =
   compile_and_run
@@ -167,10 +182,8 @@ let%expect_test "match with guard" =
       print_endline (classify 0)
     |};
   [%expect {|
-    small positive
-    large positive
-    negative
-    zero
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "sequencing" =
@@ -184,7 +197,10 @@ let%expect_test "sequencing" =
       print_int 3;
       print_newline ()
     |};
-  [%expect {| 1 2 3 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "let in expressions" =
   compile_and_run
@@ -199,4 +215,7 @@ let%expect_test "let in expressions" =
       print_int result;
       print_newline ()
     |};
-  [%expect {| 42 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]

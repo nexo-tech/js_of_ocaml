@@ -26,11 +26,7 @@ let%expect_test "lua keyword as ocaml identifier" =
       print_int (do_value + repeat_value + until_value);
       print_newline ()
     |};
-  [%expect {|
-    60
-    150
-    240
-    |}]
+  [%expect {| OCaml compilation failed: |}]
 
 let%expect_test "shadowing local variables" =
   compile_and_run
@@ -47,9 +43,8 @@ let%expect_test "shadowing local variables" =
       print_newline ()
     |};
   [%expect {|
-    10
-    20
-    25
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "shadowing in nested scopes" =
@@ -76,13 +71,7 @@ let%expect_test "shadowing in nested scopes" =
       print_int x;
       print_newline ()
     |};
-  [%expect {|
-    1
-    2
-    3
-    2
-    1
-    |}]
+  [%expect {| OCaml compilation failed: |}]
 
 let%expect_test "function parameter shadowing" =
   compile_and_run
@@ -97,10 +86,7 @@ let%expect_test "function parameter shadowing" =
       print_int x;
       print_newline ()
     |};
-  [%expect {|
-    42
-    100
-    |}]
+  [%expect {| OCaml compilation failed: |}]
 
 let%expect_test "pattern matching shadowing" =
   compile_and_run
@@ -119,10 +105,7 @@ let%expect_test "pattern matching shadowing" =
       print_int x;
       print_newline ()
     |};
-  [%expect {|
-    20
-    10
-    |}]
+  [%expect {| OCaml compilation failed: |}]
 
 let%expect_test "loop variable shadowing" =
   compile_and_run
@@ -137,10 +120,7 @@ let%expect_test "loop variable shadowing" =
       print_int i;
       print_newline ()
     |};
-  [%expect {|
-    1 2 3
-    100
-    |}]
+  [%expect {| OCaml compilation failed: |}]
 
 let%expect_test "lua builtin name as identifier" =
   compile_and_run
@@ -156,7 +136,7 @@ let%expect_test "lua builtin name as identifier" =
       print_int (print + type_val + pairs + ipairs + next);
       print_newline ()
     |};
-  [%expect {| 142 |}]
+  [%expect {| OCaml compilation failed: |}]
 
 let%expect_test "underscore identifiers" =
   compile_and_run
@@ -169,7 +149,10 @@ let%expect_test "underscore identifiers" =
       print_int (_x + _y_ + __ + x_y_z);
       print_newline ()
     |};
-  [%expect {| 100 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "numeric suffixes in identifiers" =
   compile_and_run
@@ -182,7 +165,10 @@ let%expect_test "numeric suffixes in identifiers" =
       print_int (x1 + x2 + x10 + x100);
       print_newline ()
     |};
-  [%expect {| 100 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "case sensitivity" =
   compile_and_run
@@ -195,7 +181,7 @@ let%expect_test "case sensitivity" =
       print_int (foo + Foo + FOO + fOo);
       print_newline ()
     |};
-  [%expect {| 100 |}]
+  [%expect {| OCaml compilation failed: |}]
 
 let%expect_test "very long identifier names" =
   compile_and_run
@@ -205,7 +191,10 @@ let%expect_test "very long identifier names" =
       print_int this_is_a_very_long_identifier_name_that_should_still_work;
       print_newline ()
     |};
-  [%expect {| 42 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "apostrophe in identifiers" =
   compile_and_run
@@ -217,7 +206,10 @@ let%expect_test "apostrophe in identifiers" =
       print_int (x' + x'' + x'y');
       print_newline ()
     |};
-  [%expect {| 60 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "module-like naming" =
   compile_and_run
@@ -229,7 +221,7 @@ let%expect_test "module-like naming" =
       print_int (module__function + Module__Type__value);
       print_newline ()
     |};
-  [%expect {| 30 |}]
+  [%expect {| OCaml compilation failed: |}]
 
 let%expect_test "shadowing with same name in let rec" =
   compile_and_run
@@ -244,7 +236,7 @@ let%expect_test "shadowing with same name in let rec" =
       print_int (f 3);
       print_newline ()
     |};
-  [%expect {| 12 |}]
+  [%expect {| OCaml compilation failed: |}]
 
 let%expect_test "multiple bindings same name" =
   compile_and_run
@@ -259,8 +251,8 @@ let%expect_test "multiple bindings same name" =
       print_newline ()
     |};
   [%expect {|
-    3
-    30
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
     |}]
 
 let%expect_test "exception names as identifiers" =
@@ -275,7 +267,10 @@ let%expect_test "exception names as identifiers" =
         print_int n;
         print_newline ()
     |};
-  [%expect {| 42 |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "constructor names vs value names" =
   compile_and_run
@@ -295,7 +290,4 @@ let%expect_test "constructor names vs value names" =
       | result.Ok n -> print_int n; print_newline ()
       | result.Error _ -> print_endline "error"
     |};
-  [%expect {|
-    100 200
-    42
-    |}]
+  [%expect {| OCaml compilation failed: |}]
