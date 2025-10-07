@@ -219,6 +219,27 @@ let build_dep_graph
     fragments
     StringMap.empty
 
+(* Calculate in-degrees: fragment name → count of incoming edges *)
+let calculate_in_degrees (dep_graph : (string * StringSet.t) StringMap.t) : int StringMap.t =
+  (* First, initialize all nodes with in-degree 0 *)
+  let in_degrees =
+    StringMap.fold
+      (fun frag_name _ acc -> StringMap.add frag_name 0 acc)
+      dep_graph
+      StringMap.empty
+  in
+  (* Then, count incoming edges for each node *)
+  StringMap.fold
+    (fun _frag_name (_name, deps) acc ->
+      StringSet.fold
+        (fun dep_frag acc ->
+          let current = StringMap.find_opt dep_frag acc |> Option.value ~default:0 in
+          StringMap.add dep_frag (current + 1) acc)
+        deps
+        acc)
+    dep_graph
+    in_degrees
+
 let resolve_deps state _required =
   (* Simplified: return all fragments in arbitrary order *)
   (* TODO: implement proper dependency resolution based on required *)

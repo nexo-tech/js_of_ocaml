@@ -604,6 +604,195 @@ let%expect_test "build_dep_graph with transitive dependencies" =
     c depends on: b
     |}]
 
+(* Task 2.3: Calculate In-Degrees Tests *)
+
+let%expect_test "calculate_in_degrees with simple dependency" =
+  let frag1 = { Lua_link.
+    name = "base";
+    provides = ["base_func"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "derived";
+    provides = ["derived_func"];
+    requires = ["base_func"];
+    code = ""
+  } in
+  let fragments = StringMap.empty
+    |> StringMap.add "base" frag1
+    |> StringMap.add "derived" frag2
+  in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let dep_graph = Lua_link.build_dep_graph fragments provides_map in
+  let in_degrees = Lua_link.calculate_in_degrees dep_graph in
+  let base_degree = StringMap.find_opt "base" in_degrees |> Option.value ~default:(-1) in
+  let derived_degree = StringMap.find_opt "derived" in_degrees |> Option.value ~default:(-1) in
+  print_endline ("base in-degree: " ^ string_of_int base_degree);
+  print_endline ("derived in-degree: " ^ string_of_int derived_degree);
+  [%expect {|
+    base in-degree: 1
+    derived in-degree: 0
+    |}]
+
+let%expect_test "calculate_in_degrees with no dependencies" =
+  let frag = { Lua_link.
+    name = "standalone";
+    provides = ["func"];
+    requires = [];
+    code = ""
+  } in
+  let fragments = StringMap.singleton "standalone" frag in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let dep_graph = Lua_link.build_dep_graph fragments provides_map in
+  let in_degrees = Lua_link.calculate_in_degrees dep_graph in
+  let degree = StringMap.find_opt "standalone" in_degrees |> Option.value ~default:(-1) in
+  print_endline ("standalone in-degree: " ^ string_of_int degree);
+  [%expect {| standalone in-degree: 0 |}]
+
+let%expect_test "calculate_in_degrees with multiple dependents" =
+  let frag1 = { Lua_link.
+    name = "base";
+    provides = ["base_func"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "derived1";
+    provides = ["d1"];
+    requires = ["base_func"];
+    code = ""
+  } in
+  let frag3 = { Lua_link.
+    name = "derived2";
+    provides = ["d2"];
+    requires = ["base_func"];
+    code = ""
+  } in
+  let fragments = StringMap.empty
+    |> StringMap.add "base" frag1
+    |> StringMap.add "derived1" frag2
+    |> StringMap.add "derived2" frag3
+  in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let dep_graph = Lua_link.build_dep_graph fragments provides_map in
+  let in_degrees = Lua_link.calculate_in_degrees dep_graph in
+  let base_degree = StringMap.find_opt "base" in_degrees |> Option.value ~default:(-1) in
+  print_endline ("base in-degree: " ^ string_of_int base_degree);
+  [%expect {| base in-degree: 2 |}]
+
+let%expect_test "calculate_in_degrees with complex graph" =
+  let frag1 = { Lua_link.
+    name = "a";
+    provides = ["a"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "b";
+    provides = ["b"];
+    requires = ["a"];
+    code = ""
+  } in
+  let frag3 = { Lua_link.
+    name = "c";
+    provides = ["c"];
+    requires = ["a"; "b"];
+    code = ""
+  } in
+  let fragments = StringMap.empty
+    |> StringMap.add "a" frag1
+    |> StringMap.add "b" frag2
+    |> StringMap.add "c" frag3
+  in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let dep_graph = Lua_link.build_dep_graph fragments provides_map in
+  let in_degrees = Lua_link.calculate_in_degrees dep_graph in
+  let a_degree = StringMap.find_opt "a" in_degrees |> Option.value ~default:(-1) in
+  let b_degree = StringMap.find_opt "b" in_degrees |> Option.value ~default:(-1) in
+  let c_degree = StringMap.find_opt "c" in_degrees |> Option.value ~default:(-1) in
+  print_endline ("a in-degree: " ^ string_of_int a_degree);
+  print_endline ("b in-degree: " ^ string_of_int b_degree);
+  print_endline ("c in-degree: " ^ string_of_int c_degree);
+  [%expect {|
+    a in-degree: 2
+    b in-degree: 1
+    c in-degree: 0
+    |}]
+
+let%expect_test "calculate_in_degrees all fragments initialized" =
+  let frag1 = { Lua_link.
+    name = "isolated1";
+    provides = ["i1"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "isolated2";
+    provides = ["i2"];
+    requires = [];
+    code = ""
+  } in
+  let fragments = StringMap.empty
+    |> StringMap.add "isolated1" frag1
+    |> StringMap.add "isolated2" frag2
+  in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let dep_graph = Lua_link.build_dep_graph fragments provides_map in
+  let in_degrees = Lua_link.calculate_in_degrees dep_graph in
+  let count = StringMap.cardinal in_degrees in
+  print_endline ("fragments with in-degrees: " ^ string_of_int count);
+  [%expect {| fragments with in-degrees: 2 |}]
+
+let%expect_test "calculate_in_degrees with linear chain" =
+  let frag1 = { Lua_link.
+    name = "a";
+    provides = ["a"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "b";
+    provides = ["b"];
+    requires = ["a"];
+    code = ""
+  } in
+  let frag3 = { Lua_link.
+    name = "c";
+    provides = ["c"];
+    requires = ["b"];
+    code = ""
+  } in
+  let frag4 = { Lua_link.
+    name = "d";
+    provides = ["d"];
+    requires = ["c"];
+    code = ""
+  } in
+  let fragments = StringMap.empty
+    |> StringMap.add "a" frag1
+    |> StringMap.add "b" frag2
+    |> StringMap.add "c" frag3
+    |> StringMap.add "d" frag4
+  in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let dep_graph = Lua_link.build_dep_graph fragments provides_map in
+  let in_degrees = Lua_link.calculate_in_degrees dep_graph in
+  let a_degree = StringMap.find_opt "a" in_degrees |> Option.value ~default:(-1) in
+  let b_degree = StringMap.find_opt "b" in_degrees |> Option.value ~default:(-1) in
+  let c_degree = StringMap.find_opt "c" in_degrees |> Option.value ~default:(-1) in
+  let d_degree = StringMap.find_opt "d" in_degrees |> Option.value ~default:(-1) in
+  print_endline ("a in-degree: " ^ string_of_int a_degree);
+  print_endline ("b in-degree: " ^ string_of_int b_degree);
+  print_endline ("c in-degree: " ^ string_of_int c_degree);
+  print_endline ("d in-degree: " ^ string_of_int d_degree);
+  [%expect {|
+    a in-degree: 1
+    b in-degree: 1
+    c in-degree: 1
+    d in-degree: 0
+    |}]
+
 let%expect_test "parse fragment header with provides" =
   let code = {|
 --// Provides: foo, bar

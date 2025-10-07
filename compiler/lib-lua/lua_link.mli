@@ -80,6 +80,12 @@ val build_dep_graph :
     to the set of fragments it depends on. Uses provides_map to resolve symbol names to fragments.
     Filters out self-dependencies. Missing symbols are ignored (will be detected later). *)
 
+(** Calculate in-degrees: fragment name → count of incoming edges *)
+val calculate_in_degrees : (string * StringSet.t) StringMap.t -> int StringMap.t
+(** [calculate_in_degrees dep_graph] computes the in-degree (number of dependents) for each
+    fragment in the dependency graph. Returns a map from fragment name to its in-degree count.
+    Used for topological sorting with Kahn's algorithm. *)
+
 (** Resolve dependencies and determine load order *)
 val resolve_deps : state -> string list -> string list * string list
 (** [resolve_deps state required] returns [(ordered, missing)] where:
