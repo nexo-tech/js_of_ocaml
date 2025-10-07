@@ -185,7 +185,7 @@ Generate Lua code that:
   - Indent fragment code by 2 spaces
   - Register in package.loaded
 - **Test**: Single fragment → valid Lua registration code
-- **Status**: COMPLETED - Commit [to be added]
+- **Status**: COMPLETED - Commit 0c9e104e
 
 ### Task 4.2: Generate Loader Prologue
 - **File**: `compiler/lib-lua/lua_link.ml`
