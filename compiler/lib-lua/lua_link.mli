@@ -42,6 +42,12 @@ val parse_requires : string -> string list
 (** [parse_requires line] extracts symbols from a "--// Requires: sym1, sym2" header.
     Returns empty list if line doesn't match the format. *)
 
+(** Parse version constraint from a line *)
+val parse_version : string -> bool
+(** [parse_version line] checks if the version constraint in a "--// Version: >= 4.14" header
+    is satisfied by the current OCaml version. Returns true if constraint is satisfied or
+    if line doesn't match the format. Supports operators: >=, <=, >, <, = *)
+
 (** Load a runtime Lua file as a fragment *)
 val load_runtime_file : string -> fragment
 

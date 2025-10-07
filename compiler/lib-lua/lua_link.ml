@@ -64,6 +64,51 @@ let parse_requires (line : string) : string list =
       symbols
   else []
 
+(* Parse version constraint: "--// Version: >= 4.14" -> true/false *)
+let parse_version (line : string) : bool =
+  let prefix = "--// Version:" in
+  let prefix_len = String.length prefix in
+  if String.length line >= prefix_len
+     && String.equal (String.sub line ~pos:0 ~len:prefix_len) prefix
+  then
+    let rest = String.sub line ~pos:prefix_len ~len:(String.length line - prefix_len) in
+    let trimmed = String.trim rest in
+    (* Parse operator and version: ">= 4.14", "= 5.0", etc. *)
+    let parse_constraint s =
+      if String.length s < 2 then None
+      else
+        let op_str, ver_str =
+          if String.length s >= 2 && String.equal (String.sub s ~pos:0 ~len:2) ">="
+          then ">=", String.sub s ~pos:2 ~len:(String.length s - 2)
+          else if String.length s >= 2 && String.equal (String.sub s ~pos:0 ~len:2) "<="
+          then "<=", String.sub s ~pos:2 ~len:(String.length s - 2)
+          else if String.length s >= 1 && String.equal (String.sub s ~pos:0 ~len:1) ">"
+          then ">", String.sub s ~pos:1 ~len:(String.length s - 1)
+          else if String.length s >= 1 && String.equal (String.sub s ~pos:0 ~len:1) "<"
+          then "<", String.sub s ~pos:1 ~len:(String.length s - 1)
+          else if String.length s >= 1 && String.equal (String.sub s ~pos:0 ~len:1) "="
+          then "=", String.sub s ~pos:1 ~len:(String.length s - 1)
+          else "", s
+        in
+        if String.length op_str = 0 then None
+        else
+          let ver_str = String.trim ver_str in
+          let op = match op_str with
+            | ">=" -> (>=)
+            | "<=" -> (<=)
+            | ">" -> (>)
+            | "<" -> (<)
+            | "=" -> (=)
+            | _ -> (=)
+          in
+          Some (op, ver_str)
+    in
+    match parse_constraint trimmed with
+    | None -> true (* No valid constraint means accept all *)
+    | Some (op, ver_str) ->
+        op Ocaml_version.(compare current (split ver_str)) 0
+  else true (* No version header means accept all *)
+
 let load_runtime_file filename =
   let ic = open_in_bin filename in
   let code = really_input_string ic (in_channel_length ic) in

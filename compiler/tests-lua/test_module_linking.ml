@@ -104,6 +104,86 @@ let%expect_test "parse_requires does not match provides" =
   print_endline (if List.length result = 0 then "empty" else "not empty");
   [%expect {| empty |}]
 
+(* Task 1.3: Parse Version Constraint Tests *)
+
+let%expect_test "parse_version with >= operator satisfied" =
+  let line = "--// Version: >= 4.14" in
+  let result = Lua_link.parse_version line in
+  print_endline (if result then "satisfied" else "not satisfied");
+  [%expect {| satisfied |}]
+
+let%expect_test "parse_version with >= operator not satisfied" =
+  let line = "--// Version: >= 6.0" in
+  let result = Lua_link.parse_version line in
+  print_endline (if result then "satisfied" else "not satisfied");
+  [%expect {| not satisfied |}]
+
+let%expect_test "parse_version with <= operator satisfied" =
+  let line = "--// Version: <= 6.0" in
+  let result = Lua_link.parse_version line in
+  print_endline (if result then "satisfied" else "not satisfied");
+  [%expect {| satisfied |}]
+
+let%expect_test "parse_version with <= operator not satisfied" =
+  let line = "--// Version: <= 4.0" in
+  let result = Lua_link.parse_version line in
+  print_endline (if result then "satisfied" else "not satisfied");
+  [%expect {| not satisfied |}]
+
+let%expect_test "parse_version with = operator satisfied" =
+  let line = "--// Version: = 5.2.0" in
+  let result = Lua_link.parse_version line in
+  print_endline (if result then "satisfied" else "not satisfied");
+  [%expect {| satisfied |}]
+
+let%expect_test "parse_version with = operator not satisfied" =
+  let line = "--// Version: = 4.14.0" in
+  let result = Lua_link.parse_version line in
+  print_endline (if result then "satisfied" else "not satisfied");
+  [%expect {| not satisfied |}]
+
+let%expect_test "parse_version with > operator satisfied" =
+  let line = "--// Version: > 4.14" in
+  let result = Lua_link.parse_version line in
+  print_endline (if result then "satisfied" else "not satisfied");
+  [%expect {| satisfied |}]
+
+let%expect_test "parse_version with > operator not satisfied" =
+  let line = "--// Version: > 6.0" in
+  let result = Lua_link.parse_version line in
+  print_endline (if result then "satisfied" else "not satisfied");
+  [%expect {| not satisfied |}]
+
+let%expect_test "parse_version with < operator satisfied" =
+  let line = "--// Version: < 6.0" in
+  let result = Lua_link.parse_version line in
+  print_endline (if result then "satisfied" else "not satisfied");
+  [%expect {| satisfied |}]
+
+let%expect_test "parse_version with < operator not satisfied" =
+  let line = "--// Version: < 5.0" in
+  let result = Lua_link.parse_version line in
+  print_endline (if result then "satisfied" else "not satisfied");
+  [%expect {| not satisfied |}]
+
+let%expect_test "parse_version with whitespace" =
+  let line = "--// Version:   >=   4.14  " in
+  let result = Lua_link.parse_version line in
+  print_endline (if result then "satisfied" else "not satisfied");
+  [%expect {| satisfied |}]
+
+let%expect_test "parse_version with non-matching line" =
+  let line = "-- This is just a comment" in
+  let result = Lua_link.parse_version line in
+  print_endline (if result then "satisfied" else "not satisfied");
+  [%expect {| satisfied |}]
+
+let%expect_test "parse_version with no constraint returns true" =
+  let line = "--// Version: " in
+  let result = Lua_link.parse_version line in
+  print_endline (if result then "satisfied" else "not satisfied");
+  [%expect {| satisfied |}]
+
 let%expect_test "parse fragment header with provides" =
   let code = {|
 --// Provides: foo, bar
