@@ -105,11 +105,11 @@ This document outlines the implementation plan for adding Lua as a compilation t
 - **Commit**: "feat: Define OCaml value representation in Lua"
 
 #### Task 3.2: Closure Representation
-- [ ] Implement closure encoding
-- [ ] Handle partial application
-- [ ] Support currying
-- **Output**: ~250 lines
-- **Test**: Function application tests
+- [x] Implement closure encoding
+- [x] Handle partial application
+- [x] Support currying
+- **Output**: ~250 lines (206 lines runtime + 54 lines compiler helpers + 221 lines runtime tests = 481 lines total)
+- **Test**: Function application tests ✓
 - **Commit**: "feat: Implement closure representation"
 
 #### Task 3.3: Object and Method Representation

@@ -140,3 +140,25 @@ val ml_bool_of_lua : Lua_ast.expr -> Lua_ast.expr
 val lua_bool_of_ml : Lua_ast.expr -> Lua_ast.expr
 (** [lua_bool_of_ml ml_bool] converts ML bool (0 or 1) to Lua bool.
     Generates: ml_bool ~= 0 *)
+
+(** {2 Function and Closure Operations} *)
+
+module Closure : sig
+  val make : arity:int -> func:Lua_ast.expr -> Lua_ast.expr
+  (** [make ~arity ~func] creates an OCaml function with known arity.
+      OCaml functions are represented as tables: {l = arity, f = lua_function}
+      Generates: {l = <arity>, f = <func>} *)
+
+  val call : func:Lua_ast.expr -> args:Lua_ast.expr list -> exact:bool -> Lua_ast.expr
+  (** [call ~func ~args ~exact] calls an OCaml function.
+      If [exact] is true, generates direct call: func.f(args...)
+      Otherwise uses caml_call_gen for currying: caml_call_gen(func, {args...}) *)
+
+  val arity : Lua_ast.expr -> Lua_ast.expr
+  (** [arity func] gets the arity of a function.
+      Generates: func.l *)
+
+  val lua_function : Lua_ast.expr -> Lua_ast.expr
+  (** [lua_function func] gets the underlying Lua function.
+      Generates: func.f *)
+end

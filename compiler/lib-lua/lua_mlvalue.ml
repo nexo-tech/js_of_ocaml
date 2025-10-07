@@ -272,3 +272,57 @@ let ml_bool_of_lua lua_bool = L.BinOp (L.And, lua_bool, one)
     @return Lua boolean expression
 *)
 let lua_bool_of_ml ml_bool = L.BinOp (L.Neq, ml_bool, zero)
+
+(** {2 Function and Closure Operations} *)
+
+module Closure = struct
+  (** Create an OCaml function with known arity.
+      OCaml functions are represented as tables: {l = arity, f = lua_function}
+
+      Generates: {l = <arity>, f = <function_expr>}
+
+      @param arity The function arity
+      @param func_expr The Lua function expression
+      @return Table constructor expression
+  *)
+  let make ~arity ~func =
+    L.Table
+      [ L.Rec_field ("l", L.Number (string_of_int arity))
+      ; L.Rec_field ("f", func)
+      ]
+
+  (** Call an OCaml function.
+      For exact arity, generates direct call: func.f(args...)
+      For non-exact arity, uses caml_call_gen for currying.
+
+      @param func Function expression
+      @param args List of argument expressions
+      @param exact True if we know the arity matches
+      @return Call expression
+  *)
+  let call ~func ~args ~exact =
+    if exact
+    then
+      (* Direct call: func.f(args...) *)
+      L.Call (L.Dot (func, "f"), args)
+    else
+      (* Use caml_call_gen for currying: caml_call_gen(func, {args...}) *)
+      let args_array = L.Table (List.map args ~f:(fun arg -> L.Array_field arg)) in
+      L.Call (L.Ident "caml_call_gen", [ func; args_array ])
+
+  (** Get the arity of a function.
+      Generates: func.l
+
+      @param func Function expression
+      @return Expression accessing arity
+  *)
+  let arity func = L.Dot (func, "l")
+
+  (** Get the underlying Lua function.
+      Generates: func.f
+
+      @param func Function expression
+      @return Expression accessing the Lua function
+  *)
+  let lua_function func = L.Dot (func, "f")
+end

@@ -252,3 +252,42 @@ let%expect_test "list representation" =
   print_endline (expr_to_string cons1);
   [%expect
     {| {tag = 0, [1] = 1, [2] = {tag = 0, [1] = 2, [2] = {tag = 0, [1] = 3, [2] = 0}}} |}]
+
+(* Test closure operations *)
+let%expect_test "closure make" =
+  let func_body =
+    Lua_ast.Function ([ "x"; "y" ], false, [ Lua_ast.Return [ Lua_ast.BinOp (Lua_ast.Add, Lua_ast.Ident "x", Lua_ast.Ident "y") ] ])
+  in
+  let closure = Lua_mlvalue.Closure.make ~arity:2 ~func:func_body in
+  print_endline (expr_to_string closure);
+  [%expect {|
+    {l = 2, f = function(x, y)
+      return x + y
+    end}
+    |}]
+
+let%expect_test "closure call exact" =
+  let func = Lua_ast.Ident "add" in
+  let args = [ Lua_mlvalue.int 10; Lua_mlvalue.int 20 ] in
+  let call_expr = Lua_mlvalue.Closure.call ~func ~args ~exact:true in
+  print_endline (expr_to_string call_expr);
+  [%expect {| add.f(10, 20) |}]
+
+let%expect_test "closure call non-exact (currying)" =
+  let func = Lua_ast.Ident "add" in
+  let args = [ Lua_mlvalue.int 10 ] in
+  let call_expr = Lua_mlvalue.Closure.call ~func ~args ~exact:false in
+  print_endline (expr_to_string call_expr);
+  [%expect {| caml_call_gen(add, {10}) |}]
+
+let%expect_test "closure arity access" =
+  let func = Lua_ast.Ident "my_func" in
+  let arity_expr = Lua_mlvalue.Closure.arity func in
+  print_endline (expr_to_string arity_expr);
+  [%expect {| my_func.l |}]
+
+let%expect_test "closure lua_function access" =
+  let func = Lua_ast.Ident "my_func" in
+  let lua_fn = Lua_mlvalue.Closure.lua_function func in
+  print_endline (expr_to_string lua_fn);
+  [%expect {| my_func.f |}]
