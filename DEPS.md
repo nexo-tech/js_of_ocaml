@@ -135,7 +135,7 @@ Generate Lua code that:
   - If result length < total nodes → cycle detected
   - Return (sorted_list, cycle_nodes)
 - **Test**: Linear deps → correct order; circular deps → cycle detected
-- **Status**: COMPLETED - Commit [to be added]
+- **Status**: COMPLETED - Commit 667d96e8
 
 ### Task 3.2: Detect Missing Dependencies
 - **File**: `compiler/lib-lua/lua_link.ml`
