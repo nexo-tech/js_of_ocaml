@@ -271,7 +271,7 @@ Generate Lua code that:
   - Returns empty string if no cycles
   - Updated resolve_deps to check for cycles and raise Failure with formatted message
 - **Test**: Circular deps → clear error message
-- **Status**: COMPLETED - Commit 8d9e2f1a
+- **Status**: COMPLETED - Commit 4989d7f2
 
 ### Task 6.2: Missing Dependency Reporting
 - **File**: `compiler/lib-lua/lua_link.ml`
