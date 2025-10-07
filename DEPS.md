@@ -210,7 +210,7 @@ Generate Lua code that:
   -- End of runtime loader
   ```
 - **Test**: Generated code provides proper closing comment
-- **Status**: COMPLETED - Commit 6c7b9f2a
+- **Status**: COMPLETED - Commit ea1f2c5d
 
 ### Task 4.4: Complete generate_loader
 - **File**: `compiler/lib-lua/lua_link.ml`
