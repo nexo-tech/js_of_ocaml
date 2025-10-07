@@ -65,18 +65,19 @@ Generate Lua code that:
 - **Test**: Parse ">= 4.14" with OCaml 5.2.0 → true
 - **Status**: COMPLETED - Commit 032b0d16
 
-### Task 1.4: Parse Complete Fragment Header
+### Task 1.4: Parse Complete Fragment Header ✅
 - **File**: `compiler/lib-lua/lua_link.ml`
-- **Lines**: ~40
-- **Function**: `parse_fragment_header : string -> fragment`
+- **Lines**: ~38
+- **Function**: `parse_fragment_header : name:string -> string -> fragment`
 - **Logic**:
   - Read lines until first non-comment
   - Extract all `--//` directives
   - Parse each directive type
   - Return complete fragment metadata
 - **Test**: Parse multi-line header → complete fragment record
+- **Status**: COMPLETED - Commit b595dff0
 
-**Checkpoint**: All header parsing functions tested and working
+**Checkpoint**: ✅ Phase 1 Complete - All header parsing functions tested and working
 
 ## Phase 2: Dependency Graph Construction (60 lines)
 
