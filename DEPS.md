@@ -198,7 +198,7 @@ Generate Lua code that:
 
   ```
 - **Test**: Generated code is syntactically valid Lua
-- **Status**: COMPLETED - Commit [to be added]
+- **Status**: COMPLETED - Commit 0fe7e57b
 
 ### Task 4.3: Generate Loader Epilogue
 - **File**: `compiler/lib-lua/lua_link.ml`
