@@ -123,11 +123,11 @@ This document outlines the implementation plan for adding Lua as a compilation t
 ### Phase 4: Code Generation Core (Week 4-5)
 
 #### Task 4.1: Basic Code Generator Setup
-- [ ] Create `compiler/lib-lua/lua_generate.ml`
-- [ ] Set up code generation context
-- [ ] Implement variable mapping
-- **Output**: ~200 lines
-- **Test**: Generate empty main function
+- [x] Create `compiler/lib-lua/lua_generate.ml`
+- [x] Set up code generation context
+- [x] Implement variable mapping
+- **Output**: ~200 lines (159 lines implementation + 175 lines tests = 334 lines total)
+- **Test**: Generate empty main function ✓
 - **Commit**: "feat: Initialize Lua code generator"
 
 #### Task 4.2: Expression Generation
