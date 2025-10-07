@@ -359,16 +359,22 @@ Generate Lua code that:
   - Registration happens before code execution
 - **Status**: COMPLETED - Commit 3e7088c2
 
-### Task 7.4: Integration Tests
+### Task 7.4: Integration Tests ✅
 - **File**: `compiler/tests-lua/test_module_linking.ml`
 - **Tests**:
   - Complete link with empty program
-  - Complete link with linkall=true
-  - Complete link with linkall=false
-  - Link with complex dependency tree
-  - Link with runtime directory loading
+  - Complete link with linkall=true (includes all fragments)
+  - Complete link with linkall=false (minimal loader)
+  - Link with complex dependency tree (app→ui→core, app→data→core, app→utils)
+  - Link preserves program statements order
+  - Link with transitive dependencies resolved correctly
+  - Link with diamond dependency pattern (D included once)
+  - Link generates syntactically complete output
+  - Link with empty state produces minimal output
+  - Link handles fragments with no provides gracefully
+- **Status**: COMPLETED - Commit TBD
 
-**Checkpoint**: All tests passing
+**Checkpoint**: ✅ All tests passing
 
 ## Implementation Order
 
