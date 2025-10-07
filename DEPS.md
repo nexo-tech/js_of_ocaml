@@ -309,7 +309,7 @@ Generate Lua code that:
   - Return true if all constraints satisfied or no constraints found
   - Stops at first non-comment line
 - **Test**: Various version constraints → correct filtering
-- **Status**: COMPLETED - Commit 7f4e8b2c
+- **Status**: COMPLETED - Commit a0005ec5
 
 **Checkpoint**: ✅ All error cases handled gracefully
 
