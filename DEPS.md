@@ -330,14 +330,19 @@ Generate Lua code that:
   - Header parsing stops at first code line
 - **Status**: COMPLETED - Commit 52a5c9dc
 
-### Task 7.2: Unit Tests for Dependency Resolution
+### Task 7.2: Unit Tests for Dependency Resolution ✅
 - **File**: `compiler/tests-lua/test_module_linking.ml`
 - **Tests**:
-  - Simple linear dependencies
-  - Complex DAG dependencies
-  - Circular dependencies (should fail)
-  - Missing dependencies (should report)
-  - Multiple entry points
+  - Simple linear dependency chains (a→b→c→d)
+  - Complex DAG with multiple paths and shared dependencies
+  - Multiple independent entry points
+  - Deep DAG (7 levels) to verify algorithm handles depth
+  - Wide DAG (many parallel dependencies)
+  - Circular dependencies with multiple entry points (should fail)
+  - Missing dependencies across multiple entry points (should report)
+  - Partial satisfaction (some satisfied, some missing)
+  - Empty requirements (should return empty list)
+- **Status**: COMPLETED - Commit TBD
 
 ### Task 7.3: Unit Tests for Loader Generation
 - **File**: `compiler/tests-lua/test_module_linking.ml`
