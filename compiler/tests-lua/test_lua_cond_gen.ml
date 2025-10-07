@@ -183,13 +183,14 @@ let%expect_test "generate switch - simple 2-way" =
   let stmts = Lua_generate.generate_last_with_program ctx program last in
   List.iter (fun s -> print_endline (stat_to_string s)) stmts;
   [%expect {|
-    if v0 == 0 then
+    if (type(v0) == "table" and v0.tag or v0) == 0 then
       local v1 = "zero"
       return v1
     else
       local v1 = "one"
       return v1
-    end |}]
+    end
+    |}]
 
 let%expect_test "generate switch - 3-way with default" =
   let ctx = make_ctx () in
@@ -228,18 +229,19 @@ let%expect_test "generate switch - 3-way with default" =
   let stmts = Lua_generate.generate_last_with_program ctx program last in
   List.iter (fun s -> print_endline (stat_to_string s)) stmts;
   [%expect {|
-    if v0 == 0 then
+    if (type(v0) == "table" and v0.tag or v0) == 0 then
       local v1 = "case0"
       return v1
     else
-      if v0 == 1 then
+      if (type(v0) == "table" and v0.tag or v0) == 1 then
         local v1 = "case1"
         return v1
       else
         local v1 = "default"
         return v1
       end
-    end |}]
+    end
+    |}]
 
 let%expect_test "generate switch - single case" =
   let ctx = make_ctx () in
@@ -258,10 +260,11 @@ let%expect_test "generate switch - single case" =
   let stmts = Lua_generate.generate_last_with_program ctx program last in
   List.iter (fun s -> print_endline (stat_to_string s)) stmts;
   [%expect {|
-    if v0 == 0 then
+    if (type(v0) == "table" and v0.tag or v0) == 0 then
       local v1 = "only"
       return v1
-    end |}]
+    end
+    |}]
 
 (* Branch tests *)
 

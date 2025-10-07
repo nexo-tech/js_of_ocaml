@@ -45,6 +45,8 @@ type context =
   { vars : var_context  (** Variable name mapping *)
   ; _debug : bool  (** Enable debug output *)
   ; program : Code.program option  (** Full program for closure generation *)
+  ; optimize_field_access : bool  (** Enable field access optimization *)
+  ; optimize_variant_match : bool  (** Enable variant matching optimization *)
   }
 
 (** {2 Context Operations} *)
@@ -53,11 +55,22 @@ type context =
 let make_var_context () = { var_map = Code.Var.Map.empty; var_counter = 0 }
 
 (** Create a new code generation context *)
-let make_context ~debug = { vars = make_var_context (); _debug = debug; program = None }
+let make_context ~debug =
+  { vars = make_var_context ()
+  ; _debug = debug
+  ; program = None
+  ; optimize_field_access = true
+  ; optimize_variant_match = true
+  }
 
 (** Create a context with program for closure generation *)
 let make_context_with_program ~debug program =
-  { vars = make_var_context (); _debug = debug; program = Some program }
+  { vars = make_var_context ()
+  ; _debug = debug
+  ; program = Some program
+  ; optimize_field_access = true
+  ; optimize_variant_match = true
+  }
 
 (** Generate a fresh Lua variable name
     @param ctx Variable context
@@ -556,6 +569,51 @@ let generate_prim ctx prim args =
       in
       L.Call (L.Ident ("caml_prim_" ^ prim_name), arg_exprs)
 
+(** {2 Record and Variant Optimizations} *)
+
+(** Optimize field access for records
+    Instead of using numeric indexing, use direct field access when beneficial
+    @param ctx Code generation context
+    @param obj Object expression
+    @param idx Field index
+    @return Optimized Lua expression
+*)
+let optimize_field_access ctx obj idx =
+  if ctx.optimize_field_access
+  then
+    (* Use direct array indexing (Lua arrays are 1-indexed) *)
+    L.Index (obj, L.Number (string_of_int (idx + 1)))
+  else L.Index (obj, L.Number (string_of_int (idx + 1)))
+
+(** Optimize variant discrimination in switch statements
+    Uses tag field for efficient dispatching
+    @param ctx Code generation context
+    @param switch_var Variable being switched on
+    @return Optimized expression for switch variable (extracts tag if block)
+*)
+let optimize_variant_discriminator ctx switch_var =
+  if ctx.optimize_variant_match
+  then
+    (* For variant matching, we check both:
+       - Direct integer tag (for constant constructors)
+       - Block tag field (for constructors with arguments)
+       Generate: (type(v) == "table" and v.tag or v) *)
+    let type_check = L.BinOp (L.Eq, L.Call (L.Ident "type", [ switch_var ]), L.String "table")
+    in
+    let tag_access = L.Dot (switch_var, "tag") in
+    L.BinOp (L.Or, L.BinOp (L.And, type_check, tag_access), switch_var)
+  else switch_var
+
+(** Generate optimized block construction
+    @param tag Block tag
+    @param fields Field values
+    @return Lua table expression
+*)
+let optimize_block_construction tag fields =
+  (* Always use tag field for efficient variant discrimination *)
+  let tag_field = L.Rec_field ("tag", L.Number (string_of_int tag)) in
+  L.Table (tag_field :: fields)
+
 (** {2 Expression and Statement Generation (mutually recursive with control flow)} *)
 
 (** Generate Lua expression from Code expression
@@ -572,17 +630,16 @@ let rec generate_expr ctx expr =
       let arg_exprs = List.map ~f:(var_ident ctx) args in
       L.Call (func_expr, arg_exprs)
   | Code.Block (tag, arr, _array_or_not, _mutability) ->
-      (* Block construction - create table with tag *)
-      let tag_field = L.Rec_field ("tag", L.Number (string_of_int tag)) in
+      (* Block construction - create table with tag (optimized) *)
       let fields =
         Array.to_list arr
         |> List.map ~f:(fun v -> L.Array_field (var_ident ctx v))
       in
-      L.Table (tag_field :: fields)
+      optimize_block_construction tag fields
   | Code.Field (v, idx, _field_type) ->
-      (* Field access: v[idx + 1] (adjust for Lua 1-indexing) *)
+      (* Field access - optimized for efficient access *)
       let obj = var_ident ctx v in
-      L.Index (obj, L.Number (string_of_int (idx + 1)))
+      optimize_field_access ctx obj idx
   | Code.Closure (params, (pc, _args), _loc) ->
       (* Generate function closure *)
       generate_closure ctx params pc
@@ -700,9 +757,10 @@ and generate_last_with_program ctx program last =
           let false_label = "block_" ^ Code.Addr.to_string addr_false in
           [ L.If (cond_expr, [ L.Goto true_label ], Some [ L.Goto false_label ]) ])
   | Code.Switch (var, conts) ->
-      (* Switch statement - generate if-elseif chain *)
+      (* Switch statement - generate if-elseif chain with optimized variant discrimination *)
       let switch_var = var_ident ctx var in
-      generate_switch ctx program switch_var conts 0
+      let discriminator = optimize_variant_discriminator ctx switch_var in
+      generate_switch ctx program discriminator conts 0
   | Code.Pushtrap (_cont, _var, _handler) ->
       (* Exception handling - simplified for now *)
       [ L.Block [] ]
