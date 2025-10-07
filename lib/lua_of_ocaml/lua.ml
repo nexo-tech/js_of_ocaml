@@ -186,13 +186,15 @@ let call0 (fn : (unit, 'b) fn t) : 'b t = call fn [||]
 let call1 (fn : ('a, 'b) fn t) (arg : 'a t) : 'b t = call fn [| arg |]
 
 let call2 (fn : ('a * 'b, 'c) fn t) (arg1 : 'a t) (arg2 : 'b t) : 'c t =
-  call fn [| arg1; arg2 |]
+  let any_args = [| Unsafe.inject arg1; Unsafe.inject arg2 |] in
+  Obj.magic (Unsafe.call (Obj.magic fn) any_args)
 
 let call3 (fn : ('a * 'b * 'c, 'd) fn t) (arg1 : 'a t) (arg2 : 'b t) (arg3 : 'c t) : 'd t
     =
-  call fn [| arg1; arg2; arg3 |]
+  let any_args = [| Unsafe.inject arg1; Unsafe.inject arg2; Unsafe.inject arg3 |] in
+  Obj.magic (Unsafe.call (Obj.magic fn) any_args)
 
-let calln (fn : ('a, 'b) fn t) (args : any array) : 'b t = call fn args
+let calln (fn : ('a, 'b) fn t) (args : any array) : 'b t = Obj.magic (Unsafe.call (Obj.magic fn) args)
 
 (* Global variable helpers *)
 let get_global_fn (name : string) : ('a, 'b) fn t = Unsafe.get_global name
@@ -258,3 +260,140 @@ let call_method (tbl : 'a table t) (method_name : string) (args : any array) : '
   (* Prepend table as first argument for method call *)
   let all_args = Array.append [| Unsafe.inject tbl |] args in
   calln method_fn all_args
+
+(* Exporting OCaml to Lua *)
+
+(* Function export *)
+let export_fn0 (name : string) (f : unit -> 'a t) : unit =
+  let wrapped = callback (fun _ -> f ()) in
+  Unsafe.set_global name wrapped
+
+let export_fn1 (name : string) (f : 'a t -> 'b t) : unit =
+  let wrapped = callback f in
+  Unsafe.set_global name wrapped
+
+let export_fn2 (name : string) (f : 'a t -> 'b t -> 'c t) : unit =
+  let wrapped =
+    callback (fun args ->
+        let arg_arr = to_array args in
+        if Array.length arg_arr >= 2
+        then f (Obj.magic arg_arr.(0)) (Obj.magic arg_arr.(1))
+        else f (Obj.magic 0) (Obj.magic 0))
+  in
+  Unsafe.set_global name wrapped
+
+let export_fn3 (name : string) (f : 'a t -> 'b t -> 'c t -> 'd t) : unit =
+  let wrapped =
+    callback (fun args ->
+        let arg_arr = to_array args in
+        if Array.length arg_arr >= 3
+        then f (Obj.magic arg_arr.(0)) (Obj.magic arg_arr.(1)) (Obj.magic arg_arr.(2))
+        else f (Obj.magic 0) (Obj.magic 0) (Obj.magic 0))
+  in
+  Unsafe.set_global name wrapped
+
+let export_fnn (name : string) (f : any array -> 'a t) : unit =
+  let wrapped = callback (fun args -> f (Obj.magic args)) in
+  Unsafe.set_global name wrapped
+
+(* Module export *)
+let make_module (fields : (string * any) array) : 'a table t = Unsafe.table fields
+
+let export_module (name : string) (fields : (string * any) array) : unit =
+  let mod_table = make_module fields in
+  Unsafe.set_global name mod_table
+
+(* Type marshalling helpers *)
+module type Marshallable = sig
+  type t
+
+  val of_lua : any -> t
+
+  val to_lua : t -> any
+end
+
+module Int_marshal : Marshallable with type t = int = struct
+  type t = int
+
+  let of_lua (x : any) : int = to_integer (Unsafe.coerce x)
+
+  let to_lua (x : int) : any = Unsafe.inject (integer x)
+end
+
+module Float_marshal : Marshallable with type t = float = struct
+  type t = float
+
+  let of_lua (x : any) : float = to_number (Unsafe.coerce x)
+
+  let to_lua (x : float) : any = Unsafe.inject (number x)
+end
+
+module String_marshal : Marshallable with type t = string = struct
+  type t = string
+
+  let of_lua (x : any) : string = to_string (Unsafe.coerce x)
+
+  let to_lua (x : string) : any = Unsafe.inject (string x)
+end
+
+module Bool_marshal : Marshallable with type t = bool = struct
+  type t = bool
+
+  let of_lua (x : any) : bool = to_bool (Unsafe.coerce x)
+
+  let to_lua (x : bool) : any = Unsafe.inject (bool x)
+end
+
+module List_marshal (E : Marshallable) : Marshallable with type t = E.t list = struct
+  type t = E.t list
+
+  let of_lua (x : any) : E.t list =
+    let tbl = Unsafe.coerce x in
+    let arr = to_array tbl in
+    Array.to_list arr |> List.map (fun elem -> E.of_lua (Unsafe.inject elem))
+
+  let to_lua (lst : E.t list) : any =
+    let arr = List.map E.to_lua lst |> Array.of_list in
+    Unsafe.inject (array (Array.map Unsafe.coerce arr))
+end
+
+module Option_marshal (E : Marshallable) : Marshallable with type t = E.t option =
+struct
+  type t = E.t option
+
+  let of_lua (x : any) : E.t option =
+    let opt = Unsafe.coerce x in
+    if test_opt opt
+    then (
+      let val_any : any = Unsafe.coerce opt in
+      Some (E.of_lua val_any))
+    else None
+
+  let to_lua (opt : E.t option) : any =
+    match opt with
+    | None -> Unsafe.inject nil
+    | Some v -> E.to_lua v
+end
+
+(* Wrapped function export with automatic marshalling *)
+let export_wrapped1 (type a b) (name : string)
+    (module A : Marshallable with type t = a) (module B : Marshallable with type t = b)
+    (f : a -> b) : unit =
+  let wrapped (x_lua : any) : any =
+    let x = A.of_lua x_lua in
+    let result = f x in
+    B.to_lua result
+  in
+  export_fn1 name (fun x -> Unsafe.coerce (wrapped (Unsafe.inject x)))
+
+let export_wrapped2 (type a b c) (name : string)
+    (module A : Marshallable with type t = a) (module B : Marshallable with type t = b)
+    (module C : Marshallable with type t = c) (f : a -> b -> c) : unit =
+  let wrapped (x_lua : any) (y_lua : any) : any =
+    let x = A.of_lua x_lua in
+    let y = B.of_lua y_lua in
+    let result = f x y in
+    C.to_lua result
+  in
+  export_fn2 name (fun x y ->
+      Unsafe.coerce (wrapped (Unsafe.inject x) (Unsafe.inject y)))

@@ -519,3 +519,153 @@ let%expect_test "lua interop - table set operations" =
       return v3
     end
     __caml_init__() |}]
+
+(** Test OCaml function export **)
+
+let%expect_test "lua export - export_fn1" =
+  (* Simulates exporting an OCaml function to Lua *)
+  let v_fn = var_of_int 1 in
+  let v_arg = var_of_int 2 in
+  let v_result = var_of_int 3 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_fn, Code.Closure ([], (1, []), None))
+        ; Code.Let
+            (v_result, Code.Prim (Extern "export_fn1", [ Pc (String "my_func"); Pv v_fn ]))
+        ]
+    ; branch = Code.Return v_result
+    }
+  in
+  let func_block = { Code.params = [ v_arg ]; body = []; branch = Code.Return v_arg } in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block); (1, func_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- Runtime initialized by require statements
+    function __caml_init__()
+      -- Module initialization code
+      local v0 = function()
+        return v1
+      end
+      local v2 = caml_export_fn1("my_func", v0)
+      return v2
+    end
+    __caml_init__() |}]
+
+let%expect_test "lua export - export_module" =
+  (* Simulates exporting an OCaml module to Lua *)
+  let v_fn1 = var_of_int 1 in
+  let v_fn2 = var_of_int 2 in
+  let v_fields = var_of_int 3 in
+  let v_result = var_of_int 4 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_fn1, Code.Closure ([], (1, []), None))
+        ; Code.Let (v_fn2, Code.Closure ([], (2, []), None))
+        ; Code.Let (v_fields, Code.Block (0, [| v_fn1; v_fn2 |], Code.Array, Code.Immutable))
+        ; Code.Let
+            ( v_result
+            , Code.Prim (Extern "export_module", [ Pc (String "MyMod"); Pv v_fields ]) )
+        ]
+    ; branch = Code.Return v_result
+    }
+  in
+  let func1_block = { Code.params = []; body = []; branch = Code.Return (var_of_int 10) } in
+  let func2_block = { Code.params = []; body = []; branch = Code.Return (var_of_int 20) } in
+  let program =
+    make_simple_program
+      [ (Code.Addr.zero, entry_block); (1, func1_block); (2, func2_block) ]
+  in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- Runtime initialized by require statements
+    function __caml_init__()
+      -- Module initialization code
+      local v0 = function()
+        return v1
+      end
+      local v2 = function()
+        return v3
+      end
+      local v4 = {tag = 0, v0, v2}
+      local v5 = caml_export_module("MyMod", v4)
+      return v5
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "lua export - make_module" =
+  (* Simulates creating a Lua module table *)
+  let v_func = var_of_int 1 in
+  let v_key = var_of_int 2 in
+  let v_pair = var_of_int 3 in
+  let v_fields = var_of_int 4 in
+  let v_module = var_of_int 5 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_func, Code.Closure ([], (1, []), None))
+        ; Code.Let (v_key, Code.Constant (Code.String "do_something"))
+        ; Code.Let (v_pair, Code.Block (0, [| v_key; v_func |], Code.NotArray, Code.Immutable))
+        ; Code.Let (v_fields, Code.Block (0, [| v_pair |], Code.Array, Code.Immutable))
+        ; Code.Let (v_module, Code.Prim (Extern "make_module", [ Pv v_fields ]))
+        ]
+    ; branch = Code.Return v_module
+    }
+  in
+  let func_block = { Code.params = []; body = []; branch = Code.Return (var_of_int 42) } in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block); (1, func_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- Runtime initialized by require statements
+    function __caml_init__()
+      -- Module initialization code
+      local v0 = function()
+        return v1
+      end
+      local v2 = "do_something"
+      local v3 = {tag = 0, v2, v0}
+      local v4 = {tag = 0, v3}
+      local v5 = caml_make_module(v4)
+      return v5
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "lua export - wrapped function with marshalling" =
+  (* Simulates exporting a function with type marshalling *)
+  let v_result = var_of_int 1 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let
+            ( v_result
+            , Code.Prim
+                ( Extern "export_wrapped1"
+                , [ Pc (String "add_one")
+                  ; Pc (String "Int_marshal")
+                  ; Pc (String "Int_marshal")
+                  ] ) )
+        ]
+    ; branch = Code.Return v_result
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- Runtime initialized by require statements
+    function __caml_init__()
+      -- Module initialization code
+      local v0 = caml_export_wrapped1("add_one", "Int_marshal", "Int_marshal")
+      return v0
+    end
+    __caml_init__() |}]

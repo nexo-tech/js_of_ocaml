@@ -275,11 +275,11 @@ This document outlines the implementation plan for adding Lua as a compilation t
 - **Commit**: "feat: Enable calling Lua from OCaml"
 
 #### Task 8.3: Exposing OCaml to Lua
-- [ ] Export OCaml functions to Lua
-- [ ] Handle type marshalling
-- [ ] Create module export mechanism
-- **Output**: ~250 lines
-- **Test**: OCaml function export tests
+- [x] Export OCaml functions to Lua
+- [x] Handle type marshalling
+- [x] Create module export mechanism
+- **Output**: ~212 lines (lua.ml: ~135, lua.mli: ~77)
+- **Test**: OCaml function export tests (test_lua_ffi.ml: ~150 lines added)
 - **Commit**: "feat: Export OCaml functions to Lua"
 
 #### Task 8.4: Lua Library Wrapping

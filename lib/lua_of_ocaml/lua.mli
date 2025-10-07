@@ -320,3 +320,81 @@ val require : string -> 'a table t
 
 (** [call_method tbl method_name args] calls a method on a Lua table (equivalent to tbl:method(args)) *)
 val call_method : 'a table t -> string -> any array -> 'b t
+
+(** {1 Exporting OCaml to Lua} *)
+
+(** {2 Function Export} *)
+
+(** [export_fn0 name f] exports a 0-argument OCaml function to Lua globals *)
+val export_fn0 : string -> (unit -> 'a t) -> unit
+
+(** [export_fn1 name f] exports a 1-argument OCaml function to Lua globals *)
+val export_fn1 : string -> ('a t -> 'b t) -> unit
+
+(** [export_fn2 name f] exports a 2-argument OCaml function to Lua globals *)
+val export_fn2 : string -> ('a t -> 'b t -> 'c t) -> unit
+
+(** [export_fn3 name f] exports a 3-argument OCaml function to Lua globals *)
+val export_fn3 : string -> ('a t -> 'b t -> 'c t -> 'd t) -> unit
+
+(** [export_fnn name f] exports an n-argument OCaml function to Lua globals *)
+val export_fnn : string -> (any array -> 'a t) -> unit
+
+(** {2 Module Export} *)
+
+(** [export_module name fields] exports an OCaml module as a Lua table with the given fields *)
+val export_module : string -> (string * any) array -> unit
+
+(** [make_module fields] creates a Lua table from field definitions *)
+val make_module : (string * any) array -> 'a table t
+
+(** {2 Type Marshalling Helpers} *)
+
+(** Module signature for type-safe marshalling *)
+module type Marshallable = sig
+  (** The OCaml type *)
+  type t
+
+  (** Convert from Lua value to OCaml value *)
+  val of_lua : any -> t
+
+  (** Convert from OCaml value to Lua value *)
+  val to_lua : t -> any
+end
+
+(** Int marshalling *)
+module Int_marshal : Marshallable with type t = int
+
+(** Float marshalling *)
+module Float_marshal : Marshallable with type t = float
+
+(** String marshalling *)
+module String_marshal : Marshallable with type t = string
+
+(** Bool marshalling *)
+module Bool_marshal : Marshallable with type t = bool
+
+(** List marshalling *)
+module List_marshal (E : Marshallable) : Marshallable with type t = E.t list
+
+(** Option marshalling *)
+module Option_marshal (E : Marshallable) : Marshallable with type t = E.t option
+
+(** {2 Wrapped Function Export} *)
+
+(** [export_wrapped1 name f] exports a function with automatic marshalling *)
+val export_wrapped1 :
+     string
+  -> (module Marshallable with type t = 'a)
+  -> (module Marshallable with type t = 'b)
+  -> ('a -> 'b)
+  -> unit
+
+(** [export_wrapped2 name f] exports a 2-arg function with automatic marshalling *)
+val export_wrapped2 :
+     string
+  -> (module Marshallable with type t = 'a)
+  -> (module Marshallable with type t = 'b)
+  -> (module Marshallable with type t = 'c)
+  -> ('a -> 'b -> 'c)
+  -> unit
