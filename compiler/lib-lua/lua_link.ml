@@ -421,6 +421,14 @@ let generate_module_registration (fragment : fragment) : string =
 
   Buffer.contents buf
 
+(* Generate loader prologue *)
+let generate_loader_prologue () : string =
+  let buf = Buffer.create 128 in
+  Buffer.add_string buf "-- Lua_of_ocaml runtime loader\n";
+  Buffer.add_string buf "-- This code registers runtime modules in package.loaded\n";
+  Buffer.add_string buf "\n";
+  Buffer.contents buf
+
 let generate_loader fragments =
   let buf = Buffer.create 1024 in
   Buffer.add_string buf "-- Module loader\n";

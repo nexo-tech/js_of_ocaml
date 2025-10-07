@@ -1470,6 +1470,30 @@ let%expect_test "generate_module_registration preserves blank lines" =
     end
     |}]
 
+(* Task 4.2: Generate Loader Prologue Tests *)
+
+let%expect_test "generate_loader_prologue produces header" =
+  let prologue = Lua_link.generate_loader_prologue () in
+  print_string prologue;
+  [%expect {|
+    -- Lua_of_ocaml runtime loader
+    -- This code registers runtime modules in package.loaded
+
+    |}]
+
+let%expect_test "generate_loader_prologue is consistent" =
+  let prologue1 = Lua_link.generate_loader_prologue () in
+  let prologue2 = Lua_link.generate_loader_prologue () in
+  print_endline (if String.equal prologue1 prologue2 then "consistent" else "inconsistent");
+  [%expect {| consistent |}]
+
+let%expect_test "generate_loader_prologue ends with newline" =
+  let prologue = Lua_link.generate_loader_prologue () in
+  let ends_with_newline = String.length prologue > 0 &&
+                          Char.equal (String.get prologue (String.length prologue - 1)) '\n' in
+  print_endline (if ends_with_newline then "ends with newline" else "no newline");
+  [%expect {| ends with newline |}]
+
 let%expect_test "generate module loader" =
   let frag1 = { Lua_link.
     name = "module1";

@@ -115,6 +115,10 @@ val generate_module_registration : fragment -> string
     provided symbols in package.loaded. Each symbol is wrapped in a function containing
     the fragment's code. *)
 
+(** Generate loader prologue *)
+val generate_loader_prologue : unit -> string
+(** [generate_loader_prologue ()] generates the header comment for the module loader. *)
+
 (** Generate Lua module loader code *)
 val generate_loader : fragment list -> string
 (** Generates Lua code that registers all modules using Lua's module system *)

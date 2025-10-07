@@ -187,16 +187,18 @@ Generate Lua code that:
 - **Test**: Single fragment → valid Lua registration code
 - **Status**: COMPLETED - Commit 0c9e104e
 
-### Task 4.2: Generate Loader Prologue
+### Task 4.2: Generate Loader Prologue ✅
 - **File**: `compiler/lib-lua/lua_link.ml`
-- **Lines**: ~20
+- **Lines**: ~7
 - **Function**: `generate_loader_prologue : unit -> string`
 - **Logic**:
   ```lua
   -- Lua_of_ocaml runtime loader
-  local _runtime_modules = {}
+  -- This code registers runtime modules in package.loaded
+
   ```
 - **Test**: Generated code is syntactically valid Lua
+- **Status**: COMPLETED - Commit [to be added]
 
 ### Task 4.3: Generate Loader Epilogue
 - **File**: `compiler/lib-lua/lua_link.ml`
