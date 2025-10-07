@@ -690,9 +690,9 @@ and generate_instr ctx instr =
       let elem_expr = L.Index (arr_expr, idx_adjusted) in
       let value_expr = var_ident ctx value in
       L.Assign ([ elem_expr ], [ value_expr ])
-  | Code.Event _ ->
-      (* Events are debugging information, generate empty block *)
-      L.Block []
+  | Code.Event info ->
+      (* Events are debugging information - emit as location hint *)
+      L.Location_hint info
 
 (** Generate Lua statements from a list of Code instructions
     @param ctx Code generation context

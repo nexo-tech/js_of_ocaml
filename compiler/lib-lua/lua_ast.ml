@@ -127,6 +127,7 @@ and stat =
   | Call_stat of expr  (** function call as statement *)
   | Block of block  (** do block end *)
   | Comment of string  (** -- comment *)
+  | Location_hint of Parse_info.t  (** Debug location marker (not emitted) *)
 
 (** Block is a list of statements *)
 and block = stat list

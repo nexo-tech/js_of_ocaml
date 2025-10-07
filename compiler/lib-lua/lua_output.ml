@@ -497,6 +497,12 @@ and output_stat ctx stat =
   | Comment text ->
       output_string ctx "-- ";
       output_string ctx text
+  | Location_hint info ->
+      (* Record source mapping for this location *)
+      (match info.Parse_info.src with
+      | Some file when String.length file > 0 ->
+          add_mapping ctx file info.Parse_info.line info.Parse_info.col None
+      | _ -> ())
 
 (** Output a block (list of statements) - top-level *)
 let output_block ctx stmts = output_block_internal ctx stmts

@@ -1,6 +1,7 @@
 (executable
  (name hello)
- (modes byte))
+ (modes byte)
+ (flags (:standard -g)))
 
 (rule
  (targets hello.bc.lua)

@@ -34,6 +34,10 @@ let run { Cmd_arg.common; bytecode; output_file; params; include_dirs; linkall; 
   let t = Timer.make () in
   let include_dirs = List.filter_map include_dirs ~f:(fun d -> Findlib.find [] d) in
 
+  (* Check if we need debug info *)
+  let enable_source_map = match source_map with `No -> false | _ -> true in
+  let need_debug = enable_source_map || Config.Flag.debuginfo () in
+
   (* Load and link bytecode *)
   let one =
     let ic = open_in_bin bytecode in
@@ -43,6 +47,7 @@ let run { Cmd_arg.common; bytecode; output_file; params; include_dirs; linkall; 
         ~linkall
         ~link_info:false
         ~include_cmis:false
+        ~debug:need_debug
         ic
     in
     close_in ic;
@@ -53,12 +58,9 @@ let run { Cmd_arg.common; bytecode; output_file; params; include_dirs; linkall; 
   (* Get the program from the bytecode *)
   let p = one.code in
 
-  (* Generate Lua code *)
-  let lua_code = Lua_generate.generate ~debug:false p in
+  (* Generate Lua code with debug info if needed *)
+  let lua_code = Lua_generate.generate ~debug:need_debug p in
   if times () then Format.eprintf "generation: %a@." Timer.print t;
-
-  (* Generate source map if requested *)
-  let enable_source_map = match source_map with `No -> false | _ -> true in
   let (lua_string, source_map_info_opt) =
     if enable_source_map
     then (

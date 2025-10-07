@@ -315,10 +315,11 @@ This document outlines the implementation plan for adding Lua as a compilation t
 - [x] Generate source maps for debugging
 - [x] Map Lua lines to OCaml source
 - [x] Support stack trace translation (infrastructure)
-- **Output**: ~150 lines (lua_output.ml: +100, compile.ml: +40, cmd_arg.ml: +13)
+- [x] Connect IR debug events to source mappings
+- **Output**: ~155 lines (lua_output.ml: +100, compile.ml: +45, cmd_arg.ml: +13, lua_ast.ml: +1, lua_generate.ml: +2)
 - **Test**: Source map generation ✓ (Generates .lua.map file in JSON format)
-- **Commit**: "feat: Add source map generation infrastructure"
-- **Note**: Infrastructure complete; debug info collection from IR to be added later
+- **Commits**: "feat: Add source map generation infrastructure" + "feat: Connect debug events to source maps"
+- **Note**: Complete implementation; requires bytecode compiled with -g flag for debug info
 
 #### Task 9.4: Optimization Flags
 - [ ] Add optimization passes for Lua
