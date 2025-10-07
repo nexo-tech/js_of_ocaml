@@ -241,11 +241,11 @@ This document outlines the implementation plan for adding Lua as a compilation t
 - **Commit**: "feat: Optimize records and variants"
 
 #### Task 7.3: Garbage Collection Hooks
-- [ ] Implement finalizers using Lua __gc
-- [ ] Add weak table support
-- [ ] Handle cyclic references
-- **Output**: ~200 lines
-- **Test**: GC behavior tests
+- [x] Implement finalizers using Lua __gc
+- [x] Add weak table support
+- [x] Handle cyclic references
+- **Output**: ~430 lines (~200 gc.lua + ~230 weak.lua)
+- **Test**: GC behavior tests ✓ (All tests passed)
 - **Commit**: "feat: Add GC integration"
 
 #### Task 7.4: Float Operations
