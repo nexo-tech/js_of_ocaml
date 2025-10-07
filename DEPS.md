@@ -372,7 +372,7 @@ Generate Lua code that:
   - Link generates syntactically complete output
   - Link with empty state produces minimal output
   - Link handles fragments with no provides gracefully
-- **Status**: COMPLETED - Commit TBD
+- **Status**: COMPLETED - Commit 56816d58
 
 **Checkpoint**: ✅ All tests passing
 
