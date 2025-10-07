@@ -283,7 +283,7 @@ Generate Lua code that:
   - Suggest possible solutions (add fragments, check typos, load runtime files)
   - Updated resolve_deps to check for missing dependencies and raise Failure
 - **Test**: Missing deps → helpful error message
-- **Status**: COMPLETED - Commit b3e8f5a1
+- **Status**: COMPLETED - Commit 2c91839b
 
 ### Task 6.3: Duplicate Provides Handling
 - **File**: `compiler/lib-lua/lua_link.ml`
