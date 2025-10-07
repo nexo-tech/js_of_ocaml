@@ -343,6 +343,84 @@ let generate_prim ctx prim args =
       | "blit_bytes", [ src; src_pos; dst; dst_pos; len ] ->
           (* Copy from bytes to bytes *)
           L.Call (L.Ident "caml_blit_bytes", [ src; src_pos; dst; dst_pos; len ])
+      (* Array operations *)
+      | "array_get", [ arr; idx ] ->
+          (* Array access with 1-based indexing *)
+          L.Index (arr, L.BinOp (L.Add, idx, L.Number "1"))
+      | "array_set", [ arr; idx; value ] ->
+          (* Array set - needs to return unit, use runtime call *)
+          L.Call (L.Ident "caml_array_set", [ arr; idx; value ])
+      | "array_unsafe_get", [ arr; idx ] ->
+          (* Unsafe array access *)
+          L.Index (arr, L.BinOp (L.Add, idx, L.Number "1"))
+      | "array_unsafe_set", [ arr; idx; value ] ->
+          (* Unsafe array set *)
+          L.Call (L.Ident "caml_array_unsafe_set", [ arr; idx; value ])
+      | "make_vect", [ len; init ] ->
+          (* Create array of given length initialized with value *)
+          L.Call (L.Ident "caml_make_vect", [ len; init ])
+      | "array_make", [ len; init ] ->
+          (* Create array - alias for make_vect *)
+          L.Call (L.Ident "caml_array_make", [ len; init ])
+      | "make_float_vect", [ len ] ->
+          (* Create float array *)
+          L.Call (L.Ident "caml_make_float_vect", [ len ])
+      | "floatarray_create", [ len ] ->
+          (* Create float array (OCaml 5.3+) *)
+          L.Call (L.Ident "caml_floatarray_create", [ len ])
+      | "array_length", [ arr ] ->
+          (* Array length - use Lua length operator *)
+          L.UnOp (L.Len, arr)
+      | "array_sub", [ arr; offset; len ] ->
+          (* Array slice *)
+          L.Call (L.Ident "caml_array_sub", [ arr; offset; len ])
+      | "array_append", [ arr1; arr2 ] ->
+          (* Array concatenation *)
+          L.Call (L.Ident "caml_array_append", [ arr1; arr2 ])
+      | "array_concat", [ arrs ] ->
+          (* Concatenate list of arrays *)
+          L.Call (L.Ident "caml_array_concat", [ arrs ])
+      | "array_blit", [ src; src_pos; dst; dst_pos; len ] ->
+          (* Copy array slice *)
+          L.Call (L.Ident "caml_array_blit", [ src; src_pos; dst; dst_pos; len ])
+      | "array_fill", [ arr; offset; len; value ] ->
+          (* Fill array with value *)
+          L.Call (L.Ident "caml_array_fill", [ arr; offset; len; value ])
+      | "floatarray_get", [ arr; idx ] ->
+          (* Float array get *)
+          L.Index (arr, L.BinOp (L.Add, idx, L.Number "1"))
+      | "floatarray_set", [ arr; idx; value ] ->
+          (* Float array set *)
+          L.Call (L.Ident "caml_floatarray_set", [ arr; idx; value ])
+      | "floatarray_unsafe_get", [ arr; idx ] ->
+          (* Unsafe float array get *)
+          L.Index (arr, L.BinOp (L.Add, idx, L.Number "1"))
+      | "floatarray_unsafe_set", [ arr; idx; value ] ->
+          (* Unsafe float array set *)
+          L.Call (L.Ident "caml_floatarray_unsafe_set", [ arr; idx; value ])
+      (* Reference operations - refs are represented as single-element arrays/tables *)
+      | "ref", [ value ] ->
+          (* Create reference - table with one field *)
+          L.Table [ L.Array_field value ]
+      | "ref_get", [ ref ] ->
+          (* Dereference - get field 1 *)
+          L.Index (ref, L.Number "1")
+      | "ref_set", [ ref; value ] ->
+          (* Reference assignment - needs runtime call to return unit *)
+          L.Call (L.Ident "caml_ref_set", [ ref; value ])
+      (* Weak reference operations *)
+      | "weak_create", [ len ] ->
+          (* Create weak array *)
+          L.Call (L.Ident "caml_weak_create", [ len ])
+      | "weak_get", [ weak; idx ] ->
+          (* Get from weak array *)
+          L.Call (L.Ident "caml_weak_get", [ weak; idx ])
+      | "weak_set", [ weak; idx; value ] ->
+          (* Set in weak array *)
+          L.Call (L.Ident "caml_weak_set", [ weak; idx; value ])
+      | "weak_check", [ weak; idx ] ->
+          (* Check if weak reference is alive *)
+          L.Call (L.Ident "caml_weak_check", [ weak; idx ])
       (* Default: call external primitive function *)
       | _, args ->
           let prim_func = L.Ident ("caml_" ^ name) in

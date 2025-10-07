@@ -181,12 +181,12 @@ This document outlines the implementation plan for adding Lua as a compilation t
 - **Commit**: "feat: Add string primitive operations"
 
 #### Task 5.3: Array and Reference Primitives
-- [ ] Implement array primitives
-- [ ] Handle mutable references
-- [ ] Support weak references
-- **Output**: ~250 lines
-- **Test**: Mutable state tests
-- **Commit**: "feat: Implement array and ref primitives"
+- [x] Implement array primitives
+- [x] Handle mutable references
+- [x] Support weak references
+- **Output**: ~250 lines (~78 lines implementation + 430 lines tests + dune updates)
+- **Test**: Array and reference tests ✓ (36 tests covering array access/mutation/creation, float arrays, array manipulation, refs, weak refs)
+- **Commit**: "feat: Implement array and reference primitives"
 
 #### Task 5.4: I/O Primitives
 - [ ] Create `runtime/lua/io.lua`
