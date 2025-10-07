@@ -93,7 +93,7 @@ Generate Lua code that:
 - **Test**: Two fragments providing same symbol → warning
 - **Status**: COMPLETED - Commit 49980c93
 
-### Task 2.2: Build Dependency Graph
+### Task 2.2: Build Dependency Graph ✅
 - **File**: `compiler/lib-lua/lua_link.ml`
 - **Lines**: ~25
 - **Function**: `build_dep_graph : fragment StringMap.t -> string StringMap.t -> (string * StringSet.t) StringMap.t`
@@ -103,6 +103,7 @@ Generate Lua code that:
   - Resolve symbol to fragment using provides_map
   - Build adjacency list
 - **Test**: Fragment requiring "foo" → depends on fragment providing "foo"
+- **Status**: COMPLETED - Commit 443a1cc7
 
 ### Task 2.3: Calculate In-Degrees
 - **File**: `compiler/lib-lua/lua_link.ml`
