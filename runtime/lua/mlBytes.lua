@@ -24,6 +24,7 @@
 -- - Bytes are represented as tables with byte values (mutable)
 
 local core = require("core")
+local bit = require("compat_bit")
 local M = {}
 
 --- Create a new bytes object from a string
@@ -81,7 +82,7 @@ end
 -- @param c number Byte value
 function M.unsafe_set(b, i, c)
   if type(b) == "table" then
-    b[i] = c & 0xFF  -- Mask to 0-255
+    b[i] = bit.band(c, 0xFF)  -- Mask to 0-255
   else
     error("Cannot set byte in immutable string")
   end
@@ -149,7 +150,7 @@ function M.fill(b, off, len, c)
   if type(b) ~= "table" then
     error("Cannot fill immutable string")
   end
-  c = c & 0xFF
+  c = bit.band(c, 0xFF)
   for i = 0, len - 1 do
     b[off + i] = c
   end
@@ -318,7 +319,7 @@ end
 function M.get16(b, i)
   local b1 = M.unsafe_get(b, i)
   local b2 = M.unsafe_get(b, i + 1)
-  return b1 | (b2 << 8)
+  return bit.bor(b1, bit.lshift(b2, 8))
 end
 
 --- Get 32-bit value (little-endian)
@@ -330,7 +331,7 @@ function M.get32(b, i)
   local b2 = M.unsafe_get(b, i + 1)
   local b3 = M.unsafe_get(b, i + 2)
   local b4 = M.unsafe_get(b, i + 3)
-  return b1 | (b2 << 8) | (b3 << 16) | (b4 << 24)
+  return bit.bor(bit.bor(bit.bor(b1, bit.lshift(b2, 8)), bit.lshift(b3, 16)), bit.lshift(b4, 24))
 end
 
 --- Set 16-bit value (little-endian)
@@ -338,8 +339,8 @@ end
 -- @param i number Index (0-based)
 -- @param v number 16-bit value
 function M.set16(b, i, v)
-  M.unsafe_set(b, i, v & 0xFF)
-  M.unsafe_set(b, i + 1, (v >> 8) & 0xFF)
+  M.unsafe_set(b, i, bit.band(v, 0xFF))
+  M.unsafe_set(b, i + 1, bit.band(bit.rshift(v, 8), 0xFF))
 end
 
 --- Set 32-bit value (little-endian)
@@ -347,10 +348,10 @@ end
 -- @param i number Index (0-based)
 -- @param v number 32-bit value
 function M.set32(b, i, v)
-  M.unsafe_set(b, i, v & 0xFF)
-  M.unsafe_set(b, i + 1, (v >> 8) & 0xFF)
-  M.unsafe_set(b, i + 2, (v >> 16) & 0xFF)
-  M.unsafe_set(b, i + 3, (v >> 24) & 0xFF)
+  M.unsafe_set(b, i, bit.band(v, 0xFF))
+  M.unsafe_set(b, i + 1, bit.band(bit.rshift(v, 8), 0xFF))
+  M.unsafe_set(b, i + 2, bit.band(bit.rshift(v, 16), 0xFF))
+  M.unsafe_set(b, i + 3, bit.band(bit.rshift(v, 24), 0xFF))
 end
 
 -- Register primitives
