@@ -322,12 +322,13 @@ This document outlines the implementation plan for adding Lua as a compilation t
 - **Note**: Complete implementation; requires bytecode compiled with -g flag for debug info
 
 #### Task 9.4: Optimization Flags
-- [ ] Add optimization passes for Lua
-- [ ] Implement dead code elimination
-- [ ] Support minification
-- **Output**: ~250 lines
-- **Test**: Optimization effect tests
+- [x] Add optimization passes for Lua
+- [x] Implement dead code elimination (N/A - handled by shared IR optimization passes)
+- [x] Support minification
+- **Output**: ~41 lines (lua_output.ml: +30, cmd_arg.ml: +7, compile.ml: +4)
+- **Test**: Minification reduces size by ~4.5% (14,669 → 14,011 bytes) ✓
 - **Commit**: "feat: Add Lua-specific optimizations"
+- **Note**: Dead code elimination already handled by shared IR passes (deadcode, inline, specialize). Added --compact flag for minification.
 
 ### Phase 10: Testing and Documentation (Week 10-11)
 

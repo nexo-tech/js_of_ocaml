@@ -25,7 +25,7 @@ let times = Debug.find "times"
 
 let () = Sys.catch_break true
 
-let run { Cmd_arg.common; bytecode; output_file; params; include_dirs; linkall; source_map } =
+let run { Cmd_arg.common; bytecode; output_file; params; include_dirs; linkall; source_map; compact } =
   Config.set_target `Wasm;
   Jsoo_cmdline.Arg.eval common;
   Linker.reset ();
@@ -64,9 +64,9 @@ let run { Cmd_arg.common; bytecode; output_file; params; include_dirs; linkall; 
   let (lua_string, source_map_info_opt) =
     if enable_source_map
     then (
-      let code, sm_info = Lua_output.program_to_string_with_source_map lua_code in
+      let code, sm_info = Lua_output.program_to_string_with_source_map ~minify:compact lua_code in
       (code, Some sm_info))
-    else (Lua_output.program_to_string lua_code, None)
+    else (Lua_output.program_to_string ~minify:compact lua_code, None)
   in
 
   (* Output Lua code *)
@@ -124,7 +124,7 @@ let info =
        compilation is performed in a single pass for both linking and code generation."
 
 let term =
-  let f bytecode output_file params include_dirs linkall source_map =
+  let f bytecode output_file params include_dirs linkall source_map compact =
     run
       { Cmd_arg.common =
           { Jsoo_cmdline.Arg.debug = { enable = []; disable = [] }
@@ -140,11 +140,12 @@ let term =
       ; include_dirs = include_dirs @ [ "+stdlib/" ]
       ; linkall
       ; source_map
+      ; compact
       }
   in
   Cmdliner.Term.(
     const f $ Cmd_arg.bytecode $ Cmd_arg.output_file
     $ Cmd_arg.params $ Cmd_arg.include_dirs $ Cmd_arg.linkall
-    $ Cmd_arg.source_map)
+    $ Cmd_arg.source_map $ Cmd_arg.compact)
 
 let command = Cmdliner.Cmd.v info term

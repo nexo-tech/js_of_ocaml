@@ -38,10 +38,11 @@ type context =
   ; files : int String.Hashtbl.t  (** File name to index mapping *)
   ; names : int String.Hashtbl.t  (** Variable name to index mapping *)
   ; source_map_enabled : bool  (** Whether to generate source map *)
+  ; minify : bool  (** Whether to minify output *)
   }
 
 (** Create a new output context *)
-let make_context ?(source_map = false) () =
+let make_context ?(source_map = false) ?(minify = false) () =
   { indent = 0
   ; col = 0
   ; line = 1
@@ -50,6 +51,7 @@ let make_context ?(source_map = false) () =
   ; files = String.Hashtbl.create 17
   ; names = String.Hashtbl.create 17
   ; source_map_enabled = source_map
+  ; minify
   }
 
 (** Helper to add an entry to a hashtable and get its index *)
@@ -125,16 +127,24 @@ let output_char ctx c =
 
 (** Output a newline and reset column *)
 let newline ctx =
-  Buffer.add_char ctx.buffer '\n';
-  ctx.line <- ctx.line + 1;
-  ctx.col <- 0
+  if not ctx.minify
+  then (
+    Buffer.add_char ctx.buffer '\n';
+    ctx.line <- ctx.line + 1;
+    ctx.col <- 0)
+  else (
+    (* In minify mode, use space instead of newline *)
+    Buffer.add_char ctx.buffer ' ';
+    ctx.col <- ctx.col + 1)
 
 (** Output indentation (2 spaces per level) *)
 let output_indent ctx =
-  for _ = 1 to ctx.indent * 2 do
-    Buffer.add_char ctx.buffer ' ';
-    ctx.col <- ctx.col + 1
-  done
+  if not ctx.minify
+  then
+    for _ = 1 to ctx.indent * 2 do
+      Buffer.add_char ctx.buffer ' ';
+      ctx.col <- ctx.col + 1
+    done
 
 (** Increase indentation level *)
 let indent ctx = ctx.indent <- ctx.indent + 1
@@ -515,26 +525,26 @@ let output_program ctx program =
   get_output ctx
 
 (** Convert a program to a string *)
-let program_to_string ?(source_map = false) program =
-  let ctx = make_context ~source_map () in
+let program_to_string ?(source_map = false) ?(minify = false) program =
+  let ctx = make_context ~source_map ~minify () in
   output_program ctx program
 
 (** Convert a program to Lua string and return source map info *)
-let program_to_string_with_source_map program =
-  let ctx = make_context ~source_map:true () in
+let program_to_string_with_source_map ?(minify = false) program =
+  let ctx = make_context ~source_map:true ~minify () in
   let code = output_program ctx program in
   let source_map_info = get_source_map ctx in
   (code, source_map_info)
 
 (** Convert an expression to a string *)
-let expr_to_string e =
-  let ctx = make_context () in
+let expr_to_string ?(minify = false) e =
+  let ctx = make_context ~minify () in
   output_expr ctx 0 e;
   get_output ctx
 
 (** Convert a statement to a string *)
-let stat_to_string s =
-  let ctx = make_context () in
+let stat_to_string ?(minify = false) s =
+  let ctx = make_context ~minify () in
   output_stat ctx s;
   get_output ctx
 
@@ -549,6 +559,7 @@ let expr buf e =
     ; files = String.Hashtbl.create 0
     ; names = String.Hashtbl.create 0
     ; source_map_enabled = false
+    ; minify = false
     }
   in
   output_expr ctx 0 e
@@ -563,6 +574,7 @@ let stat buf s =
     ; files = String.Hashtbl.create 0
     ; names = String.Hashtbl.create 0
     ; source_map_enabled = false
+    ; minify = false
     }
   in
   output_stat ctx s

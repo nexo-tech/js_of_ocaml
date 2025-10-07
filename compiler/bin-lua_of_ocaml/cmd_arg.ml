@@ -26,6 +26,7 @@ type t =
   ; include_dirs : string list
   ; linkall : bool
   ; source_map : [ `File of string | `Inline | `No ]
+  ; compact : bool
   }
 
 (* Command-line argument definitions *)
@@ -69,3 +70,7 @@ let source_map =
     | Some f -> `File f
   in
   Term.(const conv $ Arg.(value & opt (some string) None & info [ "source-map" ] ~docv:"FILE" ~doc))
+
+let compact =
+  let doc = "Minify output (remove whitespace and unnecessary formatting)" in
+  Arg.(value & flag & info [ "compact" ] ~doc)
