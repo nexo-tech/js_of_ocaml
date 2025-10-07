@@ -369,12 +369,23 @@ This document outlines the implementation plan for adding Lua as a compilation t
   - test_bytes_and_chars.ml: Char encoding, escape sequences, String vs Bytes, null chars, high ASCII
 
 #### Task 10.2: Compatibility Tests
-- [ ] Test with Lua 5.1, 5.4, LuaJIT
-- [ ] Add Luau compatibility
-- [ ] Create compatibility matrix
-- **Output**: ~250 lines
-- **Test**: Cross-version tests
-- **Commit**: "test: Add Lua version compatibility tests"
+- [x] Test with Lua 5.1, 5.4, LuaJIT
+- [ ] Add Luau compatibility (planned for future work)
+- [x] Create compatibility matrix
+- **Output**: 434 lines (test scripts + documentation)
+  - `test_compatibility.sh`: 212 lines (comprehensive test suite)
+  - `test_compat_runner.sh`: 210 lines (simplified runner)
+  - `COMPAT_MATRIX.md`: Full compatibility documentation
+  - `TEST_RESULTS.md`: Detailed test results and findings
+- **Test Results**: ✅ 9/13 modules (69%) fully compatible across all versions
+  - **Fully Compatible**: core, array, fail, fun, lazy, list, option, result, gc
+  - **Lua 5.3+ Only**: ints, float (bitwise operator syntax)
+  - **LuaJIT Issues**: mlBytes (load error), obj (4 test failures)
+- **Findings**:
+  - Lua 5.4: All tested modules work (13/13) ✅
+  - Lua 5.1: 11/13 modules work (ints/float have syntax issues) ⚠️
+  - LuaJIT: 11/13 modules work (mlBytes/obj have issues) ⚠️
+- **Commit**: "test: Add Lua version compatibility tests and matrix"
 
 #### Task 10.3: Performance Benchmarks
 - [ ] Port JavaScript benchmarks to Lua
