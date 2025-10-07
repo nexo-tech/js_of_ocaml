@@ -342,7 +342,7 @@ Generate Lua code that:
   - Missing dependencies across multiple entry points (should report)
   - Partial satisfaction (some satisfied, some missing)
   - Empty requirements (should return empty list)
-- **Status**: COMPLETED - Commit TBD
+- **Status**: COMPLETED - Commit 228da76f
 
 ### Task 7.3: Unit Tests for Loader Generation
 - **File**: `compiler/tests-lua/test_module_linking.ml`
