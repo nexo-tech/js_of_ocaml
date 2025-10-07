@@ -173,11 +173,11 @@ This document outlines the implementation plan for adding Lua as a compilation t
 - **Commit**: "feat: Implement arithmetic primitives"
 
 #### Task 5.2: String Primitives
-- [ ] Implement string operations
-- [ ] Handle string comparison
-- [ ] Support format strings
-- **Output**: ~200 lines
-- **Test**: String operation tests
+- [x] Implement string operations
+- [x] Handle string comparison
+- [x] Support format strings
+- **Output**: ~200 lines (~90 lines implementation + 340 lines tests)
+- **Test**: String operation tests ✓ (30 tests covering length, concat, comparison, access, manipulation)
 - **Commit**: "feat: Add string primitive operations"
 
 #### Task 5.3: Array and Reference Primitives

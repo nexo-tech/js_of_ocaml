@@ -67,6 +67,13 @@
  (inline_tests)
  (preprocess (pps ppx_expect)))
 
+(library
+ (name test_lua_string)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_lua_string)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
 (rule
  (alias runtest)
  (package lua_of_ocaml-compiler)

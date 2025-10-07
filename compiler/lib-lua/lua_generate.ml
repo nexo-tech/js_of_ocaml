@@ -259,6 +259,90 @@ let generate_prim ctx prim args =
       | "float_of_int", [ e ] ->
           (* In Lua, numbers are already float-compatible *)
           e
+      (* String operations *)
+      | "ml_string_length", [ e ] ->
+          (* String length in Lua *)
+          L.UnOp (L.Len, e)
+      | "string_concat", [ e1; e2 ] ->
+          (* String concatenation *)
+          L.BinOp (L.Concat, e1, e2)
+      | "string_compare", [ e1; e2 ] ->
+          (* String comparison returns -1, 0, or 1 *)
+          L.Call (L.Ident "caml_string_compare", [ e1; e2 ])
+      | "string_equal", [ e1; e2 ] ->
+          (* String equality *)
+          L.BinOp (L.Eq, e1, e2)
+      | "string_notequal", [ e1; e2 ] ->
+          (* String inequality *)
+          L.BinOp (L.Neq, e1, e2)
+      | "string_lessthan", [ e1; e2 ] ->
+          (* String less than *)
+          L.BinOp (L.Lt, e1, e2)
+      | "string_lessequal", [ e1; e2 ] ->
+          (* String less than or equal *)
+          L.BinOp (L.Le, e1, e2)
+      | "string_greaterthan", [ e1; e2 ] ->
+          (* String greater than *)
+          L.BinOp (L.Gt, e1, e2)
+      | "string_greaterequal", [ e1; e2 ] ->
+          (* String greater than or equal *)
+          L.BinOp (L.Ge, e1, e2)
+      | "string_unsafe_get", [ str; idx ] ->
+          (* Get character at index - Lua uses string.byte *)
+          L.Call (L.Ident "string.byte", [ str; L.BinOp (L.Add, idx, L.Number "1") ])
+      | "string_get", [ str; idx ] ->
+          (* Get character at index with bounds check *)
+          L.Call (L.Ident "caml_string_get", [ str; idx ])
+      | "string_unsafe_set", [ str; idx; char ] ->
+          (* String set - immutable in Lua, needs runtime support *)
+          L.Call (L.Ident "caml_string_unsafe_set", [ str; idx; char ])
+      | "string_set", [ str; idx; char ] ->
+          (* String set with bounds check *)
+          L.Call (L.Ident "caml_string_set", [ str; idx; char ])
+      | "bytes_unsafe_get", [ bytes; idx ] ->
+          (* Bytes get - similar to string *)
+          L.Call (L.Ident "string.byte", [ bytes; L.BinOp (L.Add, idx, L.Number "1") ])
+      | "bytes_get", [ bytes; idx ] ->
+          (* Bytes get with bounds check *)
+          L.Call (L.Ident "caml_bytes_get", [ bytes; idx ])
+      | "bytes_unsafe_set", [ bytes; idx; char ] ->
+          (* Bytes set *)
+          L.Call (L.Ident "caml_bytes_unsafe_set", [ bytes; idx; char ])
+      | "bytes_set", [ bytes; idx; char ] ->
+          (* Bytes set with bounds check *)
+          L.Call (L.Ident "caml_bytes_set", [ bytes; idx; char ])
+      | "create_string", [ len ] ->
+          (* Create string of given length *)
+          L.Call (L.Ident "caml_create_string", [ len ])
+      | "create_bytes", [ len ] ->
+          (* Create bytes of given length *)
+          L.Call (L.Ident "caml_create_bytes", [ len ])
+      | "bytes_to_string", [ bytes ] ->
+          (* Convert bytes to string - identity in Lua *)
+          bytes
+      | "bytes_of_string", [ str ] ->
+          (* Convert string to bytes - identity in Lua *)
+          str
+      (* String manipulation *)
+      | "string_sub", [ str; offset; len ] ->
+          (* Substring extraction *)
+          L.Call
+            ( L.Ident "string.sub"
+            , [ str; L.BinOp (L.Add, offset, L.Number "1"); L.BinOp (L.Add, L.BinOp (L.Add, offset, len), L.Number "0") ] )
+      | "bytes_sub", [ bytes; offset; len ] ->
+          (* Bytes substring *)
+          L.Call
+            ( L.Ident "string.sub"
+            , [ bytes; L.BinOp (L.Add, offset, L.Number "1"); L.BinOp (L.Add, L.BinOp (L.Add, offset, len), L.Number "0") ] )
+      | "fill_bytes", [ bytes; offset; len; char ] ->
+          (* Fill bytes with character *)
+          L.Call (L.Ident "caml_fill_bytes", [ bytes; offset; len; char ])
+      | "blit_string", [ src; src_pos; dst; dst_pos; len ] ->
+          (* Copy from string to bytes *)
+          L.Call (L.Ident "caml_blit_string", [ src; src_pos; dst; dst_pos; len ])
+      | "blit_bytes", [ src; src_pos; dst; dst_pos; len ] ->
+          (* Copy from bytes to bytes *)
+          L.Call (L.Ident "caml_blit_bytes", [ src; src_pos; dst; dst_pos; len ])
       (* Default: call external primitive function *)
       | _, args ->
           let prim_func = L.Ident ("caml_" ^ name) in
