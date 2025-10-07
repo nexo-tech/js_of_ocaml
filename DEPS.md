@@ -255,7 +255,7 @@ Generate Lua code that:
   - Prepend loader to program
   - Return linked program
 - **Test**: Link empty program → loader + program; link with deps → correct order
-- **Status**: COMPLETED - Commit 2f8a3b1d
+- **Status**: COMPLETED - Commit f65558d3
 
 **Checkpoint**: ✅ Complete linking pipeline working
 
