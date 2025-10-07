@@ -105,7 +105,7 @@ Generate Lua code that:
 - **Test**: Fragment requiring "foo" → depends on fragment providing "foo"
 - **Status**: COMPLETED - Commit 443a1cc7
 
-### Task 2.3: Calculate In-Degrees
+### Task 2.3: Calculate In-Degrees ✅
 - **File**: `compiler/lib-lua/lua_link.ml`
 - **Lines**: ~20
 - **Function**: `calculate_in_degrees : (string * StringSet.t) StringMap.t -> int StringMap.t`
@@ -114,8 +114,9 @@ Generate Lua code that:
   - Iterate dependency graph
   - Count incoming edges for each node
 - **Test**: Fragment with 2 dependents → in-degree = 2
+- **Status**: COMPLETED - Commit f2b3c1c7
 
-**Checkpoint**: Dependency graph properly constructed
+**Checkpoint**: ✅ Phase 2 Complete - Dependency graph properly constructed
 
 ## Phase 3: Topological Sort (100 lines)
 
