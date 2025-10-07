@@ -291,11 +291,15 @@ let generate_instrs ctx instrs =
   List.map ~f:(generate_instr ctx) instrs
 
 (** Generate Lua statement(s) from Code last (terminator)
+    This version handles control flow by generating inline statements.
+    For more complex control flow graphs, we would need to generate labels and gotos.
+
     @param ctx Code generation context
+    @param program Full IR program (for block lookup)
     @param last IR terminator
-    @return List of Lua statements (usually containing Return)
+    @return List of Lua statements
 *)
-let generate_last ctx last =
+let rec generate_last_with_program ctx program last =
   match last with
   | Code.Return var ->
       (* Generate return statement *)
@@ -308,22 +312,114 @@ let generate_last ctx last =
   | Code.Stop ->
       (* Program termination - return nil *)
       [ L.Return [ L.Nil ] ]
-  | Code.Branch _cont ->
-      (* Branch to another block - will be handled in control flow *)
-      (* For now, just add a comment *)
-      [ L.Block [] ]
-  | Code.Cond (_var, _cont_true, _cont_false) ->
-      (* Conditional branch - will be handled in control flow *)
-      [ L.Block [] ]
-  | Code.Switch (_var, _conts) ->
-      (* Switch statement - will be handled in control flow *)
-      [ L.Block [] ]
+  | Code.Branch (addr, _args) ->
+      (* Branch to another block - generate goto for now *)
+      let label = "block_" ^ Code.Addr.to_string addr in
+      [ L.Goto label ]
+  | Code.Cond (var, (addr_true, _args_true), (addr_false, _args_false)) ->
+      (* Conditional branch - generate if statement *)
+      let cond_expr = var_ident ctx var in
+      (* For simple conditionals, try to inline the blocks *)
+      let true_block = Code.Addr.Map.find_opt addr_true program.Code.blocks in
+      let false_block = Code.Addr.Map.find_opt addr_false program.Code.blocks in
+      (match true_block, false_block with
+      | Some tb, Some fb ->
+          (* Generate inline if-then-else *)
+          let true_stmts = generate_block_with_program ctx program tb in
+          let false_stmts = generate_block_with_program ctx program fb in
+          [ L.If (cond_expr, true_stmts, Some false_stmts) ]
+      | Some tb, None ->
+          (* Only true branch *)
+          let true_stmts = generate_block_with_program ctx program tb in
+          [ L.If (cond_expr, true_stmts, None) ]
+      | None, Some fb ->
+          (* Only false branch - invert condition *)
+          let false_stmts = generate_block_with_program ctx program fb in
+          let not_cond = L.UnOp (L.Not, cond_expr) in
+          [ L.If (not_cond, false_stmts, None) ]
+      | None, None ->
+          (* No blocks found - generate gotos *)
+          let true_label = "block_" ^ Code.Addr.to_string addr_true in
+          let false_label = "block_" ^ Code.Addr.to_string addr_false in
+          [ L.If (cond_expr, [ L.Goto true_label ], Some [ L.Goto false_label ]) ])
+  | Code.Switch (var, conts) ->
+      (* Switch statement - generate if-elseif chain *)
+      let switch_var = var_ident ctx var in
+      generate_switch ctx program switch_var conts 0
   | Code.Pushtrap (_cont, _var, _handler) ->
-      (* Exception handling - will be handled later *)
+      (* Exception handling - simplified for now *)
       [ L.Block [] ]
   | Code.Poptrap _cont ->
-      (* Exception handling - will be handled later *)
+      (* Exception handling - simplified for now *)
       [ L.Block [] ]
+
+(** Generate switch as if-elseif chain
+    @param ctx Code generation context
+    @param program Full IR program
+    @param switch_var Variable being switched on
+    @param conts Array of continuations
+    @param idx Current index
+    @return List of Lua statements
+*)
+and generate_switch ctx program switch_var conts idx =
+  if idx >= Array.length conts
+  then []
+  else
+    let addr, _args = conts.(idx) in
+    let block_opt = Code.Addr.Map.find_opt addr program.Code.blocks in
+    match block_opt with
+    | None ->
+        (* Block not found, skip *)
+        generate_switch ctx program switch_var conts (idx + 1)
+    | Some blk ->
+        let block_stmts = generate_block_with_program ctx program blk in
+        if idx = 0
+        then
+          (* First case *)
+          let cond = L.BinOp (L.Eq, switch_var, L.Number (string_of_int idx)) in
+          if idx = Array.length conts - 1
+          then (* Only one case *)
+            [ L.If (cond, block_stmts, None) ]
+          else
+            let rest = generate_switch ctx program switch_var conts (idx + 1) in
+            [ L.If (cond, block_stmts, Some rest) ]
+        else if idx = Array.length conts - 1
+        then (* Default case *)
+          block_stmts
+        else
+          (* Middle case - part of elseif chain *)
+          let cond = L.BinOp (L.Eq, switch_var, L.Number (string_of_int idx)) in
+          let rest = generate_switch ctx program switch_var conts (idx + 1) in
+          [ L.If (cond, block_stmts, Some rest) ]
+
+(** Generate Lua block from Code block (with program context)
+    @param ctx Code generation context
+    @param program Full IR program
+    @param block IR block
+    @return List of Lua statements
+*)
+and generate_block_with_program ctx program block =
+  let body_stmts = generate_instrs ctx block.Code.body in
+  let last_stmts = generate_last_with_program ctx program block.Code.branch in
+  body_stmts @ last_stmts
+
+(** Backward compatibility: generate_last without program
+    This version generates placeholder blocks for control flow
+*)
+let generate_last ctx last =
+  match last with
+  | Code.Return var ->
+      let lua_expr = var_ident ctx var in
+      [ L.Return [ lua_expr ] ]
+  | Code.Raise (var, _raise_kind) ->
+      let lua_expr = var_ident ctx var in
+      [ L.Call_stat (L.Call (L.Ident "error", [ lua_expr ])) ]
+  | Code.Stop -> [ L.Return [ L.Nil ] ]
+  | Code.Branch _cont -> [ L.Block [] ]
+  | Code.Cond (_var, _cont_true, _cont_false) -> [ L.Block [] ]
+  | Code.Switch (_var, _conts) -> [ L.Block [] ]
+  | Code.Pushtrap (_cont, _var, _handler) -> [ L.Block [] ]
+  | Code.Poptrap _cont -> [ L.Block [] ]
 
 (** Generate Lua block from Code block
     @param ctx Code generation context

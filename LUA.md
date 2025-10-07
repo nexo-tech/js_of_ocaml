@@ -147,11 +147,11 @@ This document outlines the implementation plan for adding Lua as a compilation t
 - **Commit**: "feat: Add let binding code generation"
 
 #### Task 4.4: Conditional and Pattern Matching
-- [ ] Generate if-then-else
-- [ ] Generate simple pattern matching
-- [ ] Handle match exhaustiveness
-- **Output**: ~300 lines
-- **Test**: Pattern matching compilation tests
+- [x] Generate if-then-else
+- [x] Generate simple pattern matching
+- [x] Handle match exhaustiveness
+- **Output**: ~300 lines (~150 lines implementation + 315 lines tests + interface updates)
+- **Test**: Pattern matching compilation tests ✓
 - **Commit**: "feat: Implement conditional code generation"
 
 #### Task 4.5: Function Definition Generation
