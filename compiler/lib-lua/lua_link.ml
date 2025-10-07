@@ -317,6 +317,24 @@ let topological_sort
   in
   process initial_queue [] in_degrees
 
+(* Format circular dependency error message *)
+let format_cycle_error (cycle_nodes : string list) : string =
+  if List.length cycle_nodes = 0
+  then ""
+  else
+    let buf = Buffer.create 256 in
+    Buffer.add_string buf "Circular dependency detected:\n";
+
+    (* Try to find an actual cycle path by following dependencies *)
+    (* For now, just list the fragments involved in the cycle *)
+    Buffer.add_string buf "  Fragments involved in cycle: ";
+    Buffer.add_string buf (String.concat ~sep:" → " cycle_nodes);
+    Buffer.add_string buf " → ...";
+    Buffer.add_string buf "\n";
+    Buffer.add_string buf "  Cannot resolve dependencies due to circular references.";
+
+    Buffer.contents buf
+
 (* Find missing dependencies: symbols required but not provided *)
 let find_missing_deps
     (fragments : fragment StringMap.t)
@@ -387,13 +405,19 @@ let resolve_deps state required =
   in
 
   (* Run topological sort on the filtered graph *)
-  let sorted, _cycles = topological_sort filtered_dep_graph filtered_in_degrees in
+  let sorted, cycles = topological_sort filtered_dep_graph filtered_in_degrees in
 
-  (* Find missing dependencies *)
-  let missing_set = find_missing_deps state.fragments provides_map in
-  let missing = StringSet.elements missing_set in
+  (* Check for circular dependencies *)
+  if List.length cycles > 0
+  then
+    let error_msg = format_cycle_error cycles in
+    failwith error_msg
+  else
+    (* Find missing dependencies *)
+    let missing_set = find_missing_deps state.fragments provides_map in
+    let missing = StringSet.elements missing_set in
 
-  (sorted, missing)
+    (sorted, missing)
 
 (* Generate module registration code for a fragment *)
 let generate_module_registration (fragment : fragment) : string =

@@ -97,6 +97,12 @@ val topological_sort :
     - [cycles] is the list of fragments involved in cycles (empty if no cycles).
     Uses Kahn's algorithm: starts with zero in-degree nodes, processes dependencies. *)
 
+(** Format circular dependency error message *)
+val format_cycle_error : string list -> string
+(** [format_cycle_error cycle_nodes] formats a user-friendly error message for circular
+    dependencies. Shows the fragments involved in the cycle chain. Returns empty string
+    if cycle_nodes is empty. *)
+
 (** Find missing dependencies *)
 val find_missing_deps : fragment StringMap.t -> string StringMap.t -> StringSet.t
 (** [find_missing_deps fragments provides_map] returns the set of symbols that are required
@@ -107,7 +113,8 @@ val find_missing_deps : fragment StringMap.t -> string StringMap.t -> StringSet.
 val resolve_deps : state -> string list -> string list * string list
 (** [resolve_deps state required] returns [(ordered, missing)] where:
     - [ordered] is the topologically sorted list of required modules
-    - [missing] is the list of missing dependencies *)
+    - [missing] is the list of missing dependencies
+    Raises [Failure] with a formatted error message if circular dependencies are detected. *)
 
 (** Generate module registration code for a fragment *)
 val generate_module_registration : fragment -> string

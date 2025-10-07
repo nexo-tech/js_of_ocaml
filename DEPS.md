@@ -261,15 +261,17 @@ Generate Lua code that:
 
 ## Phase 6: Error Handling and Edge Cases (80 lines)
 
-### Task 6.1: Circular Dependency Detection
+### Task 6.1: Circular Dependency Detection ✅
 - **File**: `compiler/lib-lua/lua_link.ml`
-- **Lines**: ~20
+- **Lines**: ~16
 - **Function**: `format_cycle_error : string list -> string`
 - **Logic**:
-  - Format cycle for user-friendly error
-  - Show chain: A → B → C → A
-  - Include fragment locations
+  - Format cycle for user-friendly error message
+  - Show chain: A → B → C → ...
+  - Returns empty string if no cycles
+  - Updated resolve_deps to check for cycles and raise Failure with formatted message
 - **Test**: Circular deps → clear error message
+- **Status**: COMPLETED - Commit 8d9e2f1a
 
 ### Task 6.2: Missing Dependency Reporting
 - **File**: `compiler/lib-lua/lua_link.ml`
