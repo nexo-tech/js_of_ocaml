@@ -193,6 +193,32 @@ let build_provides_map (fragments : fragment StringMap.t) : string StringMap.t =
     fragments
     StringMap.empty
 
+(* Build dependency graph: fragment name → set of required fragment names *)
+let build_dep_graph
+    (fragments : fragment StringMap.t)
+    (provides_map : string StringMap.t)
+    : (string * StringSet.t) StringMap.t =
+  StringMap.fold
+    (fun frag_name fragment acc ->
+      let deps =
+        List.fold_left
+          ~f:(fun dep_set required_symbol ->
+            match StringMap.find_opt required_symbol provides_map with
+            | Some provider_frag ->
+                (* Don't add self-dependency *)
+                if String.equal provider_frag frag_name
+                then dep_set
+                else StringSet.add provider_frag dep_set
+            | None ->
+                (* Symbol not provided by any fragment - will be caught later as missing *)
+                dep_set)
+          ~init:StringSet.empty
+          fragment.requires
+      in
+      StringMap.add frag_name (frag_name, deps) acc)
+    fragments
+    StringMap.empty
+
 let resolve_deps state _required =
   (* Simplified: return all fragments in arbitrary order *)
   (* TODO: implement proper dependency resolution based on required *)

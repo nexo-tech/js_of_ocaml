@@ -71,6 +71,15 @@ val build_provides_map : fragment StringMap.t -> string StringMap.t
 (** [build_provides_map fragments] creates a map from symbol names to fragment names.
     Issues a warning if multiple fragments provide the same symbol. *)
 
+(** Build dependency graph: fragment name → (fragment name * set of required fragment names) *)
+val build_dep_graph :
+     fragment StringMap.t
+  -> string StringMap.t
+  -> (string * StringSet.t) StringMap.t
+(** [build_dep_graph fragments provides_map] creates a dependency graph mapping each fragment
+    to the set of fragments it depends on. Uses provides_map to resolve symbol names to fragments.
+    Filters out self-dependencies. Missing symbols are ignored (will be detected later). *)
+
 (** Resolve dependencies and determine load order *)
 val resolve_deps : state -> string list -> string list * string list
 (** [resolve_deps state required] returns [(ordered, missing)] where:

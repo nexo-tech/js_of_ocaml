@@ -439,6 +439,171 @@ let%expect_test "build_provides_map preserves first provider on duplicate" =
     shared -> first
     |}]
 
+(* Task 2.2: Build Dependency Graph Tests *)
+
+let%expect_test "build_dep_graph with simple dependency" =
+  let frag1 = { Lua_link.
+    name = "base";
+    provides = ["base_func"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "derived";
+    provides = ["derived_func"];
+    requires = ["base_func"];
+    code = ""
+  } in
+  let fragments = StringMap.empty
+    |> StringMap.add "base" frag1
+    |> StringMap.add "derived" frag2
+  in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let dep_graph = Lua_link.build_dep_graph fragments provides_map in
+  let derived_deps = StringMap.find_opt "derived" dep_graph in
+  match derived_deps with
+  | Some (_name, deps) ->
+      let dep_list = StringSet.elements deps in
+      print_endline ("derived depends on: " ^ String.concat ~sep:", " dep_list)
+  | None -> print_endline "not found";
+  [%expect {| derived depends on: base |}]
+
+let%expect_test "build_dep_graph with no dependencies" =
+  let frag = { Lua_link.
+    name = "standalone";
+    provides = ["func"];
+    requires = [];
+    code = ""
+  } in
+  let fragments = StringMap.singleton "standalone" frag in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let dep_graph = Lua_link.build_dep_graph fragments provides_map in
+  let deps = StringMap.find_opt "standalone" dep_graph in
+  match deps with
+  | Some (_name, dep_set) ->
+      let is_empty = StringSet.is_empty dep_set in
+      print_endline (if is_empty then "no dependencies" else "has dependencies")
+  | None -> print_endline "not found";
+  [%expect {| no dependencies |}]
+
+let%expect_test "build_dep_graph with multiple dependencies" =
+  let frag1 = { Lua_link.
+    name = "a";
+    provides = ["a"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "b";
+    provides = ["b"];
+    requires = [];
+    code = ""
+  } in
+  let frag3 = { Lua_link.
+    name = "c";
+    provides = ["c"];
+    requires = ["a"; "b"];
+    code = ""
+  } in
+  let fragments = StringMap.empty
+    |> StringMap.add "a" frag1
+    |> StringMap.add "b" frag2
+    |> StringMap.add "c" frag3
+  in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let dep_graph = Lua_link.build_dep_graph fragments provides_map in
+  let c_deps = StringMap.find_opt "c" dep_graph in
+  match c_deps with
+  | Some (_name, deps) ->
+      let dep_list = StringSet.elements deps |> List.sort ~cmp:String.compare in
+      print_endline ("c depends on: " ^ String.concat ~sep:", " dep_list)
+  | None -> print_endline "not found";
+  [%expect {| c depends on: a, b |}]
+
+let%expect_test "build_dep_graph filters self-dependency" =
+  let frag = { Lua_link.
+    name = "recursive";
+    provides = ["func1"; "func2"];
+    requires = ["func1"];  (* Requires its own symbol *)
+    code = ""
+  } in
+  let fragments = StringMap.singleton "recursive" frag in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let dep_graph = Lua_link.build_dep_graph fragments provides_map in
+  let deps = StringMap.find_opt "recursive" dep_graph in
+  match deps with
+  | Some (_name, dep_set) ->
+      let is_empty = StringSet.is_empty dep_set in
+      print_endline (if is_empty then "no dependencies" else "has dependencies")
+  | None -> print_endline "not found";
+  [%expect {| no dependencies |}]
+
+let%expect_test "build_dep_graph ignores missing symbols" =
+  let frag = { Lua_link.
+    name = "incomplete";
+    provides = ["func"];
+    requires = ["missing_symbol"];
+    code = ""
+  } in
+  let fragments = StringMap.singleton "incomplete" frag in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let dep_graph = Lua_link.build_dep_graph fragments provides_map in
+  let deps = StringMap.find_opt "incomplete" dep_graph in
+  match deps with
+  | Some (_name, dep_set) ->
+      let is_empty = StringSet.is_empty dep_set in
+      print_endline (if is_empty then "no dependencies" else "has dependencies")
+  | None -> print_endline "not found";
+  [%expect {| no dependencies |}]
+
+let%expect_test "build_dep_graph with transitive dependencies" =
+  let frag1 = { Lua_link.
+    name = "a";
+    provides = ["a"];
+    requires = [];
+    code = ""
+  } in
+  let frag2 = { Lua_link.
+    name = "b";
+    provides = ["b"];
+    requires = ["a"];
+    code = ""
+  } in
+  let frag3 = { Lua_link.
+    name = "c";
+    provides = ["c"];
+    requires = ["b"];
+    code = ""
+  } in
+  let fragments = StringMap.empty
+    |> StringMap.add "a" frag1
+    |> StringMap.add "b" frag2
+    |> StringMap.add "c" frag3
+  in
+  let provides_map = Lua_link.build_provides_map fragments in
+  let dep_graph = Lua_link.build_dep_graph fragments provides_map in
+  (* Check each fragment's direct dependencies *)
+  let a_deps = match StringMap.find_opt "a" dep_graph with
+    | Some (_, deps) -> StringSet.elements deps
+    | None -> []
+  in
+  let b_deps = match StringMap.find_opt "b" dep_graph with
+    | Some (_, deps) -> StringSet.elements deps
+    | None -> []
+  in
+  let c_deps = match StringMap.find_opt "c" dep_graph with
+    | Some (_, deps) -> StringSet.elements deps
+    | None -> []
+  in
+  print_endline ("a depends on: " ^ String.concat ~sep:", " a_deps);
+  print_endline ("b depends on: " ^ String.concat ~sep:", " b_deps);
+  print_endline ("c depends on: " ^ String.concat ~sep:", " c_deps);
+  [%expect {|
+    a depends on:
+    b depends on: a
+    c depends on: b
+    |}]
+
 let%expect_test "parse fragment header with provides" =
   let code = {|
 --// Provides: foo, bar
