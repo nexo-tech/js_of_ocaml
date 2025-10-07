@@ -22,6 +22,7 @@
     Based on the pattern from compiler/lib/js_output.ml.
 *)
 
+open! Js_of_ocaml_compiler.Stdlib
 open Lua_ast
 
 (** {2 Output Context} *)
@@ -32,14 +33,83 @@ type context =
   ; mutable col : int  (** Current column position *)
   ; mutable line : int  (** Current line number *)
   ; buffer : Buffer.t  (** Output buffer *)
+  ; mutable mappings : (int * int * Source_map.map) list
+        (** Source map mappings: (line, col, mapping) *)
+  ; files : int String.Hashtbl.t  (** File name to index mapping *)
+  ; names : int String.Hashtbl.t  (** Variable name to index mapping *)
+  ; source_map_enabled : bool  (** Whether to generate source map *)
   }
 
 (** Create a new output context *)
-let make_context () =
-  { indent = 0; col = 0; line = 1; buffer = Buffer.create 1024 }
+let make_context ?(source_map = false) () =
+  { indent = 0
+  ; col = 0
+  ; line = 1
+  ; buffer = Buffer.create 1024
+  ; mappings = []
+  ; files = String.Hashtbl.create 17
+  ; names = String.Hashtbl.create 17
+  ; source_map_enabled = source_map
+  }
+
+(** Helper to add an entry to a hashtable and get its index *)
+let get_or_add_index tbl key =
+  try String.Hashtbl.find tbl key
+  with Not_found ->
+    let idx = String.Hashtbl.length tbl in
+    String.Hashtbl.add tbl key idx;
+    idx
+
+(** Add a source mapping *)
+let add_mapping ctx ori_file ori_line ori_col ori_name_opt =
+  if ctx.source_map_enabled
+  then (
+    let ori_source = get_or_add_index ctx.files ori_file in
+    let mapping =
+      match ori_name_opt with
+      | None ->
+          Source_map.Gen_Ori
+            { gen_line = ctx.line
+            ; gen_col = ctx.col
+            ; ori_source
+            ; ori_line
+            ; ori_col
+            }
+      | Some ori_name ->
+          let ori_name_idx = get_or_add_index ctx.names ori_name in
+          Source_map.Gen_Ori_Name
+            { gen_line = ctx.line
+            ; gen_col = ctx.col
+            ; ori_source
+            ; ori_line
+            ; ori_col
+            ; ori_name = ori_name_idx
+            }
+    in
+    ctx.mappings <- (ctx.line, ctx.col, mapping) :: ctx.mappings)
 
 (** Get the output string from context *)
 let get_output ctx = Buffer.contents ctx.buffer
+
+(** Build source map from collected mappings *)
+let get_source_map ctx =
+  if not ctx.source_map_enabled
+  then { Source_map.sources = []; names = []; mappings = [] }
+  else (
+    (* Convert hashtables to sorted lists *)
+    let sources =
+      let arr = Array.make (String.Hashtbl.length ctx.files) "" in
+      String.Hashtbl.iter (fun key idx -> arr.(idx) <- key) ctx.files;
+      Array.to_list arr
+    in
+    let names =
+      let arr = Array.make (String.Hashtbl.length ctx.names) "" in
+      String.Hashtbl.iter (fun key idx -> arr.(idx) <- key) ctx.names;
+      Array.to_list arr
+    in
+    (* Reverse mappings list (it was built in reverse) and extract just the mapping *)
+    let mappings = List.rev_map ~f:(fun (_, _, m) -> m) ctx.mappings in
+    { Source_map.sources; names; mappings })
 
 (** {2 Basic Output Functions} *)
 
@@ -131,7 +201,7 @@ let rec output_expr ctx prec expr =
 and output_string_literal ctx s =
   output_char ctx '"';
   String.iter
-    (fun c ->
+    ~f:(fun c ->
       match c with
       | '"' -> output_string ctx "\\\""
       | '\\' -> output_string ctx "\\\\"
@@ -284,7 +354,7 @@ and string_of_unop = function
 (** Internal helper for outputting blocks within expressions *)
 and output_block_internal ctx stmts =
   List.iter
-    (fun stmt ->
+    ~f:(fun stmt ->
       output_stat ctx stmt;
       newline ctx)
     stmts
@@ -439,9 +509,16 @@ let output_program ctx program =
   get_output ctx
 
 (** Convert a program to a string *)
-let program_to_string program =
-  let ctx = make_context () in
+let program_to_string ?(source_map = false) program =
+  let ctx = make_context ~source_map () in
   output_program ctx program
+
+(** Convert a program to Lua string and return source map info *)
+let program_to_string_with_source_map program =
+  let ctx = make_context ~source_map:true () in
+  let code = output_program ctx program in
+  let source_map_info = get_source_map ctx in
+  (code, source_map_info)
 
 (** Convert an expression to a string *)
 let expr_to_string e =
@@ -457,9 +534,29 @@ let stat_to_string s =
 
 (** Simple API for writing to a buffer *)
 let expr buf e =
-  let ctx = { indent = 0; col = 0; line = 1; buffer = buf } in
+  let ctx =
+    { indent = 0
+    ; col = 0
+    ; line = 1
+    ; buffer = buf
+    ; mappings = []
+    ; files = String.Hashtbl.create 0
+    ; names = String.Hashtbl.create 0
+    ; source_map_enabled = false
+    }
+  in
   output_expr ctx 0 e
 
 let stat buf s =
-  let ctx = { indent = 0; col = 0; line = 1; buffer = buf } in
+  let ctx =
+    { indent = 0
+    ; col = 0
+    ; line = 1
+    ; buffer = buf
+    ; mappings = []
+    ; files = String.Hashtbl.create 0
+    ; names = String.Hashtbl.create 0
+    ; source_map_enabled = false
+    }
+  in
   output_stat ctx s

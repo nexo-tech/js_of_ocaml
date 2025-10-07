@@ -25,6 +25,7 @@ type t =
   ; params : (string * string) list
   ; include_dirs : string list
   ; linkall : bool
+  ; source_map : [ `File of string | `Inline | `No ]
   }
 
 (* Command-line argument definitions *)
@@ -58,3 +59,13 @@ let include_dirs =
 let linkall =
   let doc = "Include all compilation units from .cma files" in
   Arg.(value & flag & info [ "linkall" ] ~doc)
+
+let source_map =
+  let doc = "Generate source map for debugging. Use --source-map to generate FILE.lua.map, or --source-map=inline for inline source map" in
+  let conv = function
+    | None -> `No
+    | Some "" -> `File ""  (* Will be auto-generated based on output file *)
+    | Some "inline" -> `Inline
+    | Some f -> `File f
+  in
+  Term.(const conv $ Arg.(value & opt (some string) None & info [ "source-map" ] ~docv:"FILE" ~doc))

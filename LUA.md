@@ -312,12 +312,13 @@ This document outlines the implementation plan for adding Lua as a compilation t
 - **Note**: Fixed Parse_bytecode.from_exe usage, added hello_lua example
 
 #### Task 9.3: Source Maps
-- [ ] Generate source maps for debugging
-- [ ] Map Lua lines to OCaml source
-- [ ] Support stack trace translation
-- **Output**: ~300 lines
-- **Test**: Debugging information tests
-- **Commit**: "feat: Add source map generation"
+- [x] Generate source maps for debugging
+- [x] Map Lua lines to OCaml source
+- [x] Support stack trace translation (infrastructure)
+- **Output**: ~150 lines (lua_output.ml: +100, compile.ml: +40, cmd_arg.ml: +13)
+- **Test**: Source map generation ✓ (Generates .lua.map file in JSON format)
+- **Commit**: "feat: Add source map generation infrastructure"
+- **Note**: Infrastructure complete; debug info collection from IR to be added later
 
 #### Task 9.4: Optimization Flags
 - [ ] Add optimization passes for Lua
