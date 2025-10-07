@@ -172,6 +172,55 @@
  (inline_tests)
  (preprocess (pps ppx_expect)))
 
+(library
+ (name test_numerical_edge_cases)
+ (libraries util str unix)
+ (modules test_numerical_edge_cases)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_polymorphism)
+ (libraries util str unix)
+ (modules test_polymorphism)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_name_collisions)
+ (libraries util str unix)
+ (modules test_name_collisions)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_calling_conventions)
+ (libraries util str unix)
+ (modules test_calling_conventions)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_stdlib_compat)
+ (libraries util str unix)
+ (modules test_stdlib_compat)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_edge_cases)
+ (libraries util str unix)
+ (modules test_edge_cases)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_bytes_and_chars)
+ (libraries util str unix)
+ (modules test_bytes_and_chars)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
 (rule
  (alias runtest)
  (package lua_of_ocaml-compiler)

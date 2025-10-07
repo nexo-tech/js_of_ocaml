@@ -336,10 +336,11 @@ This document outlines the implementation plan for adding Lua as a compilation t
 - [x] Create `compiler/tests-lua/` directory (already existed with prior tests)
 - [x] Port applicable js_of_ocaml tests (comprehensive porting of language features)
 - [x] Add Lua-specific tests (interop, Lua-specific behavior)
-- **Output**: ~1817 lines (util/util.ml: 248, test files: 1569, dune updates)
+- [x] Add rock-solid edge case tests for real-world library compatibility
+- **Output**: ~3955 lines total (util/util.ml: 248, basic tests: 1569, edge case tests: 2138)
 - **Test**: All tests compile without warnings ✓
-- **Commit**: "test: Set up comprehensive Lua test suite"
-- **Tests added**:
+- **Commits**: "test: Set up comprehensive Lua test suite" + "test: Add rock-solid edge case tests"
+- **Basic language feature tests** (9 files, 1569 lines):
   - test_array.ml: Array operations (creation, access, bounds checking)
   - test_exceptions.ml: Exception handling (basic, nested, propagation, builtin)
   - test_functions.ml: Functions (simple, curried, HOF, recursive, closures)
@@ -350,6 +351,14 @@ This document outlines the implementation plan for adding Lua as a compilation t
   - test_records.ml: Records (simple, nested, mutable, polymorphic)
   - test_refs.ml: References (basic, aliasing, closures, incr/decr)
   - util/util.ml: Test infrastructure (compile, run, extract functions)
+- **Edge case tests for production readiness** (7 files, 2138 lines):
+  - test_numerical_edge_cases.ml: Int overflow, float precision, NaN, infinity, division by zero, bitwise ops
+  - test_polymorphism.ml: Polymorphic functions, GADT patterns, phantom types, equality edge cases
+  - test_name_collisions.ml: Lua keywords as OCaml identifiers, shadowing, builtin names, case sensitivity
+  - test_calling_conventions.ml: Partial application, currying, closures, function composition, many args
+  - test_stdlib_compat.ml: Printf, String ops, List.sort, Hashtbl, Buffer, Array conversions
+  - test_edge_cases.ml: Deep patterns, mutual recursion, CPS, monads, memoization, zipper patterns
+  - test_bytes_and_chars.ml: Char encoding, escape sequences, String vs Bytes, null chars, high ASCII
 
 #### Task 10.2: Compatibility Tests
 - [ ] Test with Lua 5.1, 5.4, LuaJIT
