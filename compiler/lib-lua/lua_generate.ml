@@ -236,6 +236,105 @@ let generate_expr ctx expr =
       (* Special forms - placeholder *)
       L.Ident "caml_special"
 
+(** {2 Statement Generation} *)
+
+(** Generate Lua statement from Code instruction
+    @param ctx Code generation context
+    @param instr IR instruction
+    @return Lua statement
+*)
+let generate_instr ctx instr =
+  match instr with
+  | Code.Let (var, expr) ->
+      (* Generate local variable declaration with initialization *)
+      let var_name = var_name ctx var in
+      let lua_expr = generate_expr ctx expr in
+      L.Local ([ var_name ], Some [ lua_expr ])
+  | Code.Assign (target, source) ->
+      (* Generate assignment statement *)
+      let target_ident = var_ident ctx target in
+      let source_ident = var_ident ctx source in
+      L.Assign ([ target_ident ], [ source_ident ])
+  | Code.Set_field (obj, idx, _field_type, value) ->
+      (* Generate field assignment: obj[idx+1] = value *)
+      let obj_expr = var_ident ctx obj in
+      let idx_expr = L.Number (string_of_int (idx + 1)) in
+      let field_expr = L.Index (obj_expr, idx_expr) in
+      let value_expr = var_ident ctx value in
+      L.Assign ([ field_expr ], [ value_expr ])
+  | Code.Offset_ref (var, offset) ->
+      (* Generate reference offset: var[1] = var[1] + offset *)
+      let var_expr = var_ident ctx var in
+      let field_expr = L.Index (var_expr, L.Number "1") in
+      let current_val = L.Index (var_expr, L.Number "1") in
+      let offset_expr = L.Number (string_of_int offset) in
+      let new_val = L.BinOp (L.Add, current_val, offset_expr) in
+      L.Assign ([ field_expr ], [ new_val ])
+  | Code.Array_set (arr, idx, value) ->
+      (* Generate array assignment: arr[idx+1] = value *)
+      let arr_expr = var_ident ctx arr in
+      let idx_var = var_ident ctx idx in
+      let idx_adjusted = L.BinOp (L.Add, idx_var, L.Number "1") in
+      let elem_expr = L.Index (arr_expr, idx_adjusted) in
+      let value_expr = var_ident ctx value in
+      L.Assign ([ elem_expr ], [ value_expr ])
+  | Code.Event _ ->
+      (* Events are debugging information, generate empty block *)
+      L.Block []
+
+(** Generate Lua statements from a list of Code instructions
+    @param ctx Code generation context
+    @param instrs List of IR instructions
+    @return List of Lua statements
+*)
+let generate_instrs ctx instrs =
+  List.map ~f:(generate_instr ctx) instrs
+
+(** Generate Lua statement(s) from Code last (terminator)
+    @param ctx Code generation context
+    @param last IR terminator
+    @return List of Lua statements (usually containing Return)
+*)
+let generate_last ctx last =
+  match last with
+  | Code.Return var ->
+      (* Generate return statement *)
+      let lua_expr = var_ident ctx var in
+      [ L.Return [ lua_expr ] ]
+  | Code.Raise (var, _raise_kind) ->
+      (* Generate error call *)
+      let lua_expr = var_ident ctx var in
+      [ L.Call_stat (L.Call (L.Ident "error", [ lua_expr ])) ]
+  | Code.Stop ->
+      (* Program termination - return nil *)
+      [ L.Return [ L.Nil ] ]
+  | Code.Branch _cont ->
+      (* Branch to another block - will be handled in control flow *)
+      (* For now, just add a comment *)
+      [ L.Block [] ]
+  | Code.Cond (_var, _cont_true, _cont_false) ->
+      (* Conditional branch - will be handled in control flow *)
+      [ L.Block [] ]
+  | Code.Switch (_var, _conts) ->
+      (* Switch statement - will be handled in control flow *)
+      [ L.Block [] ]
+  | Code.Pushtrap (_cont, _var, _handler) ->
+      (* Exception handling - will be handled later *)
+      [ L.Block [] ]
+  | Code.Poptrap _cont ->
+      (* Exception handling - will be handled later *)
+      [ L.Block [] ]
+
+(** Generate Lua block from Code block
+    @param ctx Code generation context
+    @param block IR block
+    @return List of Lua statements
+*)
+let generate_block ctx block =
+  let body_stmts = generate_instrs ctx block.Code.body in
+  let last_stmts = generate_last ctx block.Code.branch in
+  body_stmts @ last_stmts
+
 (** {2 Basic Code Generation} *)
 
 (** Generate a minimal main function

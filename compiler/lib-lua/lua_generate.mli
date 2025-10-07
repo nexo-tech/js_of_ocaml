@@ -50,6 +50,30 @@ val generate_expr : context -> Code.expr -> Lua_ast.expr
     @param expr IR expression
     @return Lua expression *)
 
+val generate_instr : context -> Code.instr -> Lua_ast.stat
+(** Generate Lua statement from Code instruction
+    @param context Code generation context
+    @param instr IR instruction
+    @return Lua statement *)
+
+val generate_instrs : context -> Code.instr list -> Lua_ast.stat list
+(** Generate Lua statements from a list of Code instructions
+    @param context Code generation context
+    @param instrs List of IR instructions
+    @return List of Lua statements *)
+
+val generate_last : context -> Code.last -> Lua_ast.stat list
+(** Generate Lua statement(s) from Code last (terminator)
+    @param context Code generation context
+    @param last IR terminator
+    @return List of Lua statements *)
+
+val generate_block : context -> Code.block -> Lua_ast.stat list
+(** Generate Lua block from Code block
+    @param context Code generation context
+    @param block IR block
+    @return List of Lua statements *)
+
 val generate : debug:bool -> Code.program -> Lua_ast.stat list
 (** [generate ~debug program] generates Lua code from an OCaml IR program.
     @param debug Enable debug output in generated code
