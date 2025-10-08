@@ -1221,6 +1221,33 @@ function M.data_size(str, offset)
 end
 
 --
+-- Channel I/O API (high-level)
+--
+
+-- Write marshalled value to output channel
+-- @param chanid: channel ID (from io module)
+-- @param v: value to marshal
+-- @param flags: optional array of marshal flags
+function M.to_channel(chanid, v, flags)
+  -- Load io module lazily to avoid circular dependencies
+  local io_module = require("io")
+
+  -- Call low-level channel output function
+  io_module.caml_output_value(chanid, v, flags)
+end
+
+-- Read marshalled value from input channel
+-- @param chanid: channel ID (from io module)
+-- @return: unmarshalled value
+function M.from_channel(chanid)
+  -- Load io module lazily to avoid circular dependencies
+  local io_module = require("io")
+
+  -- Call low-level channel input function
+  return io_module.caml_input_value(chanid)
+end
+
+--
 -- Module Exports
 --
 

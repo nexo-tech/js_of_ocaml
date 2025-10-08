@@ -94,17 +94,18 @@ The I/O system is a critical part of the OCaml runtime, providing:
 - **Test**: ✅ 12 tests (write values, flags, multiple values, complete roundtrips)
 - **Commit**: "feat(io): Implement marshal output to channels"
 
-#### Task 1.3: Marshal Channel API
-- [ ] Add `marshal.to_channel(ch, v, flags)` in marshal.lua
-  - Convert channel ID to internal format
-  - Call caml_output_value()
-  - Handle errors gracefully
-- [ ] Add `marshal.from_channel(ch)` in marshal.lua
-  - Convert channel ID to internal format
-  - Call caml_input_value()
-  - Return unmarshalled value
-- **Output**: ~40 lines
-- **Test**: High-level marshal channel API tests
+#### Task 1.3: Marshal Channel API ✅
+- [x] Add `marshal.to_channel(ch, v, flags)` in marshal.lua
+  - ✅ Loads io module lazily (avoid circular dependency)
+  - ✅ Calls caml_output_value()
+  - ✅ Error handling via caml_output_value
+- [x] Add `marshal.from_channel(ch)` in marshal.lua
+  - ✅ Loads io module lazily (avoid circular dependency)
+  - ✅ Calls caml_input_value()
+  - ✅ Returns unmarshalled value
+  - ✅ Error handling via caml_input_value
+- **Output**: 275 lines total (27 code + 248 tests)
+- **Test**: ✅ 10 high-level API tests (write, read, roundtrips, flags, multiple values, large data, mixed API usage)
 - **Commit**: "feat(marshal): Add channel I/O API"
 
 #### Task 1.4: Marshal Integration Tests

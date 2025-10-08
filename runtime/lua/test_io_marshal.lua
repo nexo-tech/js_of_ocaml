@@ -664,6 +664,254 @@ test("Complete roundtrip: large data via channels", function()
 end)
 
 --
+-- High-Level Channel API Tests (Task 1.3)
+--
+
+print("")
+print("High-Level Channel API Tests (Task 1.3):")
+print("--------------------------------------------------------------------")
+
+test("marshal.to_channel writes integer", function()
+  local filename = make_temp_file()
+  local original = 999
+
+  -- Write using high-level API
+  local fd = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local chanid = io_module.caml_ml_open_descriptor_out(fd)
+  marshal.to_channel(chanid, original)
+  io_module.caml_ml_flush(chanid)
+  io_module.caml_ml_close_channel(chanid)
+  io_module.caml_sys_close(fd)
+
+  -- Read back and verify
+  local f = io.open(filename, "rb")
+  local content = f:read("*all")
+  f:close()
+
+  local result = marshal.from_bytes(content, 0)
+  assert_eq(result, original, "High-level API writes correctly")
+  cleanup_temp_file(filename)
+end)
+
+test("marshal.to_channel with flags", function()
+  local filename = make_temp_file()
+  local original = 777
+
+  -- Write using high-level API with No_sharing flag
+  local fd = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local chanid = io_module.caml_ml_open_descriptor_out(fd)
+  marshal.to_channel(chanid, original, {marshal.No_sharing})
+  io_module.caml_ml_flush(chanid)
+  io_module.caml_ml_close_channel(chanid)
+  io_module.caml_sys_close(fd)
+
+  -- Read back and verify
+  local f = io.open(filename, "rb")
+  local content = f:read("*all")
+  f:close()
+
+  local result = marshal.from_bytes(content, 0)
+  assert_eq(result, original, "High-level API respects flags")
+  cleanup_temp_file(filename)
+end)
+
+test("marshal.from_channel reads value", function()
+  local filename = make_temp_file()
+  local original = "channel test"
+
+  -- Write to file
+  local f = io.open(filename, "wb")
+  local marshalled = marshal.to_string(original)
+  f:write(marshalled)
+  f:close()
+
+  -- Read using high-level API
+  local fd = io_module.caml_sys_open(filename, {0, 6}, 0)
+  local chanid = io_module.caml_ml_open_descriptor_in(fd)
+  local result = marshal.from_channel(chanid)
+  io_module.caml_ml_close_channel(chanid)
+  io_module.caml_sys_close(fd)
+
+  assert_eq(result, original, "High-level API reads correctly")
+  cleanup_temp_file(filename)
+end)
+
+test("High-level API complete roundtrip: integer", function()
+  local filename = make_temp_file()
+  local original = 54321
+
+  -- Write using high-level API
+  local fd_out = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  marshal.to_channel(chan_out, original)
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+  io_module.caml_sys_close(fd_out)
+
+  -- Read using high-level API
+  local fd_in = io_module.caml_sys_open(filename, {0, 6}, 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result = marshal.from_channel(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+  io_module.caml_sys_close(fd_in)
+
+  assert_eq(result, original, "High-level roundtrip")
+  cleanup_temp_file(filename)
+end)
+
+test("High-level API complete roundtrip: string", function()
+  local filename = make_temp_file()
+  local original = "High-level marshal API!"
+
+  -- Write using high-level API
+  local fd_out = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  marshal.to_channel(chan_out, original)
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+  io_module.caml_sys_close(fd_out)
+
+  -- Read using high-level API
+  local fd_in = io_module.caml_sys_open(filename, {0, 6}, 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result = marshal.from_channel(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+  io_module.caml_sys_close(fd_in)
+
+  assert_eq(result, original, "High-level roundtrip")
+  cleanup_temp_file(filename)
+end)
+
+test("High-level API complete roundtrip: float array", function()
+  local filename = make_temp_file()
+  local original = {tag = 254, values = {10.1, 20.2, 30.3}}
+
+  -- Write using high-level API
+  local fd_out = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  marshal.to_channel(chan_out, original)
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+  io_module.caml_sys_close(fd_out)
+
+  -- Read using high-level API
+  local fd_in = io_module.caml_sys_open(filename, {0, 6}, 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result = marshal.from_channel(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+  io_module.caml_sys_close(fd_in)
+
+  assert_eq(result.tag, 254, "Float array tag")
+  assert_eq(#result.values, 3, "Float array length")
+  assert_close(result.values[1], 10.1, 1e-10, "Element 1")
+  assert_close(result.values[2], 20.2, 1e-10, "Element 2")
+  assert_close(result.values[3], 30.3, 1e-10, "Element 3")
+  cleanup_temp_file(filename)
+end)
+
+test("High-level API: multiple values", function()
+  local filename = make_temp_file()
+
+  -- Write multiple values using high-level API
+  local fd_out = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  marshal.to_channel(chan_out, 11)
+  marshal.to_channel(chan_out, "two")
+  marshal.to_channel(chan_out, 3.33)
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+  io_module.caml_sys_close(fd_out)
+
+  -- Read multiple values using high-level API
+  local fd_in = io_module.caml_sys_open(filename, {0, 6}, 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local v1 = marshal.from_channel(chan_in)
+  local v2 = marshal.from_channel(chan_in)
+  local v3 = marshal.from_channel(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+  io_module.caml_sys_close(fd_in)
+
+  assert_eq(v1, 11, "First value")
+  assert_eq(v2, "two", "Second value")
+  assert_close(v3, 3.33, 1e-10, "Third value")
+  cleanup_temp_file(filename)
+end)
+
+test("High-level API: large data", function()
+  local filename = make_temp_file()
+  local original = string.rep("Y", 8000)  -- 8KB string
+
+  -- Write using high-level API
+  local fd_out = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  marshal.to_channel(chan_out, original)
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+  io_module.caml_sys_close(fd_out)
+
+  -- Read using high-level API
+  local fd_in = io_module.caml_sys_open(filename, {0, 6}, 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result = marshal.from_channel(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+  io_module.caml_sys_close(fd_in)
+
+  assert_eq(#result, #original, "Large data length")
+  assert_eq(result, original, "Large data content")
+  cleanup_temp_file(filename)
+end)
+
+test("High-level API with No_sharing: complete roundtrip", function()
+  local filename = make_temp_file()
+  local original = 888
+
+  -- Write using high-level API with No_sharing
+  local fd_out = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  marshal.to_channel(chan_out, original, {marshal.No_sharing})
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+  io_module.caml_sys_close(fd_out)
+
+  -- Read using high-level API
+  local fd_in = io_module.caml_sys_open(filename, {0, 6}, 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result = marshal.from_channel(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+  io_module.caml_sys_close(fd_in)
+
+  assert_eq(result, original, "No_sharing roundtrip")
+  cleanup_temp_file(filename)
+end)
+
+test("High-level API: mixed with low-level API", function()
+  local filename = make_temp_file()
+  local original1 = 123
+  local original2 = "mixed"
+
+  -- Write first value with high-level, second with low-level
+  local fd_out = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  marshal.to_channel(chan_out, original1)
+  io_module.caml_output_value(chan_out, original2, nil)
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+  io_module.caml_sys_close(fd_out)
+
+  -- Read first value with high-level, second with low-level
+  local fd_in = io_module.caml_sys_open(filename, {0, 6}, 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result1 = marshal.from_channel(chan_in)
+  local result2 = io_module.caml_input_value(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+  io_module.caml_sys_close(fd_in)
+
+  assert_eq(result1, original1, "High-level write/read")
+  assert_eq(result2, original2, "Low-level write/read")
+  cleanup_temp_file(filename)
+end)
+
+--
 -- Summary
 --
 
