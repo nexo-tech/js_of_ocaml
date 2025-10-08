@@ -173,16 +173,36 @@ The I/O system is a critical part of the OCaml runtime, providing:
 - **Test**: ✅ 56/56 tests pass (30 int + 14 float + 8 string + 4 char)
 - **Commit**: "feat(format): Implement Printf-style formatting"
 
-#### Task 2.3: Scanf-style Parsing
-- [ ] Implement input format parser
-- [ ] Implement caml_scan_int (parse integers)
-- [ ] Implement caml_scan_float (parse floats)
-- [ ] Implement caml_scan_string (parse strings)
-- [ ] Implement caml_scan_char (parse characters)
-- [ ] Handle whitespace and delimiters
-- [ ] Implement Scanf.sscanf equivalent
-- **Output**: ~300 lines
-- **Test**: Scanf parsing tests
+#### Task 2.3: Scanf-style Parsing ✅
+- [x] Implement input format parser
+  - ✅ Position-based parsing with error recovery
+  - ✅ Whitespace handling (skip_whitespace helper)
+- [x] Implement caml_scan_int (parse integers)
+  - ✅ Supports %d, %i, %u, %x, %o formats
+  - ✅ Base detection (decimal, hex with 0x, octal with 0o, binary with 0b)
+  - ✅ Sign parsing (+/-)
+  - ✅ Returns value and position or nil on error
+- [x] Implement caml_scan_float (parse floats)
+  - ✅ Integer, fractional, and exponential parts
+  - ✅ Special values (NaN, Infinity, -Infinity)
+  - ✅ Scientific notation (e/E with exponent)
+- [x] Implement caml_scan_string (parse strings)
+  - ✅ Reads non-whitespace characters
+  - ✅ Width limiting
+  - ✅ Stops at whitespace
+- [x] Implement caml_scan_char (parse characters)
+  - ✅ Returns character as byte value
+  - ✅ Optional whitespace skipping
+- [x] Handle whitespace and delimiters
+  - ✅ Automatic whitespace skipping between tokens
+  - ✅ Literal character matching in format
+- [x] Implement Scanf.sscanf equivalent
+  - ✅ caml_sscanf: Full format string parsing
+  - ✅ Multiple value extraction
+  - ✅ Mixed type support
+  - ✅ Literal character matching
+- **Output**: 360 lines added to format.lua (800 total) + 352 lines (test_format_scanf.lua)
+- **Test**: ✅ 55/55 tests pass (15 int + 14 float + 6 string + 5 char + 15 sscanf)
 - **Commit**: "feat(format): Implement Scanf-style parsing"
 
 #### Task 2.4: Format Channel Integration
