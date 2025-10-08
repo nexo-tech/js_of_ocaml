@@ -162,14 +162,23 @@ Fix LuaJIT-specific issues with mlBytes and obj modules.
 
 Add support for Luau (Roblox's Lua variant).
 
-#### Task 3.1: Set up Luau test environment
-- [ ] Install Luau via nix (nixpkgs#luau)
-- [ ] Verify Luau version and features
-- [ ] Create Luau test runner script
-- [ ] Document Luau-specific differences
-- **Files**: `runtime/lua/test_luau_runner.sh` (new)
-- **Output**: ~100 lines (test runner)
-- **Test**: Can execute Luau code via nix
+#### Task 3.1: Set up Luau test environment ✅
+- [x] Install Luau via nix (nixpkgs#luau)
+- [x] Verify Luau version and features
+- [x] Create Luau test runner script
+- [x] Document Luau-specific differences
+- **Files**: `runtime/lua/test_luau_runner.sh` (new), `runtime/lua/LUAU_NOTES.md` (new)
+- **Output**: 210 lines (test runner) + 390 lines (documentation)
+- **Test**: Can execute Luau code via nix ✅
+- **Luau Version**: 0.693
+- **Key Findings**:
+  - ✅ `loadstring()` IS available (better than expected!)
+  - ✅ `setfenv()`, `getfenv()`, `unpack()`, `table.unpack()` all available
+  - ❌ **CRITICAL**: `require()` needs `./` prefix (e.g., `require("./core")`)
+  - ✅ Extended stdlib: `table.create`, `math.clamp`, `string.split`, buffers
+  - ✅ Gradual type system (optional)
+  - ✅ Native codegen available (`--codegen`)
+- **Blocker Identified**: Module system requires path prefixes - biggest compatibility hurdle
 - **Commit**: "test: Add Luau test environment setup"
 
 #### Task 3.2: Test core modules on Luau
