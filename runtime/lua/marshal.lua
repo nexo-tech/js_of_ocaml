@@ -975,67 +975,80 @@ function MarshalReader:read_custom(code)
 end
 
 -- Unmarshal value (main entry point)
-function MarshalReader:read_value()
+-- Read a single value without processing fields (core reader)
+-- Returns: value, needs_fields (boolean indicating if value is a block needing field population)
+function MarshalReader:read_value_core()
   local code = self.reader:read8u()
 
   -- Check for PREFIX_SMALL_INT (0x40-0x7F)
   if code >= M.PREFIX_SMALL_INT then
     if code >= M.PREFIX_SMALL_BLOCK then
       -- Small block (0x80-0xFF)
-      return self:read_small_block(code)
+      local tag = code % 16
+      local size = math.floor((code - M.PREFIX_SMALL_BLOCK) / 16)
+      local v = {tag = tag, size = size}
+      if size > 0 then
+        self:intern_store(v)
+        if tag == M.TAG_OBJECT then
+          table.insert(self.objects, v)
+        end
+        return v, true  -- Needs field population
+      end
+      return v, false  -- Empty block, no fields needed
     else
       -- Small int (0x40-0x7F)
-      return self:read_small_int(code)
+      return self:read_small_int(code), false
     end
   end
 
   -- Check for PREFIX_SMALL_STRING (0x20-0x3F)
   if code >= M.PREFIX_SMALL_STRING then
-    return self:read_small_string(code)
+    return self:read_small_string(code), false
   end
 
   -- Extended codes (0x00-0x1F)
   if code == M.CODE_INT8 then
-    return self:read_int8()
+    return self:read_int8(), false
   elseif code == M.CODE_INT16 then
-    return self:read_int16()
+    return self:read_int16(), false
   elseif code == M.CODE_INT32 then
-    return self:read_int32()
+    return self:read_int32(), false
   elseif code == M.CODE_INT64 then
     error("Marshal: INT64 not yet implemented")
   elseif code == M.CODE_SHARED8 then
     local offset = self.reader:read8u()
-    return self:intern_recall(offset)
+    return self:intern_recall(offset), false
   elseif code == M.CODE_SHARED16 then
     local offset = self.reader:read16u()
-    return self:intern_recall(offset)
+    return self:intern_recall(offset), false
   elseif code == M.CODE_SHARED32 then
     local offset = self.reader:read32u()
-    return self:intern_recall(offset)
+    return self:intern_recall(offset), false
   elseif code == M.CODE_BLOCK32 then
-    return self:read_block32()
+    local v = self:read_block32()
+    return v, v.size > 0  -- Needs fields if size > 0
   elseif code == M.CODE_STRING8 then
-    return self:read_string8()
+    return self:read_string8(), false
   elseif code == M.CODE_STRING32 then
-    return self:read_string32()
+    return self:read_string32(), false
   elseif code == M.CODE_DOUBLE_LITTLE then
-    return self:read_double_little()
+    return self:read_double_little(), false
   elseif code == M.CODE_DOUBLE_BIG then
-    return self:read_double_big()
+    return self:read_double_big(), false
   elseif code == M.CODE_DOUBLE_ARRAY8_LITTLE then
-    return self:read_double_array8_little()
+    return self:read_double_array8_little(), false
   elseif code == M.CODE_DOUBLE_ARRAY8_BIG then
-    return self:read_double_array8_big()
+    return self:read_double_array8_big(), false
   elseif code == M.CODE_DOUBLE_ARRAY32_LITTLE then
-    return self:read_double_array32_little()
+    return self:read_double_array32_little(), false
   elseif code == M.CODE_DOUBLE_ARRAY32_BIG then
-    return self:read_double_array32_big()
+    return self:read_double_array32_big(), false
   elseif code == M.CODE_CUSTOM then
-    return self:read_custom(code)
+    return self:read_custom(code), false
   elseif code == M.CODE_CUSTOM_FIXED then
-    return self:read_custom(code)
+    return self:read_custom(code), false
   elseif code == M.CODE_CUSTOM_LEN then
-    return self:read_custom(code)
+    return self:read_custom(code), false
   elseif code == M.CODE_BLOCK64 then
     error("Marshal: data block too large (64-bit blocks not supported)")
   elseif code == M.CODE_CODEPOINTER then
@@ -1045,6 +1058,41 @@ function MarshalReader:read_value()
   else
     error(string.format("Marshal: unsupported code 0x%02X", code))
   end
+end
+
+-- Read a value with stack-based field population for blocks
+function MarshalReader:read_value()
+  -- Stack for processing block fields: {block = v, index = field_index, size = num_fields}
+  local stack = {}
+
+  -- Read root value
+  local root, needs_fields = self:read_value_core()
+
+  if needs_fields then
+    table.insert(stack, {block = root, index = 1, size = root.size})
+  end
+
+  -- Process block fields iteratively
+  while #stack > 0 do
+    local entry = stack[#stack]
+
+    if entry.index > entry.size then
+      -- Done with this block's fields
+      table.remove(stack)
+    else
+      -- Read next field
+      local field, field_needs_fields = self:read_value_core()
+      entry.block[entry.index] = field
+      entry.index = entry.index + 1
+
+      -- If field is a block needing fields, push to stack
+      if field_needs_fields then
+        table.insert(stack, {block = field, index = 1, size = field.size})
+      end
+    end
+  end
+
+  return root
 end
 
 -- Finalize object blocks by setting oo_id

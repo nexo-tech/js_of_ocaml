@@ -341,23 +341,23 @@ The Marshal module provides serialization and deserialization of OCaml values to
 - **Test**: ✅ 17 API usage tests (aliases, offsets, roundtrips, metadata)
 - **Commit**: "feat(marshal): Complete public API"
 
-#### Task 6.2: Block Field Marshalling (IN PROGRESS)
-- [x] Implement recursive field marshalling for blocks (MARSHALLING DONE)
+#### Task 6.2: Block Field Marshalling ✅
+- [x] Implement recursive field marshalling for blocks
   - ✅ Stack-based iteration to avoid recursion depth issues
   - ✅ Handle blocks with `tag` and `size` fields
   - ✅ Handle plain Lua tables as tag-0 blocks
   - ✅ Marshal block fields after block header
-- [x] Support arbitrary Lua tables (MARSHALLING DONE)
+- [x] Support arbitrary Lua tables
   - ✅ Treat tables without `tag`/`size` as OCaml blocks (tag 0)
   - ✅ Use array part of table as block fields
   - ✅ Handle nil fields (marshal as unit/0)
-- [ ] Update unmarshal to reconstruct blocks with fields (UNMARSHALLING TODO)
-  - Split `read_value` into `read_value_core` + stack loop
-  - Use `{block = v, index = 1, size = v.size}` pattern
-  - Read fields iteratively and store in `block[index]`
-- **Output**: ~80 lines marshalling done, ~80 lines unmarshalling needed
-- **Test**: test_marshal_blocks.lua created (fails on unmarshal - fields are nil)
-- **Commit**: "feat(marshal): Implement block field marshalling"
+- [x] Update unmarshal to reconstruct blocks with fields
+  - ✅ Split `read_value` into `read_value_core` + stack loop
+  - ✅ Use `{block = v, index = 1, size = v.size}` pattern
+  - ✅ Read fields iteratively and store in `block[index]`
+- **Output**: 204 lines total (~120 code + 84 tests)
+- **Test**: ✅ 10/10 tests pass in test_marshal_blocks.lua (simple arrays, nested tables, complex structures, large arrays)
+- **Commit**: "feat(marshal): Complete block field marshalling"
 
 #### Task 6.3: Error Handling
 - [ ] Validate input parameters
