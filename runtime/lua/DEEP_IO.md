@@ -416,15 +416,41 @@ The I/O system is a critical part of the OCaml runtime, providing:
 - **Test**: ✅ 33/33 tests pass
 - **Commit**: "feat(lexing): Implement lexer support"
 
-#### Task 5.2: Parsing Module
-- [ ] Create `runtime/lua/parsing.lua`
-- [ ] Implement parse stack
-- [ ] Implement caml_parse_engine (LR parser)
-- [ ] Implement error recovery
-- [ ] Track parse positions for errors
-- [ ] Integrate with lexing module
-- **Output**: ~250 lines
-- **Test**: Parser state management tests
+#### Task 5.2: Parsing Module ✅
+- [x] Create `runtime/lua/parsing.lua`
+- [x] Implement parse stack
+  - ✅ State stack (s_stack)
+  - ✅ Value stack (v_stack)
+  - ✅ Symbol position stacks (symb_start_stack, symb_end_stack)
+  - ✅ Stack growth support
+- [x] Implement caml_parse_engine (LR parser)
+  - ✅ LR automaton with state machine
+  - ✅ Shift/reduce operations
+  - ✅ Table-driven parsing (action/goto tables)
+  - ✅ Default reductions
+  - ✅ Parse table caching
+- [x] Implement error recovery
+  - ✅ Error state detection
+  - ✅ State stack unwinding
+  - ✅ ERRCODE token (256) handling
+  - ✅ Error flag management
+  - ✅ Token discarding for recovery
+- [x] Track parse positions for errors
+  - ✅ Symbol start/end positions
+  - ✅ Epsilon production handling
+  - ✅ Position stack management
+- [x] Integrate with lexing module
+  - ✅ Lazy loading to avoid circular dependency
+  - ✅ caml_lex_array for table parsing
+- [x] Helper functions
+  - ✅ caml_create_parser_env: create environment
+  - ✅ caml_grow_parser_stacks: resize stacks
+  - ✅ caml_parser_rule_info: get rule information
+  - ✅ caml_parser_stack_value: access stack values
+  - ✅ caml_parser_symb_start/end: access positions
+  - ✅ caml_set_parser_trace: debugging support
+- **Output**: 310 lines (parsing.lua) + 375 lines (test_parsing.lua) = 685 lines
+- **Test**: ✅ 24/24 tests pass
 - **Commit**: "feat(parsing): Implement parser support"
 
 ### Phase 6: System and Filesystem
