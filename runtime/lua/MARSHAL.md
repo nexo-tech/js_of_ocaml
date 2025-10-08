@@ -397,14 +397,14 @@ The Marshal module provides serialization and deserialization of OCaml values to
 ### Phase 7: Testing and Validation
 
 #### Task 7.1: Unit Tests
-- [ ] Test all value types
-- [ ] Test immediate values
-- [ ] Test structured values
-- [ ] Test sharing and cycles
-- [ ] Test custom blocks
-- [ ] Test edge cases
-- **Output**: ~200 lines
-- **Test**: Run unit tests
+- [x] Test all value types
+- [x] Test immediate values
+- [x] Test structured values
+- [x] Test sharing and cycles
+- [x] Test custom blocks
+- [x] Test edge cases
+- **Output**: 423 lines (test_marshal_unit.lua)
+- **Tests**: 62 comprehensive tests covering all marshal functionality
 - **Commit**: "test(marshal): Add comprehensive unit tests"
 
 #### Task 7.2: Roundtrip Tests

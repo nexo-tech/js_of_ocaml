@@ -233,13 +233,21 @@ end
 function ObjectTable:store(v)
   local idx = #self.objs + 1
   table.insert(self.objs, v)
-  self.lookup[v] = idx
+  -- Don't store NaN in lookup table (NaN can't be a table key)
+  if type(v) ~= "number" or v == v then  -- Skip if NaN (NaN ~= NaN)
+    self.lookup[v] = idx
+  end
   return idx
 end
 
 -- Recall an object's relative offset (for sharing)
 -- Returns nil if not found, or relative offset (objs.length - stored_index)
 function ObjectTable:recall(v)
+  -- NaN can never be recalled (can't be stored in lookup)
+  if type(v) == "number" and v ~= v then
+    return nil
+  end
+
   local idx = self.lookup[v]
   if idx == nil then
     return nil
