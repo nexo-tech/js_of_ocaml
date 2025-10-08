@@ -205,14 +205,24 @@ The I/O system is a critical part of the OCaml runtime, providing:
 - **Test**: ✅ 55/55 tests pass (15 int + 14 float + 6 string + 5 char + 15 sscanf)
 - **Commit**: "feat(format): Implement Scanf-style parsing"
 
-#### Task 2.4: Format Channel Integration
-- [ ] Implement Printf.fprintf (format to output channel)
-- [ ] Implement Printf.printf (format to stdout)
-- [ ] Implement Printf.eprintf (format to stderr)
-- [ ] Implement Scanf.fscanf (scan from input channel)
-- [ ] Implement Scanf.scanf (scan from stdin)
-- **Output**: ~100 lines
-- **Test**: Format channel I/O tests
+#### Task 2.4: Format Channel Integration ✅
+- [x] Implement Printf.fprintf (format to output channel)
+  - ✅ Full format string parsing with all conversion specifiers
+  - ✅ Variable argument handling
+  - ✅ Lazy loading of io module (avoid circular dependencies)
+  - ✅ Auto-flush after write
+- [x] Implement Printf.printf (format to stdout)
+  - ✅ Wrapper around fprintf with stdout channel (fd 1)
+- [x] Implement Printf.eprintf (format to stderr)
+  - ✅ Wrapper around fprintf with stderr channel (fd 2)
+- [x] Implement Scanf.fscanf (scan from input channel)
+  - ✅ Line-based reading with caml_ml_input_scan_line
+  - ✅ Delegates to caml_sscanf for parsing
+  - ✅ Error handling (returns nil on EOF or parse error)
+- [x] Implement Scanf.scanf (scan from stdin)
+  - ✅ Wrapper around fscanf with stdin channel (fd 0)
+- **Output**: 139 lines added to format.lua (939 total) + 371 lines (test_format_channel.lua)
+- **Test**: ✅ 16/16 tests pass (7 fprintf + 6 fscanf + 3 round-trip)
 - **Commit**: "feat(format): Add channel formatting I/O"
 
 ### Phase 3: Core Data Structures

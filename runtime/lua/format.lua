@@ -797,4 +797,150 @@ function M.caml_sscanf(input, fmt)
   return results
 end
 
+-- Channel I/O integration
+-- These functions require lazy loading of the io module to avoid circular dependencies
+
+-- Printf-style channel output functions
+
+-- Format and output to a channel
+-- chanid: channel ID from io.lua
+-- fmt: format string (OCaml string or Lua string)
+-- ...: values to format
+function M.caml_fprintf(chanid, fmt, ...)
+  -- Lazy load io module
+  local io_module = package.loaded.io or require("io")
+
+  local fmt_str = ocaml_string_to_lua(fmt)
+  local args = {...}
+  local arg_idx = 1
+  local result_parts = {}
+
+  local i = 1
+  while i <= #fmt_str do
+    local c = fmt_str:sub(i, i)
+
+    if c == "%" then
+      i = i + 1
+      if i > #fmt_str then
+        break
+      end
+
+      -- Parse format specifier
+      local spec_start = i - 1
+      local spec = ""
+
+      -- Collect flags, width, precision, and conversion
+      while i <= #fmt_str do
+        local ch = fmt_str:sub(i, i)
+        spec = spec .. ch
+        i = i + 1
+
+        -- Check if we hit a conversion character
+        if ch:match("[diouxXeEfFgGaAcspn%%]") then
+          break
+        end
+      end
+
+      local conv = spec:sub(-1)
+
+      if conv == "%" then
+        table.insert(result_parts, "%")
+      elseif conv == "d" or conv == "i" or conv == "u" or conv == "x" or conv == "X" or conv == "o" then
+        if arg_idx <= #args then
+          local formatted = M.caml_format_int("%" .. spec, args[arg_idx])
+          table.insert(result_parts, ocaml_string_to_lua(formatted))
+          arg_idx = arg_idx + 1
+        end
+      elseif conv == "f" or conv == "F" or conv == "e" or conv == "E" or conv == "g" or conv == "G" then
+        if arg_idx <= #args then
+          local formatted = M.caml_format_float("%" .. spec, args[arg_idx])
+          table.insert(result_parts, ocaml_string_to_lua(formatted))
+          arg_idx = arg_idx + 1
+        end
+      elseif conv == "s" then
+        if arg_idx <= #args then
+          local formatted = M.caml_format_string("%" .. spec, args[arg_idx])
+          table.insert(result_parts, ocaml_string_to_lua(formatted))
+          arg_idx = arg_idx + 1
+        end
+      elseif conv == "c" then
+        if arg_idx <= #args then
+          local formatted = M.caml_format_char("%" .. spec, args[arg_idx])
+          table.insert(result_parts, ocaml_string_to_lua(formatted))
+          arg_idx = arg_idx + 1
+        end
+      end
+    else
+      table.insert(result_parts, c)
+      i = i + 1
+    end
+  end
+
+  -- Write result to channel
+  local output = table.concat(result_parts)
+  local output_bytes = lua_string_to_ocaml(output)
+  io_module.caml_ml_output_bytes(chanid, output_bytes, 0, #output_bytes)
+  io_module.caml_ml_flush(chanid)
+
+  return 0  -- Unit in OCaml
+end
+
+-- Format and output to stdout
+function M.caml_printf(fmt, ...)
+  -- Lazy load io module
+  local io_module = package.loaded.io or require("io")
+  -- stdout channel is typically 1
+  local stdout_chanid = io_module.caml_ml_open_descriptor_out(1)
+  return M.caml_fprintf(stdout_chanid, fmt, ...)
+end
+
+-- Format and output to stderr
+function M.caml_eprintf(fmt, ...)
+  -- Lazy load io module
+  local io_module = package.loaded.io or require("io")
+  -- stderr channel is typically 2
+  local stderr_chanid = io_module.caml_ml_open_descriptor_out(2)
+  return M.caml_fprintf(stderr_chanid, fmt, ...)
+end
+
+-- Scanf-style channel input functions
+
+-- Read a line from channel and scan according to format
+-- chanid: channel ID from io.lua
+-- fmt: format string (OCaml string or Lua string)
+-- Returns: table of parsed values or nil on error
+function M.caml_fscanf(chanid, fmt)
+  -- Lazy load io module
+  local io_module = package.loaded.io or require("io")
+
+  -- Scan line to get the length
+  local line_len = io_module.caml_ml_input_scan_line(chanid)
+  if not line_len or line_len <= 0 then
+    return nil
+  end
+
+  -- Read the actual line data
+  local line_bytes = {}
+  local actual_len = io_module.caml_ml_input(chanid, line_bytes, 0, math.abs(line_len))
+
+  if actual_len <= 0 then
+    return nil
+  end
+
+  -- Convert to Lua string
+  local line = ocaml_string_to_lua(line_bytes)
+
+  -- Parse using sscanf
+  return M.caml_sscanf(line, fmt)
+end
+
+-- Read a line from stdin and scan according to format
+function M.caml_scanf(fmt)
+  -- Lazy load io module
+  local io_module = package.loaded.io or require("io")
+  -- stdin channel is typically 0
+  local stdin_chanid = io_module.caml_ml_open_descriptor_in(0)
+  return M.caml_fscanf(stdin_chanid, fmt)
+end
+
 return M
