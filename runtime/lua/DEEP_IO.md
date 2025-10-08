@@ -80,15 +80,18 @@ The I/O system is a critical part of the OCaml runtime, providing:
 - **Test**: ✅ 14 roundtrip tests (integers, strings, floats, blocks, arrays, multiple values, EOF, truncation, binary mode)
 - **Commit**: "feat(io): Implement marshal input from channels"
 
-#### Task 1.2: Marshal Output to Channels
-- [ ] Implement `caml_output_value(chanid, v, flags)` in io.lua
-  - Call marshal.to_string(v, flags)
-  - Write complete marshal data to channel
-  - Flush channel buffer if needed
-- [ ] Handle channel buffering correctly
-- [ ] Update channel offset tracking
-- **Output**: ~30 lines
-- **Test**: Write marshalled values to files
+#### Task 1.2: Marshal Output to Channels ✅
+- [x] Implement `caml_output_value(chanid, v, flags)` in io.lua
+  - ✅ Call marshal.to_string(v, flags)
+  - ✅ Write complete marshal data to channel
+  - ✅ Flush channel buffer if needed
+- [x] Handle channel buffering correctly
+  - ✅ Uses caml_ml_output which handles buffering modes
+  - ✅ Respects unbuffered (0), line-buffered (2), fully-buffered (1)
+- [x] Update channel offset tracking
+  - ✅ caml_ml_output updates channel.offset automatically
+- **Output**: 309 lines total (25 code + 284 tests)
+- **Test**: ✅ 12 tests (write values, flags, multiple values, complete roundtrips)
 - **Commit**: "feat(io): Implement marshal output to channels"
 
 #### Task 1.3: Marshal Channel API

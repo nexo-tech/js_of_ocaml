@@ -380,6 +380,290 @@ test("Read large string from file", function()
 end)
 
 --
+-- Marshal Output Tests (Task 1.2)
+--
+
+print("")
+print("Marshal Output Tests (Task 1.2):")
+print("--------------------------------------------------------------------")
+
+test("caml_output_value writes integer to channel", function()
+  local filename = make_temp_file()
+  local original = 42
+
+  -- Write using caml_output_value
+  local fd = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)  -- O_WRONLY + O_CREAT + O_TRUNC + O_BINARY
+  local chanid = io_module.caml_ml_open_descriptor_out(fd)
+  io_module.caml_output_value(chanid, original, nil)
+  io_module.caml_ml_flush(chanid)
+  io_module.caml_ml_close_channel(chanid)
+  io_module.caml_sys_close(fd)
+
+  -- Read back and verify
+  local f = io.open(filename, "rb")
+  local content = f:read("*all")
+  f:close()
+
+  local result = marshal.from_bytes(content, 0)
+  assert_eq(result, original, "Integer written correctly")
+  cleanup_temp_file(filename)
+end)
+
+test("caml_output_value writes string to channel", function()
+  local filename = make_temp_file()
+  local original = "Hello, World!"
+
+  -- Write using caml_output_value
+  local fd = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local chanid = io_module.caml_ml_open_descriptor_out(fd)
+  io_module.caml_output_value(chanid, original, nil)
+  io_module.caml_ml_flush(chanid)
+  io_module.caml_ml_close_channel(chanid)
+  io_module.caml_sys_close(fd)
+
+  -- Read back and verify
+  local f = io.open(filename, "rb")
+  local content = f:read("*all")
+  f:close()
+
+  local result = marshal.from_bytes(content, 0)
+  assert_eq(result, original, "String written correctly")
+  cleanup_temp_file(filename)
+end)
+
+test("caml_output_value writes float to channel", function()
+  local filename = make_temp_file()
+  local original = 3.14159
+
+  -- Write using caml_output_value
+  local fd = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local chanid = io_module.caml_ml_open_descriptor_out(fd)
+  io_module.caml_output_value(chanid, original, nil)
+  io_module.caml_ml_flush(chanid)
+  io_module.caml_ml_close_channel(chanid)
+  io_module.caml_sys_close(fd)
+
+  -- Read back and verify
+  local f = io.open(filename, "rb")
+  local content = f:read("*all")
+  f:close()
+
+  local result = marshal.from_bytes(content, 0)
+  assert_close(result, original, 1e-10, "Float written correctly")
+  cleanup_temp_file(filename)
+end)
+
+test("caml_output_value writes block to channel", function()
+  local filename = make_temp_file()
+  local original = {tag = 0, size = 2}
+
+  -- Write using caml_output_value
+  local fd = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local chanid = io_module.caml_ml_open_descriptor_out(fd)
+  io_module.caml_output_value(chanid, original, nil)
+  io_module.caml_ml_flush(chanid)
+  io_module.caml_ml_close_channel(chanid)
+  io_module.caml_sys_close(fd)
+
+  -- Read back and verify
+  local f = io.open(filename, "rb")
+  local content = f:read("*all")
+  f:close()
+
+  local result = marshal.from_bytes(content, 0)
+  assert_eq(result.tag, original.tag, "Block tag written correctly")
+  assert_eq(result.size, original.size, "Block size written correctly")
+  cleanup_temp_file(filename)
+end)
+
+test("caml_output_value writes with No_sharing flag", function()
+  local filename = make_temp_file()
+  local original = 100
+
+  -- Write using caml_output_value with No_sharing flag
+  local fd = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local chanid = io_module.caml_ml_open_descriptor_out(fd)
+  io_module.caml_output_value(chanid, original, {marshal.No_sharing})
+  io_module.caml_ml_flush(chanid)
+  io_module.caml_ml_close_channel(chanid)
+  io_module.caml_sys_close(fd)
+
+  -- Read back and verify
+  local f = io.open(filename, "rb")
+  local content = f:read("*all")
+  f:close()
+
+  local result = marshal.from_bytes(content, 0)
+  assert_eq(result, original, "Value with No_sharing written correctly")
+  cleanup_temp_file(filename)
+end)
+
+test("caml_output_value writes multiple values", function()
+  local filename = make_temp_file()
+
+  -- Write multiple values
+  local fd = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local chanid = io_module.caml_ml_open_descriptor_out(fd)
+  io_module.caml_output_value(chanid, 100, nil)
+  io_module.caml_output_value(chanid, "test", nil)
+  io_module.caml_output_value(chanid, 3.14, nil)
+  io_module.caml_ml_flush(chanid)
+  io_module.caml_ml_close_channel(chanid)
+  io_module.caml_sys_close(fd)
+
+  -- Read back and verify
+  local f = io.open(filename, "rb")
+  local content = f:read("*all")
+  f:close()
+
+  -- Parse multiple marshalled values
+  local offset = 0
+  local v1 = marshal.from_bytes(content, offset)
+  offset = offset + marshal.total_size(content, offset)
+  local v2 = marshal.from_bytes(content, offset)
+  offset = offset + marshal.total_size(content, offset)
+  local v3 = marshal.from_bytes(content, offset)
+
+  assert_eq(v1, 100, "First value")
+  assert_eq(v2, "test", "Second value")
+  assert_close(v3, 3.14, 1e-10, "Third value")
+  cleanup_temp_file(filename)
+end)
+
+--
+-- Complete Roundtrip Tests (Task 1.2)
+--
+
+print("")
+print("Complete Roundtrip Tests (Write + Read via channels):")
+print("--------------------------------------------------------------------")
+
+test("Complete roundtrip: integer via channels", function()
+  local filename = make_temp_file()
+  local original = 12345
+
+  -- Write via channel
+  local fd_out = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  io_module.caml_output_value(chan_out, original, nil)
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+  io_module.caml_sys_close(fd_out)
+
+  -- Read via channel
+  local fd_in = io_module.caml_sys_open(filename, {0, 6}, 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result = io_module.caml_input_value(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+  io_module.caml_sys_close(fd_in)
+
+  assert_eq(result, original, "Complete roundtrip")
+  cleanup_temp_file(filename)
+end)
+
+test("Complete roundtrip: string via channels", function()
+  local filename = make_temp_file()
+  local original = "Marshal roundtrip test!"
+
+  -- Write via channel
+  local fd_out = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  io_module.caml_output_value(chan_out, original, nil)
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+  io_module.caml_sys_close(fd_out)
+
+  -- Read via channel
+  local fd_in = io_module.caml_sys_open(filename, {0, 6}, 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result = io_module.caml_input_value(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+  io_module.caml_sys_close(fd_in)
+
+  assert_eq(result, original, "Complete roundtrip")
+  cleanup_temp_file(filename)
+end)
+
+test("Complete roundtrip: float array via channels", function()
+  local filename = make_temp_file()
+  local original = {tag = 254, values = {1.1, 2.2, 3.3}}
+
+  -- Write via channel
+  local fd_out = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  io_module.caml_output_value(chan_out, original, nil)
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+  io_module.caml_sys_close(fd_out)
+
+  -- Read via channel
+  local fd_in = io_module.caml_sys_open(filename, {0, 6}, 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result = io_module.caml_input_value(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+  io_module.caml_sys_close(fd_in)
+
+  assert_eq(result.tag, 254, "Float array tag")
+  assert_eq(#result.values, 3, "Float array length")
+  assert_close(result.values[1], 1.1, 1e-10, "Element 1")
+  assert_close(result.values[2], 2.2, 1e-10, "Element 2")
+  assert_close(result.values[3], 3.3, 1e-10, "Element 3")
+  cleanup_temp_file(filename)
+end)
+
+test("Complete roundtrip: multiple values via channels", function()
+  local filename = make_temp_file()
+
+  -- Write multiple values via channel
+  local fd_out = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  io_module.caml_output_value(chan_out, 111, nil)
+  io_module.caml_output_value(chan_out, "abc", nil)
+  io_module.caml_output_value(chan_out, 2.71, nil)
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+  io_module.caml_sys_close(fd_out)
+
+  -- Read multiple values via channel
+  local fd_in = io_module.caml_sys_open(filename, {0, 6}, 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local v1 = io_module.caml_input_value(chan_in)
+  local v2 = io_module.caml_input_value(chan_in)
+  local v3 = io_module.caml_input_value(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+  io_module.caml_sys_close(fd_in)
+
+  assert_eq(v1, 111, "First value")
+  assert_eq(v2, "abc", "Second value")
+  assert_close(v3, 2.71, 1e-10, "Third value")
+  cleanup_temp_file(filename)
+end)
+
+test("Complete roundtrip: large data via channels", function()
+  local filename = make_temp_file()
+  local original = string.rep("X", 5000)  -- 5KB string
+
+  -- Write via channel
+  local fd_out = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  io_module.caml_output_value(chan_out, original, nil)
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+  io_module.caml_sys_close(fd_out)
+
+  -- Read via channel
+  local fd_in = io_module.caml_sys_open(filename, {0, 6}, 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result = io_module.caml_input_value(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+  io_module.caml_sys_close(fd_in)
+
+  assert_eq(#result, #original, "Large data length")
+  assert_eq(result, original, "Large data content")
+  cleanup_temp_file(filename)
+end)
+
+--
 -- Summary
 --
 

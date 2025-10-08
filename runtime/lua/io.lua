@@ -465,8 +465,32 @@ function caml_ml_output_int(chanid, i)
   return 0
 end
 
+-- Write marshalled value to output channel
+-- This writes a complete marshal format (header + data) to a channel
 function caml_output_value(chanid, v, flags)
-  error("caml_output_value: marshaling not yet supported in Lua backend")
+  local chan = caml_ml_channels[chanid]
+  if not chan or not chan.opened then
+    error("caml_output_value: channel is closed")
+  end
+
+  if not chan.out then
+    error("caml_output_value: channel is not an output channel")
+  end
+
+  -- Marshal value (produces header + data)
+  local marshalled = marshal.to_string(v, flags)
+
+  -- Write marshalled data to channel
+  caml_ml_output(chanid, marshalled, 0, #marshalled)
+
+  -- Flush to ensure data is written
+  -- (caml_ml_output may auto-flush based on buffering mode, but be explicit)
+  if chan.buffered ~= 1 then
+    -- For unbuffered (0) and line-buffered (2), caml_ml_output already flushed
+    -- For fully-buffered (1), only flush if needed (done by caml_ml_output when buffer full)
+  end
+
+  return 0
 end
 
 --
