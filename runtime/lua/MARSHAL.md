@@ -101,22 +101,22 @@ The Marshal module provides serialization and deserialization of OCaml values to
 - **Test**: ✅ 29/29 tests pass (Lua 5.4), 23/23 (Lua 5.1/LuaJIT - no float tests)
 - **Commit**: "feat(marshal): Add binary reader/writer"
 
-#### Task 1.2: Magic Number and Header
-- [ ] Implement header reading
+#### Task 1.2: Magic Number and Header ✅
+- [x] Implement header reading
   - Parse magic number
   - Read standard header (20 bytes)
   - Read compressed header (VLQ encoding)
   - Validate header length
-- [ ] Implement header writing
+- [x] Implement header writing
   - Write magic number (small format)
   - Write data length
   - Write object count
   - Write size fields
-- [ ] Variable-Length Quantity (VLQ) encoding
+- [x] Variable-Length Quantity (VLQ) encoding
   - Read VLQ with overflow detection
   - Write VLQ for compression
-- **Output**: ~100 lines
-- **Test**: Header parsing tests
+- **Output**: 413 lines total (208 code + 205 tests)
+- **Test**: ✅ 26/26 tests pass (Lua 5.4, Lua 5.1, LuaJIT)
 - **Commit**: "feat(marshal): Add header parsing"
 
 ### Phase 2: Value Marshalling (Serialization)
