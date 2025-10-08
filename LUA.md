@@ -26,6 +26,7 @@
 | Phase 11: Advanced Runtime | ✅ Complete | 95% (Unix optional) |
 | Phase 12: Production Ready | ⏳ In Progress | 10% (self-hosting critical) |
 | **Phase 13: Compiler Validation** | ⏳ In Progress | **8% - Task 13.1 Complete** |
+| **Phase 14: Critical Bug Fixes** | 🔴 **BLOCKING** | **0% - Discovered during 13.1** |
 
 ### Recent Progress
 
@@ -35,9 +36,18 @@
 - Generated code now splits into `__caml_init_chunk_N()` functions with max 150 variables each
 - All compiler unit tests passing
 
-### Next Steps
-**Task 13.2**: Build end-to-end test framework (compile → execute → verify)
-**Task 13.3**: Create smoke tests to validate basic programs run correctly
+### Next Steps (CRITICAL)
+
+**Immediate Priority** - Phase 14 Bug Fixes:
+1. **Task 14.1**: Runtime Module Loading - BLOCKING (prevents code execution)
+2. **Task 14.2-14.3**: Runtime Primitive Discovery & Implementation - BLOCKING
+3. **Task 14.4**: Control Flow Generation Fix - HIGH (complex programs)
+
+**Parallel Work** - Phase 13 Testing:
+- **Task 13.2**: Build end-to-end test framework (compile → execute → verify)
+- **Task 13.3**: Create smoke tests to validate basic programs run correctly
+
+**Note**: Phase 14.1 must be completed before any generated code can execute. Phase 13 E2E tests will help validate Phase 14 fixes.
 
 ---
 
@@ -938,6 +948,251 @@ lua: hello.bc.lua:204: too many local variables (limit is 200) in function at li
   - 50+ comprehensive integration tests
   - CI/CD pipeline for Lua testing
   - Self-hosting capability validated
+
+---
+
+### Phase 14: Critical Bug Fixes & Runtime Integration (Week 16-17) 🔴 **CRITICAL**
+
+**Status**: ⏳ **BLOCKING** - Required for code execution
+
+**Discovered Issues**: During Task 13.1 implementation and testing, several critical bugs were discovered that prevent generated code from executing.
+
+**Priority**: 🔴 **CRITICAL** - These bugs block ALL code execution, even after fixing the variable limit.
+
+#### Task 14.1: Runtime Module Loading 🔴 **CRITICAL - BLOCKING**
+
+**Problem Discovered**:
+```
+lua: hello.bc.lua:325: attempt to call global 'caml_caml_register_global' (a nil value)
+```
+
+Generated code calls runtime functions but doesn't load the runtime modules.
+
+- [ ] Implement runtime module require/import in generated code
+- [ ] Generate proper header with runtime initialization:
+  ```lua
+  -- Load OCaml runtime modules
+  local caml_runtime = require("caml_runtime")
+  local caml_stdlib = require("caml_stdlib")
+  -- Import runtime functions into global scope
+  for name, func in pairs(caml_runtime) do
+    _G[name] = func
+  end
+  ```
+- [ ] Ensure all runtime primitive calls are properly linked
+- [ ] Add runtime module path configuration
+- [ ] Test that runtime functions are accessible during initialization
+- **Files**: `compiler/lib-lua/lua_generate.ml` (generate_standalone, generate_module)
+- **Output**: ~100-150 lines (runtime loading logic)
+- **Test**: Generated code can execute runtime functions
+- **Success Criteria**:
+  - ✅ Generated code includes runtime require statements
+  - ✅ Runtime functions are available in global scope
+  - ✅ No "attempt to call nil" errors for runtime primitives
+  - ✅ hello_lua example runs without runtime errors
+- **Commit**: "fix(lua): Add runtime module loading to generated code"
+
+#### Task 14.2: Runtime Primitive Discovery 🔴 **CRITICAL**
+
+**Problem**: Need to catalog all runtime primitives used by generated code to ensure runtime provides them.
+
+- [ ] Scan generated code for all `caml_*` function calls
+- [ ] Create comprehensive list of required runtime primitives:
+  - caml_caml_register_global
+  - caml_ml_output
+  - caml_ml_input
+  - caml_string_*
+  - caml_array_*
+  - (complete inventory needed)
+- [ ] Cross-reference with runtime/lua/ implementation
+- [ ] Identify missing runtime primitives
+- [ ] Document runtime primitive calling conventions
+- **Files**: Analysis document + `runtime/lua/PRIMITIVES.md` (new)
+- **Output**: Complete primitive inventory
+- **Test**: All generated code primitives have runtime implementations
+- **Commit**: "docs(lua): Document required runtime primitives"
+
+#### Task 14.3: Missing Runtime Primitives 🔴 **HIGH**
+
+**Problem**: Runtime may be missing primitives that generated code expects.
+
+- [ ] Implement any missing runtime primitives discovered in Task 14.2
+- [ ] Add tests for each new primitive
+- [ ] Ensure primitives match OCaml semantics
+- [ ] Document each primitive's behavior
+- **Files**: `runtime/lua/*.lua` (various modules)
+- **Output**: Varies based on missing primitives
+- **Test**: All primitives tested and working
+- **Commit**: "feat(lua/runtime): Implement missing runtime primitives"
+
+#### Task 14.4: Control Flow Generation Fix 🟡 **HIGH**
+
+**Problem Discovered**: Current Branch instruction handling returns empty list, which may lose necessary control flow.
+
+**Current Workaround**:
+```ocaml
+| Code.Branch (_addr, _args) ->
+    (* Returns empty - assumes linear initialization *)
+    []
+```
+
+**Issue**: This works for simple initialization but may break complex control flow.
+
+- [ ] Analyze OCaml bytecode control flow patterns
+- [ ] Determine when Branch needs actual goto vs fall-through
+- [ ] Implement proper control flow graph traversal:
+  - Track visited blocks to prevent infinite loops
+  - Generate labels only for blocks that need them
+  - Inline blocks when safe, use goto when necessary
+- [ ] Handle loops and backward branches correctly
+- [ ] Test with programs that have complex control flow
+- **Files**: `compiler/lib-lua/lua_generate.ml` (generate_last_with_program)
+- **Output**: ~150-200 lines (proper CFG traversal)
+- **Test**: Programs with loops and branches work correctly
+- **Success Criteria**:
+  - ✅ While loops generate correctly
+  - ✅ Recursive functions work
+  - ✅ Complex conditionals work
+  - ✅ No missing labels or invalid gotos
+- **Commit**: "fix(lua): Implement proper control flow graph traversal"
+
+#### Task 14.5: Block Inlining Strategy 🟡 **MEDIUM**
+
+**Problem**: Current implementation inlines all conditional branches, which may cause code bloat or incorrect behavior.
+
+**Current Code**:
+```ocaml
+| Code.Cond (var, (addr_true, _), (addr_false, _)) ->
+    (* Always tries to inline both branches *)
+    match Code.Addr.Map.find_opt addr_true program.Code.blocks with
+    | Some tb -> generate_block_with_program ctx program tb
+    | None -> (* generates goto *)
+```
+
+**Issues**:
+- May inline same block multiple times (code bloat)
+- Doesn't detect cycles (potential infinite recursion)
+- No heuristic for when to inline vs goto
+
+- [ ] Implement intelligent inlining heuristics:
+  - Only inline small blocks (< 10 statements)
+  - Only inline blocks used once
+  - Never inline if would create cycle
+- [ ] Add block size estimation
+- [ ] Track block reference counts
+- [ ] Add cycle detection
+- [ ] Implement goto for large/shared blocks
+- **Files**: `compiler/lib-lua/lua_generate.ml`
+- **Output**: ~100-150 lines (inlining heuristics)
+- **Test**: Generated code is compact and correct
+- **Commit**: "feat(lua): Add intelligent block inlining heuristics"
+
+#### Task 14.6: Value Representation Consistency 🟡 **MEDIUM**
+
+**Problem**: Need to verify generated code's value representation matches runtime expectations.
+
+- [ ] Audit generated code value encoding:
+  - Variant tags: `{tag = n, ...}`
+  - Tuples: `{[1] = a, [2] = b}`
+  - Records: `{[1] = field1, [2] = field2}` or `{field1 = ..., field2 = ...}`
+- [ ] Ensure consistency with runtime/lua/ modules
+- [ ] Verify exception representation matches runtime
+- [ ] Test cross-boundary value passing (OCaml → runtime → OCaml)
+- [ ] Document canonical value representation
+- **Files**: Review `compiler/lib-lua/lua_generate.ml`, `runtime/lua/mlvalue.lua`
+- **Output**: Fixes + documentation
+- **Test**: Values round-trip correctly
+- **Commit**: "fix(lua): Ensure value representation consistency"
+
+#### Task 14.7: Module Initialization Order 🟡 **MEDIUM**
+
+**Problem**: Module dependencies must initialize in correct order.
+
+- [ ] Implement proper module dependency tracking
+- [ ] Generate initialization order based on dependencies
+- [ ] Handle circular dependencies gracefully
+- [ ] Test multi-module programs
+- **Files**: `compiler/lib-lua/lua_generate.ml`
+- **Output**: ~100 lines (dependency resolution)
+- **Test**: Multi-module programs initialize correctly
+- **Commit**: "feat(lua): Implement module initialization ordering"
+
+#### Task 14.8: Global Variable Handling 🟢 **LOW**
+
+**Problem**: Generated code uses local variables but some values should be globals.
+
+- [ ] Identify which values should be global vs local:
+  - Module exports: global
+  - Internal initialization: local
+  - Exception constructors: global (for cross-module use)
+- [ ] Implement global variable generation
+- [ ] Test module exports are accessible
+- **Files**: `compiler/lib-lua/lua_generate.ml`
+- **Output**: ~50-100 lines
+- **Test**: Module exports work correctly
+- **Commit**: "feat(lua): Implement proper global variable handling"
+
+#### Task 14.9: Error Handling & Debugging 🟢 **MEDIUM**
+
+**Problem**: When generated code fails, error messages are not helpful.
+
+- [ ] Add source location tracking in generated Lua
+- [ ] Generate Lua comments with OCaml source references
+- [ ] Improve error messages from runtime functions
+- [ ] Add debug mode with verbose output
+- [ ] Create debugging guide for generated code
+- **Files**: `compiler/lib-lua/lua_generate.ml`, `compiler/lib-lua/lua_output.ml`
+- **Output**: ~100-150 lines (debug info generation)
+- **Test**: Errors report meaningful locations
+- **Commit**: "feat(lua): Add source location tracking and debug info"
+
+#### Task 14.10: Chunking Edge Cases 🟢 **LOW**
+
+**Problem**: Current chunking may have edge cases not yet discovered.
+
+- [ ] Test chunking with various program sizes:
+  - Programs with exactly 150 locals
+  - Programs with 0 locals
+  - Programs with 1000+ locals
+- [ ] Verify chunks don't break variable references
+- [ ] Ensure chunks preserve execution order
+- [ ] Test with programs that have side effects during initialization
+- **Files**: `compiler/tests-lua/test_chunking.ml` (new)
+- **Output**: ~200 lines (comprehensive tests)
+- **Test**: All edge cases handled correctly
+- **Commit**: "test(lua): Add comprehensive chunking edge case tests"
+
+**Phase 14 Summary**:
+- **Priority**: 🔴 **CRITICAL** - Required to make generated code executable
+- **Estimated Time**: 1-2 weeks
+- **Dependencies**:
+  - Task 14.1 (Runtime Loading) is BLOCKING - must be done first
+  - Task 14.2-14.3 (Runtime Primitives) needed before code can run
+  - Task 14.4 (Control Flow) needed for complex programs
+  - Tasks 14.5-14.10 are improvements that can be done incrementally
+
+**Success Criteria**:
+- ✅ Generated code loads runtime successfully
+- ✅ All runtime primitives are available
+- ✅ hello_lua example runs and produces output
+- ✅ Control flow (loops, conditionals) works correctly
+- ✅ Multi-module programs initialize properly
+- ✅ Error messages are meaningful
+
+**Deliverables**:
+- Runtime module loading implementation
+- Complete runtime primitive inventory
+- Missing runtime primitives implemented
+- Proper control flow graph traversal
+- Comprehensive testing of all fixes
+- Updated documentation
+
+**Current Blockers**:
+1. **Runtime loading** (Task 14.1) - Prevents ANY code from running
+2. **Missing primitives** (Task 14.2-14.3) - Causes runtime errors
+3. **Control flow** (Task 14.4) - May cause incorrect behavior in complex programs
+
+**Note**: Phase 14 tasks were discovered during Phase 13.1 implementation. These are critical bugs that must be fixed before the compiler can generate working code. Phase 13 (E2E testing) and Phase 14 (bug fixes) should proceed in parallel.
 
 ---
 
