@@ -11,6 +11,25 @@ local Writer = marshal_io.Writer
 
 local M = {}
 
+-- Object ID counter (for tag 248 object blocks)
+local oo_last_id = 0
+
+-- Set object ID for object blocks (tag 248)
+local function set_oo_id(block)
+  -- Object blocks have fields, and we need to set field index 2 (0-indexed as field 3 in 1-indexed Lua)
+  -- In OCaml: field 0 = tag, field 1 = first user field, field 2 = oo_id
+  -- In Lua table representation: block = {tag=248, size=N, [1]=field1, [2]=field2, [3]=oo_id, ...}
+  -- Actually, looking at the JS code more carefully: v = [tag, field1, field2, ...]
+  -- So v[2] is the third element (0-indexed: v[0]=tag, v[1]=field1, v[2]=field2)
+  -- In Lua: block.fields[2] would be the oo_id field (if we have fields)
+  -- For now, since we don't populate fields yet, we'll just store oo_id in the block metadata
+  if not block.oo_id then
+    oo_last_id = oo_last_id + 1
+    block.oo_id = oo_last_id
+  end
+  return block
+end
+
 -- Value type codes
 M.PREFIX_SMALL_BLOCK = 0x80
 M.PREFIX_SMALL_INT = 0x40
@@ -37,6 +56,16 @@ M.CODE_CUSTOM = 0x12
 M.CODE_BLOCK64 = 0x13
 M.CODE_CUSTOM_LEN = 0x18
 M.CODE_CUSTOM_FIXED = 0x19
+
+-- Special block tags
+M.TAG_OBJECT = 248        -- Object blocks (need oo_id)
+M.TAG_LAZY = 249          -- Lazy values
+M.TAG_FORWARD = 250       -- Forward blocks
+M.TAG_ABSTRACT = 251      -- Abstract tags
+M.TAG_CLOSURE = 252       -- Closures (not supported)
+M.TAG_INFIX = 253         -- Infix pointers
+M.TAG_FLOAT_ARRAY = 254   -- Float arrays
+M.TAG_CUSTOM = 255        -- Custom blocks
 
 -- Marshal flags (extern_flags)
 M.No_sharing = 0  -- Disable sharing of heap values
@@ -689,7 +718,8 @@ function MarshalReader:new(str, offset, num_objects, compressed)
     reader = Reader:new(str, offset),
     obj_counter = 0,
     intern_obj_table = num_objects > 0 and {} or nil,
-    compressed = compressed  -- Track if data is compressed (affects SHARED offset calculation)
+    compressed = compressed,  -- Track if data is compressed (affects SHARED offset calculation)
+    objects = {}  -- Track tag 248 object blocks for oo_id assignment
   }
   setmetatable(obj, self)
   return obj
@@ -782,7 +812,24 @@ end
 function MarshalReader:read_small_block(code)
   local tag = code % 16  -- code & 0x0F
   local size = math.floor((code / 16)) % 8  -- (code >> 4) & 0x07
-  return {tag = tag, size = size}
+
+  -- Check for unsupported special tags
+  if tag == M.TAG_CLOSURE then
+    error("Marshal: closure blocks are not supported")
+  end
+
+  local v = {tag = tag, size = size}
+
+  -- For non-empty blocks, store in intern table and track objects (tag 248)
+  if size > 0 then
+    self:intern_store(v)
+    if tag == M.TAG_OBJECT then
+      -- Track object blocks for oo_id assignment
+      table.insert(self.objects, v)
+    end
+  end
+
+  return v
 end
 
 -- Unmarshal BLOCK32
@@ -790,7 +837,24 @@ function MarshalReader:read_block32()
   local header = self.reader:read32u()
   local tag = header % 256  -- header & 0xFF
   local size = math.floor(header / 1024)  -- header >> 10
-  return {tag = tag, size = size}
+
+  -- Check for unsupported special tags
+  if tag == M.TAG_CLOSURE then
+    error("Marshal: closure blocks are not supported")
+  end
+
+  local v = {tag = tag, size = size}
+
+  -- For non-empty blocks, store in intern table and track objects (tag 248)
+  if size > 0 then
+    self:intern_store(v)
+    if tag == M.TAG_OBJECT then
+      -- Track object blocks for oo_id assignment
+      table.insert(self.objects, v)
+    end
+  end
+
+  return v
 end
 
 -- Unmarshal double (DOUBLE_LITTLE)
@@ -972,8 +1036,26 @@ function MarshalReader:read_value()
     return self:read_custom(code)
   elseif code == M.CODE_CUSTOM_LEN then
     return self:read_custom(code)
+  elseif code == M.CODE_BLOCK64 then
+    error("Marshal: data block too large (64-bit blocks not supported)")
+  elseif code == M.CODE_CODEPOINTER then
+    error("Marshal: code pointer (not supported in runtime)")
+  elseif code == M.CODE_INFIXPOINTER then
+    error("Marshal: infix pointer (not supported in runtime)")
   else
     error(string.format("Marshal: unsupported code 0x%02X", code))
+  end
+end
+
+-- Finalize object blocks by setting oo_id
+function MarshalReader:finalize_objects()
+  -- Set oo_id for all tracked object blocks (tag 248)
+  for i = 1, #self.objects do
+    local obj = self.objects[i]
+    -- Only set oo_id if field 2 exists and is >= 0
+    -- Note: In current implementation, blocks don't have populated fields yet
+    -- So we unconditionally set oo_id for now
+    set_oo_id(obj)
   end
 end
 
@@ -1103,12 +1185,16 @@ function M.from_bytes(str, offset)
 
     -- Create reader for uncompressed data
     local reader = MarshalReader:new(uncompressed_data, 0, header.num_objects, true)
-    return reader:read_value()
+    local result = reader:read_value()
+    reader:finalize_objects()
+    return result
 
   else
     -- Uncompressed data
     local reader = MarshalReader:new(str, data_offset, header.num_objects, false)
-    return reader:read_value()
+    local result = reader:read_value()
+    reader:finalize_objects()
+    return result
   end
 end
 

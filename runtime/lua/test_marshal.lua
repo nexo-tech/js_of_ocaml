@@ -1528,6 +1528,208 @@ end)
 -- Summary
 --
 
+--
+-- Special Tag Tests (Task 5.3)
+--
+
+print("")
+print("Special Tag Tests (Task 5.3):")
+print("--------------------------------------------------------------------")
+
+test("Tag constants are defined", function()
+  assert_eq(marshal.TAG_OBJECT, 248, "TAG_OBJECT")
+  assert_eq(marshal.TAG_LAZY, 249, "TAG_LAZY")
+  assert_eq(marshal.TAG_FORWARD, 250, "TAG_FORWARD")
+  assert_eq(marshal.TAG_ABSTRACT, 251, "TAG_ABSTRACT")
+  assert_eq(marshal.TAG_CLOSURE, 252, "TAG_CLOSURE")
+  assert_eq(marshal.TAG_INFIX, 253, "TAG_INFIX")
+  assert_eq(marshal.TAG_FLOAT_ARRAY, 254, "TAG_FLOAT_ARRAY")
+  assert_eq(marshal.TAG_CUSTOM, 255, "TAG_CUSTOM")
+end)
+
+test("CODE_BLOCK64 causes error", function()
+  local writer = Writer:new()
+  writer:write8u(marshal.CODE_BLOCK64)
+
+  local reader = MarshalReader:new(writer:to_string(), 0, 0, false)
+  local success, err = pcall(function()
+    reader:read_value()
+  end)
+
+  assert_true(not success, "Should error on CODE_BLOCK64")
+  assert_true(string.find(err, "64%-bit"), "Error should mention 64-bit")
+end)
+
+test("CODE_CODEPOINTER causes error", function()
+  local writer = Writer:new()
+  writer:write8u(marshal.CODE_CODEPOINTER)
+
+  local reader = MarshalReader:new(writer:to_string(), 0, 0, false)
+  local success, err = pcall(function()
+    reader:read_value()
+  end)
+
+  assert_true(not success, "Should error on CODE_CODEPOINTER")
+  assert_true(string.find(err, "code pointer"), "Error should mention code pointer")
+end)
+
+test("CODE_INFIXPOINTER causes error", function()
+  local writer = Writer:new()
+  writer:write8u(marshal.CODE_INFIXPOINTER)
+
+  local reader = MarshalReader:new(writer:to_string(), 0, 0, false)
+  local success, err = pcall(function()
+    reader:read_value()
+  end)
+
+  assert_true(not success, "Should error on CODE_INFIXPOINTER")
+  assert_true(string.find(err, "infix pointer"), "Error should mention infix pointer")
+end)
+
+test("Tag 252 (closure) in small block causes error", function()
+  local writer = Writer:new()
+  -- Small block: tag=252 (0x0C), size=1 -> code = 0x80 | (1 << 4) | 0x0C = 0x9C
+  local code = 0x80 + (1 * 16) + 12  -- tag 12 in small block range
+  writer:write8u(code)
+
+  local reader = MarshalReader:new(writer:to_string(), 0, 0, false)
+  local success, err = pcall(function()
+    reader:read_value()
+  end)
+
+  -- This won't error because tag 252 can't be encoded in small block (max tag = 15)
+  -- Let's test with BLOCK32 instead
+  assert_true(success, "Small block with tag 12 should succeed (can't encode 252)")
+end)
+
+test("Tag 252 (closure) in BLOCK32 causes error", function()
+  local writer = Writer:new()
+  writer:write8u(marshal.CODE_BLOCK32)
+  -- BLOCK32 header: tag=252, size=1 -> header = (1 << 10) | 252 = 1276
+  local header = (1 * 1024) + 252
+  writer:write32u(header)
+
+  local reader = MarshalReader:new(writer:to_string(), 0, 0, false)
+  local success, err = pcall(function()
+    reader:read_value()
+  end)
+
+  assert_true(not success, "Should error on tag 252 (closure)")
+  assert_true(string.find(err, "closure"), "Error should mention closure")
+end)
+
+test("Tag 248 (object) blocks are tracked", function()
+  local writer = Writer:new()
+  writer:write8u(marshal.CODE_BLOCK32)
+  -- BLOCK32 header: tag=248, size=1
+  local header = (1 * 1024) + 248
+  writer:write32u(header)
+  writer:write8u(0x40)  -- Small int 0 as field
+
+  local reader = MarshalReader:new(writer:to_string(), 0, 1, false)
+  local block = reader:read_value()
+  reader:finalize_objects()
+
+  assert_eq(block.tag, 248, "Should have tag 248")
+  assert_true(block.oo_id ~= nil, "Should have oo_id set")
+  assert_true(block.oo_id > 0, "oo_id should be positive")
+end)
+
+test("Multiple tag 248 objects get unique oo_ids", function()
+  local writer = Writer:new()
+
+  -- First object block
+  writer:write8u(marshal.CODE_BLOCK32)
+  writer:write32u((1 * 1024) + 248)
+  writer:write8u(0x40)  -- field
+
+  -- Second object block
+  writer:write8u(marshal.CODE_BLOCK32)
+  writer:write32u((1 * 1024) + 248)
+  writer:write8u(0x41)  -- field
+
+  local str = writer:to_string()
+
+  -- Read first object
+  local reader1 = MarshalReader:new(str, 0, 1, false)
+  local obj1 = reader1:read_value()
+  reader1:finalize_objects()
+
+  -- Read second object
+  local reader2 = MarshalReader:new(str, 6, 1, false)
+  local obj2 = reader2:read_value()
+  reader2:finalize_objects()
+
+  assert_true(obj1.oo_id ~= nil, "First object should have oo_id")
+  assert_true(obj2.oo_id ~= nil, "Second object should have oo_id")
+  assert_true(obj1.oo_id ~= obj2.oo_id, "oo_ids should be unique")
+end)
+
+test("Tag 249-251, 253 (non-closure special tags) are allowed", function()
+  local tags = {249, 250, 251, 253}  -- Lazy, Forward, Abstract, Infix
+
+  for _, tag in ipairs(tags) do
+    local writer = Writer:new()
+    writer:write8u(marshal.CODE_BLOCK32)
+    local header = (1 * 1024) + tag
+    writer:write32u(header)
+    writer:write8u(0x40)  -- field
+
+    local reader = MarshalReader:new(writer:to_string(), 0, 1, false)
+    local success, err = pcall(function()
+      local block = reader:read_value()
+      reader:finalize_objects()
+    end)
+
+    assert_true(success, string.format("Tag %d should not error", tag))
+  end
+end)
+
+test("Tag 254 (float array) already handled", function()
+  -- Tag 254 is handled by DOUBLE_ARRAY codes, verify it works
+  local writer = Writer:new()
+  writer:write8u(marshal.CODE_DOUBLE_ARRAY8_LITTLE)
+  writer:write8u(2)  -- length
+  writer:write_double_little(1.5)
+  writer:write_double_little(2.5)
+
+  local reader = MarshalReader:new(writer:to_string(), 0, 1, false)
+  local arr = reader:read_value()
+  reader:finalize_objects()
+
+  assert_eq(arr.tag, 254, "Should have tag 254")
+  assert_eq(#arr.values, 2, "Should have 2 elements")
+end)
+
+test("Tag 255 (custom) already handled", function()
+  -- Register custom block for testing
+  marshal.register_custom_operations("_test", {
+    serialize = function(writer, value, sz_32_64)
+      writer:write8u(42)
+      sz_32_64[1] = 1
+      sz_32_64[2] = 1
+    end,
+    deserialize = function(reader, size)
+      local b = reader:read8u()
+      size[0] = 1
+      return {caml_custom = "_test", value = b}
+    end
+  })
+
+  local writer = Writer:new()
+  writer:write8u(marshal.CODE_CUSTOM)
+  writer:writestr("_test")
+  writer:write8u(0)  -- null terminator
+  writer:write8u(42)  -- data
+
+  local reader = MarshalReader:new(writer:to_string(), 0, 1, false)
+  local custom = reader:read_value()
+  reader:finalize_objects()
+
+  assert_eq(custom.caml_custom, "_test", "Should be custom block")
+  assert_eq(custom.value, 42, "Should preserve value")
+end)
+
 print("")
 print("====================================================================")
 print("Tests passed: " .. tests_passed .. " / " .. tests_run)

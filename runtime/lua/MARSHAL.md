@@ -303,20 +303,27 @@ The Marshal module provides serialization and deserialization of OCaml values to
 - **Test**: ✅ 12 flag behavior tests pass (LuaJIT)
 - **Commit**: "feat(marshal): Add marshal flags"
 
-#### Task 5.3: Object Tags
-- [ ] Handle special tags
-  - Tag 248: Object blocks (need oo_id)
-  - Tag 249: Lazy values
-  - Tag 250: Forward blocks
-  - Tag 251: Abstract tags
-  - Tag 252: Closures (error)
-  - Tag 253: Infix pointers
-  - Tag 254: Float arrays
-  - Tag 255: Custom blocks
-- [ ] Set object IDs for tag 248
-- [ ] Error on unsupported tags
-- **Output**: ~70 lines
-- **Test**: Special tag tests
+#### Task 5.3: Object Tags ✅
+- [x] Handle special tags
+  - Tag 248: Object blocks (need oo_id) ✅ Tracked and assigned oo_id
+  - Tag 249: Lazy values ✅ Allowed (no special handling)
+  - Tag 250: Forward blocks ✅ Allowed (no special handling)
+  - Tag 251: Abstract tags ✅ Allowed (no special handling)
+  - Tag 252: Closures (error) ✅ Errors on read
+  - Tag 253: Infix pointers ✅ Allowed (no special handling)
+  - Tag 254: Float arrays ✅ Already handled by DOUBLE_ARRAY codes
+  - Tag 255: Custom blocks ✅ Already handled by CUSTOM codes
+- [x] Set object IDs for tag 248
+  - Global oo_last_id counter
+  - set_oo_id() function
+  - Objects tracked during read, finalized after
+- [x] Error on unsupported tags
+  - CODE_BLOCK64 (0x13): Errors with "data block too large"
+  - CODE_CODEPOINTER (0x10): Errors with "code pointer not supported"
+  - CODE_INFIXPOINTER (0x11): Errors with "infix pointer not supported"
+  - Tag 252 (closures): Errors with "closure blocks not supported"
+- **Output**: 293 lines total (91 code + 202 tests)
+- **Test**: ✅ 11 special tag tests (tag constants, error cases, oo_id tracking)
 - **Commit**: "feat(marshal): Handle special tags"
 
 ### Phase 6: API and Integration
