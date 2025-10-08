@@ -108,14 +108,23 @@ The I/O system is a critical part of the OCaml runtime, providing:
 - **Test**: ✅ 10 high-level API tests (write, read, roundtrips, flags, multiple values, large data, mixed API usage)
 - **Commit**: "feat(marshal): Add channel I/O API"
 
-#### Task 1.4: Marshal Integration Tests
-- [ ] Test marshal roundtrip through files
-- [ ] Test marshal with large data structures
-- [ ] Test marshal with sharing enabled/disabled
-- [ ] Test error handling (truncated data, corrupted data)
-- [ ] Test binary mode channels
-- **Output**: ~150 lines (tests)
-- **Test**: Comprehensive marshal I/O test suite
+#### Task 1.4: Marshal Integration Tests ✅
+- [x] Test marshal roundtrip through files
+  - ✅ Complete file roundtrip with simple data
+  - ✅ Large data structure (>10KB string)
+  - ✅ Very large string (>50KB)
+- [x] Test marshal with sharing enabled/disabled
+  - ✅ No_sharing flag test
+  - ✅ Sharing enabled (default) test
+- [x] Test error handling (truncated data, corrupted data)
+  - ✅ Truncated header detection
+  - ✅ Truncated data detection
+  - ✅ Corrupted magic number detection
+- [x] Test binary mode channels
+  - ✅ Exact byte preservation with special chars
+- [x] Test multiple large values in sequence
+- **Output**: 354 lines (10 integration tests)
+- **Test**: ✅ 43/43 tests pass (all marshal channel I/O tests)
 - **Commit**: "test(marshal): Add channel I/O integration tests"
 
 ### Phase 2: Format Module (Printf/Scanf)

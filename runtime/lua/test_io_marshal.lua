@@ -2,8 +2,11 @@
 -- Test suite for marshal channel I/O integration
 
 -- Load modules
+-- Load our custom io module (not Lua's builtin io library)
+package.loaded.io = nil  -- Unload builtin io if loaded
+local io_module = dofile("./io.lua")
+package.loaded.io = io_module  -- Register it for require() calls
 local marshal = require("marshal")
-local io_module = require("io")
 
 -- Test framework
 local tests_run = 0
@@ -53,6 +56,16 @@ local function cleanup_temp_file(filename)
   os.remove(filename)
 end
 
+-- Helper: Create OCaml list from Lua array
+-- OCaml list [a; b; c] is represented as {a, {b, {c, 0}}}
+local function make_ocaml_list(arr)
+  local result = 0  -- Empty list
+  for i = #arr, 1, -1 do
+    result = {arr[i], result}
+  end
+  return result
+end
+
 print("====================================================================")
 print("Marshal Channel I/O Tests (Task 1.1)")
 print("====================================================================")
@@ -77,7 +90,7 @@ test("Roundtrip integer through file", function()
   f:close()
 
   -- Read from file using channels
-  local fd = io_module.caml_sys_open(filename, {0}, 0)  -- O_RDONLY
+  local fd = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)  -- O_RDONLY
   local chanid = io_module.caml_ml_open_descriptor_in(fd)
   local result = io_module.caml_input_value(chanid)
   io_module.caml_ml_close_channel(chanid)
@@ -98,7 +111,7 @@ test("Roundtrip string through file", function()
   f:close()
 
   -- Read from file using channels
-  local fd = io_module.caml_sys_open(filename, {0}, 0)
+  local fd = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
   local chanid = io_module.caml_ml_open_descriptor_in(fd)
   local result = io_module.caml_input_value(chanid)
   io_module.caml_ml_close_channel(chanid)
@@ -119,7 +132,7 @@ test("Roundtrip float through file", function()
   f:close()
 
   -- Read from file using channels
-  local fd = io_module.caml_sys_open(filename, {0}, 0)
+  local fd = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
   local chanid = io_module.caml_ml_open_descriptor_in(fd)
   local result = io_module.caml_input_value(chanid)
   io_module.caml_ml_close_channel(chanid)
@@ -140,7 +153,7 @@ test("Roundtrip block through file", function()
   f:close()
 
   -- Read from file using channels
-  local fd = io_module.caml_sys_open(filename, {0}, 0)
+  local fd = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
   local chanid = io_module.caml_ml_open_descriptor_in(fd)
   local result = io_module.caml_input_value(chanid)
   io_module.caml_ml_close_channel(chanid)
@@ -162,7 +175,7 @@ test("Roundtrip float array through file", function()
   f:close()
 
   -- Read from file using channels
-  local fd = io_module.caml_sys_open(filename, {0}, 0)
+  local fd = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
   local chanid = io_module.caml_ml_open_descriptor_in(fd)
   local result = io_module.caml_input_value(chanid)
   io_module.caml_ml_close_channel(chanid)
@@ -195,7 +208,7 @@ test("Read multiple marshalled values from file", function()
   f:close()
 
   -- Read multiple values
-  local fd = io_module.caml_sys_open(filename, {0}, 0)
+  local fd = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
   local chanid = io_module.caml_ml_open_descriptor_in(fd)
 
   local v1 = io_module.caml_input_value(chanid)
@@ -227,7 +240,7 @@ test("EOF on empty file raises error", function()
   f:close()
 
   -- Try to read from empty file
-  local fd = io_module.caml_sys_open(filename, {0}, 0)
+  local fd = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
   local chanid = io_module.caml_ml_open_descriptor_in(fd)
 
   local success, err = pcall(function()
@@ -250,7 +263,7 @@ test("Truncated header raises error", function()
   f:close()
 
   -- Try to read truncated header
-  local fd = io_module.caml_sys_open(filename, {0}, 0)
+  local fd = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
   local chanid = io_module.caml_ml_open_descriptor_in(fd)
 
   local success, err = pcall(function()
@@ -271,12 +284,12 @@ test("Truncated data raises error", function()
   -- Write valid header but incomplete data
   local marshalled = marshal.to_string(12345)
   local f = io.open(filename, "wb")
-  -- Write header + partial data
-  f:write(string.sub(marshalled, 1, 23))  -- Header (20) + 3 bytes of data
+  -- Write header + partial data (truncate 1 byte)
+  f:write(string.sub(marshalled, 1, #marshalled - 1))
   f:close()
 
   -- Try to read truncated data
-  local fd = io_module.caml_sys_open(filename, {0}, 0)
+  local fd = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
   local chanid = io_module.caml_ml_open_descriptor_in(fd)
 
   local success, err = pcall(function()
@@ -284,7 +297,6 @@ test("Truncated data raises error", function()
   end)
 
   io_module.caml_ml_close_channel(chanid)
-  io_module.caml_sys_close(fd)
 
   assert_true(not success, "Should error on truncated data")
   assert_true(string.find(tostring(err), "truncated"), "Error should mention truncation")
@@ -310,7 +322,7 @@ test("Binary mode preserves exact bytes", function()
   f:close()
 
   -- Read with binary mode
-  local fd = io_module.caml_sys_open(filename, {0, 6}, 0)  -- O_RDONLY + O_BINARY
+  local fd = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)  -- O_RDONLY + O_BINARY
   local chanid = io_module.caml_ml_open_descriptor_in(fd)
   local result = io_module.caml_input_value(chanid)
   io_module.caml_ml_close_channel(chanid)
@@ -339,7 +351,7 @@ test("caml_input_value_to_outside_heap is alias", function()
   f:close()
 
   -- Read using alias function
-  local fd = io_module.caml_sys_open(filename, {0}, 0)
+  local fd = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
   local chanid = io_module.caml_ml_open_descriptor_in(fd)
   local result = io_module.caml_input_value_to_outside_heap(chanid)
   io_module.caml_ml_close_channel(chanid)
@@ -368,7 +380,7 @@ test("Read large string from file", function()
   f:close()
 
   -- Read from file
-  local fd = io_module.caml_sys_open(filename, {0}, 0)
+  local fd = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
   local chanid = io_module.caml_ml_open_descriptor_in(fd)
   local result = io_module.caml_input_value(chanid)
   io_module.caml_ml_close_channel(chanid)
@@ -392,7 +404,7 @@ test("caml_output_value writes integer to channel", function()
   local original = 42
 
   -- Write using caml_output_value
-  local fd = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)  -- O_WRONLY + O_CREAT + O_TRUNC + O_BINARY
+  local fd = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)  -- O_WRONLY + O_CREAT + O_TRUNC + O_BINARY
   local chanid = io_module.caml_ml_open_descriptor_out(fd)
   io_module.caml_output_value(chanid, original, nil)
   io_module.caml_ml_flush(chanid)
@@ -414,7 +426,7 @@ test("caml_output_value writes string to channel", function()
   local original = "Hello, World!"
 
   -- Write using caml_output_value
-  local fd = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local fd = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
   local chanid = io_module.caml_ml_open_descriptor_out(fd)
   io_module.caml_output_value(chanid, original, nil)
   io_module.caml_ml_flush(chanid)
@@ -436,7 +448,7 @@ test("caml_output_value writes float to channel", function()
   local original = 3.14159
 
   -- Write using caml_output_value
-  local fd = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local fd = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
   local chanid = io_module.caml_ml_open_descriptor_out(fd)
   io_module.caml_output_value(chanid, original, nil)
   io_module.caml_ml_flush(chanid)
@@ -458,7 +470,7 @@ test("caml_output_value writes block to channel", function()
   local original = {tag = 0, size = 2}
 
   -- Write using caml_output_value
-  local fd = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local fd = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
   local chanid = io_module.caml_ml_open_descriptor_out(fd)
   io_module.caml_output_value(chanid, original, nil)
   io_module.caml_ml_flush(chanid)
@@ -481,7 +493,7 @@ test("caml_output_value writes with No_sharing flag", function()
   local original = 100
 
   -- Write using caml_output_value with No_sharing flag
-  local fd = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local fd = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
   local chanid = io_module.caml_ml_open_descriptor_out(fd)
   io_module.caml_output_value(chanid, original, {marshal.No_sharing})
   io_module.caml_ml_flush(chanid)
@@ -502,7 +514,7 @@ test("caml_output_value writes multiple values", function()
   local filename = make_temp_file()
 
   -- Write multiple values
-  local fd = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local fd = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
   local chanid = io_module.caml_ml_open_descriptor_out(fd)
   io_module.caml_output_value(chanid, 100, nil)
   io_module.caml_output_value(chanid, "test", nil)
@@ -543,7 +555,7 @@ test("Complete roundtrip: integer via channels", function()
   local original = 12345
 
   -- Write via channel
-  local fd_out = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
   local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
   io_module.caml_output_value(chan_out, original, nil)
   io_module.caml_ml_flush(chan_out)
@@ -551,7 +563,7 @@ test("Complete roundtrip: integer via channels", function()
   io_module.caml_sys_close(fd_out)
 
   -- Read via channel
-  local fd_in = io_module.caml_sys_open(filename, {0, 6}, 0)
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
   local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
   local result = io_module.caml_input_value(chan_in)
   io_module.caml_ml_close_channel(chan_in)
@@ -566,7 +578,7 @@ test("Complete roundtrip: string via channels", function()
   local original = "Marshal roundtrip test!"
 
   -- Write via channel
-  local fd_out = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
   local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
   io_module.caml_output_value(chan_out, original, nil)
   io_module.caml_ml_flush(chan_out)
@@ -574,7 +586,7 @@ test("Complete roundtrip: string via channels", function()
   io_module.caml_sys_close(fd_out)
 
   -- Read via channel
-  local fd_in = io_module.caml_sys_open(filename, {0, 6}, 0)
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
   local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
   local result = io_module.caml_input_value(chan_in)
   io_module.caml_ml_close_channel(chan_in)
@@ -589,7 +601,7 @@ test("Complete roundtrip: float array via channels", function()
   local original = {tag = 254, values = {1.1, 2.2, 3.3}}
 
   -- Write via channel
-  local fd_out = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
   local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
   io_module.caml_output_value(chan_out, original, nil)
   io_module.caml_ml_flush(chan_out)
@@ -597,7 +609,7 @@ test("Complete roundtrip: float array via channels", function()
   io_module.caml_sys_close(fd_out)
 
   -- Read via channel
-  local fd_in = io_module.caml_sys_open(filename, {0, 6}, 0)
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
   local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
   local result = io_module.caml_input_value(chan_in)
   io_module.caml_ml_close_channel(chan_in)
@@ -615,7 +627,7 @@ test("Complete roundtrip: multiple values via channels", function()
   local filename = make_temp_file()
 
   -- Write multiple values via channel
-  local fd_out = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
   local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
   io_module.caml_output_value(chan_out, 111, nil)
   io_module.caml_output_value(chan_out, "abc", nil)
@@ -625,7 +637,7 @@ test("Complete roundtrip: multiple values via channels", function()
   io_module.caml_sys_close(fd_out)
 
   -- Read multiple values via channel
-  local fd_in = io_module.caml_sys_open(filename, {0, 6}, 0)
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
   local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
   local v1 = io_module.caml_input_value(chan_in)
   local v2 = io_module.caml_input_value(chan_in)
@@ -644,7 +656,7 @@ test("Complete roundtrip: large data via channels", function()
   local original = string.rep("X", 5000)  -- 5KB string
 
   -- Write via channel
-  local fd_out = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
   local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
   io_module.caml_output_value(chan_out, original, nil)
   io_module.caml_ml_flush(chan_out)
@@ -652,7 +664,7 @@ test("Complete roundtrip: large data via channels", function()
   io_module.caml_sys_close(fd_out)
 
   -- Read via channel
-  local fd_in = io_module.caml_sys_open(filename, {0, 6}, 0)
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
   local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
   local result = io_module.caml_input_value(chan_in)
   io_module.caml_ml_close_channel(chan_in)
@@ -676,7 +688,7 @@ test("marshal.to_channel writes integer", function()
   local original = 999
 
   -- Write using high-level API
-  local fd = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local fd = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
   local chanid = io_module.caml_ml_open_descriptor_out(fd)
   marshal.to_channel(chanid, original)
   io_module.caml_ml_flush(chanid)
@@ -698,7 +710,7 @@ test("marshal.to_channel with flags", function()
   local original = 777
 
   -- Write using high-level API with No_sharing flag
-  local fd = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local fd = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
   local chanid = io_module.caml_ml_open_descriptor_out(fd)
   marshal.to_channel(chanid, original, {marshal.No_sharing})
   io_module.caml_ml_flush(chanid)
@@ -726,7 +738,7 @@ test("marshal.from_channel reads value", function()
   f:close()
 
   -- Read using high-level API
-  local fd = io_module.caml_sys_open(filename, {0, 6}, 0)
+  local fd = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
   local chanid = io_module.caml_ml_open_descriptor_in(fd)
   local result = marshal.from_channel(chanid)
   io_module.caml_ml_close_channel(chanid)
@@ -741,7 +753,7 @@ test("High-level API complete roundtrip: integer", function()
   local original = 54321
 
   -- Write using high-level API
-  local fd_out = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
   local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
   marshal.to_channel(chan_out, original)
   io_module.caml_ml_flush(chan_out)
@@ -749,7 +761,7 @@ test("High-level API complete roundtrip: integer", function()
   io_module.caml_sys_close(fd_out)
 
   -- Read using high-level API
-  local fd_in = io_module.caml_sys_open(filename, {0, 6}, 0)
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
   local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
   local result = marshal.from_channel(chan_in)
   io_module.caml_ml_close_channel(chan_in)
@@ -764,7 +776,7 @@ test("High-level API complete roundtrip: string", function()
   local original = "High-level marshal API!"
 
   -- Write using high-level API
-  local fd_out = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
   local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
   marshal.to_channel(chan_out, original)
   io_module.caml_ml_flush(chan_out)
@@ -772,7 +784,7 @@ test("High-level API complete roundtrip: string", function()
   io_module.caml_sys_close(fd_out)
 
   -- Read using high-level API
-  local fd_in = io_module.caml_sys_open(filename, {0, 6}, 0)
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
   local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
   local result = marshal.from_channel(chan_in)
   io_module.caml_ml_close_channel(chan_in)
@@ -787,7 +799,7 @@ test("High-level API complete roundtrip: float array", function()
   local original = {tag = 254, values = {10.1, 20.2, 30.3}}
 
   -- Write using high-level API
-  local fd_out = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
   local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
   marshal.to_channel(chan_out, original)
   io_module.caml_ml_flush(chan_out)
@@ -795,7 +807,7 @@ test("High-level API complete roundtrip: float array", function()
   io_module.caml_sys_close(fd_out)
 
   -- Read using high-level API
-  local fd_in = io_module.caml_sys_open(filename, {0, 6}, 0)
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
   local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
   local result = marshal.from_channel(chan_in)
   io_module.caml_ml_close_channel(chan_in)
@@ -813,7 +825,7 @@ test("High-level API: multiple values", function()
   local filename = make_temp_file()
 
   -- Write multiple values using high-level API
-  local fd_out = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
   local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
   marshal.to_channel(chan_out, 11)
   marshal.to_channel(chan_out, "two")
@@ -823,7 +835,7 @@ test("High-level API: multiple values", function()
   io_module.caml_sys_close(fd_out)
 
   -- Read multiple values using high-level API
-  local fd_in = io_module.caml_sys_open(filename, {0, 6}, 0)
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
   local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
   local v1 = marshal.from_channel(chan_in)
   local v2 = marshal.from_channel(chan_in)
@@ -842,7 +854,7 @@ test("High-level API: large data", function()
   local original = string.rep("Y", 8000)  -- 8KB string
 
   -- Write using high-level API
-  local fd_out = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
   local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
   marshal.to_channel(chan_out, original)
   io_module.caml_ml_flush(chan_out)
@@ -850,7 +862,7 @@ test("High-level API: large data", function()
   io_module.caml_sys_close(fd_out)
 
   -- Read using high-level API
-  local fd_in = io_module.caml_sys_open(filename, {0, 6}, 0)
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
   local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
   local result = marshal.from_channel(chan_in)
   io_module.caml_ml_close_channel(chan_in)
@@ -866,7 +878,7 @@ test("High-level API with No_sharing: complete roundtrip", function()
   local original = 888
 
   -- Write using high-level API with No_sharing
-  local fd_out = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
   local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
   marshal.to_channel(chan_out, original, {marshal.No_sharing})
   io_module.caml_ml_flush(chan_out)
@@ -874,7 +886,7 @@ test("High-level API with No_sharing: complete roundtrip", function()
   io_module.caml_sys_close(fd_out)
 
   -- Read using high-level API
-  local fd_in = io_module.caml_sys_open(filename, {0, 6}, 0)
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
   local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
   local result = marshal.from_channel(chan_in)
   io_module.caml_ml_close_channel(chan_in)
@@ -890,7 +902,7 @@ test("High-level API: mixed with low-level API", function()
   local original2 = "mixed"
 
   -- Write first value with high-level, second with low-level
-  local fd_out = io_module.caml_sys_open(filename, {1, 3, 4, 6}, 0)
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
   local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
   marshal.to_channel(chan_out, original1)
   io_module.caml_output_value(chan_out, original2, nil)
@@ -899,7 +911,7 @@ test("High-level API: mixed with low-level API", function()
   io_module.caml_sys_close(fd_out)
 
   -- Read first value with high-level, second with low-level
-  local fd_in = io_module.caml_sys_open(filename, {0, 6}, 0)
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
   local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
   local result1 = marshal.from_channel(chan_in)
   local result2 = io_module.caml_input_value(chan_in)
@@ -908,6 +920,292 @@ test("High-level API: mixed with low-level API", function()
 
   assert_eq(result1, original1, "High-level write/read")
   assert_eq(result2, original2, "Low-level write/read")
+  cleanup_temp_file(filename)
+end)
+
+--
+-- Phase 4: Integration Tests (Task 1.4)
+--
+
+-- Test: Complete file roundtrip with simple data
+test("marshal complete file roundtrip with simple data", function()
+  local filename = make_temp_file()
+
+  -- Create simple structure (marshal doesn't support complex nested tables yet)
+  local original = "complete_roundtrip_test_string"
+
+  -- Write to file
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  marshal.to_channel(chan_out, original, {})
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+
+  -- Read from file
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result = marshal.from_channel(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+
+  -- Verify structure
+  assert_eq(result, original)
+
+  cleanup_temp_file(filename)
+end)
+
+-- Test: Large data structure (>10KB string)
+test("marshal large data structure", function()
+  local filename = make_temp_file()
+
+  -- Create large string (15KB)
+  local original = string.rep("LargeDataTest_", 1000)  -- ~14KB
+
+  -- Write to file
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  marshal.to_channel(chan_out, original, {})
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+
+  -- Read from file
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result = marshal.from_channel(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+
+  -- Verify size and content
+  assert_eq(#result, #original)
+  assert_eq(string.sub(result, 1, 14), "LargeDataTest_")
+  assert_eq(result, original)
+
+  cleanup_temp_file(filename)
+end)
+
+-- Test: Marshal with sharing disabled (No_sharing flag)
+test("marshal with No_sharing flag", function()
+  local filename = make_temp_file()
+
+  -- Simple value with No_sharing flag
+  local original = 42
+
+  -- Write with No_sharing flag
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  marshal.to_channel(chan_out, original, {0})  -- No_sharing = 0
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+
+  -- Read from file
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result = marshal.from_channel(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+
+  -- Verify value
+  assert_eq(result, 42)
+
+  cleanup_temp_file(filename)
+end)
+
+-- Test: Marshal with sharing enabled (default behavior)
+test("marshal with sharing enabled", function()
+  local filename = make_temp_file()
+
+  -- Simple value with sharing enabled (default)
+  local original = "sharing_test"
+
+  -- Write with default flags (sharing enabled)
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  marshal.to_channel(chan_out, original, {})
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+
+  -- Read from file
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result = marshal.from_channel(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+
+  -- Verify value
+  assert_eq(result, "sharing_test")
+
+  cleanup_temp_file(filename)
+end)
+
+-- Test: Error handling - truncated header in file
+test("marshal error handling - truncated header", function()
+  local filename = make_temp_file()
+
+  -- Write partial header (only 10 bytes of 20) using low-level file I/O
+  local file = io.open(filename, "wb")
+  local partial_header = "\x84\x95\xA6\xBE\x00\x00\x00\x08\x00\x00"
+  file:write(partial_header)
+  file:close()
+
+  -- Try to read - should error
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local success, err = pcall(function()
+    marshal.from_channel(chan_in)
+  end)
+  io_module.caml_ml_close_channel(chan_in)
+  io_module.caml_sys_close(fd_in)
+
+  assert_true(not success, "Should fail on truncated header")
+  assert_true(string.find(tostring(err), "truncated") ~= nil, "Error should mention truncation")
+
+  cleanup_temp_file(filename)
+end)
+
+-- Test: Error handling - truncated data in file
+test("marshal error handling - truncated data", function()
+  local filename = make_temp_file()
+
+  -- Create valid marshal data
+  local original = "test_string"
+  local marshalled = marshal.to_string(original, {})
+
+  -- Write header + partial data (truncate last 5 bytes) using low-level file I/O
+  local file = io.open(filename, "wb")
+  local truncated = string.sub(marshalled, 1, #marshalled - 5)
+  file:write(truncated)
+  file:close()
+
+  -- Try to read - should error
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local success, err = pcall(function()
+    marshal.from_channel(chan_in)
+  end)
+  io_module.caml_ml_close_channel(chan_in)
+  io_module.caml_sys_close(fd_in)
+
+  assert_true(not success, "Should fail on truncated data")
+  assert_true(string.find(tostring(err), "truncated") ~= nil, "Error should mention truncation")
+
+  cleanup_temp_file(filename)
+end)
+
+-- Test: Error handling - corrupted magic number
+test("marshal error handling - corrupted magic number", function()
+  local filename = make_temp_file()
+
+  -- Write invalid magic number using low-level file I/O
+  local file = io.open(filename, "wb")
+  local invalid_header = "\xFF\xFF\xFF\xFF\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+  local fake_data = "12345678"
+  file:write(invalid_header .. fake_data)
+  file:close()
+
+  -- Try to read - should error
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local success, err = pcall(function()
+    marshal.from_channel(chan_in)
+  end)
+  io_module.caml_ml_close_channel(chan_in)
+  io_module.caml_sys_close(fd_in)
+
+  assert_true(not success, "Should fail on corrupted magic")
+
+  cleanup_temp_file(filename)
+end)
+
+-- Test: Binary mode preserves exact bytes
+test("marshal binary mode preserves exact bytes", function()
+  local filename = make_temp_file()
+
+  -- Create string with special bytes (NUL, high-bit chars)
+  local original = string.char(0, 1, 127, 128, 255)
+
+  -- Write to file in binary mode
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  marshal.to_channel(chan_out, original, {})
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+
+  -- Read from file in binary mode
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result = marshal.from_channel(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+
+  -- Verify exact byte preservation
+  assert_eq(result, string.char(0, 1, 127, 128, 255))
+
+  cleanup_temp_file(filename)
+end)
+
+-- Test: Multiple large values in sequence
+test("marshal multiple large values in sequence", function()
+  local filename = make_temp_file()
+
+  -- Create three large strings
+  local struct1 = string.rep("A", 1000)
+  local struct2 = string.rep("B", 2000)
+  local struct3 = string.rep("C", 1500)
+
+  -- Write all three to file
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  marshal.to_channel(chan_out, struct1, {})
+  marshal.to_channel(chan_out, struct2, {})
+  marshal.to_channel(chan_out, struct3, {})
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+
+  -- Read all three from file
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result1 = marshal.from_channel(chan_in)
+  local result2 = marshal.from_channel(chan_in)
+  local result3 = marshal.from_channel(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+
+  -- Verify all three values
+  assert_eq(#result1, 1000)
+  assert_eq(string.sub(result1, 1, 1), "A")
+  assert_eq(#result2, 2000)
+  assert_eq(string.sub(result2, 1, 1), "B")
+  assert_eq(#result3, 1500)
+  assert_eq(string.sub(result3, 1, 1), "C")
+
+  cleanup_temp_file(filename)
+end)
+
+-- Test: Very large single value (string > 50KB)
+test("marshal very large string (>50KB)", function()
+  local filename = make_temp_file()
+
+  -- Create 60KB string
+  local parts = {}
+  for i = 1, 6000 do
+    parts[i] = "0123456789"
+  end
+  local original = table.concat(parts)
+
+  -- Write to file
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  marshal.to_channel(chan_out, original, {})
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+  io_module.caml_sys_close(fd_out)
+
+  -- Read from file
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result = marshal.from_channel(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+  io_module.caml_sys_close(fd_in)
+
+  -- Verify size and content
+  assert_eq(#result, 60000)
+  assert_eq(string.sub(result, 1, 10), "0123456789")
+  assert_eq(string.sub(result, 59991, 60000), "0123456789")
+
   cleanup_temp_file(filename)
 end)
 
