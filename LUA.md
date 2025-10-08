@@ -526,13 +526,28 @@ This document outlines the implementation plan for adding Lua as a compilation t
 - **Test Results**: ✅ 31/31 tests pass on Lua 5.1, 5.4, and LuaJIT
 - **Commit**: "feat: Implement bigarray support"
 
-#### Task 11.3: Marshal/Unmarshal
+#### Task 11.3: Marshal/Unmarshal 🔄
 - [ ] Implement value serialization
 - [ ] Support cyclic structures
 - [ ] Add versioning support
-- **Output**: ~300 lines
-- **Test**: Marshalling roundtrip tests
-- **Commit**: "feat: Add marshal/unmarshal support"
+- **Status**: Replaced with comprehensive plan → See `runtime/lua/MARSHAL.md`
+- **Plan**: 442-line specification with 8 phases, 23 tasks
+- **Estimated Output**: ~2780 lines total
+  - Code: ~1900 lines (marshal.lua)
+  - Tests: ~530 lines (test_marshal.lua)
+  - Docs: ~350 lines
+- **Phases**:
+  1. Core Infrastructure (binary I/O, headers, magic numbers)
+  2. Value Marshalling (immediate, structured, sharing)
+  3. Value Unmarshalling (parsing, reconstruction, sharing resolution)
+  4. Custom Blocks (Int64, Bigarray, extensibility)
+  5. Advanced Features (compression, flags, special tags)
+  6. API and Integration (public API, error handling)
+  7. Testing and Validation (unit, roundtrip, compatibility, performance)
+  8. Documentation (implementation, user guide)
+- **Note**: This is a major subsystem requiring exact OCaml format compatibility
+- **Next Steps**: Implement Phase 1, Task 1.1 from MARSHAL.md
+- **Reference**: `runtime/js/marshal.js` (831 lines), OCaml stdlib `marshal.ml`
 
 #### Task 11.4: Unix Module Subset
 - [ ] Implement time functions
