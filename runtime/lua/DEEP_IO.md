@@ -249,19 +249,28 @@ The I/O system is a critical part of the OCaml runtime, providing:
 - **Test**: ✅ 28/28 tests pass (2 create + 3 char + 4 string + 5 substring + 3 contents + 3 reset + 2 mixed + 4 printf + 2 performance)
 - **Commit**: "feat(buffer): Implement extensible string buffers"
 
-#### Task 3.2: Queue Module
-- [ ] Create `runtime/lua/queue.lua`
-- [ ] Implement FIFO queue operations
-  - caml_queue_create
-  - caml_queue_add (enqueue)
-  - caml_queue_take (dequeue)
-  - caml_queue_peek
-  - caml_queue_is_empty
-  - caml_queue_length
-  - caml_queue_clear
-- [ ] Handle Queue.Empty exception
-- **Output**: ~120 lines
-- **Test**: Queue operations tests
+#### Task 3.2: Queue Module ✅
+- [x] Create `runtime/lua/queue.lua`
+- [x] Implement FIFO queue operations
+  - ✅ caml_queue_create: Create new empty queue
+  - ✅ caml_queue_add: Add element to end (enqueue)
+  - ✅ caml_queue_take: Remove and return first element (dequeue)
+  - ✅ caml_queue_peek: View first element without removing
+  - ✅ caml_queue_is_empty: Check if queue is empty
+  - ✅ caml_queue_length: Get number of elements
+  - ✅ caml_queue_clear: Remove all elements
+- [x] Handle Queue.Empty exception
+  - ✅ Raises error("Queue.Empty") on take/peek from empty queue
+  - ✅ Consistent error handling across operations
+- [x] Bonus: Iterator and utility functions
+  - ✅ caml_queue_iter: Iterator for foreach-style loops
+  - ✅ caml_queue_to_array: Convert to array for debugging
+- [x] Efficient implementation
+  - ✅ Index-based implementation with head/tail pointers
+  - ✅ Automatic index reset when queue becomes empty
+  - ✅ Garbage collection support (nil cleared elements)
+- **Output**: 138 lines (queue.lua) + 332 lines (test_queue.lua) = 470 lines
+- **Test**: ✅ 30/30 tests pass (1 create + 3 add + 4 take + 3 peek + 3 empty + 2 length + 3 clear + 4 iter + 2 array + 2 mixed + 3 performance)
 - **Commit**: "feat(queue): Implement FIFO queue operations"
 
 #### Task 3.3: Stack Module
