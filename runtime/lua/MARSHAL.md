@@ -408,17 +408,17 @@ The Marshal module provides serialization and deserialization of OCaml values to
 - **Commit**: "test(marshal): Add comprehensive unit tests"
 
 #### Task 7.2: Roundtrip Tests
-- [ ] Test marshal → unmarshal roundtrips
-- [ ] Test various data structures
-  - Lists
-  - Trees
-  - Graphs with cycles
-  - Records
-  - Variants
-- [ ] Test custom types
-- [ ] Test large data
-- **Output**: ~150 lines
-- **Test**: Roundtrip validation
+- [x] Test marshal → unmarshal roundtrips
+- [x] Test various data structures
+  - Lists (empty, single, multiple, long)
+  - Trees (leaf, single node, balanced, deep)
+  - Graphs with cycles (self-ref, 2-node, 3-node, DAG)
+  - Records (simple, nested, optional fields, large)
+  - Variants (None/Some, Ok/Error, complex constructors)
+- [x] Test custom types (Int64, Int32, records with custom, lists of custom)
+- [x] Test large data (1MB string, 1000-element arrays/lists, deep nesting, wide graphs)
+- **Output**: 456 lines (test_marshal_roundtrip.lua)
+- **Tests**: 35 comprehensive roundtrip tests for realistic OCaml data structures
 - **Commit**: "test(marshal): Add roundtrip tests"
 
 #### Task 7.3: Compatibility Tests
