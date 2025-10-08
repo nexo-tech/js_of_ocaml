@@ -594,15 +594,23 @@ The I/O system is a critical part of the OCaml runtime, providing:
   - Comparison: 2.3M ops/sec (int compare), 1.1M ops/sec (int equal)
   - Hashing: 594K ops/sec (int hash), 227K ops/sec (string 10 chars)
 
-#### Task 9.3: Documentation
-- [ ] Document channel API
-- [ ] Document marshal channel integration
-- [ ] Document format module usage
-- [ ] Document data structure modules
-- [ ] Add usage examples
-- [ ] Document limitations and platform differences
-- **Output**: ~400 lines (markdown)
+#### Task 9.3: Documentation ✅
+- [x] Document channel API
+- [x] Document marshal channel integration
+- [x] Document format module usage
+- [x] Document data structure modules
+- [x] Add usage examples
+- [x] Document limitations and platform differences
+- **Output**: 898 lines (IO_GUIDE.md)
 - **Commit**: "docs(io): Add comprehensive I/O documentation"
+- **Documentation includes**:
+  - Complete channel API reference with all functions
+  - Marshal channel integration with examples
+  - Format module (Printf/Scanf) usage guide
+  - Data structure modules (Map, Set, Hashtable, Buffer, Stream)
+  - 5 comprehensive usage examples
+  - Detailed limitations and platform differences
+  - Performance considerations and best practices
 
 ### Phase 10: Advanced Features (Optional)
 
