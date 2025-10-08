@@ -495,21 +495,23 @@ The I/O system is a critical part of the OCaml runtime, providing:
 
 ### Phase 7: Advanced Collections
 
-#### Task 7.1: Map Module (Balanced Trees)
-- [ ] Create `runtime/lua/map.lua`
-- [ ] Implement AVL tree or Red-Black tree
-- [ ] Implement caml_map_empty
-- [ ] Implement caml_map_add
-- [ ] Implement caml_map_find
-- [ ] Implement caml_map_find_opt
-- [ ] Implement caml_map_remove
-- [ ] Implement caml_map_mem
-- [ ] Implement caml_map_iter
-- [ ] Implement caml_map_fold
-- [ ] Implement caml_map_for_all
-- [ ] Implement tree balancing
-- **Output**: ~400 lines
-- **Test**: Map operations and balancing tests
+#### Task 7.1: Map Module (Balanced Trees) ✅
+- [x] Create `runtime/lua/map.lua`
+- [x] Implement AVL tree (height-balanced binary search tree)
+- [x] Implement caml_map_empty
+- [x] Implement caml_map_add
+- [x] Implement caml_map_find
+- [x] Implement caml_map_find_opt
+- [x] Implement caml_map_remove
+- [x] Implement caml_map_mem
+- [x] Implement caml_map_iter
+- [x] Implement caml_map_fold
+- [x] Implement caml_map_for_all
+- [x] Implement additional operations (exists, cardinal, is_empty, map, mapi, filter)
+- [x] Implement tree balancing (AVL rotations: left, right, left-right, right-left)
+- [x] Balance factor tracking and rebalancing after add/remove
+- **Output**: 542 lines (map.lua) + 582 lines (test_map.lua) = 1124 lines
+- **Test**: ✅ 33/33 tests pass (basic ops, iteration, folding, balancing, large datasets, edge cases, performance)
 - **Commit**: "feat(map): Implement balanced tree maps"
 
 #### Task 7.2: Set Module (Balanced Trees)
