@@ -121,19 +121,19 @@ The Marshal module provides serialization and deserialization of OCaml values to
 
 ### Phase 2: Value Marshalling (Serialization)
 
-#### Task 2.1: Immediate Values
-- [ ] Marshal small integers (0x40-0x7F)
-- [ ] Marshal small strings (0x20-0x3F)
-- [ ] Marshal small blocks (0x80-0xFF)
-- [ ] Marshal extended integers
+#### Task 2.1: Immediate Values ✅
+- [x] Marshal small integers (0x40-0x7F)
+- [x] Marshal small strings (0x20-0x3F)
+- [x] Marshal small blocks (0x80-0xFF)
+- [x] Marshal extended integers
   - INT8 (0x00)
   - INT16 (0x01)
   - INT32 (0x02)
-- [ ] Marshal extended strings
+- [x] Marshal extended strings
   - STRING8 (0x09)
   - STRING32 (0x0A)
-- **Output**: ~120 lines
-- **Test**: Immediate value roundtrip tests
+- **Output**: 734 lines total (390 code + 344 tests)
+- **Test**: ✅ 43/43 tests pass (Lua 5.4, LuaJIT)
 - **Commit**: "feat(marshal): Marshal immediate values"
 
 #### Task 2.2: Structured Values
