@@ -158,107 +158,23 @@ Fix LuaJIT-specific issues with mlBytes and obj modules.
 
 **Checkpoint**: ✅ LuaJIT - 11/14 modules fully tested (79%), excellent compatibility
 
-### Phase 3: Luau Compatibility (Week 3-4)
+### Phase 3: Automated Testing Infrastructure
 
-Add support for Luau (Roblox's Lua variant).
+Create comprehensive automated testing across Lua 5.1, 5.4, and LuaJIT.
 
-#### Task 3.1: Set up Luau test environment ✅
-- [x] Install Luau via nix (nixpkgs#luau)
-- [x] Verify Luau version and features
-- [x] Create Luau test runner script
-- [x] Document Luau-specific differences
-- **Files**: `runtime/lua/test_luau_runner.sh` (new), `runtime/lua/LUAU_NOTES.md` (new)
-- **Output**: 210 lines (test runner) + 390 lines (documentation)
-- **Test**: Can execute Luau code via nix ✅
-- **Luau Version**: 0.693
-- **Key Findings**:
-  - ✅ `loadstring()` IS available (better than expected!)
-  - ✅ `setfenv()`, `getfenv()`, `unpack()`, `table.unpack()` all available
-  - ❌ **CRITICAL**: `require()` needs `./` prefix (e.g., `require("./core")`)
-  - ✅ Extended stdlib: `table.create`, `math.clamp`, `string.split`, buffers
-  - ✅ Gradual type system (optional)
-  - ✅ Native codegen available (`--codegen`)
-- **Blocker Identified**: Module system requires path prefixes - biggest compatibility hurdle
-- **Commit**: "test: Add Luau test environment setup"
-
-#### Task 3.2: Test core modules on Luau
-- [ ] Run core module tests on Luau
-- [ ] Identify syntax incompatibilities
-- [ ] Document type system differences
-- [ ] Note standard library differences
-- **Files**: Documentation
-- **Output**: Compatibility report
-- **Test**: Identify all breaking changes
-- **Commit**: "test: Initial Luau compatibility assessment"
-
-#### Task 3.3: Fix Luau loadstring compatibility
-- [ ] Replace loadstring with Luau alternatives
-- [ ] Handle absence of loadstring function
-- [ ] Use alternative code loading mechanisms
-- [ ] Test dynamic code execution
-- **Files**: Modules using loadstring
-- **Output**: ~50 lines (compatibility layer)
-- **Test**: Code loading works on Luau
-- **Commit**: "fix: Add Luau loadstring compatibility"
-
-#### Task 3.4: Fix Luau module system differences
-- [ ] Adapt to Luau module system
-- [ ] Handle require() differences
-- [ ] Test module.exports vs return
-- [ ] Ensure module isolation
-- **Files**: All runtime modules
-- **Output**: ~30 lines (module system adaptation)
-- **Test**: All modules load on Luau
-- **Commit**: "fix: Adapt module system for Luau"
-
-#### Task 3.5: Handle Luau type system
-- [ ] Add type annotations where beneficial
-- [ ] Ensure type inference doesn't break runtime
-- [ ] Test with --!strict mode
-- [ ] Document type-related limitations
-- **Files**: Runtime modules (optional type annotations)
-- **Output**: ~100 lines (type annotations)
-- **Test**: Modules work with type checking
-- **Commit**: "feat: Add Luau type annotations"
-
-#### Task 3.6: Fix Luau standard library differences
-- [ ] Handle missing functions (e.g., table.getn)
-- [ ] Adapt to different string library
-- [ ] Handle math library differences
-- [ ] Test all stdlib usage
-- **Files**: Modules using stdlib functions
-- **Output**: ~80 lines (stdlib compatibility)
-- **Test**: All stdlib calls work on Luau
-- **Commit**: "fix: Add Luau standard library compatibility"
-
-#### Task 3.7: Verify Luau full compatibility
-- [ ] Run all tests on Luau
-- [ ] Fix any remaining issues
-- [ ] Update compatibility matrix
-- [ ] Document Luau specific notes
-- **Output**: Updated documentation
-- **Test**: All 13 modules pass on Luau
-- **Commit**: "test: Verify Luau full compatibility"
-
-**Checkpoint**: ✅ Luau - 13/13 modules compatible
-
-### Phase 4: Automated Testing Infrastructure (Week 5)
-
-Create comprehensive automated testing across all Lua versions.
-
-#### Task 4.1: Create unified test matrix runner
+#### Task 3.1: Create unified test matrix runner
 - [ ] Build single script to test all versions
 - [ ] Generate HTML compatibility matrix
 - [ ] Add performance comparison
 - [ ] Create detailed error reports
 - **Files**: `runtime/lua/test_all_versions.sh` (new)
 - **Output**: ~300 lines (comprehensive test suite)
-- **Test**: Runs tests on all 4 Lua variants
+- **Test**: Runs tests on Lua 5.1, 5.4, and LuaJIT
 - **Commit**: "test: Add unified multi-version test runner"
 
-#### Task 4.2: Add GitHub Actions CI
+#### Task 3.2: Add GitHub Actions CI
 - [ ] Create `.github/workflows/lua-compat.yml`
-- [ ] Test on Lua 5.1, 5.4, LuaJIT, Luau
+- [ ] Test on Lua 5.1, 5.4, LuaJIT
 - [ ] Generate compatibility reports
 - [ ] Upload test results as artifacts
 - **Files**: `.github/workflows/lua-compat.yml` (new)
@@ -266,7 +182,7 @@ Create comprehensive automated testing across all Lua versions.
 - **Test**: CI runs on every commit
 - **Commit**: "ci: Add Lua compatibility testing to GitHub Actions"
 
-#### Task 4.3: Create compatibility badge generator
+#### Task 3.3: Create compatibility badge generator
 - [ ] Generate SVG badges for each Lua version
 - [ ] Show pass/fail status
 - [ ] Include in README.md
@@ -276,7 +192,7 @@ Create comprehensive automated testing across all Lua versions.
 - **Test**: Badges display correctly
 - **Commit**: "docs: Add Lua compatibility badges"
 
-#### Task 4.4: Add regression testing
+#### Task 3.4: Add regression testing
 - [ ] Store baseline test results
 - [ ] Compare new results against baseline
 - [ ] Flag any new failures
@@ -286,13 +202,13 @@ Create comprehensive automated testing across all Lua versions.
 - **Test**: Detects compatibility regressions
 - **Commit**: "test: Add compatibility regression testing"
 
-**Checkpoint**: ✅ Automated testing for all Lua versions
+**Checkpoint**: ✅ Automated testing for Lua 5.1, 5.4, and LuaJIT
 
-### Phase 5: Documentation and Best Practices (Week 6)
+### Phase 4: Documentation and Best Practices
 
 Document compatibility practices and guidelines.
 
-#### Task 5.1: Create compatibility guide
+#### Task 4.1: Create compatibility guide
 - [ ] Write developer guide for writing compatible code
 - [ ] Document version-specific features
 - [ ] Provide code examples
@@ -302,7 +218,7 @@ Document compatibility practices and guidelines.
 - **Test**: Documentation is clear and accurate
 - **Commit**: "docs: Add Lua compatibility development guide"
 
-#### Task 5.2: Update COMPAT_MATRIX.md
+#### Task 4.2: Update COMPAT_MATRIX.md
 - [ ] Mark all modules as compatible
 - [ ] Document version-specific notes
 - [ ] Add performance comparisons
@@ -312,7 +228,7 @@ Document compatibility practices and guidelines.
 - **Test**: Matrix is accurate
 - **Commit**: "docs: Update compatibility matrix to 100%"
 
-#### Task 5.3: Create version feature matrix
+#### Task 4.3: Create version feature matrix
 - [ ] Document which features work on which versions
 - [ ] List version-specific optimizations
 - [ ] Note performance characteristics
@@ -322,7 +238,7 @@ Document compatibility practices and guidelines.
 - **Test**: Helps users choose Lua version
 - **Commit**: "docs: Add Lua version feature comparison"
 
-#### Task 5.4: Add compatibility examples
+#### Task 4.4: Add compatibility examples
 - [ ] Create example programs for each version
 - [ ] Show version-specific code patterns
 - [ ] Demonstrate compatibility layers
