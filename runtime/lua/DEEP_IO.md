@@ -381,20 +381,39 @@ The I/O system is a critical part of the OCaml runtime, providing:
 
 ### Phase 5: Lexing and Parsing Support
 
-#### Task 5.1: Lexing Module
-- [ ] Create `runtime/lua/lexing.lua`
-- [ ] Implement lexbuf structure
-  - Input buffer management
-  - Position tracking (lex_start_p, lex_curr_p)
-  - Token boundaries
-- [ ] Implement caml_lex_engine (DFA-based lexer)
-- [ ] Implement position tracking
-  - Line numbers
-  - Column numbers
-  - Character offsets
-- [ ] Handle input sources (string, channel, function)
-- **Output**: ~300 lines
-- **Test**: Lexer position tracking tests
+#### Task 5.1: Lexing Module ✅
+- [x] Create `runtime/lua/lexing.lua`
+- [x] Implement lexbuf structure
+  - ✅ Input buffer management (byte arrays)
+  - ✅ Position tracking (lex_start_p, lex_curr_p)
+  - ✅ Token boundaries (start_pos, curr_pos)
+  - ✅ EOF handling
+  - ✅ Memory for position tracking
+- [x] Implement caml_lex_engine (DFA-based lexer)
+  - ✅ Transition table parsing (caml_lex_array)
+  - ✅ DFA state machine execution
+  - ✅ Backtracking support
+  - ✅ EOF pseudo-character (256)
+  - ✅ Table caching for performance
+- [x] Implement position tracking
+  - ✅ Line numbers (pos_lnum)
+  - ✅ Beginning of line (pos_bol)
+  - ✅ Character offsets (pos_cnum)
+  - ✅ caml_new_line for newline tracking
+- [x] Handle input sources
+  - ✅ String input (caml_create_lexbuf_from_string)
+  - ✅ Channel input (caml_create_lexbuf_from_channel)
+  - ✅ Refill function support
+- [x] Lexeme extraction functions
+  - ✅ caml_lexeme: byte array extraction
+  - ✅ caml_lexeme_string: Lua string extraction
+  - ✅ caml_lexeme_start, caml_lexeme_end: positions
+  - ✅ caml_lexeme_start_p, caml_lexeme_end_p: position records
+  - ✅ caml_lexeme_char: character at offset
+- [x] Buffer management
+  - ✅ caml_flush_lexbuf: reset buffer
+- **Output**: 337 lines (lexing.lua) + 439 lines (test_lexing.lua) = 776 lines
+- **Test**: ✅ 33/33 tests pass
 - **Commit**: "feat(lexing): Implement lexer support"
 
 #### Task 5.2: Parsing Module
