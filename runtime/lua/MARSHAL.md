@@ -80,25 +80,25 @@ The Marshal module provides serialization and deserialization of OCaml values to
 
 ### Phase 1: Core Infrastructure (Foundation)
 
-#### Task 1.1: Binary Reader/Writer
-- [ ] Implement byte buffer reader
+#### Task 1.1: Binary Reader/Writer ✅
+- [x] Implement byte buffer reader
   - read8u/read8s (unsigned/signed 8-bit)
   - read16u/read16s (unsigned/signed 16-bit)
   - read32u/read32s (unsigned/signed 32-bit)
   - readstr(len) (string of length)
   - Position tracking and bounds checking
-- [ ] Implement byte buffer writer
+- [x] Implement byte buffer writer
   - write8u (unsigned 8-bit)
   - write16u (unsigned 16-bit)
   - write32u (unsigned 32-bit)
   - writestr(str) (string bytes)
   - Buffer management and resizing
-- [ ] Handle endianness
-  - Big-endian encoding
-  - Little-endian encoding
-  - Platform detection
-- **Output**: ~150 lines
-- **Test**: Reader/writer roundtrip tests
+- [x] Handle endianness
+  - Big-endian encoding (default for OCaml marshal)
+  - Little-endian encoding (for doubles)
+  - IEEE 754 double support (both endiannesses)
+- **Output**: 890 lines total (442 code + 448 tests)
+- **Test**: ✅ 29/29 tests pass (Lua 5.4), 23/23 (Lua 5.1/LuaJIT - no float tests)
 - **Commit**: "feat(marshal): Add binary reader/writer"
 
 #### Task 1.2: Magic Number and Header
