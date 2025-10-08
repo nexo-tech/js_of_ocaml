@@ -65,7 +65,8 @@ function M.caml_hash_mix_int(h, d)
   d = mul32(d, 0x1b873593)
   h = bit_xor(h, d)
   h = bit_or(bit_lshift(h, 13), bit_rshift(h, 19))  -- ROTL32(h, 13)
-  h = to_int32(bit_or(mul32(h + mul32(h, 4), 1), 0xe6546b64))
+  -- h = ((h + (h << 2)) | 0) + 0xe6546b64
+  h = to_int32(to_int32(h + bit_lshift(h, 2)) + 0xe6546b64)
   return h
 end
 
@@ -212,6 +213,7 @@ function M.caml_hash(count, limit, seed, obj)
       -- OCaml block with tag
       local tag_value = bit_or(bit_lshift(#v, 10), v.tag)
       h = M.caml_hash_mix_int(h, to_int32(tag_value))
+      -- Note: Don't decrement num for blocks, only for atoms
 
       -- Add block fields to queue (up to size limit)
       for i = 1, #v do
@@ -225,6 +227,7 @@ function M.caml_hash(count, limit, seed, obj)
       -- Generic table - hash as array
       -- Mix in the table size
       h = M.caml_hash_mix_int(h, to_int32(#v))
+      -- Note: Don't decrement num for tables, only for atoms
 
       -- Add array elements to queue
       for i = 1, #v do
