@@ -1,6 +1,11 @@
 -- Lua_of_ocaml runtime support
 -- I/O operations for OCaml channels and file descriptors
 
+-- Load dependencies
+local marshal = require("marshal")
+local marshal_header = require("marshal_header")
+local fail = require("fail")
+
 -- File descriptor table (similar to caml_sys_fds in JS runtime)
 local caml_sys_fds = {}
 
@@ -293,10 +298,65 @@ function caml_ml_input_scan_line(chanid)
   return -(#chan.buffer - chan.buffer_pos + 1)
 end
 
+-- Read marshalled value from input channel
+-- This reads a complete marshal format (header + data) from a channel
 function caml_input_value(chanid)
-  error("caml_input_value: marshaling not yet supported in Lua backend")
+  local chan = caml_ml_channels[chanid]
+  if not chan or not chan.opened then
+    error("caml_input_value: channel is closed")
+  end
+
+  -- Standard header is 20 bytes
+  local header_size = 20
+  local header_buf = {}
+
+  -- Read header (20 bytes)
+  local header_read = caml_ml_input(chanid, header_buf, 0, header_size)
+
+  -- Check for EOF
+  if header_read == 0 then
+    fail.raise_end_of_file()
+  end
+
+  -- Check for truncated header
+  if header_read < header_size then
+    error("input_value: truncated object (incomplete header)")
+  end
+
+  -- Convert header buffer to string for parsing
+  local header_chars = {}
+  for i = 1, header_size do
+    table.insert(header_chars, string.char(header_buf[i]))
+  end
+  local header_str = table.concat(header_chars)
+
+  -- Parse header to get data length
+  local data_len = marshal.data_size(header_str, 0)
+
+  -- Read data
+  local data_buf = {}
+  local data_read = caml_ml_input(chanid, data_buf, 0, data_len)
+
+  -- Check for truncated data
+  if data_read < data_len then
+    error(string.format("input_value: truncated object (expected %d bytes, got %d)", data_len, data_read))
+  end
+
+  -- Convert data buffer to string
+  local data_chars = {}
+  for i = 1, data_len do
+    table.insert(data_chars, string.char(data_buf[i]))
+  end
+  local data_str = table.concat(data_chars)
+
+  -- Combine header + data and unmarshal
+  local complete_str = header_str .. data_str
+  local result = marshal.from_bytes(complete_str, 0)
+
+  return result
 end
 
+-- Alias for compatibility (OCaml 5.0+)
 function caml_input_value_to_outside_heap(chanid)
   return caml_input_value(chanid)
 end

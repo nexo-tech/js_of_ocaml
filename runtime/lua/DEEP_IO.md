@@ -65,17 +65,19 @@ The I/O system is a critical part of the OCaml runtime, providing:
 
 ### Phase 1: Marshal Channel Integration
 
-#### Task 1.1: Marshal Input from Channels
-- [ ] Implement `caml_input_value(chanid)` in io.lua
-  - Read marshal header from channel
-  - Read data based on header.data_len
-  - Call marshal.from_bytes() with complete data
-  - Handle EOF and truncated data
-- [ ] Implement `caml_input_value_to_outside_heap(chanid)` (alias)
-- [ ] Handle buffered channel reads correctly
-- [ ] Preserve channel offset tracking
-- **Output**: ~60 lines
-- **Test**: Roundtrip marshal to/from file channels
+#### Task 1.1: Marshal Input from Channels ✅
+- [x] Implement `caml_input_value(chanid)` in io.lua
+  - ✅ Read marshal header from channel (20 bytes)
+  - ✅ Read data based on header.data_len
+  - ✅ Call marshal.from_bytes() with complete data
+  - ✅ Handle EOF and truncated data
+- [x] Implement `caml_input_value_to_outside_heap(chanid)` (alias)
+- [x] Handle buffered channel reads correctly
+  - ✅ Uses caml_ml_input which handles buffering
+- [x] Preserve channel offset tracking
+  - ✅ caml_ml_input updates channel.offset
+- **Output**: 457 lines total (60 code + 397 tests)
+- **Test**: ✅ 14 roundtrip tests (integers, strings, floats, blocks, arrays, multiple values, EOF, truncation, binary mode)
 - **Commit**: "feat(io): Implement marshal input from channels"
 
 #### Task 1.2: Marshal Output to Channels
