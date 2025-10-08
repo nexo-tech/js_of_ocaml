@@ -140,16 +140,18 @@ The I/O system is a critical part of the OCaml runtime, providing:
 
 ### Phase 2: Format Module (Printf/Scanf)
 
-#### Task 2.1: Format String Parsing
-- [ ] Create `runtime/lua/format.lua`
-- [ ] Implement format string tokenizer
-  - Parse conversion specifiers (%d, %s, %f, etc.)
-  - Parse flags (+, -, 0, space, #)
-  - Parse width and precision
-  - Handle %% escaping
-- [ ] Build format specification AST
-- **Output**: ~200 lines
-- **Test**: Format string parsing tests
+#### Task 2.1: Format String Parsing ✅
+- [x] Create `runtime/lua/format.lua`
+- [x] Implement format string tokenizer
+  - ✅ Parse conversion specifiers (%d, %i, %u, %x, %X, %o, %e, %f, %g, %E, %F, %G, %s, %c)
+  - ✅ Parse flags (+, -, 0, space, #)
+  - ✅ Parse width (e.g., %5d, %10s)
+  - ✅ Parse precision (e.g., %.2f, %.10d)
+- [x] Build format specification structure (table with justify, signstyle, filler, alternate, base, signedconv, width, uppercase, sign, prec, conv)
+- [x] Implement caml_parse_format function (parses format string to spec)
+- [x] Implement caml_finish_formatting function (applies width, padding, sign)
+- **Output**: 223 lines (format.lua) + 428 lines (test_format.lua) = 651 lines
+- **Test**: ✅ 55/55 tests pass (37 parsing tests + 18 formatting tests)
 - **Commit**: "feat(format): Implement format string parser"
 
 #### Task 2.2: Printf-style Formatting
