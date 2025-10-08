@@ -227,20 +227,26 @@ The I/O system is a critical part of the OCaml runtime, providing:
 
 ### Phase 3: Core Data Structures
 
-#### Task 3.1: Buffer Module
-- [ ] Create `runtime/lua/buffer.lua`
-- [ ] Implement extensible string buffer
-  - caml_buffer_create
-  - caml_buffer_add_char
-  - caml_buffer_add_string
-  - caml_buffer_add_substring
-  - caml_buffer_contents
-  - caml_buffer_length
-  - caml_buffer_reset
-  - caml_buffer_clear
-- [ ] Implement efficient buffer growth strategy
-- **Output**: ~150 lines
-- **Test**: Buffer operations tests
+#### Task 3.1: Buffer Module ✅
+- [x] Create `runtime/lua/buffer.lua`
+- [x] Implement extensible string buffer
+  - ✅ caml_buffer_create: Create buffer with optional initial capacity
+  - ✅ caml_buffer_add_char: Add single character (number or string)
+  - ✅ caml_buffer_add_string: Add full string (Lua or OCaml)
+  - ✅ caml_buffer_add_substring: Add substring with offset and length
+  - ✅ caml_buffer_contents: Get contents as OCaml string (byte array)
+  - ✅ caml_buffer_length: Get current length
+  - ✅ caml_buffer_reset: Clear buffer (keep capacity)
+  - ✅ caml_buffer_clear: Alias for reset
+- [x] Implement efficient buffer growth strategy
+  - ✅ Chunk-based accumulation (table of strings)
+  - ✅ Deferred concatenation (only on contents() call)
+  - ✅ Automatic capacity tracking
+- [x] Bonus: caml_buffer_add_printf for formatted output
+  - ✅ Integrates with format module
+  - ✅ Supports all format specifiers
+- **Output**: 245 lines (buffer.lua) + 312 lines (test_buffer.lua) = 557 lines
+- **Test**: ✅ 28/28 tests pass (2 create + 3 char + 4 string + 5 substring + 3 contents + 3 reset + 2 mixed + 4 printf + 2 performance)
 - **Commit**: "feat(buffer): Implement extensible string buffers"
 
 #### Task 3.2: Queue Module
