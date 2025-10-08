@@ -276,6 +276,15 @@ function Writer:write32u(n)
   self:write_byte(n % 256)
 end
 
+-- Write signed 32-bit integer (big-endian, two's complement)
+function Writer:write32s(n)
+  -- Convert negative to unsigned representation (two's complement)
+  if n < 0 then
+    n = n + 4294967296  -- 2^32
+  end
+  self:write32u(n)
+end
+
 -- Write string bytes
 function Writer:writestr(str)
   for i = 1, #str do

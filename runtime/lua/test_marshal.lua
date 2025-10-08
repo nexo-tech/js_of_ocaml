@@ -752,6 +752,144 @@ test("SHARED16 for large offset", function()
 end)
 
 --
+-- Custom Block Infrastructure Tests (Task 4.1)
+--
+
+print("")
+print("Custom Block Infrastructure:")
+print("--------------------------------------------------------------------")
+
+test("Custom ops table exists", function()
+  assert_true(type(marshal.custom_ops) == "table", "custom_ops should be a table")
+end)
+
+test("Int64 (_j) custom ops registered", function()
+  local ops = marshal.custom_ops["_j"]
+  assert_true(ops ~= nil, "Int64 ops should exist")
+  assert_true(type(ops.deserialize) == "function", "Should have deserialize")
+  assert_true(type(ops.serialize) == "function", "Should have serialize")
+  assert_eq(ops.fixed_length, 8, "Fixed length should be 8")
+end)
+
+test("Int32 (_i) custom ops registered", function()
+  local ops = marshal.custom_ops["_i"]
+  assert_true(ops ~= nil, "Int32 ops should exist")
+  assert_true(type(ops.deserialize) == "function", "Should have deserialize")
+  assert_eq(ops.fixed_length, 4, "Fixed length should be 4")
+end)
+
+test("Nativeint (_n) custom ops registered", function()
+  local ops = marshal.custom_ops["_n"]
+  assert_true(ops ~= nil, "Nativeint ops should exist")
+  assert_true(type(ops.deserialize) == "function", "Should have deserialize")
+  assert_eq(ops.fixed_length, 4, "Fixed length should be 4")
+end)
+
+test("Int64 unmarshal", function()
+  -- Create an Int64 custom block: 0x0102030405060708
+  local writer = marshal_io.Writer:new()
+  for i = 1, 8 do
+    writer:write8u(i)
+  end
+
+  local reader = marshal_io.Reader:new(writer:to_string())
+  local size_array = {0}
+  local value = marshal.custom_ops["_j"].deserialize(reader, size_array)
+
+  assert_eq(value.caml_custom, "_j", "Should have correct custom marker")
+  assert_eq(#value.bytes, 8, "Should have 8 bytes")
+  assert_eq(value.bytes[1], 1, "First byte")
+  assert_eq(value.bytes[8], 8, "Last byte")
+  assert_eq(size_array[1], 8, "Size should be 8")
+end)
+
+test("Int64 marshal", function()
+  local value = {
+    caml_custom = "_j",
+    bytes = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
+  }
+
+  local writer = marshal_io.Writer:new()
+  local sizes_array = {0, 0}
+  marshal.custom_ops["_j"].serialize(writer, value, sizes_array)
+
+  local data = writer:to_string()
+  assert_eq(#data, 8, "Should write 8 bytes")
+  assert_eq(string.byte(data, 1), 0x01, "First byte")
+  assert_eq(string.byte(data, 8), 0x08, "Last byte")
+  assert_eq(sizes_array[1], 8, "size_32 should be 8")
+  assert_eq(sizes_array[2], 8, "size_64 should be 8")
+end)
+
+test("Int64 roundtrip", function()
+  local original = {
+    caml_custom = "_j",
+    bytes = {0xFF, 0xEE, 0xDD, 0xCC, 0xBB, 0xAA, 0x99, 0x88}
+  }
+
+  local writer = marshal_io.Writer:new()
+  local sizes = {0, 0}
+  marshal.custom_ops["_j"].serialize(writer, original, sizes)
+
+  local reader = marshal_io.Reader:new(writer:to_string())
+  local size_array = {0}
+  local result = marshal.custom_ops["_j"].deserialize(reader, size_array)
+
+  assert_eq(result.caml_custom, "_j", "Custom marker")
+  for i = 1, 8 do
+    assert_eq(result.bytes[i], original.bytes[i], "Byte " .. i)
+  end
+end)
+
+test("Int32 unmarshal", function()
+  local writer = marshal_io.Writer:new()
+  writer:write32s(0x12345678)
+
+  local reader = marshal_io.Reader:new(writer:to_string())
+  local size_array = {0}
+  local value = marshal.custom_ops["_i"].deserialize(reader, size_array)
+
+  assert_eq(value.caml_custom, "_i", "Should have correct custom marker")
+  assert_eq(value.value, 0x12345678, "Should have correct value")
+  assert_eq(size_array[1], 4, "Size should be 4")
+end)
+
+test("Int32 unmarshal negative", function()
+  local writer = marshal_io.Writer:new()
+  writer:write32s(-42)
+
+  local reader = marshal_io.Reader:new(writer:to_string())
+  local size_array = {0}
+  local value = marshal.custom_ops["_i"].deserialize(reader, size_array)
+
+  assert_eq(value.value, -42, "Should handle negative values")
+end)
+
+test("Nativeint unmarshal", function()
+  local writer = marshal_io.Writer:new()
+  writer:write32s(0x7FFFFFFF)
+
+  local reader = marshal_io.Reader:new(writer:to_string())
+  local size_array = {0}
+  local value = marshal.custom_ops["_n"].deserialize(reader, size_array)
+
+  assert_eq(value.caml_custom, "_n", "Should have correct custom marker")
+  assert_eq(value.value, 0x7FFFFFFF, "Should have correct value")
+  assert_eq(size_array[1], 4, "Size should be 4")
+end)
+
+test("Int64 marshal error on wrong type", function()
+  local writer = marshal_io.Writer:new()
+  local sizes = {0, 0}
+
+  local success = pcall(function()
+    marshal.custom_ops["_j"].serialize(writer, {caml_custom = "_i"}, sizes)
+  end)
+
+  assert_true(not success, "Should error on wrong custom type")
+end)
+
+--
 -- Summary
 --
 

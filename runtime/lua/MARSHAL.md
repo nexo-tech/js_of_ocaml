@@ -214,20 +214,20 @@ The Marshal module provides serialization and deserialization of OCaml values to
 
 ### Phase 4: Custom Blocks
 
-#### Task 4.1: Custom Block Infrastructure
-- [ ] Define custom operations table
+#### Task 4.1: Custom Block Infrastructure ✅
+- [x] Define custom operations table
   - deserialize function
   - serialize function
   - compare function
   - hash function
   - fixed_length field
-- [ ] Register custom types
+- [x] Register custom types
   - Int64 (_j)
   - Int32 (_i)
   - Nativeint (_n)
-  - Bigarray (_bigarr02)
-- **Output**: ~80 lines
-- **Test**: Custom registration tests
+  - Bigarray (_bigarr02) - deferred to bigarray integration
+- **Output**: 245 lines total (90 code + 137 tests + 18 I/O support)
+- **Test**: ✅ 11 custom infrastructure tests pass (LuaJIT)
 - **Commit**: "feat(marshal): Add custom block infrastructure"
 
 #### Task 4.2: Custom Block Marshalling

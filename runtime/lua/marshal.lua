@@ -39,6 +39,97 @@ M.CODE_CUSTOM_LEN = 0x18
 M.CODE_CUSTOM_FIXED = 0x19
 
 --
+-- Custom Block Operations
+--
+
+-- Custom operations table
+-- Each entry maps a custom identifier to operations:
+--   deserialize(reader, size_array): Unmarshal custom block
+--   serialize(writer, value, sizes_array): Marshal custom block
+--   compare(v1, v2): Compare two custom values
+--   hash(v): Hash custom value
+--   fixed_length: Size in bytes (if fixed), or nil for variable
+M.custom_ops = {}
+
+-- Helper: Int64 unmarshal (8 bytes big-endian)
+local function int64_unmarshal(reader, size_array)
+  local bytes = {}
+  for i = 1, 8 do
+    bytes[i] = reader:read8u()
+  end
+  size_array[1] = 8
+
+  -- Return as table with custom marker
+  return {
+    caml_custom = "_j",
+    bytes = bytes
+  }
+end
+
+-- Helper: Int64 marshal (8 bytes big-endian)
+local function int64_marshal(writer, value, sizes_array)
+  if type(value) ~= "table" or value.caml_custom ~= "_j" then
+    error("Marshal: expected Int64 custom block")
+  end
+
+  for i = 1, 8 do
+    writer:write8u(value.bytes[i])
+  end
+
+  sizes_array[1] = 8  -- size_32
+  sizes_array[2] = 8  -- size_64
+end
+
+-- Helper: Int32 unmarshal (4 bytes big-endian)
+local function int32_unmarshal(reader, size_array)
+  size_array[1] = 4
+  local value = reader:read32s()
+
+  return {
+    caml_custom = "_i",
+    value = value
+  }
+end
+
+-- Helper: Nativeint unmarshal (4 bytes big-endian on 32-bit platforms)
+local function nativeint_unmarshal(reader, size_array)
+  size_array[1] = 4
+  local value = reader:read32s()
+
+  return {
+    caml_custom = "_n",
+    value = value
+  }
+end
+
+-- Register custom operations
+M.custom_ops["_j"] = {
+  deserialize = int64_unmarshal,
+  serialize = int64_marshal,
+  fixed_length = 8,
+  compare = nil,  -- Not needed for marshalling
+  hash = nil      -- Not needed for marshalling
+}
+
+M.custom_ops["_i"] = {
+  deserialize = int32_unmarshal,
+  serialize = nil,  -- Will be implemented in Task 4.2
+  fixed_length = 4,
+  compare = nil,
+  hash = nil
+}
+
+M.custom_ops["_n"] = {
+  deserialize = nativeint_unmarshal,
+  serialize = nil,  -- Will be implemented in Task 4.2
+  fixed_length = 4,
+  compare = nil,
+  hash = nil
+}
+
+-- Note: Bigarray (_bigarr02, _bigarray) will be added when bigarray support is complete
+
+--
 -- Marshal Writer
 --
 
