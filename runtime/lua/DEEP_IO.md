@@ -455,21 +455,24 @@ The I/O system is a critical part of the OCaml runtime, providing:
 
 ### Phase 6: System and Filesystem
 
-#### Task 6.1: Sys Module
-- [ ] Create `runtime/lua/sys.lua`
-- [ ] Implement caml_sys_argv (program arguments)
-- [ ] Implement caml_sys_get_config (OCaml config)
-- [ ] Implement caml_sys_getenv (environment variables)
-- [ ] Implement caml_sys_time (elapsed time)
-- [ ] Implement caml_sys_file_exists
-- [ ] Implement caml_sys_is_directory
-- [ ] Implement caml_sys_remove (delete file)
-- [ ] Implement caml_sys_rename (rename file)
-- [ ] Implement caml_sys_chdir (change directory)
-- [ ] Implement caml_sys_getcwd (get current directory)
-- [ ] Implement caml_sys_readdir (list directory)
-- **Output**: ~350 lines
-- **Test**: Filesystem operations tests
+#### Task 6.1: Sys Module ✅
+- [x] Create `runtime/lua/sys.lua`
+- [x] Implement caml_sys_argv (program arguments)
+- [x] Implement caml_sys_get_config (OCaml config)
+- [x] Implement caml_sys_getenv (environment variables)
+- [x] Implement caml_sys_time (elapsed time)
+- [x] Implement caml_sys_file_exists
+- [x] Implement caml_sys_is_directory
+- [x] Implement caml_sys_remove (delete file)
+- [x] Implement caml_sys_rename (rename file)
+- [x] Implement caml_sys_chdir (change directory)
+- [x] Implement caml_sys_getcwd (get current directory)
+- [x] Implement caml_sys_readdir (list directory)
+- [x] Implement additional primitives (random_seed, system_command, etc.)
+- [x] Handle OS type detection (Unix/Win32)
+- [x] Support OCaml 5.x primitives (getenv_opt, is_regular_file, etc.)
+- **Output**: 530 lines (sys.lua) + 463 lines (test_sys.lua) = 993 lines
+- **Test**: ✅ 42/42 tests pass (system config, environment vars, time, file ops, directory ops, constants, performance)
 - **Commit**: "feat(sys): Implement system operations"
 
 #### Task 6.2: Filename Module
