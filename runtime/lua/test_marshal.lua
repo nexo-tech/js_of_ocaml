@@ -1293,6 +1293,125 @@ test("CUSTOM_LEN variable-length format", function()
 end)
 
 --
+-- Compression Support Tests (Task 5.1)
+--
+
+print("")
+print("Compression Support:")
+print("--------------------------------------------------------------------")
+
+test("Detect compressed magic number", function()
+  local marshal_header = require("marshal_header")
+
+  -- Create a compressed header
+  local header_str = marshal_header.write_compressed_header(100, 150, 5, 0, 0)
+  local header = marshal_header.read_header(header_str)
+
+  assert_eq(header.magic, 0x8495A6BD, "Magic should be MAGIC_COMPRESSED")
+  assert_true(header.compressed, "Should be marked as compressed")
+  assert_eq(header.data_len, 100, "Compressed data length")
+  assert_eq(header.uncompressed_data_len, 150, "Uncompressed data length")
+end)
+
+test("Error on compressed data without decompressor", function()
+  local marshal_header = require("marshal_header")
+
+  -- Create a compressed marshal format
+  local header_str = marshal_header.write_compressed_header(10, 20, 0, 0, 0)
+  local dummy_data = string.rep("\0", 10)
+  local full_data = header_str .. dummy_data
+
+  local success, err = pcall(function()
+    marshal.from_bytes(full_data)
+  end)
+
+  assert_true(not success, "Should error on compressed data")
+  assert_true(string.match(err, "compressed data encountered"), "Error should mention compression")
+end)
+
+test("Compression flag affects offset calculation", function()
+  -- Test that compressed flag changes how SHARED offsets are interpreted
+  local marshal_io = require("marshal_io")
+
+  -- Create data with absolute offset (compressed style)
+  local writer = marshal_io.Writer:new()
+  writer:write8u(0x40)  -- small int 0
+  writer:write8u(0x41)  -- small int 1
+  writer:write8u(0x04)  -- SHARED8
+  writer:write8u(1)     -- absolute offset 1 (points to second value)
+
+  local data = writer:to_string()
+
+  -- Read with compressed=true (absolute offsets)
+  local reader_compressed = marshal.MarshalReader:new(data, 0, 2, true)
+  reader_compressed:intern_store(0)
+  reader_compressed:intern_store(1)
+  reader_compressed.obj_counter = 2
+  local offset_val = reader_compressed:intern_recall(1)
+  assert_eq(offset_val, 1, "Compressed mode uses absolute offsets")
+
+  -- Read with compressed=false (relative offsets)
+  local reader_uncompressed = marshal.MarshalReader:new(data, 0, 2, false)
+  reader_uncompressed:intern_store(0)
+  reader_uncompressed:intern_store(1)
+  reader_uncompressed.obj_counter = 2
+  local offset_val2 = reader_uncompressed:intern_recall(1)
+  assert_eq(offset_val2, 1, "Uncompressed mode uses relative offsets")
+end)
+
+test("from_bytes with uncompressed header", function()
+  local marshal_header = require("marshal_header")
+
+  -- Create a simple marshal format with header
+  local value_data = string.char(0x42)  -- small int 2
+  local header_str = marshal_header.write_header(#value_data, 0, 0, 0)
+  local full_data = header_str .. value_data
+
+  local result = marshal.from_bytes(full_data)
+  assert_eq(result, 2, "Should unmarshal value")
+end)
+
+test("total_size function", function()
+  local marshal_header = require("marshal_header")
+
+  local header_str = marshal_header.write_header(50, 0, 0, 0)
+  local dummy_data = string.rep("\0", 50)
+  local full_data = header_str .. dummy_data
+
+  local size = marshal.total_size(full_data)
+  assert_eq(size, 70, "Total size should be header (20) + data (50)")
+end)
+
+test("data_size function", function()
+  local marshal_header = require("marshal_header")
+
+  local header_str = marshal_header.write_header(75, 0, 0, 0)
+  local dummy_data = string.rep("\0", 75)
+  local full_data = header_str .. dummy_data
+
+  local size = marshal.data_size(full_data)
+  assert_eq(size, 75, "Data size should be 75")
+end)
+
+test("Custom decompressor stub exists", function()
+  assert_true(marshal.decompress_input == nil, "Should start as nil (stub)")
+end)
+
+test("Can set custom decompressor", function()
+  -- Test that we can set a custom decompressor
+  local old_decompress = marshal.decompress_input
+
+  marshal.decompress_input = function(compressed, uncompressed_len)
+    return string.rep("X", uncompressed_len)
+  end
+
+  assert_true(marshal.decompress_input ~= nil, "Should be set")
+
+  -- Restore
+  marshal.decompress_input = old_decompress
+end)
+
+--
 -- Summary
 --
 

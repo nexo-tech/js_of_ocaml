@@ -271,15 +271,20 @@ The Marshal module provides serialization and deserialization of OCaml values to
 
 ### Phase 5: Advanced Features
 
-#### Task 5.1: Compression Support
-- [ ] Detect compressed magic number
-- [ ] Implement decompression
-  - Integrate with Lua compression library if available
-  - Or provide stub with error message
-- [ ] Parse compressed headers
-- [ ] Handle compressed data
-- **Output**: ~80 lines
-- **Test**: Compression tests (or skip tests)
+#### Task 5.1: Compression Support ✅
+- [x] Detect compressed magic number (0x8495A6BD)
+- [x] Implement decompression
+  - Provided stub (M.decompress_input = nil)
+  - Clear error message when compressed data encountered
+  - Documented integration example with lua-zlib
+- [x] Parse compressed headers (already in Task 1.2)
+- [x] Handle compressed data
+  - Added compressed flag to MarshalReader
+  - Updated intern_recall for absolute vs relative offsets
+  - Implemented from_bytes for full marshal format
+- [x] Added utility functions (total_size, data_size)
+- **Output**: 206 lines total (87 code + 119 tests)
+- **Test**: ✅ 8 compression tests pass (LuaJIT)
 - **Commit**: "feat(marshal): Add compression support"
 
 #### Task 5.2: Marshal Flags

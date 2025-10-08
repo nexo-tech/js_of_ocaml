@@ -154,6 +154,28 @@ M.custom_ops["_n"] = {
 -- Note: Bigarray (_bigarr02, _bigarray) will be added when bigarray support is complete
 
 --
+-- Compression Support
+--
+
+-- Decompression stub
+-- To enable compression support, set this to a function that takes:
+--   compressed_data (string): the compressed data bytes
+--   uncompressed_len (number): expected uncompressed length
+-- Returns: uncompressed data as string
+M.decompress_input = nil
+
+-- Example integration with lua-zlib:
+-- local zlib = require("zlib")
+-- M.decompress_input = function(compressed_data, uncompressed_len)
+--   local stream = zlib.inflate()
+--   local result, eof, bytes_in, bytes_out = stream(compressed_data)
+--   if not result then
+--     error("Marshal: decompression failed")
+--   end
+--   return result
+-- end
+
+--
 -- Marshal Writer
 --
 
@@ -621,13 +643,15 @@ end
 local MarshalReader = {}
 MarshalReader.__index = MarshalReader
 
-function MarshalReader:new(str, offset, num_objects)
+function MarshalReader:new(str, offset, num_objects, compressed)
   offset = offset or 0
   num_objects = num_objects or 0
+  compressed = compressed or false
   local obj = {
     reader = Reader:new(str, offset),
     obj_counter = 0,
-    intern_obj_table = num_objects > 0 and {} or nil
+    intern_obj_table = num_objects > 0 and {} or nil,
+    compressed = compressed  -- Track if data is compressed (affects SHARED offset calculation)
   }
   setmetatable(obj, self)
   return obj
@@ -646,11 +670,20 @@ function MarshalReader:intern_recall(offset)
   if not self.intern_obj_table then
     error("Marshal: shared reference without object table")
   end
-  -- Convert relative offset to absolute index
-  local idx = self.obj_counter - offset
+
+  -- In compressed format, offsets are absolute
+  -- In uncompressed format, offsets are relative (need to subtract from counter)
+  local idx
+  if self.compressed then
+    idx = offset
+  else
+    idx = self.obj_counter - offset
+  end
+
   local v = self.intern_obj_table[idx]
   if v == nil then
-    error(string.format("Marshal: invalid shared reference offset %d (counter=%d)", offset, self.obj_counter))
+    error(string.format("Marshal: invalid shared reference offset %d (counter=%d, compressed=%s)",
+                       offset, self.obj_counter, tostring(self.compressed)))
   end
   return v
 end
@@ -950,6 +983,60 @@ end
 function M.unmarshal_value(str, offset)
   local reader = MarshalReader:new(str, offset)
   return reader:read_value()
+end
+
+-- Unmarshal from full marshal format (with header)
+-- This is the main entry point for unmarshalling complete marshal data
+function M.from_bytes(str, offset)
+  offset = offset or 0
+
+  -- Parse header
+  local header = marshal_header.read_header(str, offset)
+
+  -- Move past header to data
+  local data_offset = offset + header.header_len
+
+  -- Check if data is compressed
+  if header.compressed then
+    if not M.decompress_input then
+      error("Marshal: compressed data encountered but no decompression function available.\n" ..
+            "To enable compression support, set M.decompress_input to a decompression function.\n" ..
+            "See marshal.lua comments for example integration with lua-zlib.")
+    end
+
+    -- Extract compressed data
+    local compressed_data = string.sub(str, data_offset + 1, data_offset + header.data_len)
+
+    -- Decompress
+    local uncompressed_data = M.decompress_input(compressed_data, header.uncompressed_data_len)
+
+    if #uncompressed_data ~= header.uncompressed_data_len then
+      error(string.format("Marshal: decompression returned %d bytes but expected %d",
+                         #uncompressed_data, header.uncompressed_data_len))
+    end
+
+    -- Create reader for uncompressed data
+    local reader = MarshalReader:new(uncompressed_data, 0, header.num_objects, true)
+    return reader:read_value()
+
+  else
+    -- Uncompressed data
+    local reader = MarshalReader:new(str, data_offset, header.num_objects, false)
+    return reader:read_value()
+  end
+end
+
+-- Alias for compatibility
+M.from_string = M.from_bytes
+
+-- Get total size of marshalled data (header + data)
+function M.total_size(str, offset)
+  return marshal_header.total_size(str, offset)
+end
+
+-- Get data size only (excluding header)
+function M.data_size(str, offset)
+  return marshal_header.data_size(str, offset)
 end
 
 --
