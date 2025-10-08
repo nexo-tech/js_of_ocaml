@@ -446,12 +446,35 @@ This document outlines the implementation plan for adding Lua as a compilation t
 
 ### Phase 11: Advanced Runtime (Week 11-12)
 
-#### Task 11.1: Coroutine Support
-- [ ] Map OCaml effects to Lua coroutines
-- [ ] Implement yield/resume
-- [ ] Handle effect handlers
-- **Output**: ~300 lines
-- **Test**: Effect handler tests
+#### Task 11.1: Coroutine Support ✅
+- [x] Map OCaml effects to Lua coroutines
+- [x] Implement yield/resume
+- [x] Handle effect handlers
+- **Output**: 786 lines total
+  - **effect.lua** (415 lines): Complete effect handler implementation using Lua coroutines
+  - **test_effect.lua** (371 lines): Comprehensive test suite with 24 tests
+- **Implementation Features**:
+  - Fiber stack management (current_stack with k, x, h, e fields)
+  - Stack save/restore for context switching
+  - Exception handler stack (push_trap, pop_trap)
+  - Fiber allocation with handler triples (retc, exnc, effc)
+  - Continuation creation and management (one-shot continuations)
+  - Effect perform/reperform operations
+  - Continuation resume with stack restoration
+  - Coroutine integration (with_coroutine, fiber_yield, fiber_resume)
+  - Condition variables (stubs for Stdlib.Condition)
+  - Error handling for unhandled effects
+- **Test Coverage**:
+  - Stack management (get, save, restore)
+  - Exception handlers (push, pop, stack order)
+  - Fiber stack allocation
+  - Continuation operations (create, use, update handlers)
+  - Effect operations (perform, raise unhandled, resume)
+  - Coroutine integration (create, yield, resume)
+  - Utilities (effects_supported, callstack)
+  - Condition variables
+  - Error handling
+- **Test Results**: ✅ 24/24 tests pass on Lua 5.1, 5.4, and LuaJIT
 - **Commit**: "feat: Add coroutine-based effects"
 
 #### Task 11.2: Bigarray Support
