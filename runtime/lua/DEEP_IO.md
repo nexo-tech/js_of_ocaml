@@ -647,14 +647,29 @@ The I/O system is a critical part of the OCaml runtime, providing:
 - **Test**: ✅ 29/29 tests passed (test_custom_backends.lua)
 - **Commit**: "feat(io): Add custom channel backends"
 
-#### Task 10.3: Digest Module (MD5/SHA)
-- [ ] Create `runtime/lua/digest.lua`
-- [ ] Implement MD5 hashing (or use LuaCrypto)
-- [ ] Implement caml_md5_string
-- [ ] Implement caml_md5_chan
-- **Output**: ~300 lines (or ~50 if using library)
-- **Test**: Digest tests
-- **Commit**: "feat(digest): Add cryptographic hashing"
+#### Task 10.3: Digest Module (MD5/SHA) ✅
+- [x] Create `runtime/lua/digest.lua`
+  - ✅ Complete MD5 implementation from scratch (no external dependencies)
+  - ✅ RFC 1321 compliant MD5 algorithm
+- [x] Implement MD5 hashing
+  - ✅ md5_init(): Initialize MD5 context
+  - ✅ md5_update(): Incremental hashing
+  - ✅ md5_final(): Finalize and produce digest
+  - ✅ md5_transform(): Core MD5 transformation (4 rounds, 64 steps)
+  - ✅ digest_to_hex(): Convert binary digest to hex string
+- [x] Implement caml_md5_string
+  - ✅ Hash substring with offset and length
+- [x] Implement caml_md5_chan
+  - ✅ Hash entire channel (toread = -1)
+  - ✅ Hash specific number of bytes from channel
+  - ✅ Works with file channels, string channels, custom backends
+- **Output**: 330 lines (complete MD5 implementation)
+- **Test**: ✅ 26/26 tests passed (test_digest.lua)
+  - ✅ RFC 1321 official test vectors
+  - ✅ Substring hashing, channel hashing, large data
+  - ✅ Edge cases: 55/56/64/65/128 bytes, binary data
+  - ✅ Incremental hashing API
+- **Commit**: "feat(digest): Add MD5 cryptographic hashing"
 
 ---
 
