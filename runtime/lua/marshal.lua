@@ -1064,36 +1064,80 @@ end
 --
 
 -- Marshal a value to bytes (without header for now)
-function M.marshal_value(value)
-  local writer = MarshalWriter:new()
-
+-- Helper: Marshal a value and return if it needs field processing
+local function marshal_value_core(writer, value, stack)
   local value_type = type(value)
+
   if value_type == "number" then
-    -- Check if it's a valid integer (not infinity, not too large)
     if value == math.floor(value) and value ~= math.huge and value ~= -math.huge
        and value >= -2147483648 and value <= 2147483647 then
       writer:write_int(value)
     else
-      -- Float value, infinity, or out of int range
       writer:write_double(value)
     end
+
   elseif value_type == "string" then
     writer:write_string(value)
+
   elseif value_type == "table" then
-    -- Check if it's a custom block
     if value.caml_custom then
       writer:write_custom(value)
-    -- Check if it's a float array (tag 254)
+
     elseif value.tag == 254 and value.values then
-      writer:write_double_array(value.values, value)  -- Pass value for sharing
-    -- Check if it's a block representation
+      writer:write_double_array(value.values, value)
+
     elseif value.tag ~= nil and value.size ~= nil then
-      writer:write_block(value.tag, value.size)
+      -- Block with explicit tag/size
+      local size = value.size
+      if writer:memo(value) then return end  -- Already marshalled (shared)
+      writer:write_block(value.tag, size)
+      if size > 0 then
+        table.insert(stack, {block = value, index = 1, size = size})
+      end
+
     else
-      error("Marshal: complex blocks not yet implemented")
+      -- Plain Lua table - treat as OCaml block with tag 0
+      local size = #value
+      if writer:memo(value) then return end
+      writer:write_block(0, size)
+      if size > 0 then
+        table.insert(stack, {block = value, index = 1, size = size})
+      end
     end
+
   else
     error("Marshal: unsupported type " .. value_type)
+  end
+end
+
+function M.marshal_value(value)
+  local writer = MarshalWriter:new()
+
+  -- Stack for iterative marshalling of block fields
+  local stack = {}
+
+  -- Marshal root value
+  marshal_value_core(writer, value, stack)
+
+  -- Process block fields iteratively
+  while #stack > 0 do
+    local entry = stack[#stack]
+
+    if entry.index > entry.size then
+      -- Done with this block's fields
+      table.remove(stack)
+    else
+      -- Marshal next field
+      local field = entry.block[entry.index]
+      entry.index = entry.index + 1
+
+      if field == nil then
+        -- Nil field - marshal as unit (0)
+        writer:write_int(0)
+      else
+        marshal_value_core(writer, field, stack)
+      end
+    end
   end
 
   return writer:to_string()
@@ -1123,29 +1167,28 @@ function M.to_string(value, flags)
   -- Create writer with no_sharing flag
   local writer = MarshalWriter:new(parsed_flags.no_sharing)
 
-  -- Marshal the value
-  local value_type = type(value)
-  if value_type == "number" then
-    if value == math.floor(value) and value ~= math.huge and value ~= -math.huge
-       and value >= -2147483648 and value <= 2147483647 then
-      writer:write_int(value)
+  -- Stack for iterative marshalling
+  local stack = {}
+
+  -- Marshal the root value
+  marshal_value_core(writer, value, stack)
+
+  -- Process block fields iteratively
+  while #stack > 0 do
+    local entry = stack[#stack]
+
+    if entry.index > entry.size then
+      table.remove(stack)
     else
-      writer:write_double(value)
+      local field = entry.block[entry.index]
+      entry.index = entry.index + 1
+
+      if field == nil then
+        writer:write_int(0)
+      else
+        marshal_value_core(writer, field, stack)
+      end
     end
-  elseif value_type == "string" then
-    writer:write_string(value)
-  elseif value_type == "table" then
-    if value.caml_custom then
-      writer:write_custom(value)
-    elseif value.tag == 254 and value.values then
-      writer:write_double_array(value.values, value)
-    elseif value.tag ~= nil and value.size ~= nil then
-      writer:write_block(value.tag, value.size)
-    else
-      error("Marshal: complex blocks not yet implemented")
-    end
-  else
-    error("Marshal: unsupported type " .. value_type)
   end
 
   -- Get marshalled data
