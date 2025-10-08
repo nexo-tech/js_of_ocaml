@@ -563,17 +563,18 @@ The I/O system is a critical part of the OCaml runtime, providing:
 
 ### Phase 9: Integration and Testing
 
-#### Task 9.1: Complete I/O Integration Tests
-- [ ] Test marshal + channels + files
-- [ ] Test Printf/Scanf with channels
-- [ ] Test binary vs text mode
-- [ ] Test buffering behavior
-- [ ] Test seeking in files
-- [ ] Test channel lifecycle (open/close/flush)
-- [ ] Test error conditions
-- **Output**: ~300 lines (tests)
-- **Test**: End-to-end I/O test suite
+#### Task 9.1: Complete I/O Integration Tests ✅
+- [x] Test marshal + channels + files
+- [x] Test Printf/Scanf with channels
+- [x] Test binary vs text mode
+- [x] Test buffering behavior
+- [x] Test seeking in files
+- [x] Test channel lifecycle (open/close/flush)
+- [x] Test error conditions
+- **Output**: 807 lines (test_io_integration.lua)
+- **Test**: 35/35 tests passing with Lua 5.3+
 - **Commit**: "test(io): Add comprehensive integration tests"
+- **Notes**: Requires Lua 5.3+ for bitwise operators; preload io.lua to avoid clash with standard library
 
 #### Task 9.2: Performance Benchmarks
 - [ ] Benchmark marshal serialization speed
