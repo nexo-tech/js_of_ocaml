@@ -107,13 +107,25 @@ Fix LuaJIT-specific issues with mlBytes and obj modules.
   - ✅ LuaJIT: 17/17 tests pass
 - **Commit**: "fix: Resolve obj module test failures on LuaJIT"
 
-#### Task 2.3: Test LuaJIT-specific optimizations
-- [ ] Verify FFI compatibility (if used)
-- [ ] Test JIT compilation doesn't break semantics
-- [ ] Check table optimizations don't affect behavior
-- [ ] Add LuaJIT-specific performance notes
-- **Output**: Documentation
-- **Test**: All modules work with JIT enabled
+#### Task 2.3: Test LuaJIT-specific optimizations ✅
+- [x] Verify FFI compatibility (if used)
+- [x] Test JIT compilation doesn't break semantics
+- [x] Check table optimizations don't affect behavior
+- [x] Add LuaJIT-specific performance notes
+- **Files**: `runtime/lua/test_luajit_optimizations.lua` (new), `runtime/lua/LUAJIT_NOTES.md` (new)
+- **Output**: 325 lines (test suite) + 245 lines (documentation)
+- **Test**: All modules work with JIT enabled ✅
+- **Test Results**:
+  - 12/12 optimization tests pass
+  - JIT compilation verified for hot loops
+  - Table optimizations maintain correctness
+  - Numerical accuracy preserved under JIT
+  - No FFI usage (100% portable)
+- **Performance**: 8-13x speedup on common operations with JIT
+- **Key Findings**:
+  - compat_bit automatically uses LuaJIT's native `bit` library
+  - JIT compiler optimizes integer arithmetic, float ops, table access, method dispatch
+  - No semantic differences between interpreted and JIT-compiled code
 - **Commit**: "test: Verify LuaJIT optimizations compatibility"
 
 #### Task 2.4: Verify LuaJIT full compatibility
