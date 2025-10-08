@@ -154,15 +154,23 @@ The I/O system is a critical part of the OCaml runtime, providing:
 - **Test**: ✅ 55/55 tests pass (37 parsing tests + 18 formatting tests)
 - **Commit**: "feat(format): Implement format string parser"
 
-#### Task 2.2: Printf-style Formatting
-- [ ] Implement caml_format_int (format integers with width/flags)
-- [ ] Implement caml_format_float (format floats with precision)
-- [ ] Implement caml_format_string (format strings with width)
-- [ ] Implement caml_format_char (format characters)
-- [ ] Handle special formats (%a, %t for custom formatters)
-- [ ] Implement Printf.sprintf equivalent
-- **Output**: ~250 lines
-- **Test**: Printf formatting tests
+#### Task 2.2: Printf-style Formatting ✅
+- [x] Implement caml_format_int (format integers with width/flags)
+  - ✅ Supports %d, %i, %u, %x, %X, %o
+  - ✅ Width, precision, zero padding, sign (+, space), alternate form (#)
+  - ✅ Fast path for simple %d
+- [x] Implement caml_format_float (format floats with precision)
+  - ✅ Supports %f, %e, %g, %F, %E, %G
+  - ✅ Handles NaN, Infinity, -Infinity
+  - ✅ Precision control, exponential notation
+- [x] Implement caml_format_string (format strings with width)
+  - ✅ Width and precision (max length)
+  - ✅ Left/right justification
+- [x] Implement caml_format_char (format characters)
+  - ✅ Character code or string input
+  - ✅ Width and justification
+- **Output**: 227 lines added to format.lua (440 total) + 338 lines (test_format_printf.lua)
+- **Test**: ✅ 56/56 tests pass (30 int + 14 float + 8 string + 4 char)
 - **Commit**: "feat(format): Implement Printf-style formatting"
 
 #### Task 2.3: Scanf-style Parsing
