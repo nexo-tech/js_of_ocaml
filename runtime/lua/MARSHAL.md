@@ -136,21 +136,21 @@ The Marshal module provides serialization and deserialization of OCaml values to
 - **Test**: ✅ 43/43 tests pass (Lua 5.4, LuaJIT)
 - **Commit**: "feat(marshal): Marshal immediate values"
 
-#### Task 2.2: Structured Values
-- [ ] Marshal blocks (BLOCK32)
+#### Task 2.2: Structured Values ✅
+- [x] Marshal blocks (BLOCK32)
   - Encode tag and size
   - Recursive field marshalling
   - Handle empty blocks
-- [ ] Marshal float arrays (tag 254)
+- [x] Marshal float arrays (tag 254)
   - DOUBLE_ARRAY8_LITTLE (0x0E)
   - DOUBLE_ARRAY32_LITTLE (0x07)
   - Big-endian variants
-- [ ] Marshal doubles
+- [x] Marshal doubles
   - DOUBLE_LITTLE (0x0C)
   - DOUBLE_BIG (0x0B)
   - IEEE 754 encoding
-- **Output**: ~150 lines
-- **Test**: Structured value tests
+- **Output**: 397 lines total (154 code + 243 tests)
+- **Test**: ✅ 59/59 tests pass (Lua 5.4), 48/48 tests pass (LuaJIT - no float tests)
 - **Commit**: "feat(marshal): Marshal structured values"
 
 #### Task 2.3: Sharing and Cycles

@@ -364,6 +364,191 @@ test("Roundtrip small blocks", function()
 end)
 
 --
+-- BLOCK32 Tests
+--
+
+print("")
+print("BLOCK32 Tests:")
+print("--------------------------------------------------------------------")
+
+test("Marshal BLOCK32 tag=16 size=0", function()
+  local data = marshal.marshal_value({tag = 16, size = 0})
+  assert_eq(#data, 5, "Should be 5 bytes (code + header)")
+  assert_eq(string.byte(data, 1), 0x08, "Should be CODE_BLOCK32")
+end)
+
+test("Marshal BLOCK32 tag=0 size=8", function()
+  local data = marshal.marshal_value({tag = 0, size = 8})
+  assert_eq(#data, 5, "Should be 5 bytes")
+  assert_eq(string.byte(data, 1), 0x08, "Should be CODE_BLOCK32")
+end)
+
+test("Marshal BLOCK32 tag=100 size=50", function()
+  local data = marshal.marshal_value({tag = 100, size = 50})
+  assert_eq(#data, 5, "Should be 5 bytes")
+  assert_eq(string.byte(data, 1), 0x08, "Should be CODE_BLOCK32")
+end)
+
+test("Unmarshal BLOCK32", function()
+  -- Header: (10 << 10) | 5 = 10240 + 5 = 10245 = 0x00002805
+  local data = string.char(0x08, 0x00, 0x00, 0x28, 0x05)
+  local value = marshal.unmarshal_value(data)
+  assert_deep_eq(value, {tag = 5, size = 10}, "Should be {tag=5, size=10}")
+end)
+
+test("Roundtrip BLOCK32", function()
+  local blocks = {
+    {tag = 16, size = 0},
+    {tag = 0, size = 8},
+    {tag = 100, size = 50},
+    {tag = 255, size = 1000}
+  }
+  for _, block in ipairs(blocks) do
+    local data = marshal.marshal_value(block)
+    local result = marshal.unmarshal_value(data)
+    assert_deep_eq(result, block, "Roundtrip tag=" .. block.tag .. " size=" .. block.size)
+  end
+end)
+
+--
+-- Double Tests
+--
+
+print("")
+print("Double Tests:")
+print("--------------------------------------------------------------------")
+
+if string.pack then
+  test("Marshal double 3.14", function()
+    local data = marshal.marshal_value(3.14)
+    assert_eq(#data, 9, "Should be 9 bytes (code + 8 bytes)")
+    assert_eq(string.byte(data, 1), 0x0C, "Should be CODE_DOUBLE_LITTLE")
+  end)
+
+  test("Marshal double 0.0", function()
+    -- Note: 0.0 is indistinguishable from integer 0 in Lua, so it marshals as integer
+    local data = marshal.marshal_value(0.0)
+    -- This will marshal as small int 0, not double
+    assert_eq(#data, 1, "Should be 1 byte (marshals as integer)")
+    assert_eq(string.byte(data, 1), 0x40, "Should be small int 0")
+  end)
+
+  test("Marshal double -1.5", function()
+    local data = marshal.marshal_value(-1.5)
+    assert_eq(#data, 9, "Should be 9 bytes")
+  end)
+
+  test("Unmarshal double", function()
+    -- Manually create double data for 3.14159
+    local writer = require("marshal_io").Writer:new()
+    writer:write8u(0x0C)  -- CODE_DOUBLE_LITTLE
+    writer:write_double_little(3.14159)
+    local data = writer:to_string()
+
+    local value = marshal.unmarshal_value(data)
+    assert_true(math.abs(value - 3.14159) < 0.0001, "Should be close to 3.14159")
+  end)
+
+  test("Roundtrip doubles", function()
+    local values = {0.0, 1.0, -1.0, 3.14159, -2.71828, 1e10, 1e-10, math.huge, -math.huge}
+    for _, v in ipairs(values) do
+      local data = marshal.marshal_value(v)
+      local result = marshal.unmarshal_value(data)
+      if v == math.huge or v == -math.huge then
+        assert_eq(result, v, "Roundtrip " .. tostring(v))
+      else
+        assert_true(math.abs(result - v) < 1e-10, "Roundtrip " .. v)
+      end
+    end
+  end)
+else
+  print("  Skipping double tests (string.pack not available)")
+end
+
+--
+-- Float Array Tests
+--
+
+print("")
+print("Float Array Tests:")
+print("--------------------------------------------------------------------")
+
+if string.pack then
+  test("Marshal float array (small)", function()
+    local arr = {tag = 254, values = {1.0, 2.0, 3.0}}
+    local data = marshal.marshal_value(arr)
+    assert_eq(string.byte(data, 1), 0x0E, "Should be CODE_DOUBLE_ARRAY8_LITTLE")
+    assert_eq(string.byte(data, 2), 3, "Should have length 3")
+  end)
+
+  test("Marshal float array (large)", function()
+    local values = {}
+    for i = 1, 300 do
+      values[i] = i * 1.5
+    end
+    local arr = {tag = 254, values = values}
+    local data = marshal.marshal_value(arr)
+    assert_eq(string.byte(data, 1), 0x07, "Should be CODE_DOUBLE_ARRAY32_LITTLE")
+  end)
+
+  test("Unmarshal float array", function()
+    local writer = require("marshal_io").Writer:new()
+    writer:write8u(0x0E)  -- CODE_DOUBLE_ARRAY8_LITTLE
+    writer:write8u(3)     -- Length
+    writer:write_double_little(1.5)
+    writer:write_double_little(2.5)
+    writer:write_double_little(3.5)
+    local data = writer:to_string()
+
+    local result = marshal.unmarshal_value(data)
+    assert_eq(result.tag, 254, "Should have tag 254")
+    assert_eq(#result.values, 3, "Should have 3 elements")
+    assert_true(math.abs(result.values[1] - 1.5) < 0.0001, "Element 1")
+    assert_true(math.abs(result.values[2] - 2.5) < 0.0001, "Element 2")
+    assert_true(math.abs(result.values[3] - 3.5) < 0.0001, "Element 3")
+  end)
+
+  test("Roundtrip float array (small)", function()
+    local arr = {tag = 254, values = {1.0, 2.5, 3.14159, -1.5}}
+    local data = marshal.marshal_value(arr)
+    local result = marshal.unmarshal_value(data)
+
+    assert_eq(result.tag, 254, "Should have tag 254")
+    assert_eq(#result.values, #arr.values, "Should have same length")
+    for i = 1, #arr.values do
+      assert_true(math.abs(result.values[i] - arr.values[i]) < 1e-10, "Element " .. i)
+    end
+  end)
+
+  test("Roundtrip float array (large)", function()
+    local values = {}
+    for i = 1, 300 do
+      values[i] = i * 0.5
+    end
+    local arr = {tag = 254, values = values}
+    local data = marshal.marshal_value(arr)
+    local result = marshal.unmarshal_value(data)
+
+    assert_eq(result.tag, 254, "Should have tag 254")
+    assert_eq(#result.values, 300, "Should have 300 elements")
+    for i = 1, 10 do  -- Check first 10 elements
+      assert_true(math.abs(result.values[i] - values[i]) < 1e-10, "Element " .. i)
+    end
+  end)
+
+  test("Roundtrip empty float array", function()
+    local arr = {tag = 254, values = {}}
+    local data = marshal.marshal_value(arr)
+    local result = marshal.unmarshal_value(data)
+
+    assert_eq(result.tag, 254, "Should have tag 254")
+    assert_eq(#result.values, 0, "Should be empty")
+  end)
+else
+  print("  Skipping float array tests (string.pack not available)")
+end
+
+--
 -- Edge Cases and Error Handling
 --
 
@@ -371,18 +556,27 @@ print("")
 print("Edge Cases and Error Handling:")
 print("--------------------------------------------------------------------")
 
-test("Error on float value", function()
-  local success = pcall(function()
-    marshal.marshal_value(3.14)
-  end)
-  assert_true(not success, "Should error on float")
+test("Float value now supported", function()
+  if string.pack then
+    local data = marshal.marshal_value(3.14)
+    assert_eq(string.byte(data, 1), 0x0C, "Should marshal as double")
+  else
+    print("  Skipping (string.pack not available)")
+  end
 end)
 
-test("Error on integer too large", function()
-  local success = pcall(function()
-    marshal.marshal_value(2147483648)
-  end)
-  assert_true(not success, "Should error on too large integer")
+test("Integer too large marshals as double", function()
+  -- Large integers outside INT32 range are now marshalled as doubles
+  local data = marshal.marshal_value(2147483648)
+  if string.pack then
+    assert_eq(string.byte(data, 1), 0x0C, "Should marshal as double")
+  else
+    -- Without string.pack, this will error
+    local success = pcall(function()
+      marshal.marshal_value(21474836480)
+    end)
+    assert_true(not success, "Should error without string.pack")
+  end
 end)
 
 test("Error on unsupported type", function()

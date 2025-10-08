@@ -190,6 +190,127 @@ function MarshalWriter:write_small_block(tag, size)
   self.size_64 = self.size_64 + (size + 1)
 end
 
+-- Marshal BLOCK32 (large blocks)
+function MarshalWriter:write_block32(tag, size)
+  if tag < 0 or tag >= 256 then
+    error("Marshal: BLOCK32 tag out of range (0-255)")
+  end
+  if size < 0 then
+    error("Marshal: BLOCK32 size must be non-negative")
+  end
+
+  -- Write CODE_BLOCK32
+  self.writer:write8u(M.CODE_BLOCK32)
+
+  -- Write header: (size << 10) | tag
+  local header = (size * 1024) + tag  -- size << 10 | tag
+  self.writer:write32u(header)
+
+  -- Update size fields
+  self.size_32 = self.size_32 + (size + 1)
+  self.size_64 = self.size_64 + (size + 1)
+end
+
+-- Marshal block (chooses optimal encoding)
+function MarshalWriter:write_block(tag, size)
+  if tag < 16 and size < 8 then
+    self:write_small_block(tag, size)
+  else
+    self:write_block32(tag, size)
+  end
+end
+
+-- Marshal double (DOUBLE_LITTLE)
+function MarshalWriter:write_double(value)
+  if type(value) ~= "number" then
+    error("Marshal: expected number for double")
+  end
+
+  if not string.pack then
+    error("Marshal: float/double marshalling requires Lua 5.3+ (string.pack)")
+  end
+
+  self.writer:write8u(M.CODE_DOUBLE_LITTLE)
+  self.writer:write_double_little(value)
+
+  -- Update size fields
+  self.size_32 = self.size_32 + 3  -- 1 word for header + 2 words for double
+  self.size_64 = self.size_64 + 2  -- 1 word for header + 1 word for double
+end
+
+-- Marshal double with specific endianness
+function MarshalWriter:write_double_big(value)
+  if type(value) ~= "number" then
+    error("Marshal: expected number for double")
+  end
+
+  self.writer:write8u(M.CODE_DOUBLE_BIG)
+  self.writer:write_double_big(value)
+
+  -- Update size fields
+  self.size_32 = self.size_32 + 3
+  self.size_64 = self.size_64 + 2
+end
+
+-- Marshal float array (DOUBLE_ARRAY8_LITTLE)
+function MarshalWriter:write_double_array8(values)
+  if type(values) ~= "table" then
+    error("Marshal: expected table for double array")
+  end
+
+  local len = #values
+  if len < 0 or len >= 256 then
+    error("Marshal: DOUBLE_ARRAY8 length out of range (0-255)")
+  end
+
+  self.writer:write8u(M.CODE_DOUBLE_ARRAY8_LITTLE)
+  self.writer:write8u(len)
+
+  for i = 1, len do
+    if type(values[i]) ~= "number" then
+      error("Marshal: float array element " .. i .. " is not a number")
+    end
+    self.writer:write_double_little(values[i])
+  end
+
+  -- Update size fields
+  self.size_32 = self.size_32 + 1 + (len * 2)
+  self.size_64 = self.size_64 + 1 + len
+end
+
+-- Marshal float array (DOUBLE_ARRAY32_LITTLE)
+function MarshalWriter:write_double_array32(values)
+  if type(values) ~= "table" then
+    error("Marshal: expected table for double array")
+  end
+
+  local len = #values
+
+  self.writer:write8u(M.CODE_DOUBLE_ARRAY32_LITTLE)
+  self.writer:write32u(len)
+
+  for i = 1, len do
+    if type(values[i]) ~= "number" then
+      error("Marshal: float array element " .. i .. " is not a number")
+    end
+    self.writer:write_double_little(values[i])
+  end
+
+  -- Update size fields
+  self.size_32 = self.size_32 + 1 + (len * 2)
+  self.size_64 = self.size_64 + 1 + len
+end
+
+-- Marshal float array (chooses optimal encoding)
+function MarshalWriter:write_double_array(values)
+  local len = #values
+  if len < 256 then
+    self:write_double_array8(values)
+  else
+    self:write_double_array32(values)
+  end
+end
+
 -- Get marshalled data as string
 function MarshalWriter:to_string()
   return self.writer:to_string()
@@ -265,6 +386,64 @@ function MarshalReader:read_small_block(code)
   return {tag = tag, size = size}
 end
 
+-- Unmarshal BLOCK32
+function MarshalReader:read_block32()
+  local header = self.reader:read32u()
+  local tag = header % 256  -- header & 0xFF
+  local size = math.floor(header / 1024)  -- header >> 10
+  return {tag = tag, size = size}
+end
+
+-- Unmarshal double (DOUBLE_LITTLE)
+function MarshalReader:read_double_little()
+  return self.reader:read_double_little()
+end
+
+-- Unmarshal double (DOUBLE_BIG)
+function MarshalReader:read_double_big()
+  return self.reader:read_double_big()
+end
+
+-- Unmarshal float array (DOUBLE_ARRAY8_LITTLE)
+function MarshalReader:read_double_array8_little()
+  local len = self.reader:read8u()
+  local values = {}
+  for i = 1, len do
+    values[i] = self.reader:read_double_little()
+  end
+  return {tag = 254, values = values}  -- Tag 254 = Double_array_tag
+end
+
+-- Unmarshal float array (DOUBLE_ARRAY8_BIG)
+function MarshalReader:read_double_array8_big()
+  local len = self.reader:read8u()
+  local values = {}
+  for i = 1, len do
+    values[i] = self.reader:read_double_big()
+  end
+  return {tag = 254, values = values}
+end
+
+-- Unmarshal float array (DOUBLE_ARRAY32_LITTLE)
+function MarshalReader:read_double_array32_little()
+  local len = self.reader:read32u()
+  local values = {}
+  for i = 1, len do
+    values[i] = self.reader:read_double_little()
+  end
+  return {tag = 254, values = values}
+end
+
+-- Unmarshal float array (DOUBLE_ARRAY32_BIG)
+function MarshalReader:read_double_array32_big()
+  local len = self.reader:read32u()
+  local values = {}
+  for i = 1, len do
+    values[i] = self.reader:read_double_big()
+  end
+  return {tag = 254, values = values}
+end
+
 -- Unmarshal value (main entry point)
 function MarshalReader:read_value()
   local code = self.reader:read8u()
@@ -294,10 +473,24 @@ function MarshalReader:read_value()
     return self:read_int32()
   elseif code == M.CODE_INT64 then
     error("Marshal: INT64 not yet implemented")
+  elseif code == M.CODE_BLOCK32 then
+    return self:read_block32()
   elseif code == M.CODE_STRING8 then
     return self:read_string8()
   elseif code == M.CODE_STRING32 then
     return self:read_string32()
+  elseif code == M.CODE_DOUBLE_LITTLE then
+    return self:read_double_little()
+  elseif code == M.CODE_DOUBLE_BIG then
+    return self:read_double_big()
+  elseif code == M.CODE_DOUBLE_ARRAY8_LITTLE then
+    return self:read_double_array8_little()
+  elseif code == M.CODE_DOUBLE_ARRAY8_BIG then
+    return self:read_double_array8_big()
+  elseif code == M.CODE_DOUBLE_ARRAY32_LITTLE then
+    return self:read_double_array32_little()
+  elseif code == M.CODE_DOUBLE_ARRAY32_BIG then
+    return self:read_double_array32_big()
   else
     error(string.format("Marshal: unsupported code 0x%02X", code))
   end
@@ -313,17 +506,23 @@ function M.marshal_value(value)
 
   local value_type = type(value)
   if value_type == "number" then
-    if value == math.floor(value) then
+    -- Check if it's a valid integer (not infinity, not too large)
+    if value == math.floor(value) and value ~= math.huge and value ~= -math.huge
+       and value >= -2147483648 and value <= 2147483647 then
       writer:write_int(value)
     else
-      error("Marshal: floats not yet implemented")
+      -- Float value, infinity, or out of int range
+      writer:write_double(value)
     end
   elseif value_type == "string" then
     writer:write_string(value)
   elseif value_type == "table" then
-    -- Check if it's a small block representation
-    if value.tag ~= nil and value.size ~= nil then
-      writer:write_small_block(value.tag, value.size)
+    -- Check if it's a float array (tag 254)
+    if value.tag == 254 and value.values then
+      writer:write_double_array(value.values)
+    -- Check if it's a block representation
+    elseif value.tag ~= nil and value.size ~= nil then
+      writer:write_block(value.tag, value.size)
     else
       error("Marshal: complex blocks not yet implemented")
     end
