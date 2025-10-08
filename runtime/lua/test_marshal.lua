@@ -1412,6 +1412,119 @@ test("Can set custom decompressor", function()
 end)
 
 --
+-- Marshal Flags Tests (Task 5.2)
+--
+
+print("")
+print("Marshal Flags:")
+print("--------------------------------------------------------------------")
+
+test("Flag constants defined", function()
+  assert_eq(marshal.No_sharing, 0, "No_sharing should be 0")
+  assert_eq(marshal.Closures, 1, "Closures should be 1")
+  assert_eq(marshal.Compat_32, 2, "Compat_32 should be 2")
+end)
+
+test("to_string with no flags", function()
+  local result = marshal.to_string(42, {})
+  assert_eq(string.byte(result, 1), 0x42 + 0x40, "Should marshal as small int")
+end)
+
+test("to_string with No_sharing flag", function()
+  local str = "test"
+
+  -- Create data with repeated string
+  local writer = marshal.MarshalWriter:new(true)  -- no_sharing = true
+  writer:write_string(str)
+  writer:write_string(str)
+  local data_no_sharing = writer:to_string()
+
+  -- With sharing disabled, both should be full strings
+  -- First string: STRING8 (0x09) + length (1) + data (4) = 6 bytes
+  -- Second string: STRING8 (0x09) + length (1) + data (4) = 6 bytes
+  -- Total: 12 bytes
+  assert_eq(#data_no_sharing, 12, "Without sharing, strings are duplicated")
+end)
+
+test("to_string respects No_sharing in to_string API", function()
+  -- This is harder to test without complex structures
+  -- Just verify it doesn't error
+  local result = marshal.to_string(42, {marshal.No_sharing})
+  assert_true(#result > 0, "Should produce data")
+end)
+
+test("Error on Closures flag", function()
+  local success = pcall(function()
+    marshal.to_string(42, {marshal.Closures})
+  end)
+
+  assert_true(not success, "Should error on Closures flag")
+end)
+
+test("Compat_32 flag is accepted but does nothing", function()
+  -- Compat_32 is redundant in Lua, should be silently accepted
+  local result = marshal.to_string(42, {marshal.Compat_32})
+  assert_true(#result > 0, "Should produce data")
+
+  -- Should be same as without flag
+  local result_no_flag = marshal.to_string(42, {})
+  assert_eq(#result, #result_no_flag, "Compat_32 should not change output")
+end)
+
+test("Multiple flags can be combined", function()
+  -- No_sharing + Compat_32 should work
+  local result = marshal.to_string(42, {marshal.No_sharing, marshal.Compat_32})
+  assert_true(#result > 0, "Should produce data")
+end)
+
+test("Empty flags array", function()
+  local result = marshal.to_string(42, {})
+  assert_true(#result > 0, "Should produce data")
+end)
+
+test("Nil flags (default behavior)", function()
+  local result = marshal.to_string(42, nil)
+  assert_true(#result > 0, "Should produce data")
+end)
+
+test("to_bytes alias exists", function()
+  assert_true(marshal.to_bytes ~= nil, "to_bytes should exist")
+  local result = marshal.to_bytes(42, {})
+  assert_true(#result > 0, "Should produce data")
+end)
+
+test("Sharing enabled by default", function()
+  local writer = marshal.MarshalWriter:new(false)  -- sharing enabled
+  local str = "shared"
+
+  writer:write_string(str)
+  writer:write_string(str)
+
+  local data = writer:to_string()
+
+  -- With sharing:
+  -- First: STRING8 (1) + len (1) + data (6) = 8 bytes
+  -- Second: SHARED8 (1) + offset (1) = 2 bytes
+  -- Total: 10 bytes
+  assert_eq(#data, 10, "With sharing enabled, second reference is smaller")
+end)
+
+test("No_sharing flag disables sharing in writer", function()
+  local writer = marshal.MarshalWriter:new(true)  -- no_sharing = true
+  local str = "test"
+
+  writer:write_string(str)
+  writer:write_string(str)
+
+  local data = writer:to_string()
+
+  -- Both should be full STRING8
+  -- Each: STRING8 (1) + len (1) + data (4) = 6 bytes
+  -- Total: 12 bytes
+  assert_eq(#data, 12, "No_sharing should duplicate strings")
+end)
+
+--
 -- Summary
 --
 

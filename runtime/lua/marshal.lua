@@ -38,6 +38,11 @@ M.CODE_BLOCK64 = 0x13
 M.CODE_CUSTOM_LEN = 0x18
 M.CODE_CUSTOM_FIXED = 0x19
 
+-- Marshal flags (extern_flags)
+M.No_sharing = 0  -- Disable sharing of heap values
+M.Closures = 1    -- Not supported, will error
+M.Compat_32 = 2   -- Force 32-bit integer compatibility (redundant in Lua)
+
 --
 -- Custom Block Operations
 --
@@ -216,6 +221,39 @@ end
 -- Get total count of objects
 function ObjectTable:count()
   return #self.objs
+end
+
+--
+-- Flag Parsing
+--
+
+-- Parse marshal flags from a list/array
+-- Returns: { no_sharing = bool, closures = bool, compat_32 = bool }
+local function parse_flags(flags)
+  local result = {
+    no_sharing = false,
+    closures = false,
+    compat_32 = false
+  }
+
+  if not flags then
+    return result
+  end
+
+  -- Handle both array-style and table-style flags
+  if type(flags) == "table" then
+    for _, flag in ipairs(flags) do
+      if flag == M.No_sharing then
+        result.no_sharing = true
+      elseif flag == M.Closures then
+        result.closures = true
+      elseif flag == M.Compat_32 then
+        result.compat_32 = true
+      end
+    end
+  end
+
+  return result
 end
 
 --
@@ -984,6 +1022,54 @@ function M.unmarshal_value(str, offset)
   local reader = MarshalReader:new(str, offset)
   return reader:read_value()
 end
+
+-- Marshal value with flags (high-level API)
+-- flags: array of flag constants (M.No_sharing, M.Closures, M.Compat_32)
+-- Returns: marshalled data as string (without header)
+function M.to_string(value, flags)
+  local parsed_flags = parse_flags(flags)
+
+  -- Check for unsupported flags
+  if parsed_flags.closures then
+    error("Marshal: Closures flag is not supported")
+  end
+
+  -- Compat_32 is redundant in Lua (all integers are already compatible)
+  -- No action needed for compat_32 flag
+
+  -- Create writer with no_sharing flag
+  local writer = MarshalWriter:new(parsed_flags.no_sharing)
+
+  -- Marshal the value
+  local value_type = type(value)
+  if value_type == "number" then
+    if value == math.floor(value) and value ~= math.huge and value ~= -math.huge
+       and value >= -2147483648 and value <= 2147483647 then
+      writer:write_int(value)
+    else
+      writer:write_double(value)
+    end
+  elseif value_type == "string" then
+    writer:write_string(value)
+  elseif value_type == "table" then
+    if value.caml_custom then
+      writer:write_custom(value)
+    elseif value.tag == 254 and value.values then
+      writer:write_double_array(value.values, value)
+    elseif value.tag ~= nil and value.size ~= nil then
+      writer:write_block(value.tag, value.size)
+    else
+      error("Marshal: complex blocks not yet implemented")
+    end
+  else
+    error("Marshal: unsupported type " .. value_type)
+  end
+
+  return writer:to_string()
+end
+
+-- Alias for to_string
+M.to_bytes = M.to_string
 
 -- Unmarshal from full marshal format (with header)
 -- This is the main entry point for unmarshalling complete marshal data

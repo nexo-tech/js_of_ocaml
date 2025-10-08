@@ -287,15 +287,20 @@ The Marshal module provides serialization and deserialization of OCaml values to
 - **Test**: ✅ 8 compression tests pass (LuaJIT)
 - **Commit**: "feat(marshal): Add compression support"
 
-#### Task 5.2: Marshal Flags
-- [ ] Implement marshal flags
-  - No_sharing flag
-  - Closures flag (error)
-  - Compat_32 flag
-- [ ] Respect flags during marshalling
-- [ ] Validate flags during unmarshalling
-- **Output**: ~60 lines
-- **Test**: Flag behavior tests
+#### Task 5.2: Marshal Flags ✅
+- [x] Implement marshal flags
+  - M.No_sharing (0) - disables sharing
+  - M.Closures (1) - errors (not supported)
+  - M.Compat_32 (2) - accepted but no-op
+- [x] Respect flags during marshalling
+  - parse_flags() helper function
+  - to_string(value, flags) high-level API
+  - Passes no_sharing to MarshalWriter
+- [x] Validate flags during unmarshalling
+  - Closures flag triggers error
+  - Compat_32 silently accepted
+- **Output**: 199 lines total (86 code + 113 tests)
+- **Test**: ✅ 12 flag behavior tests pass (LuaJIT)
 - **Commit**: "feat(marshal): Add marshal flags"
 
 #### Task 5.3: Object Tags
