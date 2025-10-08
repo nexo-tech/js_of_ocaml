@@ -158,57 +158,11 @@ Fix LuaJIT-specific issues with mlBytes and obj modules.
 
 **Checkpoint**: ✅ LuaJIT - 11/14 modules fully tested (79%), excellent compatibility
 
-### Phase 3: Automated Testing Infrastructure
-
-Create comprehensive automated testing across Lua 5.1, 5.4, and LuaJIT.
-
-#### Task 3.1: Create unified test matrix runner
-- [ ] Build single script to test all versions
-- [ ] Generate HTML compatibility matrix
-- [ ] Add performance comparison
-- [ ] Create detailed error reports
-- **Files**: `runtime/lua/test_all_versions.sh` (new)
-- **Output**: ~300 lines (comprehensive test suite)
-- **Test**: Runs tests on Lua 5.1, 5.4, and LuaJIT
-- **Commit**: "test: Add unified multi-version test runner"
-
-#### Task 3.2: Add GitHub Actions CI
-- [ ] Create `.github/workflows/lua-compat.yml`
-- [ ] Test on Lua 5.1, 5.4, LuaJIT
-- [ ] Generate compatibility reports
-- [ ] Upload test results as artifacts
-- **Files**: `.github/workflows/lua-compat.yml` (new)
-- **Output**: ~150 lines (CI configuration)
-- **Test**: CI runs on every commit
-- **Commit**: "ci: Add Lua compatibility testing to GitHub Actions"
-
-#### Task 3.3: Create compatibility badge generator
-- [ ] Generate SVG badges for each Lua version
-- [ ] Show pass/fail status
-- [ ] Include in README.md
-- [ ] Auto-update on CI runs
-- **Files**: `runtime/lua/generate_badges.sh` (new)
-- **Output**: ~100 lines
-- **Test**: Badges display correctly
-- **Commit**: "docs: Add Lua compatibility badges"
-
-#### Task 3.4: Add regression testing
-- [ ] Store baseline test results
-- [ ] Compare new results against baseline
-- [ ] Flag any new failures
-- [ ] Track compatibility over time
-- **Files**: `runtime/lua/test_regression.sh` (new)
-- **Output**: ~150 lines
-- **Test**: Detects compatibility regressions
-- **Commit**: "test: Add compatibility regression testing"
-
-**Checkpoint**: ✅ Automated testing for Lua 5.1, 5.4, and LuaJIT
-
-### Phase 4: Documentation and Best Practices
+### Phase 3: Documentation and Best Practices
 
 Document compatibility practices and guidelines.
 
-#### Task 4.1: Create compatibility guide
+#### Task 3.1: Create compatibility guide
 - [ ] Write developer guide for writing compatible code
 - [ ] Document version-specific features
 - [ ] Provide code examples
@@ -218,7 +172,7 @@ Document compatibility practices and guidelines.
 - **Test**: Documentation is clear and accurate
 - **Commit**: "docs: Add Lua compatibility development guide"
 
-#### Task 4.2: Update COMPAT_MATRIX.md
+#### Task 3.2: Update COMPAT_MATRIX.md
 - [ ] Mark all modules as compatible
 - [ ] Document version-specific notes
 - [ ] Add performance comparisons
@@ -228,7 +182,7 @@ Document compatibility practices and guidelines.
 - **Test**: Matrix is accurate
 - **Commit**: "docs: Update compatibility matrix to 100%"
 
-#### Task 4.3: Create version feature matrix
+#### Task 3.3: Create version feature matrix
 - [ ] Document which features work on which versions
 - [ ] List version-specific optimizations
 - [ ] Note performance characteristics
@@ -238,7 +192,7 @@ Document compatibility practices and guidelines.
 - **Test**: Helps users choose Lua version
 - **Commit**: "docs: Add Lua version feature comparison"
 
-#### Task 4.4: Add compatibility examples
+#### Task 3.4: Add compatibility examples
 - [ ] Create example programs for each version
 - [ ] Show version-specific code patterns
 - [ ] Demonstrate compatibility layers
