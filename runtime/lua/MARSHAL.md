@@ -172,45 +172,45 @@ The Marshal module provides serialization and deserialization of OCaml values to
 
 ### Phase 3: Value Unmarshalling (Deserialization)
 
-#### Task 3.1: Immediate Values
-- [ ] Unmarshal small integers
-- [ ] Unmarshal small strings
-- [ ] Unmarshal small blocks
-- [ ] Unmarshal extended integers
-- [ ] Unmarshal extended strings
-- [ ] Handle immediate value edge cases
-- **Output**: ~100 lines
-- **Test**: Unmarshal immediate tests
-- **Commit**: "feat(marshal): Unmarshal immediate values"
+#### Task 3.1: Immediate Values ✅
+- [x] Unmarshal small integers
+- [x] Unmarshal small strings
+- [x] Unmarshal small blocks
+- [x] Unmarshal extended integers
+- [x] Unmarshal extended strings
+- [x] Handle immediate value edge cases
+- **Output**: Already completed in Tasks 2.1-2.3
+- **Test**: ✅ Covered by existing 66 tests (all roundtrip tests)
+- **Note**: Unmarshalling was implemented alongside marshalling in Phase 2
 
-#### Task 3.2: Structured Values
-- [ ] Unmarshal blocks with stack-based algorithm
+#### Task 3.2: Structured Values ✅
+- [x] Unmarshal blocks with stack-based algorithm
   - Parse BLOCK32 header
   - Build block incrementally
   - Handle nested structures
-- [ ] Unmarshal float arrays
+- [x] Unmarshal float arrays
   - Parse double array codes
   - Convert byte sequences to floats
   - Handle endianness
-- [ ] Unmarshal doubles
+- [x] Unmarshal doubles
   - IEEE 754 decoding
   - Big/little endian
-- **Output**: ~150 lines
-- **Test**: Unmarshal structured tests
-- **Commit**: "feat(marshal): Unmarshal structured values"
+- **Output**: Already completed in Task 2.2
+- **Test**: ✅ Covered by existing 66 tests (all roundtrip tests)
+- **Note**: Unmarshalling was implemented alongside marshalling in Task 2.2
 
-#### Task 3.3: Sharing Resolution
-- [ ] Build intern object table
+#### Task 3.3: Sharing Resolution ✅
+- [x] Build intern object table
   - Store unmarshalled objects by ID
   - Handle forward references
-- [ ] Resolve shared references
+- [x] Resolve shared references
   - SHARED8/16/32 lookup
   - Handle compressed vs uncompressed offsets
-- [ ] Reconstruct cyclic structures
-- [ ] Validate object references
-- **Output**: ~80 lines
-- **Test**: Cyclic unmarshal tests
-- **Commit**: "feat(marshal): Add sharing resolution"
+- [x] Reconstruct cyclic structures
+- [x] Validate object references
+- **Output**: Already completed in Task 2.3
+- **Test**: ✅ Covered by existing 66 tests (all sharing/cycle tests)
+- **Note**: Sharing resolution was implemented alongside marshalling in Task 2.3
 
 ### Phase 4: Custom Blocks
 
