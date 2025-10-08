@@ -780,6 +780,65 @@ function MarshalReader:read_double_array32_big()
   return v
 end
 
+-- Unmarshal custom block (CUSTOM, CUSTOM_FIXED, CUSTOM_LEN)
+function MarshalReader:read_custom(code)
+  -- Read null-terminated identifier
+  local identifier = ""
+  local c = self.reader:read8u()
+  while c ~= 0 do
+    identifier = identifier .. string.char(c)
+    c = self.reader:read8u()
+  end
+
+  -- Lookup custom operations
+  local ops = M.custom_ops[identifier]
+  if not ops then
+    error("Marshal: unknown custom block identifier: " .. identifier)
+  end
+
+  if not ops.deserialize then
+    error("Marshal: custom block " .. identifier .. " has no deserialize function")
+  end
+
+  local expected_size = nil
+
+  if code == M.CODE_CUSTOM then
+    -- CODE_CUSTOM (0x12) - deprecated, no size checking
+    expected_size = nil
+
+  elseif code == M.CODE_CUSTOM_FIXED then
+    -- CODE_CUSTOM_FIXED (0x19) - fixed-length custom block
+    if not ops.fixed_length then
+      error("Marshal: expected a fixed-size custom block for " .. identifier)
+    end
+    expected_size = ops.fixed_length
+
+  elseif code == M.CODE_CUSTOM_LEN then
+    -- CODE_CUSTOM_LEN (0x18) - variable-length with size header
+    expected_size = self.reader:read32u()
+    -- Skip zero and size_64 fields
+    self.reader:read32s()
+    self.reader:read32s()
+  end
+
+  -- Call custom deserializer
+  local size_array = {0}
+  local v = ops.deserialize(self.reader, size_array)
+
+  -- Verify size if expected
+  if expected_size ~= nil then
+    if expected_size ~= size_array[1] then
+      error(string.format("Marshal: custom block %s expected size %d but got %d",
+                         identifier, expected_size, size_array[1]))
+    end
+  end
+
+  -- Store in intern table
+  self:intern_store(v)
+
+  return v
+end
+
 -- Unmarshal value (main entry point)
 function MarshalReader:read_value()
   local code = self.reader:read8u()
@@ -836,6 +895,12 @@ function MarshalReader:read_value()
     return self:read_double_array32_little()
   elseif code == M.CODE_DOUBLE_ARRAY32_BIG then
     return self:read_double_array32_big()
+  elseif code == M.CODE_CUSTOM then
+    return self:read_custom(code)
+  elseif code == M.CODE_CUSTOM_FIXED then
+    return self:read_custom(code)
+  elseif code == M.CODE_CUSTOM_LEN then
+    return self:read_custom(code)
   else
     error(string.format("Marshal: unsupported code 0x%02X", code))
   end

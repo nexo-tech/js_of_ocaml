@@ -1079,6 +1079,220 @@ test("Error on size mismatch for fixed_length", function()
 end)
 
 --
+-- Custom Block Unmarshalling Tests (Task 4.3)
+--
+
+print("")
+print("Custom Block Unmarshalling:")
+print("--------------------------------------------------------------------")
+
+test("Unmarshal Int64 CUSTOM_FIXED", function()
+  local value = {
+    caml_custom = "_j",
+    bytes = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
+  }
+
+  local data = marshal.marshal_value(value)
+  local result = marshal.unmarshal_value(data)
+
+  assert_eq(result.caml_custom, "_j", "Should have correct custom marker")
+  for i = 1, 8 do
+    assert_eq(result.bytes[i], value.bytes[i], "Byte " .. i)
+  end
+end)
+
+test("Unmarshal Int32 CUSTOM_FIXED", function()
+  local value = {
+    caml_custom = "_i",
+    value = 0x12345678
+  }
+
+  local data = marshal.marshal_value(value)
+  local result = marshal.unmarshal_value(data)
+
+  assert_eq(result.caml_custom, "_i", "Should have correct custom marker")
+  assert_eq(result.value, 0x12345678, "Should have correct value")
+end)
+
+test("Unmarshal Int32 negative", function()
+  local value = {
+    caml_custom = "_i",
+    value = -42
+  }
+
+  local data = marshal.marshal_value(value)
+  local result = marshal.unmarshal_value(data)
+
+  assert_eq(result.value, -42, "Should handle negative values")
+end)
+
+test("Unmarshal Nativeint CUSTOM_FIXED", function()
+  local value = {
+    caml_custom = "_n",
+    value = 0x7FFFFFFF
+  }
+
+  local data = marshal.marshal_value(value)
+  local result = marshal.unmarshal_value(data)
+
+  assert_eq(result.caml_custom, "_n", "Should have correct custom marker")
+  assert_eq(result.value, 0x7FFFFFFF, "Should have correct value")
+end)
+
+test("Roundtrip Int64 full", function()
+  local original = {
+    caml_custom = "_j",
+    bytes = {0xFF, 0xEE, 0xDD, 0xCC, 0xBB, 0xAA, 0x99, 0x88}
+  }
+
+  local data = marshal.marshal_value(original)
+  local result = marshal.unmarshal_value(data)
+
+  assert_eq(result.caml_custom, "_j", "Custom marker")
+  for i = 1, 8 do
+    assert_eq(result.bytes[i], original.bytes[i], "Byte " .. i)
+  end
+end)
+
+test("Roundtrip Int32 full", function()
+  local values = {42, -42, 0, 2147483647, -2147483648, 0x12345678}
+  for _, val in ipairs(values) do
+    local original = {caml_custom = "_i", value = val}
+    local data = marshal.marshal_value(original)
+    local result = marshal.unmarshal_value(data)
+    assert_eq(result.value, val, "Roundtrip " .. val)
+  end
+end)
+
+test("Roundtrip Nativeint full", function()
+  local values = {0, 1, -1, 1000000, -1000000}
+  for _, val in ipairs(values) do
+    local original = {caml_custom = "_n", value = val}
+    local data = marshal.marshal_value(original)
+    local result = marshal.unmarshal_value(data)
+    assert_eq(result.value, val, "Roundtrip " .. val)
+  end
+end)
+
+test("Custom block with sharing roundtrip", function()
+  local writer = marshal.MarshalWriter:new(false)
+  local value = {caml_custom = "_i", value = 123}
+
+  writer:write_custom(value)
+  writer:write_custom(value)  -- Shared reference
+
+  local data = writer:to_string()
+  local num_objects = writer.obj_table:count()
+
+  local reader = marshal.MarshalReader:new(data, 0, num_objects)
+  local v1 = reader:read_value()
+  local v2 = reader:read_value()
+
+  assert_eq(v1.value, 123, "First value")
+  assert_eq(v2.value, 123, "Second value")
+  -- Note: In Lua, tables are not reference-equal after deserialization
+  -- So we just check values match
+end)
+
+test("Error on unknown custom identifier during unmarshal", function()
+  -- Manually construct a CUSTOM_FIXED with unknown identifier
+  local marshal_io = require("marshal_io")
+  local writer = marshal_io.Writer:new()
+
+  writer:write8u(0x19)  -- CODE_CUSTOM_FIXED
+  writer:writestr("_unknown")
+  writer:write8u(0)  -- null terminator
+  writer:write32u(0)  -- dummy data
+
+  local data = writer:to_string()
+
+  local success = pcall(function()
+    marshal.unmarshal_value(data)
+  end)
+
+  assert_true(not success, "Should error on unknown identifier")
+end)
+
+test("Error on size mismatch during unmarshal", function()
+  -- Register a custom type with deserialize that reports wrong size
+  marshal.custom_ops["_badsize"] = {
+    deserialize = function(reader, size_array)
+      size_array[1] = 2  -- Report 2 bytes
+      local v = reader:read8u()  -- But only read 1 byte (will cause mismatch)
+      return {caml_custom = "_badsize", value = v}
+    end,
+    serialize = nil,
+    fixed_length = 4  -- Claim fixed length is 4
+  }
+
+  -- Manually construct CUSTOM_FIXED
+  local marshal_io = require("marshal_io")
+  local writer = marshal_io.Writer:new()
+
+  writer:write8u(0x19)  -- CODE_CUSTOM_FIXED
+  writer:writestr("_badsize")
+  writer:write8u(0)
+  writer:write8u(42)  -- 1 byte of data
+
+  local data = writer:to_string()
+
+  local success = pcall(function()
+    marshal.unmarshal_value(data)
+  end)
+
+  -- Clean up
+  marshal.custom_ops["_badsize"] = nil
+
+  assert_true(not success, "Should error on size mismatch")
+end)
+
+test("CUSTOM_LEN variable-length format", function()
+  -- Register a variable-length custom type for testing
+  marshal.custom_ops["_varlen"] = {
+    deserialize = function(reader, size_array)
+      local len = reader:read8u()
+      local data = {}
+      for i = 1, len do
+        data[i] = reader:read8u()
+      end
+      size_array[1] = len + 1  -- Total bytes read
+      return {caml_custom = "_varlen", data = data}
+    end,
+    serialize = function(writer, value, sizes_array)
+      local len = #value.data
+      writer:write8u(len)
+      for i = 1, len do
+        writer:write8u(value.data[i])
+      end
+      sizes_array[1] = len + 1
+      sizes_array[2] = len + 1
+    end,
+    fixed_length = nil  -- Variable length
+  }
+
+  local original = {
+    caml_custom = "_varlen",
+    data = {1, 2, 3, 4, 5}
+  }
+
+  local data = marshal.marshal_value(original)
+
+  -- Should use CUSTOM_LEN (0x18)
+  assert_eq(string.byte(data, 1), 0x18, "Should use CUSTOM_LEN")
+
+  local result = marshal.unmarshal_value(data)
+
+  assert_eq(result.caml_custom, "_varlen", "Custom marker")
+  assert_eq(#result.data, 5, "Data length")
+  for i = 1, 5 do
+    assert_eq(result.data[i], i, "Data element " .. i)
+  end
+
+  -- Clean up
+  marshal.custom_ops["_varlen"] = nil
+end)
+
+--
 -- Summary
 --
 

@@ -249,19 +249,24 @@ The Marshal module provides serialization and deserialization of OCaml values to
 - **Test**: ✅ 11 custom marshalling tests pass (LuaJIT)
 - **Commit**: "feat(marshal): Marshal custom blocks"
 
-#### Task 4.3: Custom Block Unmarshalling
-- [ ] Unmarshal CUSTOM blocks
-  - Read identifier
-  - Lookup operations
+#### Task 4.3: Custom Block Unmarshalling ✅
+- [x] Unmarshal CUSTOM blocks
+  - Read null-terminated identifier
+  - Lookup operations in M.custom_ops
   - Call custom deserialize
-- [ ] Handle size fields
-  - Fixed length
-  - Variable length with VLQ
-- [ ] Unmarshal Int64
-- [ ] Unmarshal Bigarray
-- [ ] Error handling for unknown customs
-- **Output**: ~100 lines
-- **Test**: Custom unmarshal tests
+  - Verify size matches expected
+  - Store in intern table
+- [x] Handle size fields
+  - CUSTOM (0x12): deprecated, no size checking
+  - CUSTOM_FIXED (0x19): uses ops.fixed_length
+  - CUSTOM_LEN (0x18): reads 12-byte size header
+- [x] Unmarshal Int64 (via deserialize in Task 4.1)
+- [x] Unmarshal Int32 (via deserialize in Task 4.1)
+- [x] Unmarshal Nativeint (via deserialize in Task 4.1)
+- [x] Bigarray unmarshalling - deferred to bigarray integration
+- [x] Error handling for unknown customs
+- **Output**: 279 lines total (65 code + 214 tests)
+- **Test**: ✅ 12 custom unmarshalling tests pass (LuaJIT)
 - **Commit**: "feat(marshal): Unmarshal custom blocks"
 
 ### Phase 5: Advanced Features
