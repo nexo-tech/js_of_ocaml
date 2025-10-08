@@ -422,15 +422,15 @@ The Marshal module provides serialization and deserialization of OCaml values to
 - **Commit**: "test(marshal): Add roundtrip tests"
 
 #### Task 7.3: Compatibility Tests
-- [ ] Test against OCaml-marshalled data
-  - Generate test data with OCaml
-  - Unmarshal in Lua
-- [ ] Test against js_of_ocaml
-  - Compare behavior
-  - Verify format compatibility
-- [ ] Test version compatibility
-- **Output**: ~100 lines
-- **Test**: Cross-platform validation
+- [x] Test against OCaml-marshalled data
+  - Generate test data with OCaml (gen_marshal_test_data.ml)
+  - Unmarshal in Lua (test_marshal_compat.lua)
+- [x] Test against js_of_ocaml
+  - Verify format compatibility (same format as js_of_ocaml)
+  - Test sharing and cycles
+- [x] Test version compatibility (OCaml marshal format)
+- **Output**: 103 lines (gen_marshal_test_data.ml) + 355 lines (test_marshal_compat.lua)
+- **Tests**: 42 compatibility tests covering OCaml-generated marshal data
 - **Commit**: "test(marshal): Add compatibility tests"
 
 #### Task 7.4: Performance Tests
