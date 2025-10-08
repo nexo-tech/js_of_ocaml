@@ -209,6 +209,17 @@ function caml_ml_input_char(chanid)
     return c
   end
 
+  -- Memory channel
+  if chan.memory then
+    if chan.pos > #chan.data then
+      error("End_of_file")
+    end
+    local c = string.byte(chan.data, chan.pos)
+    chan.pos = chan.pos + 1
+    chan.offset = chan.offset + 1
+    return c
+  end
+
   -- Read from file
   local c = chan.file:read(1)
   if not c then
@@ -242,9 +253,22 @@ function caml_ml_input(chanid, buf, offset, len)
     offset = offset + to_read
   end
 
-  -- Read more from file if needed
+  -- Read more from file/memory if needed
   if len > 0 then
-    local chunk = chan.file:read(len)
+    local chunk
+    if chan.memory then
+      -- Read from memory
+      local available = #chan.data - chan.pos + 1
+      if available > 0 then
+        local to_read = math.min(len, available)
+        chunk = string.sub(chan.data, chan.pos, chan.pos + to_read - 1)
+        chan.pos = chan.pos + to_read
+      end
+    else
+      -- Read from file
+      chunk = chan.file:read(len)
+    end
+
     if chunk then
       local chunk_len = #chunk
       for i = 1, chunk_len do
@@ -374,6 +398,12 @@ function caml_ml_flush(chanid)
     error("caml_ml_flush: channel is closed")
   end
   if not chan.out then
+    return 0
+  end
+
+  -- For memory channels, buffer is already the destination
+  if chan.memory then
+    -- Nothing to flush - data is already in chan.buffer
     return 0
   end
 
@@ -638,6 +668,73 @@ function caml_ml_set_buffered(chanid, v)
   return 0
 end
 
+--
+-- In-memory channels
+--
+
+-- Create input channel from string
+function caml_ml_open_string_in(str)
+  local chanid = next_chanid
+  next_chanid = next_chanid + 1
+
+  local channel = {
+    memory = true,
+    opened = true,
+    out = false,
+    data = str,
+    pos = 1,
+    buffer = "",
+    buffer_pos = 1,
+    offset = 0
+  }
+
+  caml_ml_channels[chanid] = channel
+  return chanid
+end
+
+-- Create output channel to buffer
+function caml_ml_open_buffer_out()
+  local chanid = next_chanid
+  next_chanid = next_chanid + 1
+
+  local channel = {
+    memory = true,
+    opened = true,
+    out = true,
+    buffer = {},
+    buffered = 1,
+    offset = 0
+  }
+
+  caml_ml_channels[chanid] = channel
+  return chanid
+end
+
+-- Get contents from buffer output channel
+function caml_ml_buffer_contents(chanid)
+  local chan = caml_ml_channels[chanid]
+  if not chan or not chan.opened or not chan.out or not chan.memory then
+    error("caml_ml_buffer_contents: invalid channel")
+  end
+
+  -- Flush any pending data
+  caml_ml_flush(chanid)
+
+  -- Convert buffer to string
+  return table.concat(chan.buffer)
+end
+
+-- Reset buffer output channel
+function caml_ml_buffer_reset(chanid)
+  local chan = caml_ml_channels[chanid]
+  if not chan or not chan.opened or not chan.out or not chan.memory then
+    error("caml_ml_buffer_reset: invalid channel")
+  end
+
+  chan.buffer = {}
+  chan.offset = 0
+end
+
 -- Export all functions as a module
 return {
   caml_sys_open = caml_sys_open,
@@ -676,4 +773,8 @@ return {
   caml_ml_out_channels_list = caml_ml_out_channels_list,
   caml_ml_is_buffered = caml_ml_is_buffered,
   caml_ml_set_buffered = caml_ml_set_buffered,
+  caml_ml_open_string_in = caml_ml_open_string_in,
+  caml_ml_open_buffer_out = caml_ml_open_buffer_out,
+  caml_ml_buffer_contents = caml_ml_buffer_contents,
+  caml_ml_buffer_reset = caml_ml_buffer_reset,
 }

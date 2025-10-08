@@ -614,12 +614,21 @@ The I/O system is a critical part of the OCaml runtime, providing:
 
 ### Phase 10: Advanced Features (Optional)
 
-#### Task 10.1: In-Memory Channels
-- [ ] Implement string-based input channels
-- [ ] Implement buffer-based output channels
-- [ ] Support marshal to/from memory
-- **Output**: ~150 lines
-- **Test**: In-memory channel tests
+#### Task 10.1: In-Memory Channels ✅
+- [x] Implement string-based input channels
+  - ✅ `caml_ml_open_string_in(str)` - Create input channel from string
+  - ✅ Modified `caml_ml_input_char()` to support memory channels
+  - ✅ Modified `caml_ml_input()` to support memory channels
+- [x] Implement buffer-based output channels
+  - ✅ `caml_ml_open_buffer_out()` - Create output channel to buffer
+  - ✅ `caml_ml_buffer_contents(chanid)` - Get buffer contents
+  - ✅ `caml_ml_buffer_reset(chanid)` - Reset buffer
+  - ✅ Modified `caml_ml_flush()` to handle memory channels
+- [x] Support marshal to/from memory
+  - ✅ Works seamlessly with existing marshal.to_channel/from_channel
+  - ✅ Tested round-trip serialization through memory
+- **Output**: 127 lines (io.lua modifications + 4 new functions)
+- **Test**: ✅ 33/33 tests passed (test_memory_channels.lua)
 - **Commit**: "feat(io): Add in-memory channels"
 
 #### Task 10.2: Custom Channel Backends
