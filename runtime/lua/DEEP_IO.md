@@ -576,16 +576,23 @@ The I/O system is a critical part of the OCaml runtime, providing:
 - **Commit**: "test(io): Add comprehensive integration tests"
 - **Notes**: Requires Lua 5.3+ for bitwise operators; preload io.lua to avoid clash with standard library
 
-#### Task 9.2: Performance Benchmarks
-- [ ] Benchmark marshal serialization speed
-- [ ] Benchmark channel I/O throughput
-- [ ] Benchmark buffer operations
-- [ ] Benchmark hashtable operations
-- [ ] Benchmark comparison/hashing
-- [ ] Compare with JavaScript runtime
-- **Output**: ~200 lines (benchmarks)
-- **Test**: Performance regression tests
+#### Task 9.2: Performance Benchmarks ✅
+- [x] Benchmark marshal serialization speed
+- [x] Benchmark channel I/O throughput
+- [x] Benchmark buffer operations
+- [x] Benchmark hashtable operations
+- [x] Benchmark comparison/hashing
+- [x] Compare with JavaScript runtime
+- **Output**: 428 lines (benchmark_io.lua)
+- **Test**: All benchmarks run successfully on Lua 5.3
 - **Commit**: "perf(io): Add performance benchmarks"
+- **Performance Summary**:
+  - Marshal: 72K ops/sec (int), 16K ops/sec (string), 2.6K ops/sec (list of 100)
+  - Channel I/O: 25K ops/sec (1KB write), 8.8K ops/sec (10KB write)
+  - Buffer: 1.7M ops/sec (create), 842K ops/sec (add string 100B), 15.9M ops/sec (length)
+  - Hashtable: 239K ops/sec (create), 2.9K ops/sec (add 100 keys), 5K ops/sec (find hits)
+  - Comparison: 2.3M ops/sec (int compare), 1.1M ops/sec (int equal)
+  - Hashing: 594K ops/sec (int hash), 227K ops/sec (string 10 chars)
 
 #### Task 9.3: Documentation
 - [ ] Document channel API
