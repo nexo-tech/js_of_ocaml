@@ -475,19 +475,22 @@ The I/O system is a critical part of the OCaml runtime, providing:
 - **Test**: ✅ 42/42 tests pass (system config, environment vars, time, file ops, directory ops, constants, performance)
 - **Commit**: "feat(sys): Implement system operations"
 
-#### Task 6.2: Filename Module
-- [ ] Create `runtime/lua/filename.lua`
-- [ ] Implement caml_filename_concat (join paths)
-- [ ] Implement caml_filename_basename
-- [ ] Implement caml_filename_dirname
-- [ ] Implement caml_filename_check_suffix
-- [ ] Implement caml_filename_chop_suffix
-- [ ] Implement caml_filename_chop_extension
-- [ ] Implement caml_filename_is_relative
-- [ ] Implement caml_filename_is_implicit
-- [ ] Handle platform differences (Unix vs Windows paths)
-- **Output**: ~200 lines
-- **Test**: Path manipulation tests
+#### Task 6.2: Filename Module ✅
+- [x] Create `runtime/lua/filename.lua`
+- [x] Implement caml_filename_concat (join paths)
+- [x] Implement caml_filename_basename
+- [x] Implement caml_filename_dirname
+- [x] Implement caml_filename_check_suffix
+- [x] Implement caml_filename_chop_suffix
+- [x] Implement caml_filename_chop_extension
+- [x] Implement caml_filename_is_relative
+- [x] Implement caml_filename_is_implicit
+- [x] Implement additional functions (extension, remove_extension, quote, null, temp_dir_name)
+- [x] Handle platform differences (Unix vs Windows paths)
+- [x] Support directory separators (/ and \ detection)
+- [x] Handle drive letters on Windows (C:\)
+- **Output**: 426 lines (filename.lua) + 556 lines (test_filename.lua) = 982 lines
+- **Test**: ✅ 70/70 tests pass (concat, basename, dirname, suffix ops, extension ops, path types, edge cases, platform-specific, performance)
 - **Commit**: "feat(filename): Implement path operations"
 
 ### Phase 7: Advanced Collections
