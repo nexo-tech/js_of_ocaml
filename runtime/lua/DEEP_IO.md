@@ -297,24 +297,35 @@ The I/O system is a critical part of the OCaml runtime, providing:
 - **Test**: ✅ 32/32 tests pass (1 create + 3 push + 4 pop + 4 top + 3 empty + 2 length + 3 clear + 4 iter + 2 array + 3 mixed + 3 performance)
 - **Commit**: "feat(stack): Implement LIFO stack operations"
 
-#### Task 3.4: Hashtbl Module
-- [ ] Create `runtime/lua/hashtbl.lua`
-- [ ] Implement mutable hash table
-  - caml_hash_create (with initial size)
-  - caml_hash_add
-  - caml_hash_find
-  - caml_hash_find_opt
-  - caml_hash_remove
-  - caml_hash_replace
-  - caml_hash_mem
-  - caml_hash_length
-  - caml_hash_clear
-  - caml_hash_iter
-  - caml_hash_fold
-- [ ] Implement resize and rehashing
-- [ ] Use polymorphic hash function
-- **Output**: ~300 lines
-- **Test**: Hashtbl operations tests
+#### Task 3.4: Hashtbl Module ✅
+- [x] Create `runtime/lua/hash.lua` (polymorphic hashing)
+- [x] Create `runtime/lua/hashtbl.lua`
+- [x] Implement mutable hash table
+  - ✅ caml_hash_create (with initial size)
+  - ✅ caml_hash_add
+  - ✅ caml_hash_find
+  - ✅ caml_hash_find_opt
+  - ✅ caml_hash_remove
+  - ✅ caml_hash_replace
+  - ✅ caml_hash_mem
+  - ✅ caml_hash_length
+  - ✅ caml_hash_clear
+  - ✅ caml_hash_iter
+  - ✅ caml_hash_fold
+- [x] Implement resize and rehashing
+  - ✅ Automatic resize at 0.75 load factor
+  - ✅ Preserves all bindings during rehash
+- [x] Use polymorphic hash function
+  - ✅ MurmurHash3-based mixing
+  - ✅ Handles integers, floats, strings, tables
+  - ✅ Structural hashing for OCaml values
+- [x] Bonus: Additional utility functions
+  - ✅ caml_hash_entries (for-loop iterator)
+  - ✅ caml_hash_keys, caml_hash_values
+  - ✅ caml_hash_to_array
+  - ✅ caml_hash_stats (debugging)
+- **Output**: 243 lines (hash.lua) + 349 lines (hashtbl.lua) + 577 lines (test_hashtbl.lua) = 1169 lines
+- **Test**: ✅ 54/54 tests pass
 - **Commit**: "feat(hashtbl): Implement mutable hash tables"
 
 ### Phase 4: Comparison and Hashing
