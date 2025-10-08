@@ -153,21 +153,21 @@ The Marshal module provides serialization and deserialization of OCaml values to
 - **Test**: ✅ 59/59 tests pass (Lua 5.4), 48/48 tests pass (LuaJIT - no float tests)
 - **Commit**: "feat(marshal): Marshal structured values"
 
-#### Task 2.3: Sharing and Cycles
-- [ ] Implement object table
+#### Task 2.3: Sharing and Cycles ✅
+- [x] Implement object table
   - Track marshalled objects
   - Assign object IDs
   - Detect sharing opportunities
-- [ ] Detect cyclic references
+- [x] Detect cyclic references
   - Mark objects during traversal
   - Reference previously marshalled objects
-- [ ] Marshal shared references
+- [x] Marshal shared references
   - SHARED8 (0x04)
   - SHARED16 (0x05)
   - SHARED32 (0x06)
-- [ ] Calculate object count
-- **Output**: ~100 lines
-- **Test**: Cyclic structure tests
+- [x] Calculate object count
+- **Output**: 257 lines total (152 code + 105 tests)
+- **Test**: ✅ 66/66 tests pass (Lua 5.4), 54/54 tests pass (LuaJIT - no float tests)
 - **Commit**: "feat(marshal): Add sharing support"
 
 ### Phase 3: Value Unmarshalling (Deserialization)

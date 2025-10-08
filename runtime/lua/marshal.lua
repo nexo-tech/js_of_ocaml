@@ -42,18 +42,110 @@ M.CODE_CUSTOM_FIXED = 0x19
 -- Marshal Writer
 --
 
+--
+-- Object Table for Sharing
+--
+
+local ObjectTable = {}
+ObjectTable.__index = ObjectTable
+
+function ObjectTable:new()
+  local obj = {
+    objs = {},       -- Array of objects in order
+    lookup = {}      -- Map from object to index
+  }
+  setmetatable(obj, self)
+  return obj
+end
+
+-- Store an object and return its index
+function ObjectTable:store(v)
+  local idx = #self.objs + 1
+  table.insert(self.objs, v)
+  self.lookup[v] = idx
+  return idx
+end
+
+-- Recall an object's relative offset (for sharing)
+-- Returns nil if not found, or relative offset (objs.length - stored_index)
+function ObjectTable:recall(v)
+  local idx = self.lookup[v]
+  if idx == nil then
+    return nil
+  end
+  return #self.objs - idx  -- Relative offset from current position
+end
+
+-- Get total count of objects
+function ObjectTable:count()
+  return #self.objs
+end
+
+--
+-- Marshal Writer
+--
+
 local MarshalWriter = {}
 MarshalWriter.__index = MarshalWriter
 
-function MarshalWriter:new()
+function MarshalWriter:new(no_sharing)
   local obj = {
     writer = Writer:new(),
     size_32 = 0,
     size_64 = 0,
-    obj_counter = 0
+    obj_counter = 0,
+    no_sharing = no_sharing or false,
+    obj_table = no_sharing and nil or ObjectTable:new()
   }
   setmetatable(obj, self)
   return obj
+end
+
+-- Check if object should be shared, and write shared reference if already seen
+-- Returns true if shared reference was written, false if this is first occurrence
+function MarshalWriter:memo(v)
+  if self.no_sharing or self.obj_table == nil then
+    return false
+  end
+
+  -- Only share strings, tables (blocks, float arrays), and numbers (doubles)
+  local vtype = type(v)
+  if vtype ~= "string" and vtype ~= "table" and vtype ~= "number" then
+    return false
+  end
+
+  -- For numbers, only share if it's a double (not an integer)
+  if vtype == "number" and v == math.floor(v) and v >= -2147483648 and v <= 2147483647 then
+    return false  -- Don't share integers
+  end
+
+  local offset = self.obj_table:recall(v)
+  if offset then
+    -- Already seen, write shared reference
+    self:write_shared(offset)
+    return true
+  else
+    -- First occurrence, store it
+    self.obj_table:store(v)
+    return false
+  end
+end
+
+-- Write shared reference (SHARED8, SHARED16, or SHARED32)
+function MarshalWriter:write_shared(offset)
+  if offset < 256 then
+    -- SHARED8
+    self.writer:write8u(M.CODE_SHARED8)
+    self.writer:write8u(offset)
+  elseif offset < 65536 then
+    -- SHARED16
+    self.writer:write8u(M.CODE_SHARED16)
+    self.writer:write16u(offset)
+  else
+    -- SHARED32
+    self.writer:write8u(M.CODE_SHARED32)
+    self.writer:write32u(offset)
+  end
 end
 
 -- Marshal small integer (0-63)
@@ -119,6 +211,8 @@ end
 
 -- Marshal small string (0-31 bytes)
 function MarshalWriter:write_small_string(str)
+  if self:memo(str) then return end  -- Check for sharing
+
   local len = #str
   if len < 0 or len >= 32 then
     error("Marshal: small string out of range (0-31)")
@@ -133,6 +227,8 @@ end
 
 -- Marshal STRING8 (up to 255 bytes)
 function MarshalWriter:write_string8(str)
+  if self:memo(str) then return end  -- Check for sharing
+
   local len = #str
   if len < 0 or len >= 256 then
     error("Marshal: STRING8 out of range (0-255)")
@@ -148,6 +244,8 @@ end
 
 -- Marshal STRING32 (large strings)
 function MarshalWriter:write_string32(str)
+  if self:memo(str) then return end  -- Check for sharing
+
   local len = #str
   self.writer:write8u(M.CODE_STRING32)
   self.writer:write32u(len)
@@ -230,6 +328,8 @@ function MarshalWriter:write_double(value)
     error("Marshal: float/double marshalling requires Lua 5.3+ (string.pack)")
   end
 
+  if self:memo(value) then return end  -- Check for sharing
+
   self.writer:write8u(M.CODE_DOUBLE_LITTLE)
   self.writer:write_double_little(value)
 
@@ -258,6 +358,9 @@ function MarshalWriter:write_double_array8(values)
     error("Marshal: expected table for double array")
   end
 
+  -- Note: memo check happens in the caller (write_double_array)
+  -- to check the whole array, not just the values table
+
   local len = #values
   if len < 0 or len >= 256 then
     error("Marshal: DOUBLE_ARRAY8 length out of range (0-255)")
@@ -284,6 +387,8 @@ function MarshalWriter:write_double_array32(values)
     error("Marshal: expected table for double array")
   end
 
+  -- Note: memo check happens in the caller (write_double_array)
+
   local len = #values
 
   self.writer:write8u(M.CODE_DOUBLE_ARRAY32_LITTLE)
@@ -302,7 +407,10 @@ function MarshalWriter:write_double_array32(values)
 end
 
 -- Marshal float array (chooses optimal encoding)
-function MarshalWriter:write_double_array(values)
+function MarshalWriter:write_double_array(values, float_array_obj)
+  -- float_array_obj is the {tag=254, values=values} wrapper for memo check
+  if float_array_obj and self:memo(float_array_obj) then return end
+
   local len = #values
   if len < 256 then
     self:write_double_array8(values)
@@ -323,14 +431,38 @@ end
 local MarshalReader = {}
 MarshalReader.__index = MarshalReader
 
-function MarshalReader:new(str, offset)
+function MarshalReader:new(str, offset, num_objects)
   offset = offset or 0
+  num_objects = num_objects or 0
   local obj = {
     reader = Reader:new(str, offset),
-    obj_counter = 0
+    obj_counter = 0,
+    intern_obj_table = num_objects > 0 and {} or nil
   }
   setmetatable(obj, self)
   return obj
+end
+
+-- Store object in intern table (for sharing during unmarshalling)
+function MarshalReader:intern_store(v)
+  if self.intern_obj_table then
+    self.obj_counter = self.obj_counter + 1
+    self.intern_obj_table[self.obj_counter] = v
+  end
+end
+
+-- Recall shared object by offset
+function MarshalReader:intern_recall(offset)
+  if not self.intern_obj_table then
+    error("Marshal: shared reference without object table")
+  end
+  -- Convert relative offset to absolute index
+  local idx = self.obj_counter - offset
+  local v = self.intern_obj_table[idx]
+  if v == nil then
+    error(string.format("Marshal: invalid shared reference offset %d (counter=%d)", offset, self.obj_counter))
+  end
+  return v
 end
 
 -- Read next value code
@@ -364,19 +496,25 @@ end
 -- Unmarshal small string (0-31 bytes)
 function MarshalReader:read_small_string(code)
   local len = code % 32  -- code & 0x1F
-  return self.reader:readstr(len)
+  local v = self.reader:readstr(len)
+  self:intern_store(v)
+  return v
 end
 
 -- Unmarshal STRING8
 function MarshalReader:read_string8()
   local len = self.reader:read8u()
-  return self.reader:readstr(len)
+  local v = self.reader:readstr(len)
+  self:intern_store(v)
+  return v
 end
 
 -- Unmarshal STRING32
 function MarshalReader:read_string32()
   local len = self.reader:read32u()
-  return self.reader:readstr(len)
+  local v = self.reader:readstr(len)
+  self:intern_store(v)
+  return v
 end
 
 -- Unmarshal small block (tag 0-15, size 0-7)
@@ -396,52 +534,60 @@ end
 
 -- Unmarshal double (DOUBLE_LITTLE)
 function MarshalReader:read_double_little()
-  return self.reader:read_double_little()
+  local v = self.reader:read_double_little()
+  self:intern_store(v)
+  return v
 end
 
 -- Unmarshal double (DOUBLE_BIG)
 function MarshalReader:read_double_big()
-  return self.reader:read_double_big()
+  local v = self.reader:read_double_big()
+  self:intern_store(v)
+  return v
 end
 
 -- Unmarshal float array (DOUBLE_ARRAY8_LITTLE)
 function MarshalReader:read_double_array8_little()
   local len = self.reader:read8u()
-  local values = {}
+  local v = {tag = 254, values = {}}
+  self:intern_store(v)  -- Store before filling (for cycles)
   for i = 1, len do
-    values[i] = self.reader:read_double_little()
+    v.values[i] = self.reader:read_double_little()
   end
-  return {tag = 254, values = values}  -- Tag 254 = Double_array_tag
+  return v
 end
 
 -- Unmarshal float array (DOUBLE_ARRAY8_BIG)
 function MarshalReader:read_double_array8_big()
   local len = self.reader:read8u()
-  local values = {}
+  local v = {tag = 254, values = {}}
+  self:intern_store(v)
   for i = 1, len do
-    values[i] = self.reader:read_double_big()
+    v.values[i] = self.reader:read_double_big()
   end
-  return {tag = 254, values = values}
+  return v
 end
 
 -- Unmarshal float array (DOUBLE_ARRAY32_LITTLE)
 function MarshalReader:read_double_array32_little()
   local len = self.reader:read32u()
-  local values = {}
+  local v = {tag = 254, values = {}}
+  self:intern_store(v)
   for i = 1, len do
-    values[i] = self.reader:read_double_little()
+    v.values[i] = self.reader:read_double_little()
   end
-  return {tag = 254, values = values}
+  return v
 end
 
 -- Unmarshal float array (DOUBLE_ARRAY32_BIG)
 function MarshalReader:read_double_array32_big()
   local len = self.reader:read32u()
-  local values = {}
+  local v = {tag = 254, values = {}}
+  self:intern_store(v)
   for i = 1, len do
-    values[i] = self.reader:read_double_big()
+    v.values[i] = self.reader:read_double_big()
   end
-  return {tag = 254, values = values}
+  return v
 end
 
 -- Unmarshal value (main entry point)
@@ -473,6 +619,15 @@ function MarshalReader:read_value()
     return self:read_int32()
   elseif code == M.CODE_INT64 then
     error("Marshal: INT64 not yet implemented")
+  elseif code == M.CODE_SHARED8 then
+    local offset = self.reader:read8u()
+    return self:intern_recall(offset)
+  elseif code == M.CODE_SHARED16 then
+    local offset = self.reader:read16u()
+    return self:intern_recall(offset)
+  elseif code == M.CODE_SHARED32 then
+    local offset = self.reader:read32u()
+    return self:intern_recall(offset)
   elseif code == M.CODE_BLOCK32 then
     return self:read_block32()
   elseif code == M.CODE_STRING8 then
@@ -519,7 +674,7 @@ function M.marshal_value(value)
   elseif value_type == "table" then
     -- Check if it's a float array (tag 254)
     if value.tag == 254 and value.values then
-      writer:write_double_array(value.values)
+      writer:write_double_array(value.values, value)  -- Pass value for sharing
     -- Check if it's a block representation
     elseif value.tag ~= nil and value.size ~= nil then
       writer:write_block(value.tag, value.size)

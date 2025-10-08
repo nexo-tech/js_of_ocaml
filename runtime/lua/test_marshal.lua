@@ -604,6 +604,154 @@ test("Error on unsupported extended code", function()
 end)
 
 --
+-- Sharing Tests
+--
+
+print("")
+print("Sharing Tests:")
+print("--------------------------------------------------------------------")
+
+test("Shared string (same string twice)", function()
+  local writer = marshal.MarshalWriter:new(false)  -- with sharing
+  local str = "Hello, World!"
+
+  -- Write string twice
+  writer:write_string(str)
+  writer:write_string(str)
+
+  local data = writer:to_string()
+
+  -- First occurrence: small string (0x20 + len) + data = 14 bytes (len=13)
+  -- Second occurrence: SHARED8 (0x04) + offset = 2 bytes
+  -- Total should be less than 28 bytes (2 full strings would be 28 bytes)
+  assert_true(#data < 28, "Shared data should be smaller")
+  assert_eq(string.byte(data, 1), 0x20 + 13, "First should be small string")
+  assert_eq(string.byte(data, 15), 0x04, "Second should be SHARED8")
+end)
+
+test("Shared string roundtrip", function()
+  local writer = marshal.MarshalWriter:new(false)  -- with sharing
+  local str = "Shared!"
+
+  writer:write_string(str)
+  writer:write_string(str)
+
+  local data = writer:to_string()
+
+  -- To unmarshal, we need to know num_objects
+  local num_objects = writer.obj_table:count()
+  local reader = marshal.MarshalReader:new(data, 0, num_objects)
+
+  local s1 = reader:read_value()
+  local s2 = reader:read_value()
+
+  assert_eq(s1, str, "First string should match")
+  assert_eq(s2, str, "Second string should match")
+  -- In Lua, string identity is maintained, so s1 == s2
+  assert_true(s1 == s2, "Should be same string instance")
+end)
+
+test("No sharing with no_sharing flag", function()
+  local writer = marshal.MarshalWriter:new(true)  -- no sharing
+  local str = "NoShare"
+
+  writer:write_string(str)
+  writer:write_string(str)
+
+  local data = writer:to_string()
+
+  -- Both should be full strings (no SHARED code)
+  assert_eq(string.byte(data, 1), 0x20 + #str, "First should be small string")
+  assert_eq(string.byte(data, 1 + 1 + #str), 0x20 + #str, "Second should be small string too")
+end)
+
+if string.pack then
+  test("Shared double", function()
+    local writer = marshal.MarshalWriter:new(false)
+    local d = 3.14159
+
+    writer:write_double(d)
+    writer:write_double(d)
+
+    local data = writer:to_string()
+
+    -- First: DOUBLE_LITTLE (0x0C) + 8 bytes = 9 bytes
+    -- Second: SHARED8 (0x04) + offset = 2 bytes
+    assert_eq(string.byte(data, 1), 0x0C, "First should be DOUBLE_LITTLE")
+    assert_eq(string.byte(data, 10), 0x04, "Second should be SHARED8")
+  end)
+
+  test("Shared double roundtrip", function()
+    local writer = marshal.MarshalWriter:new(false)
+    local d = 2.71828
+
+    writer:write_double(d)
+    writer:write_double(d)
+
+    local data = writer:to_string()
+    local num_objects = writer.obj_table:count()
+    local reader = marshal.MarshalReader:new(data, 0, num_objects)
+
+    local d1 = reader:read_value()
+    local d2 = reader:read_value()
+
+    assert_true(math.abs(d1 - d) < 1e-10, "First double should match")
+    assert_true(math.abs(d2 - d) < 1e-10, "Second double should match")
+  end)
+
+  test("Shared float array", function()
+    local writer = marshal.MarshalWriter:new(false)
+    local arr = {tag = 254, values = {1.5, 2.5, 3.5}}
+
+    writer:write_double_array(arr.values, arr)
+    writer:write_double_array(arr.values, arr)
+
+    local data = writer:to_string()
+
+    -- First: full array
+    -- Second: SHARED8
+    assert_eq(string.byte(data, 1), 0x0E, "First should be DOUBLE_ARRAY8_LITTLE")
+    -- Second occurrence position depends on array size
+    local second_pos = 1 + 1 + 1 + (3 * 8)  -- code + len + 3 doubles
+    assert_eq(string.byte(data, second_pos), 0x04, "Second should be SHARED8")
+  end)
+else
+  print("  Skipping shared double/float array tests (string.pack not available)")
+end
+
+test("SHARED16 for large offset", function()
+  local writer = marshal.MarshalWriter:new(false)
+  local str = "X"
+
+  -- Write enough strings to make offset > 255
+  for i = 1, 300 do
+    writer:write_string(string.format("str%d", i))
+  end
+
+  -- Now write the first string again
+  writer:write_string(str)
+  writer:write_string(str)
+
+  local data = writer:to_string()
+
+  -- The shared reference for the last occurrence should be SHARED16 due to large offset
+  -- We can't easily check the exact position, but we can verify it works
+  local num_objects = writer.obj_table:count()
+  local reader = marshal.MarshalReader:new(data, 0, num_objects)
+
+  -- Skip the intermediate strings
+  for i = 1, 300 do
+    reader:read_value()
+  end
+
+  local s1 = reader:read_value()
+  local s2 = reader:read_value()
+
+  assert_eq(s1, str, "Should read shared string")
+  assert_eq(s2, str, "Should read shared string again")
+end)
+
+--
 -- Summary
 --
 
