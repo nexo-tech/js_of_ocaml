@@ -631,13 +631,20 @@ The I/O system is a critical part of the OCaml runtime, providing:
 - **Test**: ✅ 33/33 tests passed (test_memory_channels.lua)
 - **Commit**: "feat(io): Add in-memory channels"
 
-#### Task 10.2: Custom Channel Backends
-- [ ] Define channel backend interface
-- [ ] Allow custom read/write implementations
-- [ ] Support network channels (if applicable)
-- [ ] Support compressed channels
-- **Output**: ~200 lines
-- **Test**: Custom channel backend tests
+#### Task 10.2: Custom Channel Backends ✅
+- [x] Define channel backend interface
+  - ✅ Backend table with read/write/flush/seek/close methods
+  - ✅ Documentation in io.lua header comments
+- [x] Allow custom read/write implementations
+  - ✅ `caml_ml_open_custom_in(backend)` - Custom input channel
+  - ✅ `caml_ml_open_custom_out(backend)` - Custom output channel
+  - ✅ Modified input/output/flush/close to support backends
+- [x] Example implementations
+  - ✅ Counter backend: Tracks bytes read/written
+  - ✅ Transform backend: Uppercases/lowercases text
+  - ✅ RLE backend: Simple run-length encoding/decoding
+- **Output**: 95 lines (io.lua modifications + 2 new functions)
+- **Test**: ✅ 29/29 tests passed (test_custom_backends.lua)
 - **Commit**: "feat(io): Add custom channel backends"
 
 #### Task 10.3: Digest Module (MD5/SHA)

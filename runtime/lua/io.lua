@@ -24,6 +24,19 @@ local caml_ml_channels = {}
 local caml_io_buffer_size = 4096
 
 --
+-- Channel Backend Interface
+--
+-- A backend is a table with the following methods:
+--   read(n): Read up to n bytes, return string (or nil on EOF)
+--   write(str): Write string, return number of bytes written
+--   flush(): Flush any pending writes (optional)
+--   seek(pos): Seek to position (optional, for seekable backends)
+--   close(): Close the backend (optional)
+--
+-- Built-in backends: file, memory, custom
+--
+
+--
 -- File descriptor operations
 --
 
@@ -178,7 +191,14 @@ function caml_ml_close_channel(chanid)
       caml_ml_flush(chanid)
     end
     chan.opened = false
-    caml_sys_close(chan.fd)
+    -- Close custom backend if it has a close method
+    if chan.backend and chan.backend.close then
+      chan.backend:close()
+    end
+    -- Close file descriptor if present (not for memory/custom channels)
+    if chan.fd then
+      caml_sys_close(chan.fd)
+    end
   end
   return 0
 end
@@ -220,6 +240,16 @@ function caml_ml_input_char(chanid)
     return c
   end
 
+  -- Custom backend
+  if chan.backend then
+    local chunk = chan.backend:read(1)
+    if not chunk or #chunk == 0 then
+      error("End_of_file")
+    end
+    chan.offset = chan.offset + 1
+    return string.byte(chunk, 1)
+  end
+
   -- Read from file
   local c = chan.file:read(1)
   if not c then
@@ -253,7 +283,7 @@ function caml_ml_input(chanid, buf, offset, len)
     offset = offset + to_read
   end
 
-  -- Read more from file/memory if needed
+  -- Read more from file/memory/backend if needed
   if len > 0 then
     local chunk
     if chan.memory then
@@ -264,6 +294,9 @@ function caml_ml_input(chanid, buf, offset, len)
         chunk = string.sub(chan.data, chan.pos, chan.pos + to_read - 1)
         chan.pos = chan.pos + to_read
       end
+    elseif chan.backend then
+      -- Read from custom backend
+      chunk = chan.backend:read(len)
     else
       -- Read from file
       chunk = chan.file:read(len)
@@ -407,12 +440,22 @@ function caml_ml_flush(chanid)
     return 0
   end
 
-  -- Flush buffer to file
+  -- Flush buffer to file or custom backend
   if #chan.buffer > 0 then
     local str = table.concat(chan.buffer)
-    chan.file:write(str)
-    chan.file:flush()
-    chan.offset = chan.offset + #str
+    if chan.backend then
+      -- Custom backend
+      local written = chan.backend:write(str)
+      if chan.backend.flush then
+        chan.backend:flush()
+      end
+      chan.offset = chan.offset + (written or #str)
+    else
+      -- File backend
+      chan.file:write(str)
+      chan.file:flush()
+      chan.offset = chan.offset + #str
+    end
     chan.buffer = {}
   end
 
@@ -735,6 +778,48 @@ function caml_ml_buffer_reset(chanid)
   chan.offset = 0
 end
 
+--
+-- Custom Channel Backends
+--
+
+-- Create input channel with custom backend
+-- backend must implement: read(n) -> string or nil
+function caml_ml_open_custom_in(backend)
+  local chanid = next_chanid
+  next_chanid = next_chanid + 1
+
+  local channel = {
+    backend = backend,
+    opened = true,
+    out = false,
+    buffer = "",
+    buffer_pos = 1,
+    offset = 0
+  }
+
+  caml_ml_channels[chanid] = channel
+  return chanid
+end
+
+-- Create output channel with custom backend
+-- backend must implement: write(str) -> number, flush() (optional)
+function caml_ml_open_custom_out(backend)
+  local chanid = next_chanid
+  next_chanid = next_chanid + 1
+
+  local channel = {
+    backend = backend,
+    opened = true,
+    out = true,
+    buffer = {},
+    buffered = 1,
+    offset = 0
+  }
+
+  caml_ml_channels[chanid] = channel
+  return chanid
+end
+
 -- Export all functions as a module
 return {
   caml_sys_open = caml_sys_open,
@@ -777,4 +862,6 @@ return {
   caml_ml_open_buffer_out = caml_ml_open_buffer_out,
   caml_ml_buffer_contents = caml_ml_buffer_contents,
   caml_ml_buffer_reset = caml_ml_buffer_reset,
+  caml_ml_open_custom_in = caml_ml_open_custom_in,
+  caml_ml_open_custom_out = caml_ml_open_custom_out,
 }
