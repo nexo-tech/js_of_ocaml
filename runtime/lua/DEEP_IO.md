@@ -273,19 +273,28 @@ The I/O system is a critical part of the OCaml runtime, providing:
 - **Test**: ✅ 30/30 tests pass (1 create + 3 add + 4 take + 3 peek + 3 empty + 2 length + 3 clear + 4 iter + 2 array + 2 mixed + 3 performance)
 - **Commit**: "feat(queue): Implement FIFO queue operations"
 
-#### Task 3.3: Stack Module
-- [ ] Create `runtime/lua/stack.lua`
-- [ ] Implement LIFO stack operations
-  - caml_stack_create
-  - caml_stack_push
-  - caml_stack_pop
-  - caml_stack_top
-  - caml_stack_is_empty
-  - caml_stack_length
-  - caml_stack_clear
-- [ ] Handle Stack.Empty exception
-- **Output**: ~100 lines
-- **Test**: Stack operations tests
+#### Task 3.3: Stack Module ✅
+- [x] Create `runtime/lua/stack.lua`
+- [x] Implement LIFO stack operations
+  - ✅ caml_stack_create: Create new empty stack
+  - ✅ caml_stack_push: Add element to top
+  - ✅ caml_stack_pop: Remove and return top element
+  - ✅ caml_stack_top: View top element without removing
+  - ✅ caml_stack_is_empty: Check if stack is empty
+  - ✅ caml_stack_length: Get number of elements
+  - ✅ caml_stack_clear: Remove all elements
+- [x] Handle Stack.Empty exception
+  - ✅ Raises error("Stack.Empty") on pop/top from empty stack
+  - ✅ Consistent error handling across operations
+- [x] Bonus: Iterator and utility functions
+  - ✅ caml_stack_iter: Iterator for foreach-style loops (top to bottom)
+  - ✅ caml_stack_to_array: Convert to array for debugging (bottom to top)
+- [x] Efficient implementation
+  - ✅ Array-based with length counter
+  - ✅ O(1) push and pop operations
+  - ✅ Garbage collection friendly (nils out popped elements)
+- **Output**: 125 lines (stack.lua) + 354 lines (test_stack.lua) = 479 lines
+- **Test**: ✅ 32/32 tests pass (1 create + 3 push + 4 pop + 4 top + 3 empty + 2 length + 3 clear + 4 iter + 2 array + 3 mixed + 3 performance)
 - **Commit**: "feat(stack): Implement LIFO stack operations"
 
 #### Task 3.4: Hashtbl Module
