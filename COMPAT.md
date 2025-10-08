@@ -68,15 +68,22 @@ Fix bitwise operator syntax issues preventing Lua 5.1 compatibility.
 
 Fix LuaJIT-specific issues with mlBytes and obj modules.
 
-#### Task 2.1: Debug mlBytes module loading error
-- [ ] Identify root cause of module loading failure
-- [ ] Check for LuaJIT-specific syntax incompatibilities
-- [ ] Test module path resolution
-- [ ] Add LuaJIT-specific workarounds if needed
-- **Files**: `runtime/lua/mlBytes.lua`
-- **Output**: ~20 lines (fixes)
-- **Test**: mlBytes loads and runs on LuaJIT
-- **Commit**: "fix: Resolve mlBytes module loading on LuaJIT"
+#### Task 2.1: Debug mlBytes module loading error ✅
+- [x] Identify root cause of module loading failure
+- [x] Check for LuaJIT-specific syntax incompatibilities
+- [x] Test module path resolution
+- [x] Add LuaJIT-specific workarounds if needed
+- **Files**: `runtime/lua/mlBytes.lua`, `runtime/lua/compat_bit.lua`
+- **Output**: Fixed as part of Task 1.4 (mlBytes refactoring)
+- **Test**: mlBytes loads and runs on LuaJIT ✅
+- **Root Cause**: Bitwise operator syntax (`&`, `>>`, `<<`) not supported in LuaJIT 2.0
+- **Solution**: Refactored to use compat_bit which auto-detects LuaJIT's `bit` library
+- **Test Results**:
+  - All 38 mlBytes tests pass on LuaJIT
+  - compat_bit correctly uses LuaJIT's native bit library
+  - No LuaJIT-specific workarounds needed
+- **Note**: Issue was resolved in Task 1.4 when mlBytes was refactored
+- **Commit**: "feat: Add Lua 5.1 compatibility for mlBytes and complete Phase 1" (4dde6eb4)
 
 #### Task 2.2: Fix obj module test failures
 - [ ] Identify which 4 tests are failing
