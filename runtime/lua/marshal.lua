@@ -91,6 +91,18 @@ local function int32_unmarshal(reader, size_array)
   }
 end
 
+-- Helper: Int32 marshal (4 bytes big-endian)
+local function int32_marshal(writer, value, sizes_array)
+  if type(value) ~= "table" or value.caml_custom ~= "_i" then
+    error("Marshal: expected Int32 custom block")
+  end
+
+  writer:write32s(value.value)
+
+  sizes_array[1] = 4  -- size_32
+  sizes_array[2] = 4  -- size_64
+end
+
 -- Helper: Nativeint unmarshal (4 bytes big-endian on 32-bit platforms)
 local function nativeint_unmarshal(reader, size_array)
   size_array[1] = 4
@@ -100,6 +112,18 @@ local function nativeint_unmarshal(reader, size_array)
     caml_custom = "_n",
     value = value
   }
+end
+
+-- Helper: Nativeint marshal (4 bytes big-endian)
+local function nativeint_marshal(writer, value, sizes_array)
+  if type(value) ~= "table" or value.caml_custom ~= "_n" then
+    error("Marshal: expected Nativeint custom block")
+  end
+
+  writer:write32s(value.value)
+
+  sizes_array[1] = 4  -- size_32
+  sizes_array[2] = 4  -- size_64
 end
 
 -- Register custom operations
@@ -113,7 +137,7 @@ M.custom_ops["_j"] = {
 
 M.custom_ops["_i"] = {
   deserialize = int32_unmarshal,
-  serialize = nil,  -- Will be implemented in Task 4.2
+  serialize = int32_marshal,
   fixed_length = 4,
   compare = nil,
   hash = nil
@@ -121,7 +145,7 @@ M.custom_ops["_i"] = {
 
 M.custom_ops["_n"] = {
   deserialize = nativeint_unmarshal,
-  serialize = nil,  -- Will be implemented in Task 4.2
+  serialize = nativeint_marshal,
   fixed_length = 4,
   compare = nil,
   hash = nil
@@ -510,6 +534,81 @@ function MarshalWriter:write_double_array(values, float_array_obj)
   end
 end
 
+-- Marshal custom block (CUSTOM_FIXED or CUSTOM_LEN)
+function MarshalWriter:write_custom(value)
+  if type(value) ~= "table" or not value.caml_custom then
+    error("Marshal: expected custom block with caml_custom field")
+  end
+
+  -- Check for sharing
+  if self:memo(value) then return end
+
+  local name = value.caml_custom
+  local ops = M.custom_ops[name]
+
+  if not ops then
+    error("Marshal: unknown custom block identifier: " .. name)
+  end
+
+  if not ops.serialize then
+    error("Marshal: custom block " .. name .. " has no serialize function")
+  end
+
+  local sz_32_64 = {0, 0}
+
+  if ops.fixed_length then
+    -- CUSTOM_FIXED (0x19) - fixed-length custom block
+    self.writer:write8u(M.CODE_CUSTOM_FIXED)
+
+    -- Write null-terminated identifier
+    for i = 1, #name do
+      self.writer:write8u(string.byte(name, i))
+    end
+    self.writer:write8u(0)  -- null terminator
+
+    -- Call custom serializer
+    ops.serialize(self.writer, value, sz_32_64)
+
+    -- Verify size matches fixed_length
+    if ops.fixed_length ~= sz_32_64[1] then
+      error(string.format("Marshal: custom block %s reported size %d but fixed_length is %d",
+                         name, sz_32_64[1], ops.fixed_length))
+    end
+
+    -- Update size fields
+    self.size_32 = self.size_32 + 2 + math.floor((sz_32_64[1] + 3) / 4)
+    self.size_64 = self.size_64 + 2 + math.floor((sz_32_64[2] + 7) / 8)
+
+  else
+    -- CUSTOM_LEN (0x18) - variable-length custom block
+    self.writer:write8u(M.CODE_CUSTOM_LEN)
+
+    -- Write null-terminated identifier
+    for i = 1, #name do
+      self.writer:write8u(string.byte(name, i))
+    end
+    self.writer:write8u(0)  -- null terminator
+
+    -- Reserve space for size header (3 * 4 bytes = 12 bytes)
+    local header_pos = self.writer:position()
+    for i = 1, 12 do
+      self.writer:write8u(0)
+    end
+
+    -- Call custom serializer
+    ops.serialize(self.writer, value, sz_32_64)
+
+    -- Write size fields at reserved position
+    self.writer:write_at(header_pos, 32, sz_32_64[1])      -- size_32
+    self.writer:write_at(header_pos + 4, 32, 0)            -- zero
+    self.writer:write_at(header_pos + 8, 32, sz_32_64[2])  -- size_64
+
+    -- Update size fields
+    self.size_32 = self.size_32 + 2 + math.floor((sz_32_64[1] + 3) / 4)
+    self.size_64 = self.size_64 + 2 + math.floor((sz_32_64[2] + 7) / 8)
+  end
+end
+
 -- Get marshalled data as string
 function MarshalWriter:to_string()
   return self.writer:to_string()
@@ -763,8 +862,11 @@ function M.marshal_value(value)
   elseif value_type == "string" then
     writer:write_string(value)
   elseif value_type == "table" then
+    -- Check if it's a custom block
+    if value.caml_custom then
+      writer:write_custom(value)
     -- Check if it's a float array (tag 254)
-    if value.tag == 254 and value.values then
+    elseif value.tag == 254 and value.values then
       writer:write_double_array(value.values, value)  -- Pass value for sharing
     -- Check if it's a block representation
     elseif value.tag ~= nil and value.size ~= nil then

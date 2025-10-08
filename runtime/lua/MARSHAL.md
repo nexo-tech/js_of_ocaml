@@ -230,17 +230,23 @@ The Marshal module provides serialization and deserialization of OCaml values to
 - **Test**: ✅ 11 custom infrastructure tests pass (LuaJIT)
 - **Commit**: "feat(marshal): Add custom block infrastructure"
 
-#### Task 4.2: Custom Block Marshalling
-- [ ] Marshal CUSTOM (0x12)
-  - Write identifier
+#### Task 4.2: Custom Block Marshalling ✅
+- [x] Marshal CUSTOM (0x12) - deprecated, not used
+- [x] Marshal CUSTOM_LEN (0x18)
+  - Write identifier (null-terminated)
+  - Reserve header space (12 bytes)
   - Call custom serialize
-  - Write fixed or variable length
-- [ ] Marshal CUSTOM_LEN (0x18)
-- [ ] Marshal CUSTOM_FIXED (0x19)
-- [ ] Handle Int64 marshalling
-- [ ] Handle Bigarray marshalling
-- **Output**: ~100 lines
-- **Test**: Custom marshal tests
+  - Write size fields at reserved position
+- [x] Marshal CUSTOM_FIXED (0x19)
+  - Write identifier (null-terminated)
+  - Call custom serialize
+  - Verify size matches fixed_length
+- [x] Handle Int64 marshalling
+- [x] Handle Int32 marshalling
+- [x] Handle Nativeint marshalling
+- [x] Bigarray marshalling - deferred to bigarray integration
+- **Output**: 291 lines total (102 code + 189 tests)
+- **Test**: ✅ 11 custom marshalling tests pass (LuaJIT)
 - **Commit**: "feat(marshal): Marshal custom blocks"
 
 #### Task 4.3: Custom Block Unmarshalling

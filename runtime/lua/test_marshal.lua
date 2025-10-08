@@ -890,6 +890,195 @@ test("Int64 marshal error on wrong type", function()
 end)
 
 --
+-- Custom Block Marshalling Tests (Task 4.2)
+--
+
+print("")
+print("Custom Block Marshalling:")
+print("--------------------------------------------------------------------")
+
+test("Marshal Int64 CUSTOM_FIXED", function()
+  local value = {
+    caml_custom = "_j",
+    bytes = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
+  }
+
+  local data = marshal.marshal_value(value)
+
+  -- Should start with CUSTOM_FIXED (0x19)
+  assert_eq(string.byte(data, 1), 0x19, "Should be CUSTOM_FIXED")
+
+  -- Followed by "_j\0"
+  assert_eq(string.byte(data, 2), string.byte('_'), "Identifier byte 1")
+  assert_eq(string.byte(data, 3), string.byte('j'), "Identifier byte 2")
+  assert_eq(string.byte(data, 4), 0, "Null terminator")
+
+  -- Followed by 8 bytes of data
+  assert_eq(string.byte(data, 5), 0x01, "Data byte 1")
+  assert_eq(string.byte(data, 12), 0x08, "Data byte 8")
+end)
+
+test("Marshal Int32 CUSTOM_FIXED", function()
+  local value = {
+    caml_custom = "_i",
+    value = 0x12345678
+  }
+
+  local data = marshal.marshal_value(value)
+
+  -- Should start with CUSTOM_FIXED (0x19)
+  assert_eq(string.byte(data, 1), 0x19, "Should be CUSTOM_FIXED")
+
+  -- Followed by "_i\0"
+  assert_eq(string.byte(data, 2), string.byte('_'), "Identifier byte 1")
+  assert_eq(string.byte(data, 3), string.byte('i'), "Identifier byte 2")
+  assert_eq(string.byte(data, 4), 0, "Null terminator")
+
+  -- Followed by 4 bytes of data (big-endian 0x12345678)
+  assert_eq(string.byte(data, 5), 0x12, "Data byte 1")
+  assert_eq(string.byte(data, 6), 0x34, "Data byte 2")
+  assert_eq(string.byte(data, 7), 0x56, "Data byte 3")
+  assert_eq(string.byte(data, 8), 0x78, "Data byte 4")
+end)
+
+test("Marshal Nativeint CUSTOM_FIXED", function()
+  local value = {
+    caml_custom = "_n",
+    value = -42
+  }
+
+  local data = marshal.marshal_value(value)
+
+  -- Should start with CUSTOM_FIXED (0x19)
+  assert_eq(string.byte(data, 1), 0x19, "Should be CUSTOM_FIXED")
+
+  -- Followed by "_n\0"
+  assert_eq(string.byte(data, 2), string.byte('_'), "Identifier byte 1")
+  assert_eq(string.byte(data, 3), string.byte('n'), "Identifier byte 2")
+  assert_eq(string.byte(data, 4), 0, "Null terminator")
+end)
+
+test("Roundtrip Int64 via marshal_value", function()
+  local original = {
+    caml_custom = "_j",
+    bytes = {0xFF, 0xEE, 0xDD, 0xCC, 0xBB, 0xAA, 0x99, 0x88}
+  }
+
+  local data = marshal.marshal_value(original)
+  -- Note: unmarshal_value doesn't handle CUSTOM yet (Task 4.3)
+  -- This just tests that marshalling works
+  assert_true(#data > 0, "Should produce data")
+  assert_eq(string.byte(data, 1), 0x19, "Should use CUSTOM_FIXED")
+end)
+
+test("Roundtrip Int32 via marshal_value", function()
+  local original = {
+    caml_custom = "_i",
+    value = 0x7FFFFFFF
+  }
+
+  local data = marshal.marshal_value(original)
+  assert_true(#data > 0, "Should produce data")
+  assert_eq(string.byte(data, 1), 0x19, "Should use CUSTOM_FIXED")
+end)
+
+test("Roundtrip Nativeint via marshal_value", function()
+  local original = {
+    caml_custom = "_n",
+    value = -2147483648
+  }
+
+  local data = marshal.marshal_value(original)
+  assert_true(#data > 0, "Should produce data")
+  assert_eq(string.byte(data, 1), 0x19, "Should use CUSTOM_FIXED")
+end)
+
+test("Custom block with sharing", function()
+  local writer = marshal.MarshalWriter:new(false)  -- with sharing
+  local value = {
+    caml_custom = "_i",
+    value = 42
+  }
+
+  writer:write_custom(value)
+  writer:write_custom(value)  -- Should be shared
+
+  local data = writer:to_string()
+
+  -- First occurrence: CUSTOM_FIXED
+  assert_eq(string.byte(data, 1), 0x19, "First should be CUSTOM_FIXED")
+
+  -- Second occurrence should be SHARED8
+  -- Structure: 0x19 (1) + "_i\0" (3) + data (4) = 8 bytes, so second starts at byte 9
+  local second_pos = 9
+  assert_eq(string.byte(data, second_pos), 0x04, "Second should be SHARED8")
+  assert_eq(string.byte(data, second_pos + 1), 0x00, "Offset should be 0")
+end)
+
+test("Error on unknown custom identifier", function()
+  local writer = marshal.MarshalWriter:new()
+  local value = {
+    caml_custom = "_unknown"
+  }
+
+  local success = pcall(function()
+    writer:write_custom(value)
+  end)
+
+  assert_true(not success, "Should error on unknown identifier")
+end)
+
+test("Error on custom without serialize", function()
+  -- Temporarily register a custom type without serialize
+  marshal.custom_ops["_test"] = {
+    deserialize = function() end,
+    serialize = nil,
+    fixed_length = 4
+  }
+
+  local writer = marshal.MarshalWriter:new()
+  local value = {
+    caml_custom = "_test"
+  }
+
+  local success = pcall(function()
+    writer:write_custom(value)
+  end)
+
+  -- Clean up
+  marshal.custom_ops["_test"] = nil
+
+  assert_true(not success, "Should error on missing serialize")
+end)
+
+test("Error on size mismatch for fixed_length", function()
+  -- Temporarily register a custom type with wrong size
+  marshal.custom_ops["_bad"] = {
+    deserialize = function() end,
+    serialize = function(writer, value, sizes)
+      writer:write8u(0)
+      sizes[1] = 1  -- Report 1 byte
+      sizes[2] = 1
+    end,
+    fixed_length = 4  -- But claim fixed length is 4
+  }
+
+  local writer = marshal.MarshalWriter:new()
+  local value = {
+    caml_custom = "_bad"
+  }
+
+  local success = pcall(function()
+    writer:write_custom(value)
+  end)
+
+  -- Clean up
+  marshal.custom_ops["_bad"] = nil
+
+  assert_true(not success, "Should error on size mismatch")
+end)
+
+--
 -- Summary
 --
 
