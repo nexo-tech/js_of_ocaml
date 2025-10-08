@@ -445,11 +445,12 @@ The Marshal module provides serialization and deserialization of OCaml values to
 ### Phase 8: Documentation
 
 #### Task 8.1: Implementation Documentation
-- [ ] Document marshal format
-- [ ] Document custom block interface
-- [ ] Document limitations
-- [ ] Document Lua-specific considerations
-- **Output**: ~200 lines (comments + docs)
+- [x] Document marshal format (complete specification with all codes)
+- [x] Document custom block interface (structure, encoding, examples)
+- [x] Document limitations (unsupported features, platform-specific)
+- [x] Document Lua-specific considerations (value representation, NaN handling, performance)
+- **Output**: 192 lines (inline documentation in marshal.lua)
+- **Coverage**: Format spec, encoding schemes, custom blocks, sharing/cycles, flags, limitations, compatibility, usage examples
 - **Commit**: "docs(marshal): Add implementation documentation"
 
 #### Task 8.2: User Documentation
