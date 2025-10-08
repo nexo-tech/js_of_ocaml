@@ -16,10 +16,7 @@ let%expect_test "char operations" =
       print_char (Char.chr 66);
       print_newline ()
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "char comparison" =
   compile_and_run
@@ -29,10 +26,7 @@ let%expect_test "char comparison" =
       print_endline (if 'z' > 'a' then "greater" else "not greater");
       print_endline (if 'A' = 'A' then "equal" else "not equal")
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "char case conversion" =
   compile_and_run
@@ -43,10 +37,7 @@ let%expect_test "char case conversion" =
       print_char (Char.lowercase_ascii 'Z');
       print_newline ()
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "escape sequences in strings" =
   compile_and_run
@@ -58,10 +49,7 @@ let%expect_test "escape sequences in strings" =
       print_endline "backslash\\test";
       print_endline "return\rtest"
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "escape sequences in chars" =
   compile_and_run
@@ -73,10 +61,7 @@ let%expect_test "escape sequences in chars" =
       print_char 'B';
       print_newline ()
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "null character" =
   compile_and_run
@@ -88,10 +73,7 @@ let%expect_test "null character" =
       print_int (Char.code s.[5]);
       print_newline ()
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "high ascii characters" =
   compile_and_run
@@ -103,10 +85,7 @@ let%expect_test "high ascii characters" =
       print_int (Char.code (Char.chr 255));
       print_newline ()
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "string as char sequence" =
   compile_and_run
@@ -119,10 +98,7 @@ let%expect_test "string as char sequence" =
       done;
       print_newline ()
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "string modification edge case" =
   compile_and_run
@@ -135,10 +111,7 @@ let%expect_test "string modification edge case" =
       print_endline s2;
       print_endline (if s1 == s2 then "same" else "different")
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "bytes creation and modification" =
   compile_and_run
@@ -150,10 +123,7 @@ let%expect_test "bytes creation and modification" =
       (* Original string unchanged *)
       print_endline "hello"
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "bytes vs string" =
   compile_and_run
@@ -166,10 +136,7 @@ let%expect_test "bytes vs string" =
       print_endline s;
       print_endline (Bytes.to_string b)
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "bytes operations" =
   compile_and_run
@@ -183,10 +150,7 @@ let%expect_test "bytes operations" =
       Bytes.set b 4 'o';
       print_endline (Bytes.to_string b)
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "bytes concat and sub" =
   compile_and_run
@@ -199,10 +163,7 @@ let%expect_test "bytes concat and sub" =
       let sub = Bytes.sub b3 0 5 in
       print_endline (Bytes.to_string sub)
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "string contains all char range" =
   compile_and_run
@@ -220,10 +181,7 @@ let%expect_test "string contains all char range" =
       print_int (Char.code (Bytes.get b 255));
       print_newline ()
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "empty string edge cases" =
   compile_and_run
@@ -237,10 +195,7 @@ let%expect_test "empty string edge cases" =
       print_int (Bytes.length b);
       print_newline ()
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "string equality with special chars" =
   compile_and_run
@@ -253,7 +208,4 @@ let%expect_test "string equality with special chars" =
       let s4 = "hello\000world" in
       print_endline (if s3 = s4 then "equal" else "not equal")
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]

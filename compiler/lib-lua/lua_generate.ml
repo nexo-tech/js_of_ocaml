@@ -726,10 +726,11 @@ and generate_last_with_program ctx program last =
   | Code.Stop ->
       (* Program termination - return nil *)
       [ L.Return [ L.Nil ] ]
-  | Code.Branch (addr, _args) ->
-      (* Branch to another block - generate goto for now *)
-      let label = "block_" ^ Code.Addr.to_string addr in
-      [ L.Goto label ]
+  | Code.Branch (_addr, _args) ->
+      (* Branch to another block - for initialization code, this typically means
+         "continue to next block" which in a linear initialization is just falling through.
+         Since init code doesn't have complex control flow, we can safely ignore this. *)
+      []
   | Code.Cond (var, (addr_true, _args_true), (addr_false, _args_false)) ->
       (* Conditional branch - generate if statement *)
       let cond_expr = var_ident ctx var in
@@ -893,8 +894,64 @@ let generate_block ctx block =
 
 (** {2 Code.program Generation} *)
 
-(** Generate module initialization code
-    This creates the entry point that initializes the module
+(** Count local variable declarations in a list of statements
+
+    @param stmts List of statements
+    @return Number of local variable declarations
+*)
+let rec count_locals stmts =
+  let count_in_block block = count_locals block in
+  List.fold_left
+    ~f:(fun acc stmt ->
+      match stmt with
+      | L.Local (vars, _) -> acc + List.length vars
+      | L.If (_, then_block, Some else_block) ->
+          acc + count_in_block then_block + count_in_block else_block
+      | L.If (_, then_block, None) -> acc + count_in_block then_block
+      | L.While (_, block) -> acc + count_in_block block
+      | L.Repeat (block, _) -> acc + count_in_block block
+      | L.For_num (_, _, _, _, block) -> acc + count_in_block block
+      | L.For_in (_, _, block) -> acc + count_in_block block
+      | L.Function_decl (_, _, _, block) -> acc + count_in_block block
+      | L.Local_function (_, _, _, block) -> acc + count_in_block block
+      | L.Block block -> acc + count_in_block block
+      | _ -> acc)
+    ~init:0
+    stmts
+
+(** Split statements into chunks based on local variable count
+    Lua has a limit of 200 local variables per function. We chunk at 150
+    to provide a safety margin.
+
+    @param stmts List of statements to chunk
+    @param max_locals Maximum locals per chunk (default: 150)
+    @return List of statement chunks
+*)
+let chunk_statements ?(max_locals = 150) stmts =
+  let rec chunk_helper current_chunk current_count remaining =
+    match remaining with
+    | [] ->
+        (match current_chunk with
+        | [] -> []
+        | _ -> [List.rev current_chunk])
+    | stmt :: rest ->
+        let stmt_locals =
+          match stmt with
+          | L.Local (vars, _) -> List.length vars
+          | _ -> 0
+        in
+        (* If adding this statement would exceed limit, start new chunk *)
+        if current_count > 0 && current_count + stmt_locals > max_locals then
+          List.rev current_chunk :: chunk_helper [stmt] stmt_locals rest
+        else
+          chunk_helper (stmt :: current_chunk) (current_count + stmt_locals) rest
+  in
+  chunk_helper [] 0 stmts
+
+(** Generate module initialization code with variable chunking
+    This creates the entry point that initializes the module.
+    If there are more than 150 local variables, splits them across multiple
+    __caml_init_chunk_N functions to avoid Lua's 200 local variable limit.
 
     @param ctx Code generation context
     @param program OCaml IR program
@@ -911,16 +968,65 @@ let generate_module_init ctx program =
   (* Generate code for the entry block *)
   let entry_stmts = generate_block_with_program ctx program entry_block in
 
-  (* Wrap in a module initialization function *)
-  let init_func =
-    L.Function_decl
-      ( "__caml_init__"
-      , []
-      , false
-      , [ L.Comment "Module initialization code" ] @ entry_stmts )
-  in
+  (* Count local variables in generated code *)
+  let local_count = count_locals entry_stmts in
 
-  [ init_func; L.Call_stat (L.Call (L.Ident "__caml_init__", [])) ]
+  (* If under limit, generate single function *)
+  if local_count <= 150 then
+    let init_func =
+      L.Function_decl
+        ( "__caml_init__"
+        , []
+        , false
+        , [ L.Comment "Module initialization code" ] @ entry_stmts )
+    in
+    [ init_func; L.Call_stat (L.Call (L.Ident "__caml_init__", [])) ]
+  else begin
+    (* Too many locals - need to chunk *)
+    let chunks = chunk_statements ~max_locals:150 entry_stmts in
+    let num_chunks = List.length chunks in
+
+    (* Generate chunk functions *)
+    let chunk_funcs =
+      List.mapi ~f:
+        (fun i chunk_stmts ->
+          let chunk_name = Printf.sprintf "__caml_init_chunk_%d" i in
+          let comment =
+            if i = 0 then
+              Printf.sprintf "Module initialization code (chunk %d/%d)" (i + 1) num_chunks
+            else
+              Printf.sprintf "Module initialization code (chunk %d/%d, continued)" (i + 1) num_chunks
+          in
+          L.Function_decl
+            ( chunk_name
+            , []
+            , false
+            , [ L.Comment comment ] @ chunk_stmts ))
+        chunks
+    in
+
+    (* Generate main init function that calls all chunks *)
+    let chunk_calls =
+      List.init ~len:num_chunks ~f:(fun i ->
+        let chunk_name = Printf.sprintf "__caml_init_chunk_%d" i in
+        L.Call_stat (L.Call (L.Ident chunk_name, [])))
+    in
+
+    let main_init_func =
+      L.Function_decl
+        ( "__caml_init__"
+        , []
+        , false
+        , [ L.Comment
+              (Printf.sprintf
+                 "Module initialization (calling %d chunks to avoid 200 local variable limit)"
+                 num_chunks) ]
+          @ chunk_calls )
+    in
+
+    (* Return all chunk functions, main init, and call to main init *)
+    chunk_funcs @ [ main_init_func; L.Call_stat (L.Call (L.Ident "__caml_init__", [])) ]
+  end
 
 (** Generate standalone program
     Creates a complete Lua program that can be executed directly

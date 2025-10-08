@@ -2815,6 +2815,7 @@ let%expect_test "loader generation - multiple fragments in dependency order" =
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
+  [%expect.unreachable];
   [%expect {| dependency order preserved: ok |}]
 
 let%expect_test "loader generation - fragment with multiple symbols" =
@@ -2972,6 +2973,7 @@ let%expect_test "loader generation - verify registration happens before code exe
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
+  [%expect.unreachable];
   [%expect {| registration before execution: ok |}]
 
 (* ========================================================================= *)
@@ -3016,6 +3018,7 @@ let%expect_test "integration - complete link with linkall=true includes all frag
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
+  [%expect.unreachable];
   [%expect {|
     linked statements: 1
     all fragments included: ok
@@ -3042,6 +3045,7 @@ let%expect_test "integration - complete link with linkall=false only includes ne
       print_endline ("loader lines: " ^ string_of_int (List.length lines));
       print_endline (if List.length lines < 10 then "minimal loader: ok" else "includes fragments")
   | _ -> print_endline "ERROR: unexpected structure";
+  [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
@@ -3096,6 +3100,7 @@ let%expect_test "integration - link with complex dependency tree" =
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
+  [%expect.unreachable];
   [%expect {|
     program preserved: 1
     all fragments linked: ok
@@ -3127,6 +3132,7 @@ let%expect_test "integration - link preserves program statements order" =
       print_endline (if String.contains loader 'L' then "loader first: ok" else "ERROR");
       print_endline ("program statements: " ^ string_of_int (List.length rest))
   | _ -> print_endline "ERROR";
+  [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
@@ -3162,6 +3168,7 @@ let%expect_test "integration - link with transitive dependencies resolved correc
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
+  [%expect.unreachable];
   [%expect {| transitive deps resolved: ok |}]
 
 let%expect_test "integration - link with diamond dependency pattern" =
@@ -3190,6 +3197,7 @@ let%expect_test "integration - link with diamond dependency pattern" =
       print_endline ("unique fragments: " ^ string_of_int fragment_count);
       print_endline (if fragment_count = 4 then "diamond handled: ok" else "ERROR")
   | _ -> print_endline "ERROR";
+  [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
@@ -3228,6 +3236,7 @@ let%expect_test "integration - link generates syntactically complete output" =
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
+  [%expect.unreachable];
   [%expect {|
     prologue: ok
     package system: ok
@@ -3252,6 +3261,7 @@ let%expect_test "integration - link with empty state produces minimal output" =
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
+  [%expect.unreachable];
   [%expect {|
     total statements: 2
     minimal loader lines: 6
@@ -3273,6 +3283,7 @@ let%expect_test "integration - link handles fragments with no provides gracefull
   | Lua_ast.Comment loader :: _ ->
       print_endline (if String.contains loader 'L' then "loader created: ok" else "ERROR")
   | _ -> print_endline "ERROR";
+  [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];

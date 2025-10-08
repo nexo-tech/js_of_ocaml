@@ -53,8 +53,8 @@ let%expect_test "generate produces statements" =
      Please change this test to not include a backtrace. *)
   (Failure "Program entry block not found")
   Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 908, characters 14-54
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 934, characters 18-50
+  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 965, characters 14-54
+  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 1040, characters 18-50
   Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 47, characters 15-63
   Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
   |}]
@@ -70,8 +70,8 @@ let%expect_test "generate produces main function" =
      Please change this test to not include a backtrace. *)
   (Failure "Program entry block not found")
   Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 908, characters 14-54
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 934, characters 18-50
+  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 965, characters 14-54
+  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 1040, characters 18-50
   Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 63, characters 15-63
   Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
   |}]
@@ -88,8 +88,8 @@ let%expect_test "generate with debug produces same structure" =
      Please change this test to not include a backtrace. *)
   (Failure "Program entry block not found")
   Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 908, characters 14-54
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 934, characters 18-50
+  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 965, characters 14-54
+  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 1040, characters 18-50
   Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 80, characters 15-62
   Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
   |}]
@@ -118,10 +118,10 @@ let%expect_test "generate_to_string produces valid Lua" =
      Please change this test to not include a backtrace. *)
   (Failure "Program entry block not found")
   Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 908, characters 14-54
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 934, characters 18-50
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate in file "compiler/lib-lua/lua_generate.ml" (inlined), line 982, characters 30-100
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_to_string in file "compiler/lib-lua/lua_generate.ml", line 1002, characters 20-43
+  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 965, characters 14-54
+  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 1040, characters 18-50
+  Called from Lua_of_ocaml_compiler__Lua_generate.generate in file "compiler/lib-lua/lua_generate.ml" (inlined), line 1088, characters 30-100
+  Called from Lua_of_ocaml_compiler__Lua_generate.generate_to_string in file "compiler/lib-lua/lua_generate.ml", line 1108, characters 20-43
   Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 98, characters 15-73
   Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
   |}]
@@ -136,10 +136,10 @@ let%expect_test "generate_to_string full output" =
      Please change this test to not include a backtrace. *)
   (Failure "Program entry block not found")
   Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 908, characters 14-54
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 934, characters 18-50
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate in file "compiler/lib-lua/lua_generate.ml" (inlined), line 982, characters 30-100
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_to_string in file "compiler/lib-lua/lua_generate.ml", line 1002, characters 20-43
+  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 965, characters 14-54
+  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 1040, characters 18-50
+  Called from Lua_of_ocaml_compiler__Lua_generate.generate in file "compiler/lib-lua/lua_generate.ml" (inlined), line 1088, characters 30-100
+  Called from Lua_of_ocaml_compiler__Lua_generate.generate_to_string in file "compiler/lib-lua/lua_generate.ml", line 1108, characters 20-43
   Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 130, characters 15-73
   Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
   |}]
@@ -154,10 +154,10 @@ let%expect_test "generate_to_string with debug" =
      Please change this test to not include a backtrace. *)
   (Failure "Program entry block not found")
   Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 908, characters 14-54
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 934, characters 18-50
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate in file "compiler/lib-lua/lua_generate.ml" (inlined), line 982, characters 30-100
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_to_string in file "compiler/lib-lua/lua_generate.ml", line 1002, characters 20-43
+  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 965, characters 14-54
+  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 1040, characters 18-50
+  Called from Lua_of_ocaml_compiler__Lua_generate.generate in file "compiler/lib-lua/lua_generate.ml" (inlined), line 1088, characters 30-100
+  Called from Lua_of_ocaml_compiler__Lua_generate.generate_to_string in file "compiler/lib-lua/lua_generate.ml", line 1108, characters 20-43
   Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 148, characters 15-72
   Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
   |}]
@@ -191,8 +191,8 @@ let%expect_test "basic code generation produces valid output" =
      Please change this test to not include a backtrace. *)
   (Failure "Program entry block not found")
   Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 908, characters 14-54
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 934, characters 18-50
+  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 965, characters 14-54
+  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 1040, characters 18-50
   Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 171, characters 13-61
   Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
   |}]
@@ -215,10 +215,10 @@ let%expect_test "code generation produces compilable Lua" =
      Please change this test to not include a backtrace. *)
   (Failure "Program entry block not found")
   Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 908, characters 14-54
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 934, characters 18-50
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate in file "compiler/lib-lua/lua_generate.ml" (inlined), line 982, characters 30-100
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_to_string in file "compiler/lib-lua/lua_generate.ml", line 1002, characters 20-43
+  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 965, characters 14-54
+  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 1040, characters 18-50
+  Called from Lua_of_ocaml_compiler__Lua_generate.generate in file "compiler/lib-lua/lua_generate.ml" (inlined), line 1088, characters 30-100
+  Called from Lua_of_ocaml_compiler__Lua_generate.generate_to_string in file "compiler/lib-lua/lua_generate.ml", line 1108, characters 20-43
   Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 202, characters 17-75
   Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
   |}]
@@ -248,8 +248,8 @@ let%expect_test "empty program generation" =
      Please change this test to not include a backtrace. *)
   (Failure "Program entry block not found")
   Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 908, characters 14-54
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 934, characters 18-50
+  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 965, characters 14-54
+  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 1040, characters 18-50
   Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 234, characters 15-60
   Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
   |}]

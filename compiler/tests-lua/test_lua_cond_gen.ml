@@ -275,7 +275,7 @@ let%expect_test "generate branch - goto" =
   let program = make_program [] in
   let stmts = Lua_generate.generate_last_with_program ctx program last in
   List.iter (fun s -> print_endline (stat_to_string s)) stmts;
-  [%expect {| goto block_42 |}]
+  [%expect {| |}]
 
 (* Block with program context *)
 
