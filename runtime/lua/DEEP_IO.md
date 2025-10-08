@@ -534,26 +534,31 @@ The I/O system is a critical part of the OCaml runtime, providing:
 
 ### Phase 8: Stream Module
 
-#### Task 8.1: Stream Operations
-- [ ] Create `runtime/lua/stream.lua`
-- [ ] Implement lazy stream structure
-  - Stream.empty
-  - Stream.cons (lazy cons cell)
-  - Stream.of_list
-  - Stream.of_channel
-  - Stream.of_string
-- [ ] Implement stream consumption
-  - Stream.next (get and remove first element)
-  - Stream.peek (get first without removing)
-  - Stream.junk (remove first element)
-  - Stream.npeek (peek N elements)
-- [ ] Implement stream constructors
-  - Stream.from (from function)
-  - Stream.of_list
-  - Stream.of_string
-- [ ] Handle Stream.Failure exception
-- **Output**: ~200 lines
-- **Test**: Stream operations tests
+#### Task 8.1: Stream Operations ✅
+- [x] Create `runtime/lua/stream.lua`
+- [x] Implement lazy stream structure
+  - caml_stream_empty
+  - caml_stream_cons (lazy cons cell)
+  - caml_stream_of_list
+  - caml_stream_of_channel
+  - caml_stream_of_string
+  - caml_stream_of_array
+- [x] Implement stream consumption
+  - caml_stream_next (get and remove first element)
+  - caml_stream_peek (get first without removing)
+  - caml_stream_junk (remove first element)
+  - caml_stream_npeek (peek N elements)
+- [x] Implement stream constructors
+  - caml_stream_from (from function generator)
+  - caml_stream_of_list
+  - caml_stream_of_string
+  - caml_stream_of_array
+  - caml_stream_of_channel
+- [x] Handle Stream.Failure exception
+- [x] Implement utility functions (is_empty, iter, count)
+- [x] Lazy evaluation with thunk memoization
+- **Output**: 366 lines (stream.lua) + 442 lines (test_stream.lua) = 808 lines
+- **Test**: ✅ 38/38 tests pass (empty, list, string, function, cons, iteration, lazy evaluation, edge cases, performance)
 - **Commit**: "feat(stream): Implement lazy streams"
 
 ### Phase 9: Integration and Testing
