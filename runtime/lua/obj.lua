@@ -30,6 +30,9 @@
 local core = require("core")
 local M = {}
 
+-- Compatibility: unpack is global in Lua 5.1/LuaJIT, table.unpack in Lua 5.2+
+local unpack = table.unpack or unpack
+
 -- Global object ID counter
 local oo_last_id = 0
 
@@ -171,7 +174,7 @@ function M.call_method(obj, tag, args)
     all_args[i + 1] = arg
   end
 
-  return method(table.unpack(all_args))
+  return method(unpack(all_args))
 end
 
 --- Get object field (instance variable)

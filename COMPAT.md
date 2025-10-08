@@ -85,15 +85,26 @@ Fix LuaJIT-specific issues with mlBytes and obj modules.
 - **Note**: Issue was resolved in Task 1.4 when mlBytes was refactored
 - **Commit**: "feat: Add Lua 5.1 compatibility for mlBytes and complete Phase 1" (4dde6eb4)
 
-#### Task 2.2: Fix obj module test failures
-- [ ] Identify which 4 tests are failing
-- [ ] Debug metatable handling differences
-- [ ] Check tag representation compatibility
-- [ ] Fix type coercion issues
-- [ ] Verify object equality semantics
-- **Files**: `runtime/lua/obj.lua`, `runtime/lua/test_obj.lua`
-- **Output**: ~30 lines (fixes + test adjustments)
-- **Test**: All obj tests pass on LuaJIT (17/17)
+#### Task 2.2: Fix obj module test failures ✅
+- [x] Identify which 4 tests are failing
+- [x] Debug metatable handling differences
+- [x] Check tag representation compatibility
+- [x] Fix type coercion issues
+- [x] Verify object equality semantics
+- **Files**: `runtime/lua/obj.lua`
+- **Output**: 3 lines (compatibility fix)
+- **Test**: All obj tests pass on LuaJIT (17/17) ✅
+- **Root Cause**: `table.unpack` not available in LuaJIT/Lua 5.1
+- **Failing Tests** (4/17):
+  - Call method on object
+  - Call method with no args
+  - Call method with multiple args
+  - Object with multiple instance variables
+- **Solution**: Added compatibility shim `local unpack = table.unpack or unpack`
+- **Test Results**:
+  - ✅ Lua 5.1: 17/17 tests pass
+  - ✅ Lua 5.4: 17/17 tests pass
+  - ✅ LuaJIT: 17/17 tests pass
 - **Commit**: "fix: Resolve obj module test failures on LuaJIT"
 
 #### Task 2.3: Test LuaJIT-specific optimizations
