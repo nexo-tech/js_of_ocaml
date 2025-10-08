@@ -434,12 +434,12 @@ The Marshal module provides serialization and deserialization of OCaml values to
 - **Commit**: "test(marshal): Add compatibility tests"
 
 #### Task 7.4: Performance Tests
-- [ ] Benchmark marshalling speed
-- [ ] Benchmark unmarshalling speed
-- [ ] Compare with json encoding
-- [ ] Profile memory usage
-- **Output**: ~80 lines
-- **Test**: Performance benchmarks
+- [x] Benchmark marshalling speed
+- [x] Benchmark unmarshalling speed
+- [x] Compare with json encoding
+- [x] Profile memory usage
+- **Output**: 351 lines (benchmark_marshal.lua)
+- **Benchmarks**: Marshalling, unmarshalling, roundtrip, JSON comparison, memory profiling
 - **Commit**: "test(marshal): Add performance benchmarks"
 
 ### Phase 8: Documentation
