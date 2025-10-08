@@ -123,9 +123,20 @@ The I/O system is a critical part of the OCaml runtime, providing:
 - [x] Test binary mode channels
   - ✅ Exact byte preservation with special chars
 - [x] Test multiple large values in sequence
-- **Output**: 354 lines (10 integration tests)
-- **Test**: ✅ 43/43 tests pass (all marshal channel I/O tests)
-- **Commit**: "test(marshal): Add channel I/O integration tests"
+- [x] Test complex structures through channels (rock-solid compiler support)
+  - ✅ Complex nested tables (3-level nesting, 15 elements)
+  - ✅ Mixed types with deep nesting (strings, ints, floats)
+  - ✅ Large array of complex structures (50 structures, nested elements)
+  - ✅ Multiple complex structures in sequence (sequential write/read)
+  - ✅ Deeply nested structure (10 levels deep)
+  - ✅ Complex structure with explicit block tags (OCaml variants)
+  - ✅ Wide structure with many siblings (20 elements same level)
+  - ✅ Complex structure with float arrays (tag 254 mixed)
+  - ✅ Compiler AST-like structure (BinOp/Const nodes)
+  - ✅ Empty nested structures (empty blocks at various levels)
+- **Output**: 797 lines total (10 integration tests + 10 complex structure tests)
+- **Test**: ✅ 53/53 tests pass (all marshal channel I/O tests)
+- **Commit**: "test(marshal): Add comprehensive complex structure tests for Task 1.4"
 
 ### Phase 2: Format Module (Printf/Scanf)
 

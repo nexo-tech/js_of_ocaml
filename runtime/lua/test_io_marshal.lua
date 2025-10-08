@@ -1210,6 +1210,450 @@ test("marshal very large string (>50KB)", function()
 end)
 
 --
+-- Phase 5: Complex Structure Tests (comprehensive for compiler robustness)
+--
+
+print("\nComplex Structure Tests:")
+print("--------------------------------------------------------------------")
+
+-- Test: Nested tables through channels
+test("Complex nested tables through channels", function()
+  local filename = make_temp_file()
+
+  -- Create complex nested structure (simulating AST-like data)
+  local original = {
+    {1, {2, 3}, 4},
+    {5, {6, {7, 8}}, 9},
+    {{10, 11}, {12, {13, 14, 15}}}
+  }
+
+  -- Write to file
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  marshal.to_channel(chan_out, original, {})
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+
+  -- Read from file
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result = marshal.from_channel(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+
+  -- Verify structure
+  assert_eq(result[1][1], 1)
+  assert_eq(result[1][2][1], 2)
+  assert_eq(result[1][2][2], 3)
+  assert_eq(result[1][3], 4)
+  assert_eq(result[2][1], 5)
+  assert_eq(result[2][2][1], 6)
+  assert_eq(result[2][2][2][1], 7)
+  assert_eq(result[2][2][2][2], 8)
+  assert_eq(result[2][3], 9)
+  assert_eq(result[3][1][1], 10)
+  assert_eq(result[3][1][2], 11)
+  assert_eq(result[3][2][1], 12)
+  assert_eq(result[3][2][2][1], 13)
+  assert_eq(result[3][2][2][2], 14)
+  assert_eq(result[3][2][2][3], 15)
+
+  cleanup_temp_file(filename)
+end)
+
+-- Test: Mixed types with deep nesting
+test("Mixed types with deep nesting through channels", function()
+  local filename = make_temp_file()
+
+  -- Create structure with mixed types at various levels
+  local original = {
+    "string_at_top",
+    42,
+    {
+      "nested_string",
+      {100, 200, "deep_string"},
+      3.14
+    },
+    {
+      {1, 2},
+      {3, {4, 5, 6}},
+      "another_string"
+    }
+  }
+
+  -- Write to file
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  marshal.to_channel(chan_out, original, {})
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+
+  -- Read from file
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result = marshal.from_channel(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+
+  -- Verify structure
+  assert_eq(result[1], "string_at_top")
+  assert_eq(result[2], 42)
+  assert_eq(result[3][1], "nested_string")
+  assert_eq(result[3][2][1], 100)
+  assert_eq(result[3][2][2], 200)
+  assert_eq(result[3][2][3], "deep_string")
+  assert_close(result[3][3], 3.14)
+  assert_eq(result[4][1][1], 1)
+  assert_eq(result[4][1][2], 2)
+  assert_eq(result[4][2][1], 3)
+  assert_eq(result[4][2][2][1], 4)
+  assert_eq(result[4][2][2][2], 5)
+  assert_eq(result[4][2][2][3], 6)
+  assert_eq(result[4][3], "another_string")
+
+  cleanup_temp_file(filename)
+end)
+
+-- Test: Large array of complex structures
+test("Large array of complex structures through channels", function()
+  local filename = make_temp_file()
+
+  -- Create array of 50 complex structures
+  local original = {}
+  for i = 1, 50 do
+    original[i] = {
+      i,
+      "item_" .. i,
+      {i * 10, i * 20, i * 30}
+    }
+  end
+
+  -- Write to file
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  marshal.to_channel(chan_out, original, {})
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+
+  -- Read from file
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result = marshal.from_channel(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+
+  -- Verify random samples
+  assert_eq(result[1][1], 1)
+  assert_eq(result[1][2], "item_1")
+  assert_eq(result[1][3][1], 10)
+  assert_eq(result[1][3][2], 20)
+  assert_eq(result[1][3][3], 30)
+
+  assert_eq(result[25][1], 25)
+  assert_eq(result[25][2], "item_25")
+  assert_eq(result[25][3][1], 250)
+  assert_eq(result[25][3][2], 500)
+  assert_eq(result[25][3][3], 750)
+
+  assert_eq(result[50][1], 50)
+  assert_eq(result[50][2], "item_50")
+  assert_eq(result[50][3][1], 500)
+  assert_eq(result[50][3][2], 1000)
+  assert_eq(result[50][3][3], 1500)
+
+  cleanup_temp_file(filename)
+end)
+
+-- Test: Multiple complex structures in sequence
+test("Multiple complex structures in sequence through channels", function()
+  local filename = make_temp_file()
+
+  local struct1 = {{1, 2}, {3, {4, 5}}}
+  local struct2 = {"a", {"b", "c"}, "d"}
+  local struct3 = {100, {200, {300, {400}}}}
+
+  -- Write all three to file
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  marshal.to_channel(chan_out, struct1, {})
+  marshal.to_channel(chan_out, struct2, {})
+  marshal.to_channel(chan_out, struct3, {})
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+
+  -- Read all three from file
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result1 = marshal.from_channel(chan_in)
+  local result2 = marshal.from_channel(chan_in)
+  local result3 = marshal.from_channel(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+
+  -- Verify all three structures
+  assert_eq(result1[1][1], 1)
+  assert_eq(result1[1][2], 2)
+  assert_eq(result1[2][1], 3)
+  assert_eq(result1[2][2][1], 4)
+  assert_eq(result1[2][2][2], 5)
+
+  assert_eq(result2[1], "a")
+  assert_eq(result2[2][1], "b")
+  assert_eq(result2[2][2], "c")
+  assert_eq(result2[3], "d")
+
+  assert_eq(result3[1], 100)
+  assert_eq(result3[2][1], 200)
+  assert_eq(result3[2][2][1], 300)
+  assert_eq(result3[2][2][2][1], 400)
+
+  cleanup_temp_file(filename)
+end)
+
+-- Test: Deeply nested structure (10 levels)
+test("Deeply nested structure (10 levels) through channels", function()
+  local filename = make_temp_file()
+
+  -- Create 10-level deep nesting
+  local original = {1, {2, {3, {4, {5, {6, {7, {8, {9, {10}}}}}}}}}}
+
+  -- Write to file
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  marshal.to_channel(chan_out, original, {})
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+
+  -- Read from file
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result = marshal.from_channel(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+
+  -- Verify deep nesting
+  local current = result
+  for i = 1, 10 do
+    assert_eq(current[1], i)
+    if i < 10 then
+      current = current[2]
+    end
+  end
+
+  cleanup_temp_file(filename)
+end)
+
+-- Test: Complex structure with explicit block tags
+test("Complex structure with explicit block tags", function()
+  local filename = make_temp_file()
+
+  -- Create structure with explicit tag/size (simulating OCaml variants/records)
+  local original = {
+    tag = 0,
+    size = 3,
+    [1] = 42,
+    [2] = {tag = 1, size = 2, [1] = "nested", [2] = 100},
+    [3] = {tag = 0, size = 1, [1] = 999}
+  }
+
+  -- Write to file
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  marshal.to_channel(chan_out, original, {})
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+
+  -- Read from file
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result = marshal.from_channel(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+
+  -- Verify structure with tags
+  assert_eq(result.tag, 0)
+  assert_eq(result.size, 3)
+  assert_eq(result[1], 42)
+  assert_eq(result[2].tag, 1)
+  assert_eq(result[2].size, 2)
+  assert_eq(result[2][1], "nested")
+  assert_eq(result[2][2], 100)
+  assert_eq(result[3].tag, 0)
+  assert_eq(result[3].size, 1)
+  assert_eq(result[3][1], 999)
+
+  cleanup_temp_file(filename)
+end)
+
+-- Test: Wide structure (many siblings at same level)
+test("Wide structure with many siblings", function()
+  local filename = make_temp_file()
+
+  -- Create structure with 20 elements at same level
+  local original = {}
+  for i = 1, 20 do
+    if i % 3 == 0 then
+      original[i] = {i, i + 1}
+    elseif i % 3 == 1 then
+      original[i] = "string_" .. i
+    else
+      original[i] = i * 100
+    end
+  end
+
+  -- Write to file
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  marshal.to_channel(chan_out, original, {})
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+
+  -- Read from file
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result = marshal.from_channel(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+
+  -- Verify various elements
+  assert_eq(result[1], "string_1")
+  assert_eq(result[2], 200)
+  assert_eq(result[3][1], 3)
+  assert_eq(result[3][2], 4)
+  assert_eq(result[10], "string_10")
+  assert_eq(result[12][1], 12)
+  assert_eq(result[12][2], 13)
+  assert_eq(result[20], 2000)
+
+  cleanup_temp_file(filename)
+end)
+
+-- Test: Complex structure with float arrays
+test("Complex structure with float arrays", function()
+  local filename = make_temp_file()
+
+  -- Create structure mixing regular arrays with float arrays
+  local original = {
+    {1, 2, 3},
+    {tag = 254, values = {1.1, 2.2, 3.3}},
+    {
+      "nested",
+      {tag = 254, values = {4.4, 5.5}},
+      100
+    }
+  }
+
+  -- Write to file
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  marshal.to_channel(chan_out, original, {})
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+
+  -- Read from file
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result = marshal.from_channel(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+
+  -- Verify structure
+  assert_eq(result[1][1], 1)
+  assert_eq(result[1][2], 2)
+  assert_eq(result[1][3], 3)
+  assert_eq(result[2].tag, 254)
+  assert_close(result[2].values[1], 1.1)
+  assert_close(result[2].values[2], 2.2)
+  assert_close(result[2].values[3], 3.3)
+  assert_eq(result[3][1], "nested")
+  assert_eq(result[3][2].tag, 254)
+  assert_close(result[3][2].values[1], 4.4)
+  assert_close(result[3][2].values[2], 5.5)
+  assert_eq(result[3][3], 100)
+
+  cleanup_temp_file(filename)
+end)
+
+-- Test: Compiler-like AST structure
+test("Compiler AST-like structure", function()
+  local filename = make_temp_file()
+
+  -- Simulate a simple AST: BinOp(Add, Const(1), BinOp(Mul, Const(2), Const(3)))
+  local original = {
+    tag = 0,  -- BinOp
+    size = 3,
+    [1] = 0,  -- Add
+    [2] = {tag = 1, size = 1, [1] = 1},  -- Const(1)
+    [3] = {
+      tag = 0,  -- BinOp
+      size = 3,
+      [1] = 1,  -- Mul
+      [2] = {tag = 1, size = 1, [1] = 2},  -- Const(2)
+      [3] = {tag = 1, size = 1, [1] = 3}   -- Const(3)
+    }
+  }
+
+  -- Write to file
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  marshal.to_channel(chan_out, original, {})
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+
+  -- Read from file
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result = marshal.from_channel(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+
+  -- Verify AST structure
+  assert_eq(result.tag, 0)
+  assert_eq(result[1], 0)  -- Add
+  assert_eq(result[2].tag, 1)  -- Const
+  assert_eq(result[2][1], 1)
+  assert_eq(result[3].tag, 0)  -- BinOp
+  assert_eq(result[3][1], 1)  -- Mul
+  assert_eq(result[3][2].tag, 1)  -- Const
+  assert_eq(result[3][2][1], 2)
+  assert_eq(result[3][3].tag, 1)  -- Const
+  assert_eq(result[3][3][1], 3)
+
+  cleanup_temp_file(filename)
+end)
+
+-- Test: Empty nested structures
+test("Empty nested structures", function()
+  local filename = make_temp_file()
+
+  -- Create structure with some empty arrays
+  local original = {
+    {},
+    {1, {}, 2},
+    {3, {4, {}, 5}}
+  }
+
+  -- Write to file
+  local fd_out = io_module.caml_sys_open(filename, make_ocaml_list({1, 3, 4, 6}), 438)
+  local chan_out = io_module.caml_ml_open_descriptor_out(fd_out)
+  marshal.to_channel(chan_out, original, {})
+  io_module.caml_ml_flush(chan_out)
+  io_module.caml_ml_close_channel(chan_out)
+
+  -- Read from file
+  local fd_in = io_module.caml_sys_open(filename, make_ocaml_list({0, 6}), 0)
+  local chan_in = io_module.caml_ml_open_descriptor_in(fd_in)
+  local result = marshal.from_channel(chan_in)
+  io_module.caml_ml_close_channel(chan_in)
+
+  -- Verify structure
+  assert_eq(result[1].tag, 0)
+  assert_eq(result[1].size, 0)
+  assert_eq(result[2][1], 1)
+  assert_eq(result[2][2].tag, 0)
+  assert_eq(result[2][2].size, 0)
+  assert_eq(result[2][3], 2)
+  assert_eq(result[3][1], 3)
+  assert_eq(result[3][2][1], 4)
+  assert_eq(result[3][2][2].tag, 0)
+  assert_eq(result[3][2][2].size, 0)
+  assert_eq(result[3][2][3], 5)
+
+  cleanup_temp_file(filename)
+end)
+
+--
 -- Summary
 --
 
