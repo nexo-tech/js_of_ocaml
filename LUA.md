@@ -1,16 +1,16 @@
 # Lua_of_ocaml Implementation Plan
 
-## Current Status: 90% Complete - Ready for Self-Hosting! 🚀
+## Current Status: 🔴 **CRITICAL BUG DISCOVERED** 🔴
 
 **Last Updated**: 2025-10-08
 
 ### Quick Status
-- ✅ **Compiler**: Fully working, generates Lua code from OCaml bytecode
+- ⚠️ **Compiler**: Generates code but **DOES NOT RUN** (200 local variable limit bug)
 - ✅ **Runtime**: 88+ modules, 49 test suites, all passing
 - ✅ **Compatibility**: Lua 5.1, 5.4, LuaJIT (100%)
-- ✅ **Marshal**: Complete implementation (93% of 99 tasks)
-- ⚠️ **Self-Hosting**: Ready to test (Task 12.0)
-- ⏳ **Neovim Plugin**: Next phase after self-hosting
+- ✅ **Marshal**: Complete implementation (99/99 tasks, 100%)
+- 🔴 **Critical Issue**: Generated code exceeds Lua's 200 local variable limit
+- 🔴 **Phase 13 Required**: Compiler validation & end-to-end testing (BLOCKING)
 
 ### Completion by Phase
 | Phase | Status | Completion |
@@ -25,21 +25,22 @@
 | Phase 10: Testing & Docs | ✅ Complete | 100% |
 | Phase 11: Advanced Runtime | ✅ Complete | 95% (Unix optional) |
 | Phase 12: Production Ready | ⏳ In Progress | 10% (self-hosting critical) |
+| **Phase 13: Compiler Validation** | 🔴 **CRITICAL** | **0% - BLOCKING BUG** |
 
-### What Works Right Now
+### Critical Bug Found
+
 ```bash
-# Compile OCaml to Lua
-echo 'let () = print_endline "Hello, Lua!"' > hello.ml
-ocamlc -o hello.bc hello.ml
-lua_of_ocaml compile hello.bc -o hello.lua
-
-# Run with any Lua version
-lua hello.lua        # Lua 5.1, 5.4
-luajit hello.lua     # LuaJIT (100-300x faster!)
+# Compiler GENERATES code but it DOESN'T RUN:
+$ lua examples/hello_lua/hello.bc.lua
+lua: hello.bc.lua:204: too many local variables (limit is 200) in function at line 2
 ```
 
+**Problem**: Compiler generates 315 local variables in `__caml_init__()`, exceeding Lua's 200 variable limit.
+
+**Impact**: Even simple 16-line OCaml programs fail to execute.
+
 ### Immediate Next Step
-**Task 12.0: Self-Hosting Validation** - Test compiling the lua_of_ocaml compiler itself!
+**Task 13.1: Fix Local Variable Limit** - CRITICAL BLOCKING BUG - Must be fixed before ANY code can run!
 
 ---
 
@@ -666,6 +667,282 @@ This document outlines the implementation plan for adding Lua as a compilation t
 - **Output**: ~100 lines
 - **Test**: Release build test
 - **Commit**: "release: Prepare lua_of_ocaml v1.0.0"
+
+---
+
+### Phase 13: Compiler Validation & End-to-End Testing (Week 13-15) 🔴 **CRITICAL**
+
+**Status**: ⚠️ **BLOCKING** - Critical bug discovered preventing code execution
+
+**Problem Discovered**: Generated Lua code exceeds Lua's 200 local variable limit!
+```bash
+$ lua hello.bc.lua
+lua: hello.bc.lua:204: too many local variables (limit is 200) in function at line 2
+```
+
+**Root Cause**: Compiler generates all initialization in single `__caml_init__()` function with 315+ local variables. Lua's hard limit is 200 per function.
+
+**Impact**: Even simple 16-line OCaml programs cannot run. This is BLOCKING for all real-world usage.
+
+#### Task 13.1: Fix Local Variable Limit 🔴 **CRITICAL - BLOCKING**
+- [ ] Implement variable scope chunking in codegen
+- [ ] Split `__caml_init__()` into multiple functions (e.g., `__caml_init_chunk_0()`, `__caml_init_chunk_1()`, etc.)
+- [ ] Track local variable count during code generation
+- [ ] Limit each function to 150 variables (safe margin below 200)
+- [ ] Add warning when approaching limits
+- [ ] Handle Lua's upvalue limit (60) for closures
+- **Architecture**:
+  ```lua
+  -- Before (BROKEN - 315 variables):
+  function __caml_init__()
+    local v0 = ...
+    -- ... 315 local variables (EXCEEDS 200 LIMIT!)
+  end
+
+  -- After (FIXED - chunked):
+  function __caml_init_chunk_0()
+    local v0 = ...
+    -- ... 150 variables (under limit)
+  end
+  function __caml_init_chunk_1()
+    local v150 = ...
+    -- ... next 150 variables
+  end
+  function __caml_init__()
+    __caml_init_chunk_0()
+    __caml_init_chunk_1()
+    -- ... more chunks as needed
+  end
+  ```
+- **Files**: Lua code generator (find in `compiler/lib/` or `compiler/lib-lua/`)
+- **Output**: ~200-300 lines (chunking logic)
+- **Test**: hello_lua example runs without errors
+- **Success Criteria**:
+  - ✅ Programs with 500+ globals compile and run
+  - ✅ No "too many local variables" errors
+  - ✅ Generated code remains readable
+  - ✅ All examples in examples/ work
+- **Commit**: "fix(lua): Implement variable chunking to avoid 200 local var limit"
+- **Priority**: 🔴 **MUST BE DONE FIRST** - Nothing else works until this is fixed
+
+#### Task 13.2: End-to-End Test Framework 🔴 **CRITICAL**
+- [ ] Create `compiler/tests-lua-e2e/` directory structure
+- [ ] Implement test framework module:
+  - Compile OCaml source to Lua
+  - Execute generated Lua with interpreter
+  - Capture stdout/stderr
+  - Verify expected output
+  - Detect runtime errors
+- [ ] Support multiple Lua versions (5.1, 5.4, LuaJIT)
+- [ ] Integrate with dune runtest
+- [ ] Add ppx_expect integration for output testing
+- **API Design**:
+  ```ocaml
+  module E2E_Test : sig
+    val run_test :
+      ocaml_code:string ->
+      expected_output:string ->
+      ?lua_version:[`Lua51 | `Lua54 | `LuaJIT] ->
+      unit -> test_result
+
+    val test : string -> (unit -> unit) -> unit
+    val expect_output : string -> unit
+  end
+  ```
+- **Files**: `compiler/tests-lua-e2e/test_framework.ml` (new)
+- **Output**: ~300-400 lines
+- **Test**: Framework compiles and can run simple programs
+- **Commit**: "feat(test): Add end-to-end test framework for Lua compilation"
+
+#### Task 13.3: Smoke Tests 🔴 **CRITICAL**
+- [ ] Create smoke test suite (5-10 minimal programs):
+  - `hello_world.ml`: Basic print_endline
+  - `factorial.ml`: Simple recursion
+  - `fibonacci.ml`: Multiple parameters
+  - `simple_list.ml`: List operations
+  - `simple_record.ml`: Record creation/access
+  - `simple_variant.ml`: Variant construction
+  - `simple_function.ml`: Higher-order functions
+- [ ] Verify each compiles without errors
+- [ ] Verify each runs on Lua 5.4
+- [ ] Verify each runs on LuaJIT
+- [ ] Add expect tests for output verification
+- **Example Test**:
+  ```ocaml
+  let%expect_test "hello world" =
+    E2E_Test.run_test
+      ~ocaml_code:{| let () = print_endline "Hello!" |}
+      ~expected_output:"Hello!\n"
+      ();
+    [%expect {| Success |}]
+  ```
+- **Files**: `compiler/tests-lua-e2e/smoke/*.ml` (new)
+- **Output**: ~200-300 lines (5-10 tests)
+- **Test**: `dune runtest compiler/tests-lua-e2e`
+- **Success Criteria**:
+  - ✅ All smoke tests pass on Lua 5.4
+  - ✅ All smoke tests pass on LuaJIT
+  - ✅ Tests fail clearly when output doesn't match
+- **Commit**: "test(e2e): Add smoke tests for basic Lua compilation"
+
+#### Task 13.4: Language Feature Tests 🟡 **HIGH**
+- [ ] Test OCaml language features (15-20 tests):
+  - Lists (cons, pattern matching, recursion)
+  - Records (creation, field access, functional update)
+  - Variants (construction, pattern matching, nested)
+  - Functions (currying, closures, recursion, mutual recursion)
+  - Modules (access, qualified names, functors)
+  - Exceptions (raise, try/with, multiple handlers)
+  - References (create, read, write, aliasing)
+  - Arrays (create, get, set, iteration)
+  - Strings (concat, substring, conversion)
+  - Pattern matching (nested, guards, when clauses, exhaustiveness)
+- [ ] Verify runtime integration with runtime modules
+- [ ] Test on Lua 5.1, 5.4, LuaJIT
+- [ ] Ensure consistent behavior across versions
+- **Files**: `compiler/tests-lua-e2e/features/*.ml` (new)
+- **Output**: ~600-800 lines (15-20 comprehensive tests)
+- **Test**: All feature tests pass on all Lua versions
+- **Commit**: "test(e2e): Add comprehensive language feature tests"
+
+#### Task 13.5: Stdlib Integration Tests 🟡 **HIGH**
+- [ ] Test OCaml stdlib module usage:
+  - String module (length, sub, concat, uppercase, etc.)
+  - List module (map, filter, fold_left, fold_right, etc.)
+  - Array module (make, get, set, length, iter, etc.)
+  - Printf module (printf, sprintf, fprintf)
+  - Format module (basic formatting)
+  - Hashtbl module (create, add, find, remove)
+  - Map/Set modules (add, mem, find, fold)
+- [ ] Verify generated code correctly links with runtime modules
+- [ ] Test module loading and initialization order
+- [ ] Validate calling conventions match runtime expectations
+- **Files**: `compiler/tests-lua-e2e/stdlib/*.ml` (new)
+- **Output**: ~400-500 lines (10-15 tests)
+- **Test**: All stdlib tests pass, runtime functions called correctly
+- **Commit**: "test(e2e): Add stdlib integration tests"
+
+#### Task 13.6: Multi-Module Integration Tests 🟢 **MEDIUM**
+- [ ] Test multi-module compilation and linking:
+  - Module A depends on Module B (simple dependency)
+  - Mutually recursive modules
+  - Module signatures and implementations
+  - Nested modules and module types
+- [ ] Verify module linking works correctly
+- [ ] Test module initialization order is correct
+- [ ] Validate cross-module references
+- **Files**: `compiler/tests-lua-e2e/integration/*.ml` (new)
+- **Output**: ~300-400 lines
+- **Test**: Multi-module programs compile and run correctly
+- **Commit**: "test(e2e): Add multi-module integration tests"
+
+#### Task 13.7: Regression Test Suite 🟢 **MEDIUM**
+- [ ] Create regression tests for known issues:
+  - Local variable limit (>200 globals) ← **Task 13.1 fix**
+  - Upvalue limit (>60 closures)
+  - Deep recursion (stack depth)
+  - Large data structures (memory limits)
+  - Name collisions with Lua keywords
+  - Special character handling in strings
+  - Edge cases in numeric operations
+- [ ] Document each regression with issue context and fix
+- [ ] Ensure regressions don't reoccur
+- **Files**: `compiler/tests-lua-e2e/regression/*.ml` (new)
+- **Output**: ~200-300 lines
+- **Test**: All known bugs remain fixed
+- **Commit**: "test(e2e): Add regression test suite"
+
+#### Task 13.8: Runtime Module Validation 🟢 **MEDIUM**
+- [ ] Validate generated code uses runtime correctly:
+  - Calls runtime functions with correct calling convention
+  - Value representation matches runtime expectations
+  - Runtime functions are available at execution time
+  - No missing runtime primitive errors
+- [ ] Test runtime error handling and propagation
+- [ ] Verify exception handling integrates correctly
+- **Files**: `compiler/tests-lua-e2e/runtime/*.ml` (new)
+- **Output**: ~200-300 lines
+- **Test**: Runtime integration fully validated
+- **Commit**: "test(e2e): Validate runtime module integration"
+
+#### Task 13.9: Performance Benchmarks 🟢 **LOW**
+- [ ] Create performance benchmark suite:
+  - Fibonacci (recursion performance)
+  - List operations (cons, map, fold - allocation/GC)
+  - String operations (concat, substring - string handling)
+  - Array operations (create, get, set - table access)
+  - Hashtbl operations (add, find - hash table performance)
+- [ ] Compare Lua 5.4 vs LuaJIT performance
+- [ ] Identify performance bottlenecks
+- [ ] Document performance characteristics
+- **Files**: `compiler/tests-lua-e2e/benchmarks/*.ml` (new)
+- **Output**: ~200-300 lines
+- **Test**: Benchmarks run and produce measurements
+- **Commit**: "test(e2e): Add performance benchmarks"
+
+#### Task 13.10: Continuous Integration 🟢 **LOW**
+- [ ] Set up CI for Lua end-to-end testing:
+  - Install Lua 5.1, 5.4, LuaJIT in CI environment
+  - Run all e2e tests on each commit
+  - Report test failures clearly
+  - Track test coverage
+- [ ] Add test result badges to README
+- [ ] Set up nightly comprehensive test runs
+- [ ] Configure test result archiving
+- **Files**: `.github/workflows/lua_e2e_tests.yml` (new or update existing)
+- **Output**: ~100-150 lines (CI workflow config)
+- **Test**: CI runs successfully on pull requests
+- **Commit**: "ci: Add Lua end-to-end testing to CI pipeline"
+
+#### Task 13.11: Self-Hosting Validation 🎯 **MILESTONE**
+- [ ] Attempt to compile lua_of_ocaml compiler itself to Lua
+- [ ] Identify any missing runtime primitives from errors
+- [ ] Fix compilation errors
+- [ ] Verify compiled compiler can compile simple programs
+- [ ] Test that compiled compiler produces correct output
+- **Files**: N/A (validation task)
+- **Output**: Documentation of results, bug fixes as needed
+- **Test**: Compiler successfully compiles itself (may not execute yet)
+- **Success Criteria**:
+  - ✅ Compiler bytecode compiles to Lua without errors
+  - ✅ Generated Lua has no "too many local variables" errors
+  - ✅ All required runtime primitives are available
+  - ✅ No missing module dependencies
+- **Commit**: "milestone: lua_of_ocaml compiler self-hosting validation"
+
+#### Task 13.12: Testing Documentation 📝 **MEDIUM**
+- [ ] Create comprehensive testing guide (`compiler/tests-lua-e2e/TESTING.md`):
+  - How to run e2e tests
+  - How to add new tests
+  - Test framework API reference
+  - Troubleshooting test failures
+- [ ] Document Lua version compatibility matrix
+- [ ] Add debugging guide for test failures
+- [ ] Document CI integration and test reporting
+- **Files**: `compiler/tests-lua-e2e/TESTING.md` (new)
+- **Output**: ~300-400 lines
+- **Test**: Documentation is clear and complete
+- **Commit**: "docs: Add end-to-end testing infrastructure documentation"
+
+**Phase 13 Summary**:
+- **Priority**: 🔴 **CRITICAL** - Tasks 13.1-13.3 are BLOCKING for project usability
+- **Estimated Time**: 2-3 weeks total
+- **Dependencies**: Task 13.1 must be completed FIRST before any code can run
+- **Success Criteria**:
+  - ✅ Generated Lua code runs without "too many local variables" error
+  - ✅ All smoke tests pass on Lua 5.4 and LuaJIT
+  - ✅ 50+ end-to-end tests covering OCaml language features
+  - ✅ Stdlib integration validated
+  - ✅ Multi-module programs work correctly
+  - ✅ Compiler can compile itself to Lua
+- **Deliverables**:
+  - Fixed code generator (no 200 variable limit)
+  - End-to-end test framework
+  - 50+ comprehensive integration tests
+  - CI/CD pipeline for Lua testing
+  - Self-hosting capability validated
+
+---
 
 ## Implementation Guidelines
 
