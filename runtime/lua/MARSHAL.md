@@ -359,14 +359,39 @@ The Marshal module provides serialization and deserialization of OCaml values to
 - **Test**: ✅ 10/10 tests pass in test_marshal_blocks.lua (simple arrays, nested tables, complex structures, large arrays)
 - **Commit**: "feat(marshal): Complete block field marshalling"
 
-#### Task 6.3: Error Handling
-- [ ] Validate input parameters
-- [ ] Handle truncated data
-- [ ] Handle corrupted data
-- [ ] Provide meaningful error messages
-- [ ] Handle unsupported features gracefully
-- **Output**: ~50 lines
-- **Test**: Error case tests
+#### Task 6.3: Error Handling ✅
+- [x] Validate input parameters
+  - ✅ Type checking for value, flags, string, offset
+  - ✅ Range validation for offsets (non-negative)
+  - ✅ Nil value rejection in to_string
+- [x] Handle truncated data
+  - ✅ Minimum header size validation (20 bytes)
+  - ✅ Data length verification against header claims
+  - ✅ Protected header parsing with pcall
+  - ✅ Clear error messages with byte counts
+- [x] Handle corrupted data
+  - ✅ Invalid magic number detection
+  - ✅ Unknown value code detection (with hex display)
+  - ✅ Invalid shared reference bounds checking
+  - ✅ Protected read operations with pcall
+- [x] Provide meaningful error messages
+  - ✅ Specific error prefixes (Marshal.to_string, Marshal.from_bytes)
+  - ✅ Include diagnostic info (byte counts, types, hex codes)
+  - ✅ Distinguish between truncation and corruption
+- [x] Handle unsupported features gracefully
+  - ✅ Closures flag rejection with clear message
+  - ✅ Code pointer rejection
+  - ✅ 64-bit block rejection
+  - ✅ Compression support check with helpful message
+- **Output**: 65 lines (marshal.lua improvements)
+- **Test**: ✅ 25/25 tests passed (test_marshal_errors.lua)
+  - ✅ Input validation (5 tests)
+  - ✅ Truncated data (4 tests)
+  - ✅ Corrupted data (3 tests)
+  - ✅ Unsupported features (3 tests)
+  - ✅ Edge cases (3 tests)
+  - ✅ Error message quality (3 tests)
+  - ✅ Recovery and partial data (4 tests)
 - **Commit**: "feat(marshal): Add comprehensive error handling"
 
 ### Phase 7: Testing and Validation

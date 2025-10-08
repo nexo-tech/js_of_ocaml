@@ -1202,18 +1202,31 @@ end
 -- flags: array of flag constants (M.No_sharing, M.Closures, M.Compat_32)
 -- Returns: complete marshalled data as string (header + data)
 function M.to_string(value, flags)
+  -- Input validation
+  if value == nil then
+    error("Marshal.to_string: cannot marshal nil value")
+  end
+
+  -- Validate flags
+  if flags ~= nil and type(flags) ~= "table" and type(flags) ~= "number" then
+    error("Marshal.to_string: flags must be table or number, got " .. type(flags))
+  end
+
   local parsed_flags = parse_flags(flags)
 
   -- Check for unsupported flags
   if parsed_flags.closures then
-    error("Marshal: Closures flag is not supported")
+    error("Marshal.to_string: Closures flag is not supported")
   end
 
   -- Compat_32 is redundant in Lua (all integers are already compatible)
   -- No action needed for compat_32 flag
 
-  -- Create writer with no_sharing flag
-  local writer = MarshalWriter:new(parsed_flags.no_sharing)
+  -- Create writer with no_sharing flag (protected to catch internal errors)
+  local ok, writer = pcall(MarshalWriter.new, MarshalWriter, parsed_flags.no_sharing)
+  if not ok then
+    error("Marshal.to_string: failed to create writer - " .. tostring(writer))
+  end
 
   -- Stack for iterative marshalling
   local stack = {}
@@ -1258,11 +1271,34 @@ M.to_bytes = M.to_string
 function M.from_bytes(str, offset)
   offset = offset or 0
 
-  -- Parse header
-  local header = marshal_header.read_header(str, offset)
+  -- Input validation
+  if type(str) ~= "string" then
+    error("Marshal.from_bytes: expected string, got " .. type(str))
+  end
+
+  if type(offset) ~= "number" or offset < 0 then
+    error("Marshal.from_bytes: offset must be non-negative number, got " .. tostring(offset))
+  end
+
+  if #str < offset + 20 then
+    error(string.format("Marshal.from_bytes: input too short (%d bytes at offset %d), need at least 20 bytes for header",
+                       #str - offset, offset))
+  end
+
+  -- Parse header (protected call to catch header errors)
+  local ok, header = pcall(marshal_header.read_header, str, offset)
+  if not ok then
+    error("Marshal.from_bytes: invalid header - " .. tostring(header))
+  end
 
   -- Move past header to data
   local data_offset = offset + header.header_len
+
+  -- Validate we have enough data
+  if #str < data_offset + header.data_len then
+    error(string.format("Marshal.from_bytes: truncated data - header claims %d bytes but only %d available",
+                       header.data_len, #str - data_offset))
+  end
 
   -- Check if data is compressed
   if header.compressed then
@@ -1283,16 +1319,34 @@ function M.from_bytes(str, offset)
                          #uncompressed_data, header.uncompressed_data_len))
     end
 
-    -- Create reader for uncompressed data
-    local reader = MarshalReader:new(uncompressed_data, 0, header.num_objects, true)
-    local result = reader:read_value()
+    -- Create reader for uncompressed data (protected)
+    local ok, reader = pcall(MarshalReader.new, MarshalReader, uncompressed_data, 0, header.num_objects, true)
+    if not ok then
+      error("Marshal.from_bytes: failed to create reader - " .. tostring(reader))
+    end
+
+    -- Read value (protected to catch corruption/truncation)
+    ok, result = pcall(reader.read_value, reader)
+    if not ok then
+      error("Marshal.from_bytes: corrupted data - " .. tostring(result))
+    end
+
     reader:finalize_objects()
     return result
 
   else
     -- Uncompressed data
-    local reader = MarshalReader:new(str, data_offset, header.num_objects, false)
-    local result = reader:read_value()
+    local ok, reader = pcall(MarshalReader.new, MarshalReader, str, data_offset, header.num_objects, false)
+    if not ok then
+      error("Marshal.from_bytes: failed to create reader - " .. tostring(reader))
+    end
+
+    -- Read value (protected to catch corruption/truncation)
+    ok, result = pcall(reader.read_value, reader)
+    if not ok then
+      error("Marshal.from_bytes: corrupted data - " .. tostring(result))
+    end
+
     reader:finalize_objects()
     return result
   end
