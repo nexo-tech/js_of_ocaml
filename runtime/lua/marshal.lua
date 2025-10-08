@@ -1106,8 +1106,9 @@ function M.unmarshal_value(str, offset)
 end
 
 -- Marshal value with flags (high-level API)
+-- Produces complete marshal format with header
 -- flags: array of flag constants (M.No_sharing, M.Closures, M.Compat_32)
--- Returns: marshalled data as string (without header)
+-- Returns: complete marshalled data as string (header + data)
 function M.to_string(value, flags)
   local parsed_flags = parse_flags(flags)
 
@@ -1147,7 +1148,15 @@ function M.to_string(value, flags)
     error("Marshal: unsupported type " .. value_type)
   end
 
-  return writer:to_string()
+  -- Get marshalled data
+  local data = writer:to_string()
+  local data_len = #data
+
+  -- Write header
+  local header = marshal_header.write_header(data_len, writer.obj_counter, writer.size_32, writer.size_64)
+
+  -- Return header + data
+  return header .. data
 end
 
 -- Alias for to_string

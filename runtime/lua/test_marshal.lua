@@ -1730,6 +1730,171 @@ test("Tag 255 (custom) already handled", function()
   assert_eq(custom.value, 42, "Should preserve value")
 end)
 
+--
+-- Public API Tests (Task 6.1)
+--
+
+print("")
+print("Public API Tests (Task 6.1):")
+print("--------------------------------------------------------------------")
+
+test("to_string produces complete marshal format", function()
+  local value = 42
+  local result = marshal.to_string(value)
+
+  -- Should have header (20 bytes) + data
+  assert_true(#result > 20, "Should have header + data")
+
+  -- Parse header to verify format
+  local header = marshal_header.read_header(result, 0)
+  assert_true(header ~= nil, "Should have valid header")
+  assert_eq(header.magic, marshal_header.MAGIC_SMALL, "Should have MAGIC_SMALL")
+  assert_true(header.data_len > 0, "Should have data")
+end)
+
+test("to_bytes is alias for to_string", function()
+  local value = "test"
+  local result1 = marshal.to_string(value)
+  local result2 = marshal.to_bytes(value)
+
+  assert_eq(result1, result2, "to_bytes should be same as to_string")
+end)
+
+test("to_string with No_sharing flag", function()
+  local value = 123
+  local result = marshal.to_string(value, {marshal.No_sharing})
+
+  -- Should still produce valid marshal format
+  local header = marshal_header.read_header(result, 0)
+  assert_true(header ~= nil, "Should have valid header")
+end)
+
+test("from_bytes unmarshals complete format", function()
+  local original = 42
+  local marshalled = marshal.to_string(original)
+  local result = marshal.from_bytes(marshalled)
+
+  assert_eq(result, original, "Should unmarshal correctly")
+end)
+
+test("from_bytes with offset", function()
+  local original = 123
+  local marshalled = marshal.to_string(original)
+
+  -- Create string with prefix
+  local prefixed = "XXXX" .. marshalled
+  local result = marshal.from_bytes(prefixed, 4)
+
+  assert_eq(result, original, "Should unmarshal with offset")
+end)
+
+test("from_string is alias for from_bytes", function()
+  local original = "hello"
+  local marshalled = marshal.to_string(original)
+
+  local result1 = marshal.from_bytes(marshalled)
+  local result2 = marshal.from_string(marshalled)
+
+  assert_eq(result1, result2, "from_string should be same as from_bytes")
+end)
+
+test("Roundtrip: integer", function()
+  local original = 12345
+  local marshalled = marshal.to_string(original)
+  local result = marshal.from_bytes(marshalled)
+
+  assert_eq(result, original, "Integer roundtrip")
+end)
+
+test("Roundtrip: string", function()
+  local original = "Hello, Marshal!"
+  local marshalled = marshal.to_string(original)
+  local result = marshal.from_bytes(marshalled)
+
+  assert_eq(result, original, "String roundtrip")
+end)
+
+test("Roundtrip: float", function()
+  local original = 3.14159
+  local marshalled = marshal.to_string(original)
+  local result = marshal.from_bytes(marshalled)
+
+  assert_close(result, original, 1e-10, "Float roundtrip")
+end)
+
+test("Roundtrip: block", function()
+  local original = {tag = 0, size = 2}
+  local marshalled = marshal.to_string(original)
+  local result = marshal.from_bytes(marshalled)
+
+  assert_eq(result.tag, original.tag, "Block tag roundtrip")
+  assert_eq(result.size, original.size, "Block size roundtrip")
+end)
+
+test("Roundtrip: float array", function()
+  local original = {tag = 254, values = {1.5, 2.5, 3.5}}
+  local marshalled = marshal.to_string(original)
+  local result = marshal.from_bytes(marshalled)
+
+  assert_eq(result.tag, 254, "Float array tag")
+  assert_eq(#result.values, 3, "Float array length")
+  assert_close(result.values[1], 1.5, 1e-10, "Element 1")
+  assert_close(result.values[2], 2.5, 1e-10, "Element 2")
+  assert_close(result.values[3], 3.5, 1e-10, "Element 3")
+end)
+
+test("total_size returns correct size", function()
+  local value = 42
+  local marshalled = marshal.to_string(value)
+
+  local size = marshal.total_size(marshalled, 0)
+  assert_eq(size, #marshalled, "total_size should match string length")
+end)
+
+test("total_size with offset", function()
+  local value = 42
+  local marshalled = marshal.to_string(value)
+  local prefixed = "XXXX" .. marshalled
+
+  local size = marshal.total_size(prefixed, 4)
+  assert_eq(size, #marshalled, "total_size should work with offset")
+end)
+
+test("data_size returns data length only", function()
+  local value = 42
+  local marshalled = marshal.to_string(value)
+
+  local header_size = 20  -- Standard header is 20 bytes
+  local data_size = marshal.data_size(marshalled, 0)
+
+  assert_eq(data_size, #marshalled - header_size, "data_size should exclude header")
+  assert_true(data_size > 0, "Should have data")
+end)
+
+test("Multiple values can be marshalled independently", function()
+  local val1 = 100
+  local val2 = "test"
+  local val3 = 3.14
+
+  local m1 = marshal.to_string(val1)
+  local m2 = marshal.to_string(val2)
+  local m3 = marshal.to_string(val3)
+
+  assert_eq(marshal.from_bytes(m1), val1, "Value 1")
+  assert_eq(marshal.from_bytes(m2), val2, "Value 2")
+  assert_close(marshal.from_bytes(m3), val3, 1e-10, "Value 3")
+end)
+
+test("Marshal format includes proper metadata", function()
+  local value = {tag = 0, size = 1}
+  local marshalled = marshal.to_string(value)
+  local header = marshal_header.read_header(marshalled, 0)
+
+  assert_eq(header.magic, marshal_header.MAGIC_SMALL, "Magic number")
+  assert_true(header.data_len > 0, "Has data")
+  assert_true(header.num_objects >= 0, "Has object count")
+end)
+
 print("")
 print("====================================================================")
 print("Tests passed: " .. tests_passed .. " / " .. tests_run)

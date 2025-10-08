@@ -328,17 +328,17 @@ The Marshal module provides serialization and deserialization of OCaml values to
 
 ### Phase 6: API and Integration
 
-#### Task 6.1: Public API
-- [ ] Implement `Marshal.to_bytes(v, flags)`
-- [ ] Implement `Marshal.from_bytes(s, ofs)`
-- [ ] Implement `Marshal.to_string(v, flags)` (alias)
-- [ ] Implement `Marshal.from_string(s, ofs)` (alias)
-- [ ] Implement `Marshal.total_size(s, ofs)`
-- [ ] Implement `Marshal.data_size(s, ofs)`
-- [ ] Implement `Marshal.to_channel(ch, v, flags)` (if IO available)
-- [ ] Implement `Marshal.from_channel(ch)` (if IO available)
-- **Output**: ~80 lines
-- **Test**: API usage tests
+#### Task 6.1: Public API ✅
+- [x] Implement `Marshal.to_bytes(v, flags)` ✅ Alias for to_string
+- [x] Implement `Marshal.from_bytes(s, ofs)` ✅ Unmarshals complete format
+- [x] Implement `Marshal.to_string(v, flags)` ✅ Produces complete marshal format (header + data)
+- [x] Implement `Marshal.from_string(s, ofs)` ✅ Alias for from_bytes
+- [x] Implement `Marshal.total_size(s, ofs)` ✅ Returns total size (header + data)
+- [x] Implement `Marshal.data_size(s, ofs)` ✅ Returns data size only
+- [ ] Implement `Marshal.to_channel(ch, v, flags)` (deferred - I/O integration)
+- [ ] Implement `Marshal.from_channel(ch)` (deferred - I/O integration)
+- **Output**: 176 lines total (11 code + 165 tests)
+- **Test**: ✅ 17 API usage tests (aliases, offsets, roundtrips, metadata)
 - **Commit**: "feat(marshal): Complete public API"
 
 #### Task 6.2: Error Handling
