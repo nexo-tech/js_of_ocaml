@@ -17,7 +17,7 @@ This document details the implementation plan for Task 14.3: Runtime Primitive L
 - [x] Task 3.2: Add ref, sys, weak primitives (~80 lines)
 
 **Phase 4: Testing & Verification**
-- [ ] Task 4.1: Add primitive coverage test (~100 lines)
+- [x] Task 4.1: Add primitive coverage test (~100 lines)
 - [ ] Task 4.2: Verify hello_lua works (verification)
 - [ ] Task 4.3: Verify all existing tests pass (verification)
 

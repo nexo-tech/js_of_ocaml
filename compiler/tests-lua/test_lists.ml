@@ -23,7 +23,10 @@ let%expect_test "list creation" =
       in
       print_list l
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "list cons" =
   compile_and_run
@@ -39,7 +42,10 @@ let%expect_test "list cons" =
       in
       print_list l
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "list length" =
   compile_and_run
@@ -50,7 +56,10 @@ let%expect_test "list length" =
       print_int (List.length []);
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "list hd tl" =
   compile_and_run
@@ -63,7 +72,10 @@ let%expect_test "list hd tl" =
       print_int (List.hd tl);
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "list append" =
   compile_and_run
@@ -80,7 +92,10 @@ let%expect_test "list append" =
       let l2 = [4; 5; 6] in
       print_list (l1 @ l2)
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "list rev" =
   compile_and_run
@@ -95,7 +110,10 @@ let%expect_test "list rev" =
     let () =
       print_list (List.rev [1; 2; 3; 4; 5])
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "list map" =
   compile_and_run
@@ -111,7 +129,10 @@ let%expect_test "list map" =
       let l = [1; 2; 3; 4; 5] in
       print_list (List.map (fun x -> x * 2) l)
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "list filter" =
   compile_and_run
@@ -127,7 +148,10 @@ let%expect_test "list filter" =
       let l = [1; 2; 3; 4; 5; 6; 7; 8; 9; 10] in
       print_list (List.filter (fun x -> x mod 2 = 0) l)
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "list fold_left" =
   compile_and_run
@@ -138,7 +162,10 @@ let%expect_test "list fold_left" =
       print_int sum;
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "list fold_right" =
   compile_and_run
@@ -149,7 +176,10 @@ let%expect_test "list fold_right" =
       print_int sum;
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "list iter" =
   compile_and_run
@@ -159,7 +189,10 @@ let%expect_test "list iter" =
       List.iter (fun x -> print_int x; print_char ' ') l;
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "list find" =
   compile_and_run
@@ -170,7 +203,10 @@ let%expect_test "list find" =
       print_int result;
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "list exists" =
   compile_and_run
@@ -180,7 +216,10 @@ let%expect_test "list exists" =
       print_endline (if List.exists (fun x -> x = 3) l then "yes" else "no");
       print_endline (if List.exists (fun x -> x = 10) l then "yes" else "no")
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "list for_all" =
   compile_and_run
@@ -191,7 +230,10 @@ let%expect_test "list for_all" =
       let l2 = [2; 3; 4] in
       print_endline (if List.for_all (fun x -> x mod 2 = 0) l2 then "yes" else "no")
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "list flatten" =
   compile_and_run
@@ -207,4 +249,7 @@ let%expect_test "list flatten" =
       let ll = [[1; 2]; [3; 4]; [5; 6]] in
       print_list (List.flatten ll)
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]

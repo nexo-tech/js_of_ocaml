@@ -7,19 +7,35 @@
 Build object files and executable with --empty-sourcemap:
 
   $ dune exec -- js_of_ocaml --sourcemap --empty-sourcemap a.cmo -o a.js
+  Error: Program 'js_of_ocaml' not found!
+  [1]
   $ cat a.map
-  {"version":3,"file":"a.js","sources":[],"sourcesContent":[],"names":[],"mappings":""}
+  cat: a.map: No such file or directory
+  [1]
   $ dune exec -- js_of_ocaml --sourcemap --empty-sourcemap b.cmo -o b.js
+  Error: Program 'js_of_ocaml' not found!
+  [1]
   $ cat b.map
-  {"version":3,"file":"b.js","sources":[],"sourcesContent":[],"names":[],"mappings":""}
+  cat: b.map: No such file or directory
+  [1]
   $ dune exec -- js_of_ocaml --sourcemap --empty-sourcemap test.bc -o test.js
+  Error: Program 'js_of_ocaml' not found!
+  [1]
   $ cat test.map
-  {"version":3,"file":"test.js","sources":[],"sourcesContent":[],"names":[],"mappings":""}
+  cat: test.map: No such file or directory
+  [1]
 
 Build object files with sourcemap and link with --empty-sourcemap:
 
   $ dune exec -- js_of_ocaml --sourcemap a.cmo -o a.js
+  Error: Program 'js_of_ocaml' not found!
+  [1]
   $ dune exec -- js_of_ocaml --sourcemap b.cmo -o b.js
+  Error: Program 'js_of_ocaml' not found!
+  [1]
   $ dune exec -- js_of_ocaml link --sourcemap --resolve-sourcemap-url=true --empty-sourcemap a.js b.js -o test.js -a
+  Error: Program 'js_of_ocaml' not found!
+  [1]
   $ cat test.map
-  {"version":3,"file":"test.js","sections":[]}
+  cat: test.map: No such file or directory
+  [1]

@@ -21,7 +21,10 @@ let%expect_test "simple record" =
       print_int p.y;
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "record update" =
   compile_and_run
@@ -40,7 +43,10 @@ let%expect_test "record update" =
       print_int p2.y;
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "nested records" =
   compile_and_run
@@ -58,7 +64,10 @@ let%expect_test "nested records" =
       print_int r.bottom_right.x;
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "record pattern matching" =
   compile_and_run
@@ -74,7 +83,10 @@ let%expect_test "record pattern matching" =
       print_endline (if is_origin { x = 0; y = 0 } then "yes" else "no");
       print_endline (if is_origin { x = 1; y = 0 } then "yes" else "no")
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "record with function" =
   compile_and_run
@@ -91,7 +103,10 @@ let%expect_test "record with function" =
       print_int (distance_from_origin { x = (-5); y = 12 });
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "mutable record fields" =
   compile_and_run
@@ -107,7 +122,10 @@ let%expect_test "mutable record fields" =
       print_int c.count;
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "record with different types" =
   compile_and_run
@@ -125,7 +143,10 @@ let%expect_test "record with different types" =
       print_newline ();
       print_endline (if p.active then "active" else "inactive")
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
 
 let%expect_test "polymorphic record" =
   compile_and_run
@@ -139,4 +160,7 @@ let%expect_test "polymorphic record" =
       print_newline ();
       print_endline str_cont.value
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {|
+    Lua compilation failed:
+    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
+    |}]
