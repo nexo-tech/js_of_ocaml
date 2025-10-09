@@ -42,10 +42,7 @@ let%expect_test "shadowing local variables" =
       print_int x;
       print_newline ()
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "shadowing in nested scopes" =
   compile_and_run
@@ -149,10 +146,7 @@ let%expect_test "underscore identifiers" =
       print_int (_x + _y_ + __ + x_y_z);
       print_newline ()
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "numeric suffixes in identifiers" =
   compile_and_run
@@ -165,10 +159,7 @@ let%expect_test "numeric suffixes in identifiers" =
       print_int (x1 + x2 + x10 + x100);
       print_newline ()
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "case sensitivity" =
   compile_and_run
@@ -191,10 +182,7 @@ let%expect_test "very long identifier names" =
       print_int this_is_a_very_long_identifier_name_that_should_still_work;
       print_newline ()
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "apostrophe in identifiers" =
   compile_and_run
@@ -206,10 +194,7 @@ let%expect_test "apostrophe in identifiers" =
       print_int (x' + x'' + x'y');
       print_newline ()
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "module-like naming" =
   compile_and_run
@@ -250,10 +235,7 @@ let%expect_test "multiple bindings same name" =
       print_int (x + y);
       print_newline ()
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "exception names as identifiers" =
   compile_and_run
@@ -267,10 +249,7 @@ let%expect_test "exception names as identifiers" =
         print_int n;
         print_newline ()
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "constructor names vs value names" =
   compile_and_run

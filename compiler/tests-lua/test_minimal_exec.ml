@@ -40,11 +40,34 @@ let%expect_test "minimal program with single print generates execution code" =
   (* Print IR structure *)
   Printf.printf "Entry block: %s\n" (Code.Addr.to_string program.Code.start);
 
+  (* Check ALL blocks, not just entry block *)
+  Printf.printf "Total blocks in program: %d\n"
+    (Code.Addr.Map.cardinal program.Code.blocks);
+
+  (* Find blocks with Apply instructions *)
+  let blocks_with_apply = ref [] in
+  Code.Addr.Map.iter
+    (fun addr block ->
+      let has_apply =
+        List.exists
+          ~f:(fun instr ->
+            match instr with
+            | Code.Let (_, Code.Apply _) -> true
+            | _ -> false)
+          block.Code.body
+      in
+      if has_apply then blocks_with_apply := addr :: !blocks_with_apply)
+    program.Code.blocks;
+
+  Printf.printf "Blocks with Apply instructions: [%s]\n"
+    (String.concat ~sep:", "
+       (List.map ~f:Code.Addr.to_string (List.rev !blocks_with_apply)));
+
   (match Code.Addr.Map.find_opt program.Code.start program.Code.blocks with
   | Some block ->
       Printf.printf "Entry block has %d instructions\n" (List.length block.Code.body);
 
-      (* Check for execution code markers *)
+      (* Check for execution code markers in entry block *)
       let has_apply =
         List.exists
           ~f:(fun instr ->
@@ -63,8 +86,8 @@ let%expect_test "minimal program with single print generates execution code" =
           block.Code.body
       in
 
-      Printf.printf "Has Apply (function calls): %b\n" has_apply;
-      Printf.printf "Has Extern (primitives): %b\n" has_extern;
+      Printf.printf "Entry block has Apply: %b\n" has_apply;
+      Printf.printf "Entry block has Extern: %b\n" has_extern;
 
       (* Generate Lua *)
       let lua_code = Lua_generate.generate ~debug:false program in
@@ -84,9 +107,11 @@ let%expect_test "minimal program with single print generates execution code" =
   [%expect
     {|
     Entry block: 0
+    Total blocks in program: 269
+    Blocks with Apply instructions: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 72, 79, 87, 89, 90, 92, 117, 118, 120, 122, 123, 124, 125, 126, 128, 129, 130, 131, 132, 135, 136, 137, 138, 139, 147, 151, 155, 157, 158, 159, 163, 164, 168, 170, 171, 188, 193, 206, 208, 209, 210, 219, 221, 228, 229, 247, 253, 268]
     Entry block has 57 instructions
-    Has Apply (function calls): false
-    Has Extern (primitives): true
+    Entry block has Apply: false
+    Entry block has Extern: true
     Generated Lua has print call: false
 
     === Generated Lua (first 30 lines) ===

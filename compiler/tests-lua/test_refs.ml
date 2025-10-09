@@ -17,10 +17,7 @@ let%expect_test "basic ref" =
       print_int !x;
       print_newline ()
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "ref assignment" =
   compile_and_run
@@ -33,10 +30,7 @@ let%expect_test "ref assignment" =
       print_int !x;
       print_newline ()
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "ref increment" =
   compile_and_run
@@ -49,10 +43,7 @@ let%expect_test "ref increment" =
       print_int !counter;
       print_newline ()
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "multiple refs" =
   compile_and_run
@@ -67,10 +58,7 @@ let%expect_test "multiple refs" =
       print_int (!x + !y);
       print_newline ()
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "ref aliasing" =
   compile_and_run
@@ -84,10 +72,7 @@ let%expect_test "ref aliasing" =
       print_int !y;
       print_newline ()
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "ref in closure" =
   compile_and_run
@@ -107,10 +92,7 @@ let%expect_test "ref in closure" =
       print_int (c ());
       print_newline ()
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "ref swap" =
   compile_and_run
@@ -133,10 +115,7 @@ let%expect_test "ref swap" =
       print_int !b;
       print_newline ()
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "ref incr decr" =
   compile_and_run
@@ -151,10 +130,7 @@ let%expect_test "ref incr decr" =
       print_int !x;
       print_newline ()
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "ref in record" =
   compile_and_run
@@ -169,7 +145,4 @@ let%expect_test "ref in record" =
       print_int s.value;
       print_newline ()
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]

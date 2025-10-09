@@ -20,10 +20,7 @@ let%expect_test "basic exception" =
       with MyError ->
         print_endline "caught MyError"
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "exception with argument" =
   compile_and_run
@@ -36,10 +33,7 @@ let%expect_test "exception with argument" =
       with Error msg ->
         print_endline ("caught: " ^ msg)
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "nested exceptions" =
   compile_and_run
@@ -56,10 +50,7 @@ let%expect_test "nested exceptions" =
       with A ->
         print_endline "caught A"
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "exception propagation" =
   compile_and_run
@@ -80,10 +71,7 @@ let%expect_test "exception propagation" =
         print_int n;
         print_newline ()
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "multiple exception types" =
   compile_and_run
@@ -112,10 +100,7 @@ let%expect_test "multiple exception types" =
         print_newline ()
       end
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "finally simulation" =
   compile_and_run
@@ -142,10 +127,7 @@ let%expect_test "finally simulation" =
       with E ->
         print_endline "caught E"
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]
 
 let%expect_test "builtin exceptions" =
   compile_and_run
@@ -164,7 +146,4 @@ let%expect_test "builtin exceptions" =
         print_endline "Not_found caught"
       end
     |};
-  [%expect {|
-    Lua compilation failed:
-    /bin/sh: 1: /home/snowbear/projects/js_of_ocaml/_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe: not found
-    |}]
+  [%expect {| /bin/sh: 1: lua: not found |}]

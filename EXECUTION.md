@@ -457,6 +457,65 @@ If IR has execution code in Block 1, 2, ... but not in entry block:
 
 ---
 
+## Task 6.1 Results: Finding C Confirmed
+
+**Analysis Date**: 2025-10-09
+
+### Investigation Summary
+
+Ran comprehensive IR analysis test (`test_minimal_exec.ml`) on minimal program:
+```ocaml
+let () = print_endline "test"
+```
+
+### Findings
+
+**IR Statistics**:
+- Total blocks: 269
+- Blocks with Apply instructions: 103 blocks (5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, ...)
+- Entry block (0): 57 instructions, NO Apply instructions
+- Generated Lua: NO print call
+
+### Conclusion: Finding C is TRUE
+
+**Problem**: Control flow not followed from entry block
+
+The bytecode parsing is working correctly (user confirmed jsoo works for JS/Wasm).
+The IR contains all necessary execution code (Apply instructions).
+**The Lua code generator only processes the entry block and doesn't traverse to subsequent blocks.**
+
+### Root Cause
+
+In `compiler/lib-lua/lua_generate.ml`:
+- `generate_module_init` (line ~967) only generates code for the entry block
+- Does not follow `block.Code.branch` to traverse reachable blocks
+- Execution code in blocks 5, 6, 7, ... is never compiled to Lua
+
+### Fix Plan (Task 6.2)
+
+**Location**: `compiler/lib-lua/lua_generate.ml`, function `generate_module_init`
+
+**Approach**:
+1. Collect all reachable blocks from entry block via BFS/DFS
+2. Generate Lua code for each reachable block in proper order
+3. Ensure control flow (branches, conditionals, switches) is preserved
+
+**Implementation Strategy**:
+- Follow example in EXECUTION.md Finding C
+- Use `Code.Addr.Set` to track visited blocks
+- Recursively traverse `block.Code.branch` patterns:
+  - `Branch (addr, _)` → single successor
+  - `Cond (_, (t_addr, _), (f_addr, _))` → two successors
+  - `Switch (_, conts)` → multiple successors
+  - Other patterns → handle appropriately
+
+**Expected Impact**:
+- Generated Lua will include all function calls and execution code
+- `hello.bc.lua` will contain `print_endline` calls
+- All execution tests should pass
+
+---
+
 ### Task 6.2: Implement Fix (~variable lines)
 
 **Process**: Based on Task 6.1 findings, implement the appropriate fix.
