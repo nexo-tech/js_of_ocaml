@@ -113,3 +113,12 @@ val collect_used_primitives : Code.program -> Stdlib.StringSet.t
     the caml_ prefix added if not already present.
     @param program OCaml IR program
     @return Set of primitive names (with caml_ prefix) *)
+
+val collect_block_variables : context -> Code.program -> int -> Stdlib.StringSet.t
+(** [collect_block_variables ctx program start_addr] collects all variables
+    defined in reachable blocks starting from start_addr. This is used for
+    variable hoisting to avoid Lua goto/scope violations.
+    @param ctx Code generation context
+    @param program OCaml IR program
+    @param start_addr Starting block address
+    @return Set of variable names defined in reachable blocks *)

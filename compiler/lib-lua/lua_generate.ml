@@ -689,6 +689,61 @@ and generate_instrs ctx instrs =
 
 (** {2 Unified Block Compilation with Labels} *)
 
+(** Collect all variables used in reachable blocks
+    Returns set of variable names that need to be hoisted to avoid Lua goto/scope issues.
+
+    This function traverses all reachable blocks and collects variables from Let and Assign
+    instructions. These variables will be hoisted to the function start to allow safe
+    goto statements without violating Lua's scoping rules.
+
+    @param ctx Code generation context
+    @param program Full IR program
+    @param start_addr Starting block address
+    @return Set of variable names (v_N format) that need hoisting
+*)
+and collect_block_variables ctx program start_addr =
+  (* Collect variables from a single instruction *)
+  let collect_instr_vars acc = function
+    | Code.Let (var, _expr) ->
+        (* Let introduces a new variable *)
+        StringSet.add (var_name ctx var) acc
+    | Code.Assign (var, _expr) ->
+        (* Assign may introduce a variable if not already defined *)
+        StringSet.add (var_name ctx var) acc
+    | Code.Set_field _ | Code.Offset_ref _ | Code.Array_set _ | Code.Event _ ->
+        (* These don't introduce new variables *)
+        acc
+  in
+  (* Collect all reachable blocks (reuse existing logic) *)
+  let rec collect_reachable visited addr =
+    if Code.Addr.Set.mem addr visited
+    then visited
+    else
+      match Code.Addr.Map.find_opt addr program.Code.blocks with
+      | None -> visited
+      | Some block ->
+          let visited = Code.Addr.Set.add addr visited in
+          let successors =
+            match block.Code.branch with
+            | Code.Branch (next, _) -> [ next ]
+            | Code.Cond (_, (t, _), (f, _)) -> [ t; f ]
+            | Code.Switch (_, conts) -> Array.to_list conts |> List.map ~f:fst
+            | Code.Pushtrap ((c, _), _, (h, _)) -> [ c; h ]
+            | Code.Poptrap (a, _) -> [ a ]
+            | Code.Return _ | Code.Raise _ | Code.Stop -> []
+          in
+          List.fold_left ~f:collect_reachable ~init:visited successors
+  in
+  let reachable = collect_reachable Code.Addr.Set.empty start_addr in
+  (* Collect variables from all reachable blocks *)
+  Code.Addr.Set.fold
+    (fun addr acc ->
+      match Code.Addr.Map.find_opt addr program.Code.blocks with
+      | None -> acc
+      | Some block -> List.fold_left ~f:collect_instr_vars ~init:acc block.Code.body)
+    reachable
+    StringSet.empty
+
 (** Compile all reachable blocks with labels and gotos (unified approach)
     This is the single unified function that all code generation paths use.
 
