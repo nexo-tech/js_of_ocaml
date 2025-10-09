@@ -114,3 +114,11 @@ val generate_to_string : debug:bool -> Code.program -> string
     @param debug Enable debug output
     @param program OCaml IR program
     @return Lua code as string *)
+
+val collect_used_primitives : Code.program -> Stdlib.StringSet.t
+(** [collect_used_primitives program] traverses the program IR to find all
+    external primitives (Code.Extern) that are called. These primitives will
+    need runtime implementations or wrappers. Primitives are returned with
+    the caml_ prefix added if not already present.
+    @param program OCaml IR program
+    @return Set of primitive names (with caml_ prefix) *)

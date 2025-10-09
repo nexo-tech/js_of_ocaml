@@ -1040,6 +1040,56 @@ let generate_module_init ctx program =
 
     @return List of Lua statements defining runtime functions
 *)
+
+(** Collect all primitives used in a program
+
+    Traverses the program IR to find all external primitives (Code.Extern)
+    that are called. These primitives will need runtime implementations or wrappers.
+
+    @param program OCaml IR program
+    @return Set of primitive names (with caml_ prefix)
+*)
+let collect_used_primitives (program : Code.program) : StringSet.t =
+  (* Collect primitives from an expression *)
+  let collect_expr acc = function
+    | Code.Constant _ -> acc
+    | Code.Apply { f = _; args = _; _ } ->
+        (* Function application - no primitives to collect *)
+        acc
+    | Code.Block (_, _arr, _, _) ->
+        (* Block construction - no primitives to collect *)
+        acc
+    | Code.Field (_, _, _) -> acc
+    | Code.Closure _ -> acc
+    | Code.Prim (prim, _args) ->
+        (* This is where we find external primitives *)
+        (match prim with
+        | Code.Extern name ->
+            (* External primitive - add to set with caml_ prefix if needed *)
+            let prim_name =
+              if String.starts_with ~prefix:"caml_" name
+              then name
+              else "caml_" ^ name
+            in
+            StringSet.add prim_name acc
+        | _ -> acc)
+    | Code.Special _ -> acc
+  in
+  (* Collect primitives from an instruction *)
+  let collect_instr acc = function
+    | Code.Let (_, expr) -> collect_expr acc expr
+    | Code.Assign _ -> acc
+    | Code.Set_field (_, _, _, _) -> acc
+    | Code.Offset_ref (_, _) -> acc
+    | Code.Array_set (_, _, _) -> acc
+    | Code.Event _ -> acc
+  in
+  (* Traverse all blocks in the program *)
+  Code.Addr.Map.fold
+    (fun _ block acc -> List.fold_left ~f:collect_instr ~init:acc block.Code.body)
+    program.Code.blocks
+    StringSet.empty
+
 let generate_inline_runtime () =
   [
     L.Comment "=== OCaml Runtime (Minimal Inline Version) ===";

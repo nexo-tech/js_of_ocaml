@@ -9,7 +9,7 @@ This document details the implementation plan for Task 14.3: Runtime Primitive L
 
 **Phase 2: Code Generation**
 - [x] Task 2.1: Module embedding and wrapper generation (~100 lines)
-- [ ] Task 2.2: Primitive usage tracking (~60 lines)
+- [x] Task 2.2: Primitive usage tracking (~60 lines)
 - [ ] Task 2.3: Integrate linking in code generator (~80 lines)
 
 **Phase 3: Runtime Primitives**

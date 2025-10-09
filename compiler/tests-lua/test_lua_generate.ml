@@ -253,3 +253,140 @@ let%expect_test "empty program generation" =
   Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 234, characters 15-60
   Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
   |}]
+
+(* Task 2.2: Primitive Usage Tracking Tests *)
+
+let%expect_test "collect_used_primitives with no primitives" =
+  (* Create a minimal program with no external primitives *)
+  let program = {
+    Code.blocks = Code.Addr.Map.empty;
+    free_pc = Code.Addr.zero;
+    start = Code.Addr.zero
+  } in
+  let primitives = Lua_generate.collect_used_primitives program in
+  Printf.printf "Primitives count: %d\n" (StringSet.cardinal primitives);
+  [%expect {| Primitives count: 0 |}]
+
+let%expect_test "collect_used_primitives with single external primitive" =
+  (* Create a program with one Code.Extern primitive *)
+  let var1 = Code.Var.fresh () in
+  let block = {
+    Code.params = [];
+    body = [
+      Code.Let (var1, Code.Prim (Code.Extern "array_make", [Code.Pc (Code.Int 10L); Code.Pc (Code.Int 0L)]))
+    ];
+    branch = Code.Return var1;
+    handler = None
+  } in
+  let program = {
+    Code.blocks = Code.Addr.Map.singleton Code.Addr.zero block;
+    free_pc = Code.Addr.succ Code.Addr.zero;
+    start = Code.Addr.zero
+  } in
+  let primitives = Lua_generate.collect_used_primitives program in
+  Printf.printf "Primitives count: %d\n" (StringSet.cardinal primitives);
+  StringSet.iter (fun p -> Printf.printf "  %s\n" p) primitives;
+  [%expect {|
+    Primitives count: 1
+      caml_array_make
+    |}]
+
+let%expect_test "collect_used_primitives with multiple primitives" =
+  (* Create a program with multiple Code.Extern primitives *)
+  let var1 = Code.Var.fresh () in
+  let var2 = Code.Var.fresh () in
+  let var3 = Code.Var.fresh () in
+  let block = {
+    Code.params = [];
+    body = [
+      Code.Let (var1, Code.Prim (Code.Extern "array_make", [Code.Pc (Code.Int 10L); Code.Pc (Code.Int 0L)]));
+      Code.Let (var2, Code.Prim (Code.Extern "array_get", [Code.Pv var1; Code.Pc (Code.Int 0L)]));
+      Code.Let (var3, Code.Prim (Code.Extern "string_compare", [Code.Pv var2; Code.Pv var2]))
+    ];
+    branch = Code.Return var3;
+    handler = None
+  } in
+  let program = {
+    Code.blocks = Code.Addr.Map.singleton Code.Addr.zero block;
+    free_pc = Code.Addr.succ Code.Addr.zero;
+    start = Code.Addr.zero
+  } in
+  let primitives = Lua_generate.collect_used_primitives program in
+  Printf.printf "Primitives count: %d\n" (StringSet.cardinal primitives);
+  StringSet.iter (fun p -> Printf.printf "  %s\n" p) primitives;
+  [%expect {|
+    Primitives count: 3
+      caml_array_get
+      caml_array_make
+      caml_string_compare
+    |}]
+
+let%expect_test "collect_used_primitives adds caml_ prefix" =
+  (* Test that primitives without caml_ prefix get it added *)
+  let var1 = Code.Var.fresh () in
+  let block = {
+    Code.params = [];
+    body = [
+      Code.Let (var1, Code.Prim (Code.Extern "create_bytes", [Code.Pc (Code.Int 100L)]))
+    ];
+    branch = Code.Return var1;
+    handler = None
+  } in
+  let program = {
+    Code.blocks = Code.Addr.Map.singleton Code.Addr.zero block;
+    free_pc = Code.Addr.succ Code.Addr.zero;
+    start = Code.Addr.zero
+  } in
+  let primitives = Lua_generate.collect_used_primitives program in
+  Printf.printf "Primitives count: %d\n" (StringSet.cardinal primitives);
+  StringSet.iter (fun p -> Printf.printf "  %s\n" p) primitives;
+  [%expect {|
+    Primitives count: 1
+      caml_create_bytes
+    |}]
+
+let%expect_test "collect_used_primitives preserves existing caml_ prefix" =
+  (* Test that primitives with caml_ prefix are not double-prefixed *)
+  let var1 = Code.Var.fresh () in
+  let block = {
+    Code.params = [];
+    body = [
+      Code.Let (var1, Code.Prim (Code.Extern "caml_register_global", [Code.Pc (Code.Int 0L); Code.Pv var1]))
+    ];
+    branch = Code.Return var1;
+    handler = None
+  } in
+  let program = {
+    Code.blocks = Code.Addr.Map.singleton Code.Addr.zero block;
+    free_pc = Code.Addr.succ Code.Addr.zero;
+    start = Code.Addr.zero
+  } in
+  let primitives = Lua_generate.collect_used_primitives program in
+  Printf.printf "Primitives count: %d\n" (StringSet.cardinal primitives);
+  StringSet.iter (fun p -> Printf.printf "  %s\n" p) primitives;
+  [%expect {|
+    Primitives count: 1
+      caml_register_global
+    |}]
+
+let%expect_test "collect_used_primitives ignores non-extern primitives" =
+  (* Test that built-in primitives like Not, IsInt, etc. are ignored *)
+  let var1 = Code.Var.fresh () in
+  let var2 = Code.Var.fresh () in
+  let block = {
+    Code.params = [];
+    body = [
+      Code.Let (var1, Code.Prim (Code.Not, [Code.Pv var1]));
+      Code.Let (var2, Code.Prim (Code.IsInt, [Code.Pv var1]))
+    ];
+    branch = Code.Return var2;
+    handler = None
+  } in
+  let program = {
+    Code.blocks = Code.Addr.Map.singleton Code.Addr.zero block;
+    free_pc = Code.Addr.succ Code.Addr.zero;
+    start = Code.Addr.zero
+  } in
+  let primitives = Lua_generate.collect_used_primitives program in
+  Printf.printf "Primitives count: %d\n" (StringSet.cardinal primitives);
+  [%expect {| Primitives count: 0 |}]
