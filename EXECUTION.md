@@ -415,10 +415,10 @@ dune runtest compiler/tests-lua/
 ```
 
 **Success Criteria**:
-- ✅ Minimal test compiles
-- ✅ Can see if IR contains Apply/Extern for print_endline
-- ✅ Can see if generated Lua contains the call
-- ✅ Identifies exact point where execution code is lost (if at all)
+- [x] Minimal test compiles
+- [x] Can see if IR contains Apply/Extern for print_endline
+- [x] Can see if generated Lua contains the call
+- [x] Identifies exact point where execution code is lost (if at all)
 
 ---
 

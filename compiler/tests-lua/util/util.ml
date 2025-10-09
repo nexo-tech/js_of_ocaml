@@ -190,6 +190,8 @@ let compile_and_run ?(compact = false) ocaml_source =
 
 (* Parse bytecode and generate Lua AST *)
 let compile_to_lua_ast ?(debug = false) ocaml_source =
+  (* Set target before parsing bytecode *)
+  Jsoo.Config.set_target `Wasm;
   with_temp_dir ~f:(fun () ->
       let ocaml_file = "test.ml" in
       let bytecode_file = "test.byte" in

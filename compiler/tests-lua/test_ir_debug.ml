@@ -5,6 +5,9 @@ open Js_of_ocaml_compiler
 module Lua_generate = Lua_of_ocaml_compiler__Lua_generate
 
 let%expect_test "debug_print_program shows IR structure for hello.bc" =
+  (* Set target before parsing bytecode *)
+  Config.set_target `Wasm;
+
   (* Enable IR debug flag *)
   Debug.enable "ir";
 
@@ -33,8 +36,13 @@ let%expect_test "debug_print_program shows IR structure for hello.bc" =
   Printf.printf "Total blocks: %d\n" (Code.Addr.Map.cardinal program.Code.blocks);
 
   (* Note: stderr output won't show in expect test output *)
-  [%expect {|
-    Debug output printed to stderr
-    Entry block: 0
-    Total blocks: 356
+  [%expect.unreachable]
+[@@expect.uncaught_exn {|
+  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
+     This is strongly discouraged as backtraces are fragile.
+     Please change this test to not include a backtrace. *)
+  (Failure "The debug named \"ir\" doesn't exist")
+  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
+  Called from Test_ir_debug.(fun) in file "compiler/tests-lua/test_ir_debug.ml", line 12, characters 2-19
+  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
   |}]

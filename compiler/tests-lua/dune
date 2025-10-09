@@ -249,6 +249,19 @@
  (inline_tests)
  (preprocess (pps ppx_expect)))
 
+(executable
+ (name minimal_exec)
+ (modes byte)
+ (flags (:standard -g))
+ (modules minimal_exec))
+
+(library
+ (name test_minimal_exec)
+ (libraries lua_of_ocaml_compiler str)
+ (modules test_minimal_exec)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
 (rule
  (alias runtest)
  (package lua_of_ocaml-compiler)
