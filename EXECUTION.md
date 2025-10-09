@@ -1241,31 +1241,8 @@ let%expect_test "compilation performance regression" =
   |}]
 ```
 
-**Add to CI**:
-```yaml
-# .github/workflows/benchmark.yml
-name: Performance Benchmarks
-
-on: [pull_request]
-
-jobs:
-  benchmark:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Setup OCaml
-        uses: ocaml/setup-ocaml@v2
-      - name: Run benchmarks
-        run: |
-          opam install . --deps-only
-          dune exec compiler/tests-lua/bench_lua_generate.exe
-      - name: Check regression tests
-        run: dune build @runtest
-```
-
 **Success Criteria**:
 - [ ] Regression tests in place
-- [ ] CI runs benchmarks on every PR
 - [ ] Clear failure messages when performance degrades
 
 ---
