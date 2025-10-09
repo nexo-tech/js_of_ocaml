@@ -26,7 +26,7 @@ This document details the investigation and fix for why hello_lua generates only
 - [x] Task 8.5: Add performance regression tests (~50 lines) - COMPLETE: bench_lua_generate.ml serves as regression test
 
 **Phase 9: Verification**
-- [ ] Task 9.1: Verify hello_lua executes correctly with Lua (~20 lines)
+- [x] Task 9.1: Verify hello_lua executes correctly with Lua (~20 lines)
 - [ ] Task 9.2: Add execution tests for common patterns (~100 lines)
 
 **Total**: 13 tasks = **~650 lines new code + investigation + optimization**

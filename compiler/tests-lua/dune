@@ -277,6 +277,13 @@
  (inline_tests)
  (preprocess (pps ppx_expect)))
 
+(library
+ (name test_hello_lua_execution)
+ (libraries lua_of_ocaml_compiler unix str)
+ (modules test_hello_lua_execution)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
 (executable
  (name minimal_exec)
  (modes byte)
@@ -294,6 +301,11 @@
  (name bench_lua_generate)
  (libraries lua_of_ocaml_compiler unix)
  (modules bench_lua_generate))
+
+(executable
+ (name verify_hello_lua)
+ (libraries unix str)
+ (modules verify_hello_lua))
 
 (rule
  (alias runtest)
