@@ -162,9 +162,9 @@ let%expect_test "generate instr - let with closure" =
   print_endline (stat_to_string lua_stmt);
   [%expect
     {|
-    v0 = function(v1)
+    v0 = function(v0)
       ::block_10::
-      return v1
+      return v0
     end
     |}]
 
@@ -253,12 +253,12 @@ let%expect_test "generate closure - nested closures" =
       -- Hoisted variables (1 total)
       local v1
       ::block_10::
-      v1 = function(v2)
+      v1 = function(v0)
         -- Hoisted variables (1 total)
-        local v3
+        local v1
         ::block_20::
-        v3 = v0 + v2
-        return v3
+        v1 = v2 + v0
+        return v1
       end
       return v1
     end

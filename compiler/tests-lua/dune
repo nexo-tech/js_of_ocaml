@@ -263,6 +263,13 @@
  (inline_tests)
  (preprocess (pps ppx_expect)))
 
+(library
+ (name test_variable_table)
+ (libraries lua_of_ocaml_compiler unix str)
+ (modules test_variable_table)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
 (executable
  (name minimal_exec)
  (modes byte)

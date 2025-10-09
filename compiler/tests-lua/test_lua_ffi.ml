@@ -638,10 +638,10 @@ let%expect_test "lua value - closure representation" =
       ::block_0::
       v0 = function()
         -- Hoisted variables (1 total)
-        local v1
+        local v0
         ::block_1::
-        v1 = caml_id(v2)
-        return v1
+        v0 = caml_id(v1)
+        return v0
       end
       return v0
     end
@@ -1053,7 +1053,7 @@ let%expect_test "lua export - export_fn1" =
       ::block_0::
       v0 = function()
         ::block_1::
-        return v2
+        return v0
       end
       v1 = caml_export_fn1("my_func", v0)
       return v1
@@ -1122,11 +1122,11 @@ let%expect_test "lua export - export_module" =
       ::block_0::
       v0 = function()
         ::block_1::
-        return v4
+        return v0
       end
       v1 = function()
         ::block_2::
-        return v5
+        return v0
       end
       v2 = {tag = 0, v0, v1}
       v3 = caml_export_module("MyMod", v2)
@@ -1192,7 +1192,7 @@ let%expect_test "lua export - make_module" =
       ::block_0::
       v0 = function()
         ::block_1::
-        return v5
+        return v0
       end
       v1 = "do_something"
       v2 = {tag = 0, v1, v0}

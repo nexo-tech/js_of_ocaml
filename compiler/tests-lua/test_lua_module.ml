@@ -282,12 +282,12 @@ let%expect_test "generate module - with function definition" =
     -- Hoisted variables (1 total)
     local v0
     ::block_0::
-    v0 = function(v1)
+    v0 = function(v0)
       -- Hoisted variables (1 total)
-      local v2
+      local v1
       ::block_10::
-      v2 = v1 + v1
-      return v2
+      v1 = v0 + v0
+      return v1
     end
     return v0
     return M

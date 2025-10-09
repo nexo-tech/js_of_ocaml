@@ -20,7 +20,7 @@
 - [x] Task 2.2: Handle Variable Capture (~20 min)
 
 ### Phase 3: Testing & Validation (~1.5 hours, ~150 lines)
-- [ ] Task 3.1: Create Table-Based Variable Tests (~40 min)
+- [x] Task 3.1: Create Table-Based Variable Tests (~40 min)
 - [ ] Task 3.2: Test Real-World Examples (~30 min)
 - [ ] Task 3.3: Benchmark Performance Impact (~20 min)
 
