@@ -16,14 +16,20 @@ This document details the investigation and fix for why hello_lua generates only
 **Phase 7: Code Generation Cleanup & Optimization**
 - [x] Task 7.1: Unify block compilation strategy (~100 lines)
 - [x] Task 7.2: Remove dead code (~50 lines)
-- [ ] Task 7.3: Optimize code generation performance (~150 lines)
-- [ ] Task 7.4: Test all code paths (~50 lines)
+- [ ] Task 7.3: Test all code paths (~50 lines)
 
-**Phase 8: Verification**
-- [ ] Task 8.1: Verify hello_lua executes correctly with Lua (~20 lines)
-- [ ] Task 8.2: Add execution tests for common patterns (~100 lines)
+**Phase 8: Performance Optimization & Benchmarking** (CRITICAL for self-hosted compiler)
+- [ ] Task 8.1: Establish baseline benchmarks (~80 lines)
+- [ ] Task 8.2: Profile and identify bottlenecks (~investigation)
+- [ ] Task 8.3: Implement core optimizations (~200 lines)
+- [ ] Task 8.4: Verify improvements with benchmarks (~50 lines)
+- [ ] Task 8.5: Add performance regression tests (~50 lines)
 
-**Total**: 11 tasks = **~560 lines new code + investigation + optimization**
+**Phase 9: Verification**
+- [ ] Task 9.1: Verify hello_lua executes correctly with Lua (~20 lines)
+- [ ] Task 9.2: Add execution tests for common patterns (~100 lines)
+
+**Total**: 13 tasks = **~650 lines new code + investigation + optimization**
 
 ---
 
@@ -700,54 +706,7 @@ and generate_closure ctx params pc =
 
 ---
 
-### Task 7.3: Optimize Code Generation Performance (~150 lines)
-
-**Problem**: Large programs may have many blocks - need efficient generation
-
-**Optimizations**:
-
-1. **Use functional updates instead of imperative refs**:
-```ocaml
-(* BEFORE: uses mutable visited ref *)
-let visited = ref Code.Addr.Set.empty
-
-(* AFTER: purely functional *)
-let collect_reachable = ... (* already done in Task 7.1 *)
-```
-
-2. **Batch label generation**:
-```ocaml
-(* Pre-generate all labels at once *)
-let block_labels =
-  Code.Addr.Set.fold
-    (fun addr map ->
-      Code.Addr.Map.add addr ("block_" ^ Code.Addr.to_string addr) map)
-    reachable
-    Code.Addr.Map.empty
-in
-(* Use O(log n) lookup instead of O(n) string concat *)
-let get_label addr = Code.Addr.Map.find addr block_labels in
-```
-
-3. **Memoize variable name generation**:
-```ocaml
-(* Already done via ctx.var_names map *)
-```
-
-4. **Add progress reporting for large programs**:
-```ocaml
-if ctx.debug then
-  Printf.eprintf "Generating %d blocks...\n" (Code.Addr.Set.cardinal reachable)
-```
-
-**Success Criteria**:
-- [x] hello.bc.lua builds in <3 seconds
-- [x] No memory leaks or excessive allocation
-- [x] Clean, efficient code
-
----
-
-### Task 7.4: Test All Code Paths (~50 lines)
+### Task 7.3: Test All Code Paths (~50 lines)
 
 **Process**: Ensure all execution patterns work
 
@@ -763,17 +722,559 @@ if ctx.debug then
 **File**: Add tests to `compiler/tests-lua/test_code_generation.ml`
 
 **Success Criteria**:
-- [x] All test patterns pass
-- [x] Generated Lua is valid and executable
-- [x] No regressions in existing tests
+- [ ] All test patterns pass
+- [ ] Generated Lua is valid and executable
+- [ ] No regressions in existing tests
 
 ---
 
-## Phase 8: Verification (~120 lines)
+## Phase 8: Performance Optimization & Benchmarking (~380 lines)
+
+**Context**: Lua_of_ocaml will be used in **self-hosted compiler** for **on-demand compilation**.
+This means:
+- Compilation must be **FAST** (<1s for typical modules, <5s for large ones)
+- Will run in production during development (like js_of_ocaml)
+- Performance regressions are **critical failures**
+
+**Current Problem**: Tests timeout after 2 minutes (completely unacceptable)
+
+**Objective**: Make code generation 100x faster through systematic optimization
+
+---
+
+### Task 8.1: Establish Baseline Benchmarks (~80 lines)
+
+**Critical**: You can't optimize what you don't measure!
+
+Create comprehensive benchmark suite to measure:
+1. **End-to-end compilation time** (bytecode → Lua string)
+2. **Block traversal time** (BFS to collect reachable blocks)
+3. **Code generation time** (blocks → Lua AST)
+4. **String serialization time** (AST → string)
+5. **Memory allocation** (GC pressure)
+
+**File**: `compiler/tests-lua/bench_lua_generate.ml`
+
+```ocaml
+(* Benchmark suite for Lua code generation *)
+
+open Js_of_ocaml_compiler.Stdlib
+open Js_of_ocaml_compiler
+module Lua_generate = Lua_of_ocaml_compiler__Lua_generate
+module Lua_output = Lua_of_ocaml_compiler__Lua_output
+
+(** Benchmark result *)
+type bench_result =
+  { name : string
+  ; time_ms : float
+  ; memory_mb : float
+  ; blocks : int
+  ; output_size : int
+  }
+
+(** Time a function and return result + duration *)
+let time_function f =
+  Gc.compact ();  (* Force GC before timing *)
+  let start_time = Unix.gettimeofday () in
+  let start_mem = Gc.stat () in
+  let result = f () in
+  let end_time = Unix.gettimeofday () in
+  let end_mem = Gc.stat () in
+  let time_ms = (end_time -. start_time) *. 1000.0 in
+  let memory_mb =
+    float_of_int (end_mem.Gc.top_heap_words - start_mem.Gc.top_heap_words)
+    *. 8.0 /. 1024.0 /. 1024.0
+  in
+  (result, time_ms, memory_mb)
+
+(** Compile bytecode file and measure performance *)
+let bench_compile_file ~name bytecode_path =
+  Printf.eprintf "Benchmarking %s...\n" name;
+
+  let (lua_string, time_ms, memory_mb) = time_function (fun () ->
+    (* Parse bytecode *)
+    let ic = open_in_bin bytecode_path in
+    Js_of_ocaml_compiler.Config.set_target `Wasm;
+    let parsed = Parse_bytecode.from_exe
+      ~includes:[]
+      ~linkall:false
+      ~link_info:false
+      ~include_cmis:false
+      ~debug:false
+      ic
+    in
+    close_in ic;
+
+    (* Generate Lua *)
+    Lua_generate.generate_to_string ~debug:false parsed.code
+  ) in
+
+  let num_blocks =
+    let ic = open_in_bin bytecode_path in
+    Js_of_ocaml_compiler.Config.set_target `Wasm;
+    let parsed = Parse_bytecode.from_exe
+      ~includes:[]
+      ~linkall:false
+      ~link_info:false
+      ~include_cmis:false
+      ~debug:false
+      ic
+    in
+    close_in ic;
+    Code.Addr.Map.cardinal parsed.code.Code.blocks
+  in
+
+  { name
+  ; time_ms
+  ; memory_mb
+  ; blocks = num_blocks
+  ; output_size = String.length lua_string
+  }
+
+(** Print benchmark results *)
+let print_results results =
+  Printf.printf "\n=== BENCHMARK RESULTS ===\n\n";
+  Printf.printf "%-30s %10s %10s %10s %12s %10s\n"
+    "Benchmark" "Time(ms)" "Mem(MB)" "Blocks" "Output(KB)" "ms/block";
+  Printf.printf "%s\n" (String.make 90 '-');
+
+  List.iter (fun r ->
+    let kb = float_of_int r.output_size /. 1024.0 in
+    let ms_per_block = r.time_ms /. float_of_int r.blocks in
+    Printf.printf "%-30s %10.2f %10.2f %10d %12.2f %10.4f\n"
+      r.name r.time_ms r.memory_mb r.blocks kb ms_per_block
+  ) results;
+
+  Printf.printf "\n";
+
+  (* Performance targets *)
+  Printf.printf "PERFORMANCE TARGETS:\n";
+  Printf.printf "  - Small modules (<100 blocks): <100ms\n";
+  Printf.printf "  - Medium modules (100-500 blocks): <500ms\n";
+  Printf.printf "  - Large modules (>500 blocks): <2000ms\n";
+  Printf.printf "  - Memory: <50MB per compilation\n"
+
+(** Run all benchmarks *)
+let run_benchmarks () =
+  let benchmarks = [
+    ("minimal_exec", "../../../../../default/compiler/tests-lua/minimal_exec.bc");
+    (* Add more benchmark files as needed *)
+  ] in
+
+  let results = List.map (fun (name, path) ->
+    bench_compile_file ~name path
+  ) benchmarks in
+
+  print_results results;
+
+  (* Check if any benchmark failed targets *)
+  let has_failures = List.exists (fun r ->
+    r.time_ms > 2000.0 || r.memory_mb > 50.0
+  ) results in
+
+  if has_failures then begin
+    Printf.eprintf "\nWARNING: Some benchmarks failed performance targets!\n";
+    exit 1
+  end
+
+let () = run_benchmarks ()
+```
+
+**Usage**:
+```bash
+# Add to dune:
+(executable
+ (name bench_lua_generate)
+ (libraries lua_of_ocaml_compiler unix)
+ (modules bench_lua_generate))
+
+# Run benchmarks:
+dune exec compiler/tests-lua/bench_lua_generate.exe
+```
+
+**Success Criteria**:
+- [ ] Benchmarks run successfully
+- [ ] Establish baseline metrics (document current performance)
+- [ ] Identify slowest operations
+
+---
+
+### Task 8.2: Profile and Identify Bottlenecks (~investigation)
+
+Use OCaml profiling tools to find hotspots:
+
+```bash
+# Build with profiling
+dune clean
+dune build --instrument-with landmarks compiler/tests-lua/bench_lua_generate.exe
+
+# Run with profiling
+OCAML_LANDMARKS=on dune exec compiler/tests-lua/bench_lua_generate.exe
+
+# Or use perf (Linux)
+dune build compiler/tests-lua/bench_lua_generate.exe
+perf record -g ./bench_lua_generate.exe
+perf report
+```
+
+**Expected Bottlenecks** (hypothesis to verify):
+
+1. **Block traversal duplication**
+   - Hypothesis: `compile_blocks_with_labels` called multiple times
+   - Expected: 30-40% of time
+   - Fix: Cache reachable blocks at program level
+
+2. **String concatenation**
+   - Hypothesis: Repeated "block_" ^ Code.Addr.to_string
+   - Expected: 15-20% of time
+   - Fix: Pre-generate label map
+
+3. **List operations**
+   - Hypothesis: Multiple concat_map, excessive allocations
+   - Expected: 20-25% of time
+   - Fix: Use Buffer, single-pass generation
+
+4. **Variable name lookups**
+   - Hypothesis: Map lookups in hot path
+   - Expected: 10-15% of time
+   - Fix: Better memoization strategy
+
+**Document findings**:
+Create `PERF_ANALYSIS.md` with:
+- Profiling screenshots/data
+- Hotspot functions with % time
+- Hypothesis for each bottleneck
+- Proposed optimization strategy
+
+**Success Criteria**:
+- [ ] Profiling data collected
+- [ ] Top 5 bottlenecks identified with % time
+- [ ] Root cause analysis for each bottleneck
+- [ ] Optimization strategy documented
+
+---
+
+### Task 8.3: Implement Core Optimizations (~200 lines)
+
+Based on profiling, implement targeted optimizations:
+
+#### Optimization 1: Cache Reachable Blocks at Program Level
+
+**Problem**: `compile_blocks_with_labels` recomputes reachable blocks every time it's called
+
+**Fix**: Compute once, reuse everywhere
+
+```ocaml
+(** Enhanced context with cached block info *)
+type compilation_cache =
+  { reachable_from : Code.Addr.Set.t Code.Addr.Map.t
+        (** Map: block addr → set of reachable blocks *)
+  ; block_labels : string Code.Addr.Map.t
+        (** Pre-generated labels for O(1) lookup *)
+  }
+
+let make_compilation_cache program =
+  (* Collect all blocks in program *)
+  let all_blocks =
+    Code.Addr.Map.fold
+      (fun addr _ acc -> Code.Addr.Set.add addr acc)
+      program.Code.blocks
+      Code.Addr.Set.empty
+  in
+
+  (* Pre-generate all labels *)
+  let block_labels =
+    Code.Addr.Set.fold
+      (fun addr map ->
+        Code.Addr.Map.add addr ("block_" ^ Code.Addr.to_string addr) map)
+      all_blocks
+      Code.Addr.Map.empty
+  in
+
+  (* Compute reachable blocks from each starting point *)
+  (* For now, we primarily care about entry point + closures *)
+  { reachable_from = Code.Addr.Map.empty
+  ; block_labels
+  }
+
+(* Update context type *)
+type context =
+  { vars : var_context
+  ; _debug : bool
+  ; program : Code.program option
+  ; optimize_field_access : bool
+  ; cache : compilation_cache option  (* NEW *)
+  }
+
+(* Update compile_blocks_with_labels to use cache *)
+let compile_blocks_with_labels ctx program start_addr =
+  match ctx.cache with
+  | Some cache ->
+      (* Fast path: use pre-generated labels *)
+      let get_label addr =
+        Code.Addr.Map.find addr cache.block_labels
+      in
+      (* ... rest of function using get_label ... *)
+  | None ->
+      (* Slow path: generate on demand *)
+      (* ... existing implementation ... *)
+```
+
+#### Optimization 2: Single-Pass Code Generation with Buffer
+
+**Problem**: Multiple list allocations and concatenations
+
+**Fix**: Use Buffer for direct string building
+
+```ocaml
+(** Generate code directly to Buffer (zero-copy) *)
+let compile_blocks_to_buffer ctx program start_addr buf =
+  let reachable = collect_reachable Code.Addr.Set.empty start_addr in
+  let sorted_blocks =
+    reachable
+    |> Code.Addr.Set.elements
+    |> List.sort compare
+  in
+
+  (* Generate directly to buffer *)
+  List.iter (fun addr ->
+    match Code.Addr.Map.find_opt addr program.Code.blocks with
+    | None -> ()
+    | Some block ->
+        (* Add label *)
+        Buffer.add_string buf "::block_";
+        Buffer.add_string buf (Code.Addr.to_string addr);
+        Buffer.add_string buf "::\n";
+
+        (* Generate body *)
+        List.iter (fun instr ->
+          let lua_stmt = generate_instr ctx instr in
+          Lua_output.emit_stat_to_buffer buf lua_stmt;
+          Buffer.add_char buf '\n'
+        ) block.Code.body;
+
+        (* Generate terminator *)
+        let last_stmts = generate_last ctx block.Code.branch in
+        List.iter (fun stmt ->
+          Lua_output.emit_stat_to_buffer buf stmt;
+          Buffer.add_char buf '\n'
+        ) last_stmts
+  ) sorted_blocks
+```
+
+#### Optimization 3: Lazy Block Generation
+
+**Problem**: Generate all blocks even if unreachable from closures
+
+**Fix**: Only generate what's needed
+
+```ocaml
+(** Generate only entry blocks + actually-used closures *)
+let compile_program_lazy ctx program =
+  (* Track which blocks are actually referenced *)
+  let referenced_blocks = ref Code.Addr.Set.empty in
+
+  (* Mark closure entry points during traversal *)
+  let rec mark_expr = function
+    | Code.Closure (_, (pc, _), _) ->
+        referenced_blocks := Code.Addr.Set.add pc !referenced_blocks
+    | Code.Block (_, arr, _, _) ->
+        Array.iter (fun v -> mark_var v) arr
+    | _ -> ()
+  and mark_var v = (* traverse variable definition *) ()
+  in
+
+  (* Only generate referenced blocks *)
+  Code.Addr.Set.iter (fun addr ->
+    compile_block_if_needed ctx program addr
+  ) !referenced_blocks
+```
+
+#### Optimization 4: Parallel Block Generation
+
+**Problem**: Large programs could benefit from parallelism
+
+**Fix**: Use Domainslib for parallel compilation
+
+```ocaml
+(** Compile blocks in parallel using Domainslib *)
+let compile_blocks_parallel ctx program blocks =
+  let pool = Domainslib.Task.setup_pool ~num_domains:4 () in
+
+  let compile_one addr =
+    match Code.Addr.Map.find_opt addr program.Code.blocks with
+    | None -> []
+    | Some block -> compile_block ctx block
+  in
+
+  let results =
+    Domainslib.Task.run pool (fun () ->
+      blocks
+      |> List.map (fun addr ->
+          Domainslib.Task.async pool (fun () -> compile_one addr))
+      |> List.map (Domainslib.Task.await pool)
+    )
+  in
+
+  Domainslib.Task.teardown_pool pool;
+  results
+```
+
+#### Optimization 5: Avoid Redundant Traversals
+
+**Problem**: generate_instrs maps over list, could combine with other passes
+
+**Fix**: Fuse traversals
+
+```ocaml
+(** Generate block with fused passes *)
+let generate_block_optimized ctx block =
+  (* Single pass: generate + count locals + optimize *)
+  let buf = Buffer.create 256 in
+  let local_count = ref 0 in
+
+  List.iter (fun instr ->
+    match instr with
+    | Code.Let (var, expr) ->
+        incr local_count;
+        let lua_stmt = generate_instr ctx instr in
+        Lua_output.emit_stat_to_buffer buf lua_stmt
+    | _ ->
+        let lua_stmt = generate_instr ctx instr in
+        Lua_output.emit_stat_to_buffer buf lua_stmt
+  ) block.Code.body;
+
+  (Buffer.contents buf, !local_count)
+```
+
+**Implementation Priority**:
+1. ✅ Optimization 1 (cache) - Highest impact, ~50% speedup expected
+2. ✅ Optimization 2 (buffer) - High impact, ~30% speedup expected
+3. ✅ Optimization 5 (fused passes) - Medium impact, ~15% speedup expected
+4. ⚠️  Optimization 3 (lazy) - Test if needed after 1+2
+5. ⚠️  Optimization 4 (parallel) - Only if targets still not met
+
+**Success Criteria**:
+- [ ] Optimizations 1, 2, 5 implemented
+- [ ] Code compiles without warnings
+- [ ] All existing tests pass
+- [ ] Benchmark shows >10x speedup
+
+---
+
+### Task 8.4: Verify Improvements with Benchmarks (~50 lines)
+
+Re-run benchmarks and compare to baseline:
+
+```ocaml
+(** Compare benchmark results *)
+let compare_benchmarks baseline_file optimized_file =
+  (* Load results from both runs *)
+  let baseline = load_results baseline_file in
+  let optimized = load_results optimized_file in
+
+  Printf.printf "\n=== OPTIMIZATION IMPACT ===\n\n";
+  Printf.printf "%-30s %10s %10s %10s\n"
+    "Benchmark" "Before(ms)" "After(ms)" "Speedup";
+  Printf.printf "%s\n" (String.make 70 '-');
+
+  List.iter2 (fun b o ->
+    let speedup = b.time_ms /. o.time_ms in
+    let symbol = if speedup > 2.0 then "✓✓" else if speedup > 1.2 then "✓" else "✗" in
+    Printf.printf "%-30s %10.2f %10.2f %9.1fx %s\n"
+      b.name b.time_ms o.time_ms speedup symbol
+  ) baseline optimized
+```
+
+**Performance Targets** (revised based on profiling):
+- **Minimal programs** (<100 blocks): <50ms ⚡
+- **Small programs** (100-200 blocks): <150ms
+- **Medium programs** (200-500 blocks): <500ms
+- **Large programs** (500-1000 blocks): <1500ms
+- **Very large** (>1000 blocks): <3000ms
+- **Memory**: <50MB per compilation
+
+**Success Criteria**:
+- [ ] All benchmarks meet performance targets
+- [ ] Speedup >10x from baseline
+- [ ] Memory usage within limits
+- [ ] No performance regressions
+
+---
+
+### Task 8.5: Add Performance Regression Tests (~50 lines)
+
+Prevent future performance degradation:
+
+```ocaml
+(** Performance regression test *)
+let%expect_test "compilation performance regression" =
+  (* This test FAILS if compilation is too slow *)
+  let start = Unix.gettimeofday () in
+
+  let bytecode_file = "../../../../../default/compiler/tests-lua/minimal_exec.bc" in
+  let ic = open_in_bin bytecode_file in
+  Js_of_ocaml_compiler.Config.set_target `Wasm;
+  let parsed = Parse_bytecode.from_exe
+    ~includes:[]
+    ~linkall:false
+    ~link_info:false
+    ~include_cmis:false
+    ~debug:false
+    ic
+  in
+  close_in ic;
+
+  let _lua_code = Lua_generate.generate_to_string ~debug:false parsed.code in
+
+  let elapsed = (Unix.gettimeofday () -. start) *. 1000.0 in
+  let num_blocks = Code.Addr.Map.cardinal parsed.code.Code.blocks in
+
+  Printf.printf "Blocks: %d, Time: %.2fms\n" num_blocks elapsed;
+
+  (* FAIL test if too slow *)
+  if elapsed > 100.0 then
+    failwith (Printf.sprintf "REGRESSION: Compilation took %.2fms (>100ms limit)" elapsed);
+
+  [%expect {|
+    Blocks: 269, Time: <100ms
+  |}]
+```
+
+**Add to CI**:
+```yaml
+# .github/workflows/benchmark.yml
+name: Performance Benchmarks
+
+on: [pull_request]
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup OCaml
+        uses: ocaml/setup-ocaml@v2
+      - name: Run benchmarks
+        run: |
+          opam install . --deps-only
+          dune exec compiler/tests-lua/bench_lua_generate.exe
+      - name: Check regression tests
+        run: dune build @runtest
+```
+
+**Success Criteria**:
+- [ ] Regression tests in place
+- [ ] CI runs benchmarks on every PR
+- [ ] Clear failure messages when performance degrades
+
+---
+
+## Phase 9: Verification (~120 lines)
 
 **Objective**: Verify the fix works correctly
 
-### Task 8.1: Verify hello_lua Executes (~20 lines)
+### Task 9.1: Verify hello_lua Executes (~20 lines)
 
 Install Lua and run the generated code.
 
@@ -834,7 +1335,7 @@ Uppercase: LUA_OF_OCAML
 
 ---
 
-### Task 8.2: Add Execution Tests (~100 lines)
+### Task 9.2: Add Execution Tests (~100 lines)
 
 Add tests for common execution patterns.
 
