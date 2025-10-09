@@ -2,6 +2,30 @@
 
 This document details tasks to implement full program execution in lua_of_ocaml, addressing the limitations found in Task 4.2.
 
+## Master Checklist
+
+**Phase 5: Core Execution Infrastructure**
+- [ ] Task 5.1: Add block compilation framework (~120 lines)
+- [ ] Task 5.2: Implement instruction translation (~100 lines)
+- [ ] Task 5.3: Implement control flow translation (~80 lines)
+
+**Phase 6: Expression and Value Translation**
+- [ ] Task 6.1: Implement value reference translation (~50 lines)
+- [ ] Task 6.2: Implement expression translation (~120 lines)
+- [ ] Task 6.3: Implement primitive operation translation (~80 lines)
+
+**Phase 7: Program Entry Point Integration**
+- [ ] Task 7.1: Replace generate_module_init with full compilation (~50 lines)
+- [ ] Task 7.2: Add main execution wrapper (~50 lines)
+
+**Phase 8: Runtime Primitive Implementation**
+- [ ] Task 8.1: Implement I/O primitives (~100 lines)
+- [ ] Task 8.2: Implement string primitives (~100 lines)
+
+**Total**: 10 implementation tasks = **~850 lines new code**
+
+---
+
 ## Current State (After LINKING.md Completion)
 
 ✅ **Working**:
