@@ -115,6 +115,11 @@ val generate_to_string : debug:bool -> Code.program -> string
     @param program OCaml IR program
     @return Lua code as string *)
 
+val debug_print_program : Code.program -> unit
+(** [debug_print_program program] prints detailed IR structure to stderr
+    when the "ir" debug flag is enabled. Useful for debugging execution issues.
+    @param program OCaml IR program to debug *)
+
 val collect_used_primitives : Code.program -> Stdlib.StringSet.t
 (** [collect_used_primitives program] traverses the program IR to find all
     external primitives (Code.Extern) that are called. These primitives will

@@ -1090,6 +1090,54 @@ let collect_used_primitives (program : Code.program) : StringSet.t =
     program.Code.blocks
     StringSet.empty
 
+(** Debug: Print Code.program IR structure for debugging
+
+    This function prints detailed information about the IR that the code generator
+    receives, helping diagnose why execution code might be missing.
+
+    @param program Code IR program to debug
+*)
+let debug_print_program program =
+  if Debug.find "ir" () then begin
+    Printf.eprintf "\n=== Code.program IR Debug ===\n";
+    Printf.eprintf "Entry block: %s\n" (Code.Addr.to_string program.Code.start);
+    Printf.eprintf "Total blocks: %d\n" (Code.Addr.Map.cardinal program.Code.blocks);
+
+    (* Print entry block details *)
+    (match Code.Addr.Map.find_opt program.Code.start program.Code.blocks with
+    | Some block ->
+        Printf.eprintf "\nEntry block instructions (%d):\n" (List.length block.Code.body);
+        List.iteri ~f:(fun i instr ->
+          let buf = Buffer.create 100 in
+          let fmt = Format.formatter_of_buffer buf in
+          Code.Print.instr fmt instr;
+          Format.pp_print_flush fmt ();
+          Printf.eprintf "  %d: %s\n" i (Buffer.contents buf)
+        ) block.Code.body;
+
+        let term_buf = Buffer.create 100 in
+        let term_fmt = Format.formatter_of_buffer term_buf in
+        Code.Print.last term_fmt block.Code.branch;
+        Format.pp_print_flush term_fmt ();
+        Printf.eprintf "Entry block terminator: %s\n" (Buffer.contents term_buf)
+    | None ->
+        Printf.eprintf "ERROR: Entry block not found!\n");
+
+    (* Print all blocks summary *)
+    Printf.eprintf "\nAll blocks summary:\n";
+    Code.Addr.Map.iter (fun addr block ->
+      let term_buf = Buffer.create 100 in
+      let term_fmt = Format.formatter_of_buffer term_buf in
+      Code.Print.last term_fmt block.Code.branch;
+      Format.pp_print_flush term_fmt ();
+      Printf.eprintf "  Block %s: %d instrs, term: %s\n"
+        (Code.Addr.to_string addr)
+        (List.length block.Code.body)
+        (Buffer.contents term_buf)
+    ) program.Code.blocks;
+    Printf.eprintf "=== End IR Debug ===\n\n"
+  end
+
 let generate_inline_runtime () =
   [
     L.Comment "=== OCaml Runtime (Minimal Inline Version) ===";
@@ -1131,6 +1179,8 @@ let generate_inline_runtime () =
     @return Lua statements for standalone program
 *)
 let generate_standalone ctx program =
+  (* Debug: Print IR structure if debug flag enabled *)
+  debug_print_program program;
   (* 1. Track which primitives are used *)
   let used_primitives = collect_used_primitives program in
 
