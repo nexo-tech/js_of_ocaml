@@ -875,10 +875,26 @@ and compile_blocks_with_labels ctx program start_addr =
                    && List.nth sorted_blocks (idx + 1) = next
                | _ -> false
              in
+             (* Check if this is a non-branching terminator (return/raise/stop) *)
+             let is_non_branching =
+               match block.Code.branch with
+               | Code.Return _ | Code.Raise _ | Code.Stop -> true
+               | _ -> false
+             in
+             (* Check if there are more blocks after this one *)
+             let has_next_block = idx + 1 < List.length sorted_blocks in
+             (* Generate terminator, wrapping return/raise in do...end if needed *)
              let terminator =
-               if can_fall_through
-               then [] (* Omit goto, let it fall through *)
-               else generate_last ctx block.Code.branch
+               if can_fall_through then
+                 [] (* Omit goto, let it fall through *)
+               else if is_non_branching && has_next_block then
+                 (* Wrap non-branching terminators in do...end to avoid syntax errors
+                    when labels follow. In Lua, return/break must be the last statement
+                    before end/else/until, so we wrap them to allow labels after. *)
+                 let term_stmts = generate_last ctx block.Code.branch in
+                 [ L.Block term_stmts ]  (* do <statements> end *)
+               else
+                 generate_last ctx block.Code.branch
              in
              [ label ] @ body @ terminator)
     |> List.concat
