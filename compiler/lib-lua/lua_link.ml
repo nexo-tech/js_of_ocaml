@@ -639,6 +639,54 @@ let find_primitive_implementation
             frag.exports)
         fragments
 
+(* Embed runtime module code directly (NOT wrapped in package.loaded) *)
+let embed_runtime_module (frag : fragment) : string =
+  let buf = Buffer.create 512 in
+  (* Add comment header *)
+  Buffer.add_string buf ("-- Runtime Module: " ^ frag.name ^ "\n");
+  (* Embed module code directly *)
+  Buffer.add_string buf frag.code;
+  if not (String.ends_with ~suffix:"\n" frag.code)
+  then Buffer.add_char buf '\n';
+  (* Store module in local variable for wrappers to use *)
+  let module_var = String.capitalize_ascii frag.name in
+  Buffer.add_string buf ("local " ^ module_var ^ " = M\n");
+  Buffer.add_char buf '\n';
+  Buffer.contents buf
+
+(* Generate global wrapper function for a specific primitive *)
+let generate_wrapper_for_primitive
+    (prim_name : string)
+    (frag : fragment)
+    (func_name : string)
+    : string
+  =
+  let buf = Buffer.create 128 in
+  let module_var = String.capitalize_ascii frag.name in
+  Printf.bprintf buf "function %s(...)\n" prim_name;
+  Printf.bprintf buf "  return %s.%s(...)\n" module_var func_name;
+  Buffer.add_string buf "end\n";
+  Buffer.contents buf
+
+(* Generate all wrappers for primitives used in program *)
+let generate_wrappers (used_primitives : StringSet.t) (fragments : fragment list)
+    : string
+  =
+  let buf = Buffer.create 512 in
+  Buffer.add_string buf "-- Global Primitive Wrappers\n";
+  StringSet.iter
+    (fun prim_name ->
+      match find_primitive_implementation prim_name fragments with
+      | Some (frag, func_name) ->
+          let wrapper = generate_wrapper_for_primitive prim_name frag func_name in
+          Buffer.add_string buf wrapper
+      | None ->
+          (* Primitive not found - might be inlined (like caml_register_global) *)
+          ())
+    used_primitives;
+  Buffer.add_char buf '\n';
+  Buffer.contents buf
+
 (* Select fragments based on linkall flag and required symbols *)
 let select_fragments state ~linkall required =
   if linkall

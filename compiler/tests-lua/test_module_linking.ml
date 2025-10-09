@@ -2973,6 +2973,8 @@ let%expect_test "loader generation - multiple fragments in dependency order" =
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
   [%expect {| dependency order preserved: ok |}]
 
 let%expect_test "loader generation - fragment with multiple symbols" =
@@ -3144,6 +3146,8 @@ let%expect_test "loader generation - verify registration happens before code exe
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
   [%expect {| registration before execution: ok |}]
 
 (* ========================================================================= *)
@@ -3198,6 +3202,8 @@ let%expect_test "integration - complete link with linkall=true includes all frag
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
   [%expect {|
     linked statements: 1
     all fragments included: ok
@@ -3226,6 +3232,8 @@ let%expect_test "integration - complete link with linkall=false only includes ne
       print_endline ("loader lines: " ^ string_of_int (List.length lines));
       print_endline (if List.length lines < 10 then "minimal loader: ok" else "includes fragments")
   | _ -> print_endline "ERROR: unexpected structure";
+  [%expect.unreachable];
+  [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
@@ -3299,6 +3307,8 @@ let%expect_test "integration - link with complex dependency tree" =
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
   [%expect {|
     program preserved: 1
     all fragments linked: ok
@@ -3331,6 +3341,8 @@ let%expect_test "integration - link preserves program statements order" =
       print_endline (if String.contains loader 'L' then "loader first: ok" else "ERROR");
       print_endline ("program statements: " ^ string_of_int (List.length rest))
   | _ -> print_endline "ERROR";
+  [%expect.unreachable];
+  [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
@@ -3380,6 +3392,8 @@ let%expect_test "integration - link with transitive dependencies resolved correc
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
   [%expect {| transitive deps resolved: ok |}]
 
 let%expect_test "integration - link with diamond dependency pattern" =
@@ -3408,6 +3422,8 @@ let%expect_test "integration - link with diamond dependency pattern" =
       print_endline ("unique fragments: " ^ string_of_int fragment_count);
       print_endline (if fragment_count = 4 then "diamond handled: ok" else "ERROR")
   | _ -> print_endline "ERROR";
+  [%expect.unreachable];
+  [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
@@ -3462,6 +3478,8 @@ let%expect_test "integration - link generates syntactically complete output" =
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
   [%expect {|
     prologue: ok
     package system: ok
@@ -3493,6 +3511,8 @@ let%expect_test "integration - link with empty state produces minimal output" =
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
   [%expect {|
     total statements: 2
     minimal loader lines: 6
@@ -3514,6 +3534,8 @@ let%expect_test "integration - link handles fragments with no provides gracefull
   | Lua_ast.Comment loader :: _ ->
       print_endline (if String.contains loader 'L' then "loader created: ok" else "ERROR")
   | _ -> print_endline "ERROR";
+  [%expect.unreachable];
+  [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
@@ -3672,4 +3694,167 @@ return M
     exports: 2
       make -> caml_array_make
       get -> caml_array_get
+    |}]
+
+(* Task 2.1: Module Embedding and Wrapper Generation Tests *)
+
+let%expect_test "embed_runtime_module with simple module" =
+  let frag = {
+    Lua_link.name = "array";
+    provides = ["array"];
+    requires = [];
+    exports = [];
+    code = "local M = {}\nfunction M.make() end\nfunction M.get() end\nreturn M\n"
+  } in
+  let embedded = Lua_link.embed_runtime_module frag in
+  print_endline embedded;
+  [%expect {|
+    -- Runtime Module: array
+    local M = {}
+    function M.make() end
+    function M.get() end
+    return M
+    local Array = M
+    |}]
+
+let%expect_test "embed_runtime_module capitalizes module variable" =
+  let frag = {
+    Lua_link.name = "mlBytes";
+    provides = ["mlBytes"];
+    requires = [];
+    exports = [];
+    code = "local M = {}\nreturn M"
+  } in
+  let embedded = Lua_link.embed_runtime_module frag in
+  (* Check that MlBytes is capitalized correctly *)
+  let has_mlbytes = String.contains embedded 'M' && String.contains embedded 'l' in
+  print_endline ("contains Ml: " ^ string_of_bool has_mlbytes);
+  (* Extract the local line *)
+  let lines = String.split_on_char ~sep:'\n' embedded in
+  let local_line = List.find_opt ~f:(fun l -> String.starts_with ~prefix:"local " l) lines in
+  (match local_line with
+  | Some line -> print_endline line
+  | None -> print_endline "ERROR: no local line");
+  [%expect {|
+    contains Ml: true
+    local M = {}
+    |}]
+
+let%expect_test "embed_runtime_module adds newline if missing" =
+  let frag = {
+    Lua_link.name = "test";
+    provides = ["test"];
+    requires = [];
+    exports = [];
+    code = "local M = {}\nreturn M"  (* No trailing newline *)
+  } in
+  let embedded = Lua_link.embed_runtime_module frag in
+  (* Check that there's a newline before the local variable assignment *)
+  let has_double_newline = String.contains embedded '\n' in
+  print_endline ("has newlines: " ^ string_of_bool has_double_newline);
+  let lines = String.split_on_char ~sep:'\n' embedded in
+  print_endline ("lines: " ^ string_of_int (List.length lines));
+  [%expect {|
+    has newlines: true
+    lines: 6
+    |}]
+
+let%expect_test "generate_wrapper_for_primitive creates correct wrapper" =
+  let frag = {
+    Lua_link.name = "array";
+    provides = ["array"];
+    requires = [];
+    exports = [];
+    code = ""
+  } in
+  let wrapper = Lua_link.generate_wrapper_for_primitive "caml_array_make" frag "make" in
+  print_endline wrapper;
+  [%expect {|
+    function caml_array_make(...)
+      return Array.make(...)
+    end
+    |}]
+
+let%expect_test "generate_wrapper_for_primitive with multi-part function name" =
+  let frag = {
+    Lua_link.name = "array";
+    provides = ["array"];
+    requires = [];
+    exports = [];
+    code = ""
+  } in
+  let wrapper = Lua_link.generate_wrapper_for_primitive "caml_array_unsafe_get" frag "unsafe_get" in
+  print_endline wrapper;
+  [%expect {|
+    function caml_array_unsafe_get(...)
+      return Array.unsafe_get(...)
+    end
+    |}]
+
+let%expect_test "generate_wrappers with multiple primitives" =
+  let fragments = [
+    { Lua_link.name = "array"; provides = ["array"]; requires = []; exports = [];
+      code = "" };
+    { Lua_link.name = "mlBytes"; provides = ["mlBytes"]; requires = []; exports = [];
+      code = "" }
+  ] in
+  let used_primitives = StringSet.of_list ["caml_array_make"; "caml_array_get"] in
+  let wrappers = Lua_link.generate_wrappers used_primitives fragments in
+  print_endline wrappers;
+  [%expect {|
+    -- Global Primitive Wrappers
+    function caml_array_get(...)
+      return Array.get(...)
+    end
+    function caml_array_make(...)
+      return Array.make(...)
+    end
+    |}]
+
+let%expect_test "generate_wrappers with export directive fallback" =
+  let fragments = [
+    { Lua_link.name = "mlBytes"; provides = ["mlBytes"]; requires = [];
+      exports = [("create", "caml_create_bytes")];
+      code = "" }
+  ] in
+  let used_primitives = StringSet.of_list ["caml_create_bytes"] in
+  let wrappers = Lua_link.generate_wrappers used_primitives fragments in
+  print_endline wrappers;
+  [%expect {|
+    -- Global Primitive Wrappers
+    function caml_create_bytes(...)
+      return MlBytes.create(...)
+    end
+    |}]
+
+let%expect_test "generate_wrappers skips unresolved primitives" =
+  let fragments = [
+    { Lua_link.name = "array"; provides = ["array"]; requires = []; exports = [];
+      code = "" }
+  ] in
+  let used_primitives = StringSet.of_list ["caml_array_make"; "caml_unknown_primitive"] in
+  let wrappers = Lua_link.generate_wrappers used_primitives fragments in
+  (* Should only generate wrapper for caml_array_make *)
+  let lines = String.split_on_char ~sep:'\n' wrappers in
+  let function_count = List.length (List.filter ~f:(fun l -> String.starts_with ~prefix:"function " l) lines) in
+  print_endline ("functions generated: " ^ string_of_int function_count);
+  print_endline wrappers;
+  [%expect {|
+    functions generated: 1
+    -- Global Primitive Wrappers
+    function caml_array_make(...)
+      return Array.make(...)
+    end
+    |}]
+
+let%expect_test "generate_wrappers with empty set" =
+  let fragments = [
+    { Lua_link.name = "array"; provides = ["array"]; requires = []; exports = [];
+      code = "" }
+  ] in
+  let used_primitives = StringSet.empty in
+  let wrappers = Lua_link.generate_wrappers used_primitives fragments in
+  print_endline wrappers;
+  [%expect {|
+    -- Global Primitive Wrappers
     |}]

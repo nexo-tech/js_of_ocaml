@@ -66,6 +66,27 @@ val find_primitive_implementation : string -> fragment list -> (fragment * strin
     2. Fall back to Export directive if not found
     Returns Some (fragment, func_name) if found, None otherwise. *)
 
+(** Embed runtime module code directly *)
+val embed_runtime_module : fragment -> string
+(** [embed_runtime_module frag] embeds a runtime module's code directly without wrapping
+    it in package.loaded. The module's code is embedded as-is, and the returned module
+    value (M) is stored in a local variable with a capitalized name for use by wrappers.
+    For example, array.lua becomes "local Array = M". *)
+
+(** Generate wrapper function for a specific primitive *)
+val generate_wrapper_for_primitive : string -> fragment -> string -> string
+(** [generate_wrapper_for_primitive prim_name frag func_name] generates a global wrapper
+    function that calls a module function. For example:
+    generate_wrapper_for_primitive "caml_array_make" array_frag "make"
+    produces: "function caml_array_make(...) return Array.make(...) end" *)
+
+(** Generate all wrappers for used primitives *)
+val generate_wrappers : StringSet.t -> fragment list -> string
+(** [generate_wrappers used_primitives fragments] generates wrapper functions for all
+    primitives in the used_primitives set. Uses find_primitive_implementation to resolve
+    each primitive to its module and function, then generates a global wrapper. Silently
+    skips primitives that cannot be resolved (e.g., inlined functions). *)
+
 (** Parse version constraint from a line *)
 val parse_version : string -> bool
 (** [parse_version line] checks if the version constraint in a "--// Version: >= 4.14" header

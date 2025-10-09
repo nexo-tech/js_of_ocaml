@@ -8,7 +8,7 @@ This document details the implementation plan for Task 14.3: Runtime Primitive L
 - [x] Task 1.1: Add Export parsing and hybrid resolution (~160 lines)
 
 **Phase 2: Code Generation**
-- [ ] Task 2.1: Module embedding and wrapper generation (~100 lines)
+- [x] Task 2.1: Module embedding and wrapper generation (~100 lines)
 - [ ] Task 2.2: Primitive usage tracking (~60 lines)
 - [ ] Task 2.3: Integrate linking in code generator (~80 lines)
 
