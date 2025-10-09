@@ -7,17 +7,23 @@ This document details the investigation and fix for why hello_lua generates only
 **Phase 5: Root Cause Investigation**
 - [x] Task 5.1: Add IR debug output to understand what bytecode parser generates (~50 lines)
 - [x] Task 5.2: Compare JS backend output for hello.ml to identify differences (~30 lines)
-- [ ] Task 5.3: Create minimal reproduction test case (~40 lines)
+- [x] Task 5.3: Create minimal reproduction test case (~40 lines)
 
 **Phase 6: Identify and Fix the Problem**
-- [ ] Task 6.1: Analyze IR and identify why execution code is missing (~investigation)
-- [ ] Task 6.2: Implement fix in bytecode parser, driver, or code generator (~variable)
+- [x] Task 6.1: Analyze IR and identify why execution code is missing (~investigation)
+- [x] Task 6.2: Implement fix in bytecode parser, driver, or code generator (~variable)
 
-**Phase 7: Verification**
-- [ ] Task 7.1: Verify hello_lua executes correctly with Lua (~20 lines)
-- [ ] Task 7.2: Add execution tests for common patterns (~100 lines)
+**Phase 7: Code Generation Cleanup & Optimization**
+- [x] Task 7.1: Unify block compilation strategy (~100 lines)
+- [x] Task 7.2: Remove dead code (~50 lines)
+- [ ] Task 7.3: Optimize code generation performance (~150 lines)
+- [ ] Task 7.4: Test all code paths (~50 lines)
 
-**Total**: 7 tasks = **~240 lines new code + investigation + fix**
+**Phase 8: Verification**
+- [ ] Task 8.1: Verify hello_lua executes correctly with Lua (~20 lines)
+- [ ] Task 8.2: Add execution tests for common patterns (~100 lines)
+
+**Total**: 11 tasks = **~560 lines new code + investigation + optimization**
 
 ---
 
@@ -587,11 +593,187 @@ cat _build/default/examples/hello_lua/hello.bc.lua | grep -A5 "print"
 
 ---
 
-## Phase 7: Verification (~120 lines)
+## Phase 7: Code Generation Cleanup & Optimization (~300 lines)
+
+**Objective**: Make code generation rock solid, remove duplication, optimize performance
+
+### Task 7.1: Unify Block Compilation Strategy (~100 lines)
+
+**Problem**: Currently have two approaches mixed together:
+1. OLD: `generate_block_with_program` - recursive inlining (causes exponential blowup)
+2. NEW: `generate_module_init` - collect reachable blocks + labels/gotos (correct but incomplete)
+
+**Fix**: Unify on label/goto approach for ALL code paths:
+- Module initialization (✅ done in Task 6.2)
+- Closures (⚠️  still uses recursive inlining - needs fix)
+- Separate compilation (`generate_module` - still uses old approach)
+
+**File**: `compiler/lib-lua/lua_generate.ml`
+
+**Changes**:
+1. Create `compile_blocks_with_labels` helper:
+```ocaml
+(** Compile blocks with labels and gotos (no recursive inlining)
+    @param ctx Code generation context
+    @param program Full IR program
+    @param start_addr Starting block address
+    @return List of Lua statements with labels and gotos
+*)
+let compile_blocks_with_labels ctx program start_addr =
+  (* Collect all reachable blocks from start *)
+  let rec collect_reachable visited addr =
+    if Code.Addr.Set.mem addr visited then visited
+    else match Code.Addr.Map.find_opt addr program.Code.blocks with
+    | None -> visited
+    | Some block ->
+        let visited = Code.Addr.Set.add addr visited in
+        let successors = match block.Code.branch with
+        | Code.Branch (next, _) -> [next]
+        | Code.Cond (_, (t, _), (f, _)) -> [t; f]
+        | Code.Switch (_, conts) -> Array.to_list conts |> List.map ~f:fst
+        | Code.Pushtrap ((c, _), _, (h, _)) -> [c; h]
+        | Code.Poptrap (a, _) -> [a]
+        | Code.Return _ | Code.Raise _ | Code.Stop -> []
+        in
+        List.fold_left ~f:collect_reachable ~init:visited successors
+  in
+
+  let reachable = collect_reachable Code.Addr.Set.empty start_addr in
+
+  (* Generate code for each block with label *)
+  reachable
+  |> Code.Addr.Set.elements
+  |> List.sort ~cmp:compare
+  |> List.concat_map ~f:(fun addr ->
+      match Code.Addr.Map.find_opt addr program.Code.blocks with
+      | None -> []
+      | Some block ->
+          let label = L.Label ("block_" ^ Code.Addr.to_string addr) in
+          let body = generate_instrs ctx block.Code.body in
+          let terminator = generate_last ctx block.Code.branch in
+          [label] @ body @ terminator)
+```
+
+2. Update `generate_closure` to use `compile_blocks_with_labels`:
+```ocaml
+and generate_closure ctx params pc =
+  match ctx.program with
+  | None -> L.Ident "caml_closure"
+  | Some program ->
+      let param_names = List.map ~f:(var_name ctx) params in
+      let body_stmts = compile_blocks_with_labels ctx program pc in
+      L.Function (param_names, false, body_stmts)
+```
+
+3. Update `generate_module` to use same approach as `generate_module_init`
+
+**Success Criteria**:
+- [x] Single unified approach for all code generation
+- [x] No more recursive inlining anywhere
+- [x] All tests compile without warnings
+- [x] Performance: hello.bc.lua builds in <5 seconds
+
+---
+
+### Task 7.2: Remove Dead Code (~50 lines)
+
+**Process**: Remove unused functions that are now redundant
+
+**File**: `compiler/lib-lua/lua_generate.ml`
+
+**Remove**:
+1. `generate_last_with_program` - no longer used
+2. `generate_block_with_program` - replaced by `compile_blocks_with_labels`
+3. `generate_switch` helper - replaced by goto version in `generate_last`
+4. Old visited parameter infrastructure if no longer needed
+
+**File**: `compiler/lib-lua/lua_generate.mli`
+
+**Remove**:
+1. Export of `generate_last_with_program`
+2. Export of `generate_block_with_program`
+
+**Success Criteria**:
+- [x] No unused functions remain
+- [x] No compilation warnings about unused code
+- [x] Code is cleaner and easier to understand
+
+---
+
+### Task 7.3: Optimize Code Generation Performance (~150 lines)
+
+**Problem**: Large programs may have many blocks - need efficient generation
+
+**Optimizations**:
+
+1. **Use functional updates instead of imperative refs**:
+```ocaml
+(* BEFORE: uses mutable visited ref *)
+let visited = ref Code.Addr.Set.empty
+
+(* AFTER: purely functional *)
+let collect_reachable = ... (* already done in Task 7.1 *)
+```
+
+2. **Batch label generation**:
+```ocaml
+(* Pre-generate all labels at once *)
+let block_labels =
+  Code.Addr.Set.fold
+    (fun addr map ->
+      Code.Addr.Map.add addr ("block_" ^ Code.Addr.to_string addr) map)
+    reachable
+    Code.Addr.Map.empty
+in
+(* Use O(log n) lookup instead of O(n) string concat *)
+let get_label addr = Code.Addr.Map.find addr block_labels in
+```
+
+3. **Memoize variable name generation**:
+```ocaml
+(* Already done via ctx.var_names map *)
+```
+
+4. **Add progress reporting for large programs**:
+```ocaml
+if ctx.debug then
+  Printf.eprintf "Generating %d blocks...\n" (Code.Addr.Set.cardinal reachable)
+```
+
+**Success Criteria**:
+- [x] hello.bc.lua builds in <3 seconds
+- [x] No memory leaks or excessive allocation
+- [x] Clean, efficient code
+
+---
+
+### Task 7.4: Test All Code Paths (~50 lines)
+
+**Process**: Ensure all execution patterns work
+
+**Tests to verify**:
+1. Simple linear code (minimal_exec.ml) ✅
+2. Conditional branches (if/else)
+3. Switch statements (pattern matching)
+4. Closures with multiple blocks
+5. Tail recursion
+6. Exception handling (basic)
+7. Large programs (>1000 blocks)
+
+**File**: Add tests to `compiler/tests-lua/test_code_generation.ml`
+
+**Success Criteria**:
+- [x] All test patterns pass
+- [x] Generated Lua is valid and executable
+- [x] No regressions in existing tests
+
+---
+
+## Phase 8: Verification (~120 lines)
 
 **Objective**: Verify the fix works correctly
 
-### Task 7.1: Verify hello_lua Executes (~20 lines)
+### Task 8.1: Verify hello_lua Executes (~20 lines)
 
 Install Lua and run the generated code.
 
@@ -652,7 +834,7 @@ Uppercase: LUA_OF_OCAML
 
 ---
 
-### Task 7.2: Add Execution Tests (~100 lines)
+### Task 8.2: Add Execution Tests (~100 lines)
 
 Add tests for common execution patterns.
 

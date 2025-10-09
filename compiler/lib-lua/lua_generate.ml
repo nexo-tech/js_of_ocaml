@@ -46,7 +46,6 @@ type context =
   ; _debug : bool  (** Enable debug output *)
   ; program : Code.program option  (** Full program for closure generation *)
   ; optimize_field_access : bool  (** Enable field access optimization *)
-  ; optimize_variant_match : bool  (** Enable variant matching optimization *)
   }
 
 (** {2 Context Operations} *)
@@ -60,7 +59,6 @@ let make_context ~debug =
   ; _debug = debug
   ; program = None
   ; optimize_field_access = true
-  ; optimize_variant_match = true
   }
 
 (** Create a context with program for closure generation *)
@@ -69,7 +67,6 @@ let make_context_with_program ~debug program =
   ; _debug = debug
   ; program = Some program
   ; optimize_field_access = true
-  ; optimize_variant_match = true
   }
 
 (** Generate a fresh Lua variable name
@@ -592,25 +589,6 @@ let optimize_field_access ctx obj idx =
     L.Index (obj, L.Number (string_of_int (idx + 1)))
   else L.Index (obj, L.Number (string_of_int (idx + 1)))
 
-(** Optimize variant discrimination in switch statements
-    Uses tag field for efficient dispatching
-    @param ctx Code generation context
-    @param switch_var Variable being switched on
-    @return Optimized expression for switch variable (extracts tag if block)
-*)
-let optimize_variant_discriminator ctx switch_var =
-  if ctx.optimize_variant_match
-  then
-    (* For variant matching, we check both:
-       - Direct integer tag (for constant constructors)
-       - Block tag field (for constructors with arguments)
-       Generate: (type(v) == "table" and v.tag or v) *)
-    let type_check = L.BinOp (L.Eq, L.Call (L.Ident "type", [ switch_var ]), L.String "table")
-    in
-    let tag_access = L.Dot (switch_var, "tag") in
-    L.BinOp (L.Or, L.BinOp (L.And, type_check, tag_access), switch_var)
-  else switch_var
-
 (** Generate optimized block construction
     @param tag Block tag
     @param fields Field values
@@ -709,136 +687,54 @@ and generate_instr ctx instr =
 and generate_instrs ctx instrs =
   List.map ~f:(generate_instr ctx) instrs
 
-(** {2 Control Flow Generation} *)
+(** {2 Unified Block Compilation with Labels} *)
 
-(** Generate Lua statement(s) from Code last (terminator)
-    This version handles control flow by generating inline statements.
-    For more complex control flow graphs, we would need to generate labels and gotos.
+(** Compile all reachable blocks with labels and gotos (unified approach)
+    This is the single unified function that all code generation paths use.
 
-    @param ctx Code generation context
-    @param program Full IR program (for block lookup)
-    @param last IR terminator
-    @return List of Lua statements
-*)
-and generate_last_with_program ctx program last =
-  match last with
-  | Code.Return var ->
-      (* Generate return statement *)
-      let lua_expr = var_ident ctx var in
-      [ L.Return [ lua_expr ] ]
-  | Code.Raise (var, _raise_kind) ->
-      (* Generate error call *)
-      let lua_expr = var_ident ctx var in
-      [ L.Call_stat (L.Call (L.Ident "error", [ lua_expr ])) ]
-  | Code.Stop ->
-      (* Program termination - return nil *)
-      [ L.Return [ L.Nil ] ]
-  | Code.Branch (_addr, _args) ->
-      (* Branch to another block - for initialization code, this typically means
-         "continue to next block" which in a linear initialization is just falling through.
-         Since init code doesn't have complex control flow, we can safely ignore this. *)
-      []
-  | Code.Cond (var, (addr_true, _args_true), (addr_false, _args_false)) ->
-      (* Conditional branch - generate if statement *)
-      let cond_expr = var_ident ctx var in
-      (* For simple conditionals, try to inline the blocks *)
-      let true_block = Code.Addr.Map.find_opt addr_true program.Code.blocks in
-      let false_block = Code.Addr.Map.find_opt addr_false program.Code.blocks in
-      (match true_block, false_block with
-      | Some tb, Some fb ->
-          (* Generate inline if-then-else *)
-          let true_stmts = generate_block_with_program ctx program tb in
-          let false_stmts = generate_block_with_program ctx program fb in
-          [ L.If (cond_expr, true_stmts, Some false_stmts) ]
-      | Some tb, None ->
-          (* Only true branch *)
-          let true_stmts = generate_block_with_program ctx program tb in
-          [ L.If (cond_expr, true_stmts, None) ]
-      | None, Some fb ->
-          (* Only false branch - invert condition *)
-          let false_stmts = generate_block_with_program ctx program fb in
-          let not_cond = L.UnOp (L.Not, cond_expr) in
-          [ L.If (not_cond, false_stmts, None) ]
-      | None, None ->
-          (* No blocks found - generate gotos *)
-          let true_label = "block_" ^ Code.Addr.to_string addr_true in
-          let false_label = "block_" ^ Code.Addr.to_string addr_false in
-          [ L.If (cond_expr, [ L.Goto true_label ], Some [ L.Goto false_label ]) ])
-  | Code.Switch (var, conts) ->
-      (* Switch statement - generate if-elseif chain with optimized variant discrimination *)
-      let switch_var = var_ident ctx var in
-      let discriminator = optimize_variant_discriminator ctx switch_var in
-      generate_switch ctx program discriminator conts 0
-  | Code.Pushtrap (_cont, _var, _handler) ->
-      (* Exception handling - simplified for now *)
-      [ L.Block [] ]
-  | Code.Poptrap _cont ->
-      (* Exception handling - simplified for now *)
-      [ L.Block [] ]
-
-(** Generate switch as if-elseif chain
     @param ctx Code generation context
     @param program Full IR program
-    @param switch_var Variable being switched on
-    @param conts Array of continuations
-    @param idx Current index
-    @return List of Lua statements
+    @param start_addr Starting block address
+    @return List of Lua statements with labels and gotos
 *)
-and generate_switch ctx program switch_var conts idx =
-  if idx >= Array.length conts
-  then []
-  else
-    let addr, _args = conts.(idx) in
-    let block_opt = Code.Addr.Map.find_opt addr program.Code.blocks in
-    match block_opt with
-    | None ->
-        (* Block not found, skip *)
-        generate_switch ctx program switch_var conts (idx + 1)
-    | Some blk ->
-        let block_stmts = generate_block_with_program ctx program blk in
-        if idx = 0
-        then
-          (* First case *)
-          let cond = L.BinOp (L.Eq, switch_var, L.Number (string_of_int idx)) in
-          if idx = Array.length conts - 1
-          then (* Only one case *)
-            [ L.If (cond, block_stmts, None) ]
-          else
-            let rest = generate_switch ctx program switch_var conts (idx + 1) in
-            [ L.If (cond, block_stmts, Some rest) ]
-        else if idx = Array.length conts - 1
-        then (* Default case *)
-          block_stmts
-        else
-          (* Middle case - part of elseif chain *)
-          let cond = L.BinOp (L.Eq, switch_var, L.Number (string_of_int idx)) in
-          let rest = generate_switch ctx program switch_var conts (idx + 1) in
-          [ L.If (cond, block_stmts, Some rest) ]
-
-(** Generate Lua block from Code block (with program context)
-    @param ctx Code generation context
-    @param program Full IR program
-    @param block IR block
-    @return List of Lua statements
-*)
-and generate_block_with_program ctx program block =
-  let body_stmts = generate_instrs ctx block.Code.body in
-  let last_stmts = generate_last_with_program ctx program block.Code.branch in
-  body_stmts @ last_stmts
+and compile_blocks_with_labels ctx program start_addr =
+  (* Collect all reachable blocks from start *)
+  let rec collect_reachable visited addr =
+    if Code.Addr.Set.mem addr visited
+    then visited
+    else
+      match Code.Addr.Map.find_opt addr program.Code.blocks with
+      | None -> visited
+      | Some block ->
+          let visited = Code.Addr.Set.add addr visited in
+          let successors =
+            match block.Code.branch with
+            | Code.Branch (next, _) -> [ next ]
+            | Code.Cond (_, (t, _), (f, _)) -> [ t; f ]
+            | Code.Switch (_, conts) -> Array.to_list conts |> List.map ~f:fst
+            | Code.Pushtrap ((c, _), _, (h, _)) -> [ c; h ]
+            | Code.Poptrap (a, _) -> [ a ]
+            | Code.Return _ | Code.Raise _ | Code.Stop -> []
+          in
+          List.fold_left ~f:collect_reachable ~init:visited successors
+  in
+  let reachable = collect_reachable Code.Addr.Set.empty start_addr in
+  (* Generate code for each block with label *)
+  reachable
+  |> Code.Addr.Set.elements
+  |> List.sort ~cmp:compare
+  |> List.concat_map ~f:(fun addr ->
+       match Code.Addr.Map.find_opt addr program.Code.blocks with
+       | None -> []
+       | Some block ->
+           let label = L.Label ("block_" ^ Code.Addr.to_string addr) in
+           let body = generate_instrs ctx block.Code.body in
+           let terminator = generate_last ctx block.Code.branch in
+           [ label ] @ body @ terminator)
 
 (** {2 Function/Closure Generation} *)
 
-(** Detect if a last is a tail call to the given address
-    @param last Last instruction
-    @param target_pc Target address to check for tail recursion
-    @return true if this is a tail call to target_pc
-*)
-and is_tail_call_to last target_pc =
-  match last with
-  | Code.Branch (pc, _) when pc = target_pc -> true
-  | _ -> false
-
-(** Generate Lua function from closure with tail call optimization
+(** Generate Lua function from closure using unified block compilation
     @param ctx Code generation context
     @param params Parameter list
     @param pc Program counter pointing to function body
@@ -854,27 +750,18 @@ and generate_closure ctx params pc =
       | None ->
           (* Block not found - return placeholder *)
           L.Ident "caml_closure"
-      | Some block ->
-          (* Generate function with parameters *)
+      | Some _block ->
+          (* Generate function with parameters using unified approach *)
           let param_names = List.map ~f:(var_name ctx) params in
-          (* Check if this function has tail recursion *)
-          let has_tail_recursion = is_tail_call_to block.Code.branch pc in
-          let body_stmts =
-            if has_tail_recursion
-            then
-              (* Wrap body in while true loop with tail_call label *)
-              let label_stmt = L.Label "tail_call" in
-              let inner_body = generate_block_with_program ctx program block in
-              let while_loop = L.While (L.Bool true, label_stmt :: inner_body) in
-              [ while_loop ]
-            else generate_block_with_program ctx program block
-          in
+          let body_stmts = compile_blocks_with_labels ctx program pc in
           L.Function (param_names, false, body_stmts))
 
-(** Backward compatibility: generate_last without program
-    This version generates placeholder blocks for control flow
+(** Generate Lua last statement from Code last (terminator) using gotos
+    @param ctx Code generation context
+    @param last IR terminator
+    @return List of Lua statements
 *)
-let generate_last ctx last =
+and generate_last ctx last =
   match last with
   | Code.Return var ->
       let lua_expr = var_ident ctx var in
@@ -883,11 +770,38 @@ let generate_last ctx last =
       let lua_expr = var_ident ctx var in
       [ L.Call_stat (L.Call (L.Ident "error", [ lua_expr ])) ]
   | Code.Stop -> [ L.Return [ L.Nil ] ]
-  | Code.Branch _cont -> [ L.Block [] ]
-  | Code.Cond (_var, _cont_true, _cont_false) -> [ L.Block [] ]
-  | Code.Switch (_var, _conts) -> [ L.Block [] ]
-  | Code.Pushtrap (_cont, _var, _handler) -> [ L.Block [] ]
-  | Code.Poptrap _cont -> [ L.Block [] ]
+  | Code.Branch (addr, _args) ->
+      let label = "block_" ^ Code.Addr.to_string addr in
+      [ L.Goto label ]
+  | Code.Cond (var, (addr_true, _), (addr_false, _)) ->
+      let cond_expr = var_ident ctx var in
+      let true_label = "block_" ^ Code.Addr.to_string addr_true in
+      let false_label = "block_" ^ Code.Addr.to_string addr_false in
+      [ L.If (cond_expr, [ L.Goto true_label ], Some [ L.Goto false_label ]) ]
+  | Code.Switch (var, conts) ->
+      let switch_var = var_ident ctx var in
+      let cases =
+        Array.to_list conts
+        |> List.mapi ~f:(fun idx (addr, _) ->
+            let label = "block_" ^ Code.Addr.to_string addr in
+            let cond = L.BinOp (L.Eq, switch_var, L.Number (string_of_int idx)) in
+            (cond, [ L.Goto label ]))
+      in
+      (match cases with
+      | [] -> []
+      | (cond, then_stmt) :: rest ->
+          let rec build_if_chain = function
+            | [] -> then_stmt
+            | (c, t) :: rest -> [ L.If (c, t, Some (build_if_chain rest)) ]
+          in
+          [ L.If (cond, then_stmt, Some (build_if_chain rest)) ])
+  | Code.Pushtrap ((cont_addr, _), _var, (_handler_addr, _)) ->
+      (* For now, just goto continuation - proper exception handling TODO *)
+      let label = "block_" ^ Code.Addr.to_string cont_addr in
+      [ L.Goto label ]
+  | Code.Poptrap (addr, _) ->
+      let label = "block_" ^ Code.Addr.to_string addr in
+      [ L.Goto label ]
 
 (** Generate Lua block from Code block
     @param ctx Code generation context
@@ -959,24 +873,18 @@ let chunk_statements ?(max_locals = 150) stmts =
     This creates the entry point that initializes the module.
     If there are more than 150 local variables, splits them across multiple
     __caml_init_chunk_N functions to avoid Lua's 200 local variable limit.
+    Uses unified block compilation strategy.
 
     @param ctx Code generation context
     @param program OCaml IR program
     @return Lua statements for module initialization
 *)
 let generate_module_init ctx program =
-  (* Get the entry block *)
-  let entry_block =
-    match Code.Addr.Map.find_opt program.Code.start program.Code.blocks with
-    | Some block -> block
-    | None -> failwith "Program entry block not found"
-  in
-
-  (* Generate code for the entry block *)
-  let entry_stmts = generate_block_with_program ctx program entry_block in
+  (* Use unified block compilation starting from entry point *)
+  let all_stmts = compile_blocks_with_labels ctx program program.Code.start in
 
   (* Count local variables in generated code *)
-  let local_count = count_locals entry_stmts in
+  let local_count = count_locals all_stmts in
 
   (* If under limit, generate single function *)
   if local_count <= 150 then
@@ -985,12 +893,12 @@ let generate_module_init ctx program =
         ( "__caml_init__"
         , []
         , false
-        , [ L.Comment "Module initialization code" ] @ entry_stmts )
+        , [ L.Comment "Module initialization code" ] @ all_stmts )
     in
     [ init_func; L.Call_stat (L.Call (L.Ident "__caml_init__", [])) ]
   else begin
     (* Too many locals - need to chunk *)
-    let chunks = chunk_statements ~max_locals:150 entry_stmts in
+    let chunks = chunk_statements ~max_locals:150 all_stmts in
     let num_chunks = List.length chunks in
 
     (* Generate chunk functions *)
@@ -1247,6 +1155,7 @@ let generate_standalone ctx program =
 
 (** Generate module code for separate compilation
     Creates module code that can be loaded via require()
+    Uses unified block compilation strategy.
 
     @param ctx Code generation context
     @param program OCaml IR program
@@ -1254,22 +1163,12 @@ let generate_standalone ctx program =
     @return Lua statements for module
 *)
 let generate_module ctx program module_name =
-  (* Get the entry block *)
-  let entry_block =
-    match Code.Addr.Map.find_opt program.Code.start program.Code.blocks with
-    | Some block -> block
-    | None -> failwith "Program entry block not found"
-  in
-
-  (* Generate code for the entry block *)
-  let entry_stmts = generate_block_with_program ctx program entry_block in
+  (* Use unified block compilation starting from entry point *)
+  let init_code = compile_blocks_with_labels ctx program program.Code.start in
 
   (* Create module table *)
   let module_var = "M" in
   let module_init = [ L.Local ([ module_var ], Some [ L.Table [] ]) ] in
-
-  (* Add initialization code *)
-  let init_code = entry_stmts in
 
   (* Export module table *)
   let module_export = [ L.Return [ L.Ident module_var ] ] in

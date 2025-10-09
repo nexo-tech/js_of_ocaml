@@ -80,20 +80,6 @@ val generate_block : context -> Code.block -> Lua_ast.stat list
     @param block IR block
     @return List of Lua statements *)
 
-val generate_last_with_program : context -> Code.program -> Code.last -> Lua_ast.stat list
-(** Generate Lua statement(s) from Code last with program context for inline blocks
-    @param context Code generation context
-    @param program Full program for block lookup
-    @param last IR terminator
-    @return List of Lua statements *)
-
-val generate_block_with_program : context -> Code.program -> Code.block -> Lua_ast.stat list
-(** Generate Lua block with program context for inline conditionals
-    @param context Code generation context
-    @param program Full program for block lookup
-    @param block IR block
-    @return List of Lua statements *)
-
 val generate : debug:bool -> Code.program -> Lua_ast.stat list
 (** [generate ~debug program] generates Lua code from an OCaml IR program.
     This generates a standalone program with initialization code.
