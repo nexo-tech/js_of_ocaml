@@ -895,6 +895,56 @@ and compile_blocks_with_labels ctx program start_addr =
     table-based storage or locals. This allows nested functions with >180 vars
     to use _V tables while their parents use locals (or vice versa).
 
+    {b Variable Capture with Table Storage}
+
+    Table-based storage actually SIMPLIFIES variable capture compared to locals:
+
+    - {b With locals}: Each captured variable becomes a separate upvalue
+      {[
+        -- Parent function
+        local v0, v1, v2, ...
+        local f = function()
+          return v0 + v1  -- Two separate upvalues
+        end
+      ]}
+
+    - {b With table}: The entire _V table is captured as a single upvalue
+      {[
+        -- Parent function
+        local _V = {}
+        _V.v0 = 42
+        _V.f = function()
+          return _V.v0 + _V.v1  -- Single upvalue (_V table)
+        end
+      ]}
+
+    Lua's upvalue system automatically handles capturing the parent's _V table.
+    No special code generation needed - it just works!
+
+    {b Nested Functions Example}:
+    {[
+      -- Parent: 250 vars → uses _V table
+      local _V = {}
+      _V.x = 42
+
+      -- Child: 50 vars → uses locals (independent decision)
+      _V.f = function()
+        local v0, v1, ...
+        v0 = _V.x  -- Accesses parent's _V via upvalue
+        return v0
+      end
+
+      -- Grandchild: 300 vars → uses its own _V table
+      _V.g = function()
+        local _V = {}  -- Own table, shadows parent's _V
+        _V.v0 = _V.x   -- ERROR: can't access parent's _V (shadowed)
+      end
+    ]}
+
+    Note: If a nested function uses table storage, it shadows the parent's _V.
+    The IR doesn't generate cross-function variable references (each function
+    has its own local scope), so shadowing is not an issue in practice.
+
     @param ctx Code generation context (parent)
     @param params Parameter list
     @param pc Program counter pointing to function body

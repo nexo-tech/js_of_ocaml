@@ -17,7 +17,7 @@
 
 ### Phase 2: Handle Nested Functions (~45 min, ~60 lines)
 - [x] Task 2.1: Propagate Table Mode to Closures (~25 min)
-- [ ] Task 2.2: Handle Variable Capture (~20 min)
+- [x] Task 2.2: Handle Variable Capture (~20 min)
 
 ### Phase 3: Testing & Validation (~1.5 hours, ~150 lines)
 - [ ] Task 3.1: Create Table-Based Variable Tests (~40 min)
