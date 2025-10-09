@@ -1041,419 +1041,349 @@ Generated code calls runtime functions but doesn't load the runtime modules.
 - **Test**: Analysis complete, guides Task 14.3 implementation
 - **Commit**: "docs(lua): Document required runtime primitives (Task 14.2)"
 
-#### Task 14.3: Runtime Primitive Fragments 🔴 **HIGH**
+#### Task 14.3: Runtime Primitive Auto-Adapter Generation 🔴 **HIGH**
 
-**Problem**: Generated code calls `caml_*` primitives that don't exist. Need to create fragment files that get embedded by the linker.
+**Problem**: Generated code calls `caml_*` primitives but runtime provides `M.function` exports.
 
-**Architecture Strategy**: Create primitive fragments and embed them **directly as global functions** in generated code. Use linker's fragment parsing/resolution but NOT its `package.loaded` wrapping (that's for modules, not primitives). NO external file dependencies at runtime - everything is self-contained.
+**New Strategy**: AUTO-GENERATE adapter wrappers instead of manual code transformation.
 
-**Important Clarification**:
-- **Existing `runtime/lua/*.lua` files**: Standalone modules for testing runtime in isolation. Use `require()`, export `M.function_name`. Do NOT have fragment headers. NOT used by compiler.
-- **New `runtime/lua/primitives/*.lua` files**: Fragment files for compiler embedding. Have `--// Provides:` headers, export global `caml_*` functions. Get embedded into generated code by linker. Must be created from scratch in this task.
+**Architecture**:
+```
+Runtime Module (array.lua)     Linker Parses        Auto-Generated Adapter
+----------------------         ---------------       ----------------------
+--// Export: make as           Read annotations  →   local Array = require("array")
+--// Export: get as                                  function caml_array_make(...)
+local M = {}                                           return Array.make(...)
+function M.make(...) end                             end
+function M.get(...) end                              function caml_array_get(...)
+return M                                               return Array.get(...)
+                                                     end
+```
 
-**Why separate?**:
-- Runtime modules (`array.lua`, `string.lua`, etc.) are for human testing and development
-- Primitive fragments (`caml_array.lua`, `caml_string.lua`, etc.) are for compiler code generation
-- Different APIs: `M.make()` vs `caml_array_make()`
-- Different dependency models: `require()` vs embedded
-- We're NOT adding headers to existing runtime files - we're creating NEW fragment files
-
-**Code Reuse Strategy**:
-- Copy/adapt logic FROM `runtime/lua/*.lua` TO `runtime/lua/primitives/*.lua`
-- Simplify: Remove module wrapper `M = {}`, remove `require()` calls
-- Adapt API: Change `M.make()` → `function caml_array_make()`
-- Add headers: `--// Provides: caml_array_make, caml_array_get, ...`
-- Keep implementations identical where possible (same OCaml semantics)
-
-**Pre-Implementation Checklist**:
-- [ ] Run `dune build compiler/lib-lua` - must succeed with zero warnings
-- [ ] Run `dune runtest compiler/tests-lua` - document current test status
-- [ ] Create `runtime/lua/primitives/` directory
-- [ ] Verify linker can load from non-existent directory gracefully
+**Benefits**:
+- ✅ Zero code duplication (reuses runtime modules AS-IS)
+- ✅ Minimal changes (add `--// Export:` comments only)
+- ✅ Automatic (linker generates wrappers)
+- ✅ Maintainable (module updates auto-propagate)
+- ✅ Testable (modules keep existing tests)
 
 **Implementation Plan**:
 
-##### Subtask 14.3.1: Create Core Primitive Fragments (~150 lines)
-Write simple primitives from scratch (these DON'T exist in runtime modules).
+##### Subtask 14.3.1: Add Export Directive to Linker (~100 lines)
 
-- [ ] **File**: `runtime/lua/primitives/caml_compare.lua` (~60 lines)
-  ```lua
-  --// Provides: caml_int_compare, caml_int32_compare, caml_nativeint_compare, caml_float_compare
+**File**: `compiler/lib-lua/lua_link.ml`
 
-  function caml_int_compare(a, b)
-    if a < b then return -1
-    elseif a > b then return 1
-    else return 0 end
-  end
+Add parsing for `--// Export: function_name as global_name`:
 
-  function caml_int32_compare(a, b)
-    return caml_int_compare(a, b)
-  end
+```ocaml
+type fragment = {
+  name : string;
+  provides : string list;
+  requires : string list;
+  exports : (string * string) list;  (* (module_func, global_name) *)
+  code : string;
+}
 
-  function caml_nativeint_compare(a, b)
-    return caml_int_compare(a, b)
-  end
+let parse_export (line : string) : (string * string) option =
+  let prefix = "--// Export:" in
+  if not (String.starts_with ~prefix line) then None
+  else
+    (* Parse "make as caml_array_make" *)
+    let rest = String.sub line ~pos:(String.length prefix) ... in
+    let parts = String.split_on_char ~sep:" as " rest in
+    match parts with
+    | [func; global] -> Some (String.trim func, String.trim global)
+    | _ -> None
 
-  function caml_float_compare(a, b)
-    -- Handle NaN: NaN != NaN in OCaml
-    if a ~= a then  -- a is NaN
-      if b ~= b then return 0 else return 1 end
-    elseif b ~= b then  -- b is NaN
-      return -1
-    elseif a < b then return -1
-    elseif a > b then return 1
-    else return 0 end
-  end
-  ```
-  **Note**: Simple 3-way comparison, NOT polymorphic comparison from compare.lua
+(* Update parse_fragment_header to collect exports *)
+```
 
-- [ ] **File**: `runtime/lua/primitives/caml_ref.lua` (~15 lines)
-  ```lua
-  --// Provides: caml_ref_set
+**Test**: Parse `--// Export: make as caml_array_make` correctly
 
-  function caml_ref_set(ref, value)
-    ref[1] = value
-  end
-  ```
+##### Subtask 14.3.2: Generate Adapter Code (~80 lines)
 
-- [ ] **File**: `runtime/lua/primitives/caml_sys.lua` (~30 lines)
-  ```lua
-  --// Provides: caml_sys_open, caml_sys_close
+**File**: `compiler/lib-lua/lua_link.ml`
 
-  function caml_sys_open(path, flags)
-    error("caml_sys_open: System operations not yet implemented")
-  end
+Add function to generate adapter wrappers:
 
-  function caml_sys_close(fd)
-    error("caml_sys_close: System operations not yet implemented")
-  end
-  ```
-  **Note**: Stubs only, full implementation in Phase 15
+```ocaml
+let generate_adapter_for_fragment (frag : fragment) : string =
+  if List.length frag.exports = 0 then ""
+  else
+    let buf = Buffer.create 256 in
+    (* Load module *)
+    Buffer.add_string buf ("-- Adapters for " ^ frag.name ^ "\n");
+    Buffer.add_string buf ("local " ^ module_var_name frag.name ^ " = require(\"" ^ frag.name ^ "\")\n");
+    
+    (* Generate adapter for each export *)
+    List.iter (fun (mod_func, global_func) ->
+      Printf.bprintf buf "function %s(...)\n" global_func;
+      Printf.bprintf buf "  return %s.%s(...)\n" (module_var_name frag.name) mod_func;
+      Buffer.add_string buf "end\n"
+    ) frag.exports;
+    
+    Buffer.contents buf
+```
 
-- [ ] **File**: `runtime/lua/primitives/caml_weak.lua` (~40 lines)
-  ```lua
-  --// Provides: caml_weak_create, caml_weak_set, caml_weak_get
+**Test**: Generate correct adapter code from annotations
 
-  function caml_weak_create(size)
-    local arr = { tag = 0, [0] = size }
-    setmetatable(arr, { __mode = 'v' })  -- Weak values
-    return arr
-  end
+##### Subtask 14.3.3: Annotate Existing Runtime Modules (~200 lines total)
 
-  function caml_weak_set(arr, idx, val)
-    arr[idx + 1] = val  -- 0→1 index conversion
-  end
+Add `--// Export:` annotations to existing modules (NON-BREAKING changes):
 
-  function caml_weak_get(arr, idx)
-    return arr[idx + 1]  -- 0→1 index conversion
-  end
-  ```
-  **Note**: Can reference runtime/lua/weak.lua for guidance, but keep simple
-
-**Test**: `compiler/tests-lua/test_primitives_core.ml` - Test each primitive
-
-##### Subtask 14.3.2: Create Array Primitive Fragments (~100 lines)
-**Transform existing runtime/lua/array.lua** (don't write from scratch).
-
-**Approach**:
-1. Copy `runtime/lua/array.lua` to `runtime/lua/primitives/caml_array.lua`
-2. Add fragment header: `--// Provides: caml_array_make, caml_array_set, ...`
-3. Transform API:
-   - Remove: `local M = {}` and `return M`
-   - Remove: `local core = require("core")` (copy needed functions inline if any)
-   - Change: `function M.make(...)` → `function caml_array_make(...)`
-   - Change: `function M.set(...)` → `function caml_array_set(...)`
-   - Change: All `M.xxx` → `caml_array_xxx`
-4. Keep all implementation logic IDENTICAL
-5. Result: ~100 lines (array.lua is ~90 lines without comments)
-
-**Functions to export** (13 primitives):
-- `caml_array_make(len, init)` ← from `M.make`
-- `caml_array_set(arr, idx, val)` ← from `M.set`
-- `caml_array_unsafe_set(arr, idx, val)` ← from `M.unsafe_set` (if exists)
-- `caml_make_vect(len, init)` ← alias to caml_array_make
-- `caml_make_float_vect(len)` ← create {tag=0, [0]=len} for floats
-- `caml_floatarray_create(len)` ← same as make_float_vect
-- `caml_floatarray_set(arr, idx, val)` ← from `M.set`
-- `caml_floatarray_unsafe_set(arr, idx, val)` ← no bounds check
-- `caml_array_sub(arr, start, len)` ← from `M.sub`
-- `caml_array_append(arr1, arr2)` ← from `M.append`
-- `caml_array_concat(list)` ← from `M.concat`
-- `caml_array_blit(src, spos, dst, dpos, len)` ← from `M.blit`
-- `caml_array_fill(arr, start, len, val)` ← from `M.fill`
-
-**Why this approach**:
-- ✅ Reuses tested code from array.lua
-- ✅ No code duplication (transformation, not rewrite)
-- ✅ Maintains same OCaml semantics
-- ✅ Simple mechanical transformation
-
-**Test**: `compiler/tests-lua/test_primitives_array.ml`
-
-##### Subtask 14.3.3: Create String/Bytes Primitive Fragments (~120 lines)
-**Transform existing runtime/lua/mlBytes.lua** (don't write from scratch).
-
-**Note**: OCaml strings and bytes are both in `mlBytes.lua`, not separate files.
-
-**Approach**:
-1. Copy `runtime/lua/mlBytes.lua` to `runtime/lua/primitives/caml_string.lua`
-2. Add fragment header with all 13 primitives (6 string + 7 bytes)
-3. Transform API:
-   - Remove: `local M = {}` and `return M`
-   - Remove: any `require()` calls (inline if needed)
-   - Change: `function M.get(...)` → `function caml_bytes_get(...)`
-   - Change: `function M.set(...)` → `function caml_bytes_set(...)`
-   - Add aliases: `caml_string_get = caml_bytes_get` (strings and bytes use same ops)
-4. Result: Single file with all string/bytes operations (~120 lines)
-
-**Functions to export** (13 primitives total):
-
-**String operations** (6):
-- `caml_string_compare(s1, s2)` ← lexicographic comparison (simple Lua `<` on strings)
-- `caml_string_get(str, idx)` ← alias to `caml_bytes_get`
-- `caml_string_set(str, idx, char)` ← alias to `caml_bytes_set`
-- `caml_string_unsafe_set(str, idx, char)` ← alias to `caml_bytes_unsafe_set`
-- `caml_create_string(len)` ← from `M.create` or `M.make`
-- `caml_blit_string(src, spos, dst, dpos, len)` ← from `M.blit`
-
-**Bytes operations** (7):
-- `caml_bytes_get(bytes, idx)` ← from `M.get`
-- `caml_bytes_set(bytes, idx, byte)` ← from `M.set`
-- `caml_bytes_unsafe_set(bytes, idx, byte)` ← from `M.unsafe_set`
-- `caml_create_bytes(len)` ← from `M.create`
-- `caml_fill_bytes(bytes, start, len, char)` ← from `M.fill`
-- `caml_blit_bytes(src, spos, dst, dpos, len)` ← from `M.blit`
-
-**Why this approach**:
-- ✅ Reuses tested code from mlBytes.lua
-- ✅ OCaml strings/bytes already in one module
-- ✅ No code duplication
-- ✅ Simple mechanical transformation
-
-**Test**: `compiler/tests-lua/test_primitives_string.ml`
-
-##### Subtask 14.3.4: Create I/O Primitive Stubs (~150 lines)
-Stub implementations for I/O operations (detailed implementation in Phase 15).
-
-- [ ] **File**: `runtime/lua/primitives/caml_io.lua` (~150 lines)
-  - All 30 I/O primitives as stub functions
-  - Each stub: `error("caml_ml_xxx: I/O not yet implemented")`
-  - Include function signatures and comments documenting expected behavior
-  - Header: `--// Provides: caml_ml_open_descriptor_in, caml_ml_flush, ...` (all 30)
-  - Note: Full implementation deferred to Phase 15
-
-**Test**: Test that stubs error correctly (not silent failures)
-
-##### Subtask 14.3.5: Create Marshal Primitive Stubs (~50 lines)
-Stub implementations for marshal operations.
-
-- [ ] **File**: `runtime/lua/primitives/caml_marshal.lua` (~50 lines)
-  - `caml_output_value(channel, value, flags)` - stub
-  - `caml_input_value(channel)` - stub
-  - `caml_input_value_to_outside_heap(channel)` - stub
-  - Each stub: `error("Marshal not yet implemented")`
-  - Header: `--// Provides: caml_output_value, caml_input_value, caml_input_value_to_outside_heap`
-  - Note: Full implementation deferred to Phase 15
-
-**Test**: Test that stubs error correctly
-
-##### Subtask 14.3.6: Update Code Generator to Track Primitive Usage (~100 lines)
-Modify code generator to track which primitives are used and tell linker.
-
-- [ ] **File**: `compiler/lib-lua/lua_generate.ml`
-  - Add `used_primitives : StringSet.t ref` to generation context
-  - In `generate_prim`: record primitive name when generating call
-  - In `generate_standalone`:
-    - Convert used_primitives to fragment names
-    - Call linker with required fragments
-    - Prepend linked fragments to output
-  - Map primitive names to fragment provides:
-    ```ocaml
-    let primitive_to_fragment = function
-      | "caml_int_compare" | "caml_int32_compare" | "caml_float_compare"
-          -> Some "caml_compare"
-      | "caml_array_make" | "caml_array_set" | ...
-          -> Some "caml_array"
-      | "caml_string_get" | "caml_string_set" | ...
-          -> Some "caml_string"
-      (* ... *)
-      | _ -> None (* Already inlined or doesn't need fragment *)
-    ```
-
-- [ ] **Integration with linker** (USE SELECTIVELY):
-  - Load fragment files from `runtime/lua/primitives/` directory using `Lua_link.load_runtime_dir`
-  - Use `Lua_link.resolve_deps` to get dependency-ordered list of fragments
-  - Extract `.code` field from each fragment
-  - **DO NOT use `Lua_link.generate_loader`** (that wraps in `package.loaded` for modules)
-  - **Instead**: Directly embed fragment code as Lua comments in generated output
-  - Result: `-- Fragment: caml_array\nfunction caml_array_make(...) end\n...`
-  - Self-contained .lua file with all needed primitives as global functions
-
-- [ ] **CRITICAL: Ensure backward compatibility**:
-  - If `runtime/lua/primitives/` directory doesn't exist, skip fragment loading (no error)
-  - Generated code should still work with inline runtime only
-  - All 35 existing tests must continue passing
-  - Run `dune runtest compiler/tests-lua` after each change
-
-**Expected Generated Code Example**:
+**File**: `runtime/lua/array.lua` (~40 lines of annotations)
 ```lua
--- === OCaml Runtime (Minimal Inline Version) ===
-function caml_register_global(n, v, name)
-  _OCAML_GLOBALS[n + 1] = v
-  if name then _OCAML_GLOBALS[name] = v end
-  return v
-end
--- === End Runtime ===
+-- At top of file, after license header:
+--// Export: make as caml_array_make
+--// Export: get as caml_array_get  
+--// Export: set as caml_array_set
+--// Export: unsafe_set as caml_array_unsafe_set
+--// Export: sub as caml_array_sub
+--// Export: append as caml_array_append
+--// Export: concat as caml_array_concat
+--// Export: blit as caml_array_blit
+--// Export: fill as caml_array_fill
 
--- Fragment: caml_array
-function caml_array_make(len, init)
+local M = {}
+function M.make(...) ... end  -- Implementation unchanged!
+return M
+```
+
+**File**: `runtime/lua/mlBytes.lua` (~50 lines of annotations)
+```lua
+--// Export: get as caml_bytes_get
+--// Export: set as caml_bytes_set
+--// Export: unsafe_set as caml_bytes_unsafe_set
+--// Export: create as caml_create_bytes
+--// Export: fill as caml_fill_bytes
+--// Export: blit as caml_blit_bytes
+-- String aliases
+--// Export: get as caml_string_get
+--// Export: set as caml_string_set
+--// Export: unsafe_set as caml_string_unsafe_set
+--// Export: create as caml_create_string
+--// Export: blit as caml_blit_string
+--// Export: compare as caml_string_compare
+
+local M = {}
+-- Implementation unchanged!
+```
+
+**File**: `runtime/lua/compare.lua` (~10 lines)
+```lua
+--// Export: int_compare as caml_int_compare
+--// Export: float_compare as caml_float_compare
+-- Note: Add simple int/float compare functions if don't exist
+```
+
+**File**: `runtime/lua/weak.lua` (~10 lines)
+```lua
+--// Export: create as caml_weak_create
+--// Export: get as caml_weak_get
+--// Export: set as caml_weak_set
+```
+
+**File**: `runtime/lua/io.lua` (~30 lines of annotations)
+```lua
+--// Export: open_descriptor_in as caml_ml_open_descriptor_in
+--// Export: flush as caml_ml_flush
+--// Export: output as caml_ml_output
+-- ... 30 I/O primitives
+```
+
+**File**: `runtime/lua/marshal.lua` (~10 lines)
+```lua
+--// Export: to_bytes as caml_output_value
+--// Export: from_bytes as caml_input_value
+```
+
+**Why this works**:
+- Annotations are just comments - modules still work standalone
+- Existing tests unaffected
+- Can test modules with `lua array.lua` as before
+- Linker reads annotations to generate adapters
+
+**Test**: Run existing `dune runtest runtime/lua` - all tests still pass
+
+##### Subtask 14.3.4: Add Missing Simple Primitives (~60 lines)
+
+Some primitives don't exist in runtime modules. Add simple implementations:
+
+**File**: `runtime/lua/compare.lua` (if functions don't exist)
+```lua
+function M.int_compare(a, b)
+  if a < b then return -1
+  elseif a > b then return 1
+  else return 0 end
+end
+
+function M.float_compare(a, b)
+  -- Handle NaN
+  if a ~= a then return (b ~= b) and 0 or 1 end
+  if b ~= b then return -1 end
+  if a < b then return -1
+  elseif a > b then return 1
+  else return 0 end
+end
+
+-- Export them
+--// Export: int_compare as caml_int_compare
+--// Export: int_compare as caml_int32_compare  
+--// Export: int_compare as caml_nativeint_compare
+--// Export: float_compare as caml_float_compare
+```
+
+**File**: `runtime/lua/core.lua` or new `runtime/lua/ref.lua`
+```lua
+function M.ref_set(ref, value)
+  ref[1] = value
+end
+--// Export: ref_set as caml_ref_set
+```
+
+**File**: `runtime/lua/sys.lua` (stubs)
+```lua
+function M.sys_open(path, flags)
+  error("caml_sys_open: not yet implemented")
+end
+function M.sys_close(fd)
+  error("caml_sys_close: not yet implemented")
+end
+--// Export: sys_open as caml_sys_open
+--// Export: sys_close as caml_sys_close
+```
+
+##### Subtask 14.3.5: Update Code Generator (~150 lines)
+
+**File**: `compiler/lib-lua/lua_generate.ml`
+
+1. Track which primitives are used
+2. Load runtime modules with export annotations
+3. Generate adapters for used primitives
+4. Embed modules + adapters in generated code
+
+```ocaml
+let generate_standalone ctx program =
+  (* Track used primitives *)
+  let used_primitives = collect_used_primitives program in
+  
+  (* Load runtime modules *)
+  let runtime_state = Lua_link.load_runtime_dir "runtime/lua" in
+  
+  (* Find modules that provide used primitives *)
+  let needed_modules = find_modules_for_primitives runtime_state used_primitives in
+  
+  (* Generate:
+     1. Inline runtime (caml_register_global)
+     2. Runtime modules (embedded)
+     3. Auto-generated adapters
+     4. Program code *)
+  let inline_runtime = generate_inline_runtime () in
+  let modules = embed_runtime_modules needed_modules in
+  let adapters = generate_adapters_from_exports needed_modules in
+  let program_code = generate_module_init ctx program in
+  
+  inline_runtime @ modules @ adapters @ program_code
+```
+
+**Generated Code Example**:
+```lua
+-- === Inline Runtime ===
+function caml_register_global(...) end
+
+-- === Runtime Module: array ===
+local M = {}
+function M.make(len, init)
   local arr = { tag = 0, [0] = len }
-  for i = 1, len do
-    arr[i] = init
-  end
+  for i = 1, len do arr[i] = init end
   return arr
 end
-
-function caml_array_set(arr, idx, val)
-  if idx < 0 or idx >= arr[0] then
-    error("array index out of bounds")
-  end
-  arr[idx + 1] = val
+function M.get(arr, idx)
+  return arr[idx + 1]
 end
--- End Fragment: caml_array
+-- ... more functions
+local Array = M
 
+-- === Auto-Generated Adapters ===
+function caml_array_make(...)
+  return Array.make(...)
+end
+function caml_array_get(...)
+  return Array.get(...)
+end
+
+-- === Generated Program ===
 function __caml_init__()
   local v0 = caml_array_make(10, 0)
-  caml_array_set(v0, 5, 42)
-  return 0
+  return v0
 end
 __caml_init__()
 ```
 
-**Key Points**:
-- Fragment code embedded AS-IS (not wrapped in `package.loaded`)
-- Functions are global: `function caml_array_make(...)` not `package.loaded["caml_array_make"] = ...`
-- Generated code calls them directly: `caml_array_make(10, 0)`
+##### Subtask 14.3.6: Integration Testing (~100 lines)
 
-**Test**:
-- Generate program using arrays, verify fragment is embedded directly
-- Run all existing tests: `dune runtest compiler/tests-lua`
-- Ensure no test regressions
+**File**: `compiler/tests-lua/test_primitives_adapters.ml`
 
-##### Subtask 14.3.7: Fragment Loading Infrastructure (~50 lines)
-Add fragment file loading to compiler.
+Test that:
+- Export annotations parse correctly
+- Adapters generate correctly
+- Generated code calls primitives successfully
+- All existing tests still pass
 
-- [ ] **File**: `compiler/lib-lua/lua_generate.ml`
-  - Add `load_runtime_fragments : unit -> Lua_link.state`
-  - Scan `runtime/lua/primitives/` directory for .lua files
-  - Parse each file using `Lua_link.parse_fragment_header`
-  - Build `Lua_link.state` with all fragments
-  - Cache state for performance
-
-**Implementation**:
 ```ocaml
-(* Load primitive fragments from filesystem *)
-let load_runtime_fragments () =
-  let runtime_dir = "runtime/lua/primitives" in
-  if Sys.file_exists runtime_dir && Sys.is_directory runtime_dir
-  then Lua_link.load_runtime_dir runtime_dir
-  else []
-
-(* Embed fragment code directly into generated output *)
-let embed_primitive_fragments state required_primitives =
-  (* Convert primitive names to fragment symbol names *)
-  let required_symbols = StringSet.fold (fun prim acc ->
-    match primitive_to_fragment prim with
-    | Some fragment_name -> fragment_name :: acc
-    | None -> acc
-  ) required_primitives [] in
-
-  (* Resolve dependencies and get ordered fragments *)
-  let fragment_names, _ = Lua_link.resolve_deps state required_symbols in
-
-  (* Get fragment objects *)
-  let fragments = List.map (fun name ->
-    StringMap.find name state.Lua_link.fragments
-  ) fragment_names in
-
-  (* Generate embedded code (NOT using generate_loader!) *)
-  let embedded_code = String.concat "\n" (
-    List.map (fun frag ->
-      "-- Fragment: " ^ frag.Lua_link.name ^ "\n" ^
-      frag.Lua_link.code ^ "\n" ^
-      "-- End Fragment: " ^ frag.Lua_link.name ^ "\n"
-    ) fragments
-  ) in
-
-  (* Convert to Lua AST comment *)
-  L.Comment embedded_code
+let%expect_test "adapter generation from exports" =
+  let fragment = {
+    name = "array";
+    exports = [("make", "caml_array_make"); ("get", "caml_array_get")];
+    code = "local M = {}\nfunction M.make() end\nreturn M";
+    ...
+  } in
+  let adapter = Lua_link.generate_adapter_for_fragment fragment in
+  print_endline adapter;
+  [%expect {|
+    -- Adapters for array
+    local Array = require("array")
+    function caml_array_make(...)
+      return Array.make(...)
+    end
+    function caml_array_get(...)
+      return Array.get(...)
+    end
+  |}]
 ```
 
-**Test**: Verify all fragment files are loaded correctly
-
-##### Subtask 14.3.8: Integration Testing (~100 lines)
-End-to-end tests verifying primitives work.
-
-- [ ] **File**: `compiler/tests-lua/test_primitives_integration.ml`
-  - Test program using array primitives compiles and runs
-  - Test program using string primitives compiles and runs
-  - Test program using comparison primitives compiles and runs
-  - Test program using weak references compiles and runs
-  - Verify generated code is self-contained (no external requires)
-  - Verify fragment code is embedded correctly
-  - Test that unused primitives are NOT included (minimal code)
-
-- [ ] **CRITICAL: Verify no test regressions**
-  - Before starting Task 14.3: Run `dune runtest compiler/tests-lua` and note which tests pass
-  - After each subtask: Run `dune runtest compiler/tests-lua` and verify same tests pass
-  - If any test breaks: Fix immediately before proceeding
-  - Document any intentional test output changes with `dune promote`
-  - Final verification: All 35+ tests pass with zero warnings
-
-**Files Created**:
-- `runtime/lua/primitives/caml_compare.lua` (60 lines)
-- `runtime/lua/primitives/caml_ref.lua` (20 lines)
-- `runtime/lua/primitives/caml_sys.lua` (30 lines)
-- `runtime/lua/primitives/caml_weak.lua` (40 lines)
-- `runtime/lua/primitives/caml_array.lua` (100 lines)
-- `runtime/lua/primitives/caml_string.lua` (60 lines)
-- `runtime/lua/primitives/caml_bytes.lua` (60 lines)
-- `runtime/lua/primitives/caml_io.lua` (150 lines - stubs)
-- `runtime/lua/primitives/caml_marshal.lua` (50 lines - stubs)
-- `compiler/tests-lua/test_primitives_core.ml` (50 lines)
-- `compiler/tests-lua/test_primitives_array.ml` (100 lines)
-- `compiler/tests-lua/test_primitives_string.ml` (100 lines)
-- `compiler/tests-lua/test_primitives_integration.ml` (100 lines)
-
-**Total Output**: ~1,070 lines across 13 files
-
-**Test Strategy**:
-- Unit tests for each primitive function
-- Integration tests for complete programs
-- Verify OCaml semantics preserved
-- Test edge cases (bounds, NaN, empty arrays, etc.)
-
 **Success Criteria**:
-- ✅ All 70 primitives cataloged in PRIMITIVES.md have fragments or stubs
-- ✅ Code generator tracks primitive usage correctly
-- ✅ Linker embeds fragments into generated code
-- ✅ Generated code is self-contained (no external requires)
-- ✅ hello_lua runs without primitive errors
-- ✅ Simple array/string programs compile and run
-- ✅ All 35 existing Lua tests still pass (no regressions)
+- ✅ All 70 primitives from PRIMITIVES.md have adapters or are implemented
+- ✅ Zero code duplication (modules reused via adapters)
+- ✅ All 35 existing Lua tests still pass
 - ✅ New primitive tests pass
-- ✅ All tests pass without warnings
+- ✅ Generated code is self-contained
 - ✅ `dune build compiler/lib-lua` succeeds with zero warnings
 
-**Commit Strategy**:
-1. "feat(lua/primitives): Add core primitive fragments (compare, ref, sys, weak)"
-2. "feat(lua/primitives): Add array primitive fragments"
-3. "feat(lua/primitives): Add string/bytes primitive fragments"
-4. "feat(lua/primitives): Add I/O and marshal stubs"
-5. "feat(lua): Track primitive usage in code generator"
-6. "feat(lua): Add fragment loading infrastructure"
-7. "test(lua): Add primitive integration tests"
+**Files Modified** (minimal changes):
+- `compiler/lib-lua/lua_link.ml` (~180 lines added)
+- `compiler/lib-lua/lua_generate.ml` (~150 lines modified)
+- `runtime/lua/array.lua` (~10 lines added - annotations only)
+- `runtime/lua/mlBytes.lua` (~15 lines added - annotations only)
+- `runtime/lua/compare.lua` (~70 lines added - functions + annotations)
+- `runtime/lua/weak.lua` (~5 lines added - annotations only)
+- `runtime/lua/io.lua` (~30 lines added - annotations only)
+- `runtime/lua/marshal.lua` (~5 lines added - annotations only)
+- `runtime/lua/ref.lua` (~10 lines added - new file or add to core.lua)
+- `runtime/lua/sys.lua` (~10 lines added - stub functions)
+- `compiler/tests-lua/test_primitives_adapters.ml` (~100 lines - new tests)
 
+**Total New Code**: ~430 lines (vs ~1,070 in manual approach)
+**Modified Existing Code**: ~80 lines of non-breaking annotations
+**Reused Code**: ~2,000 lines from existing runtime modules
+
+**Commit Strategy**:
+1. "feat(lua/link): Add Export directive parser for auto-adapter generation"
+2. "feat(lua/link): Add adapter code generator"
+3. "feat(lua/runtime): Annotate modules with Export directives (non-breaking)"
+4. "feat(lua/runtime): Add missing primitive functions (compare, ref, sys)"
+5. "feat(lua): Integrate adapter generation in code generator"
+6. "test(lua): Add adapter generation tests"
 #### Task 14.4: Control Flow Generation Fix 🟡 **HIGH**
 
 **Problem Discovered**: Current Branch instruction handling returns empty list, which may lose necessary control flow.
