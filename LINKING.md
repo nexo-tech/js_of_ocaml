@@ -5,7 +5,7 @@ This document details the implementation plan for Task 14.3: Runtime Primitive L
 ## Master Checklist
 
 **Phase 1: Linker Infrastructure**
-- [ ] Task 1.1: Add Export parsing and hybrid resolution (~160 lines)
+- [x] Task 1.1: Add Export parsing and hybrid resolution (~160 lines)
 
 **Phase 2: Code Generation**
 - [ ] Task 2.1: Module embedding and wrapper generation (~100 lines)

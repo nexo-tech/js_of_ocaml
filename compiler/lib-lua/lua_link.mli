@@ -25,6 +25,7 @@ type fragment =
   { name : string  (** Module name *)
   ; provides : string list  (** Symbols this module provides *)
   ; requires : string list  (** Symbols this module requires *)
+  ; exports : (string * string) list  (** Export mappings: (module_func, global_name) *)
   ; code : string  (** Lua code content *)
   }
 
@@ -43,6 +44,27 @@ val parse_provides : string -> string list
 val parse_requires : string -> string list
 (** [parse_requires line] extracts symbols from a "--// Requires: sym1, sym2" header.
     Returns empty list if line doesn't match the format. *)
+
+(** Parse export directive from a line *)
+val parse_export : string -> (string * string) option
+(** [parse_export line] extracts function and global name mapping from a
+    "--// Export: func as global_name" header. Returns Some (func, global_name)
+    if line matches the format, None otherwise. *)
+
+(** Parse primitive name using naming convention *)
+val parse_primitive_name : string -> (string * string) option
+(** [parse_primitive_name prim] parses a primitive name like "caml_array_make" into
+    (module_name, func_name) using naming convention. Strips "caml_" prefix, splits
+    on first underscore. Returns Some (module, func) on success, None if parsing fails.
+    Defaults to ("core", func) for single-part names. *)
+
+(** Find primitive implementation using hybrid strategy *)
+val find_primitive_implementation : string -> fragment list -> (fragment * string) option
+(** [find_primitive_implementation prim_name fragments] finds the fragment and function
+    that implements a primitive using a two-tier strategy:
+    1. Try naming convention first (e.g., "caml_array_make" → array.lua, M.make)
+    2. Fall back to Export directive if not found
+    Returns Some (fragment, func_name) if found, None otherwise. *)
 
 (** Parse version constraint from a line *)
 val parse_version : string -> bool
