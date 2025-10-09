@@ -270,6 +270,13 @@
  (inline_tests)
  (preprocess (pps ppx_expect)))
 
+(library
+ (name test_real_world)
+ (libraries lua_of_ocaml_compiler unix str)
+ (modules test_real_world)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
 (executable
  (name minimal_exec)
  (modes byte)
