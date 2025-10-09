@@ -26,7 +26,429 @@ Lua Code (lua_of_ocaml.lua)
 
 ## Testing Phases
 
-### Phase 1: Basic Execution (URGENT)
+### Phase 0: Fix Goto/Scope Bug (CRITICAL BLOCKER)
+
+**Objective**: Fix the fundamental code generation bug that prevents ANY Lua code from executing.
+
+**Root Cause Analysis**:
+The current implementation uses a naive label/goto strategy that violates Lua's scoping rules. Generated code looks like:
+
+```lua
+::block_2::
+if v316 == 0 then
+  goto block_4  -- ❌ Jump forward across local declarations
+end
+::block_3::
+local v318 = ...  -- Local declared here
+-- ... more code ...
+::block_4::  -- ❌ Target is AFTER v318 (ILLEGAL in Lua)
+local v319 = 0
+```
+
+**JavaScript Backend Comparison**:
+
+The JS backend (`compiler/lib/generate.ml`) uses a sophisticated strategy:
+
+1. **fall_through optimization**: Consecutive blocks are inlined without jumps
+2. **Loop detection**: Natural loops use `for(;;)` with labels for breaks
+3. **Scope management**: Labels and variables are carefully scoped with `scope_stack`
+4. **Block merging**: Merge nodes create labeled scopes with proper variable visibility
+
+Key insight from `compile_block` (line 1912):
+```ocaml
+match fall_through with
+| Block fall_through ->
+    (* Next block can fall through - no jump needed *)
+| Return -> (* ... *)
+```
+
+**Lua Scoping Rules** (PUC-Rio Lua 5.1+):
+
+1. ❌ Cannot `goto` forward into a scope where a local is declared
+2. ✅ Can `goto` backward (labels already passed)
+3. ✅ Can `goto` forward if no locals declared between goto and label
+4. ✅ Can `goto` into a `do...end` block if the label is at the start
+
+**Optimal Solution: Hybrid Approach** (Combines JS backend strategy + Lua idioms)
+
+Instead of naive label/goto, use:
+
+**Solution A: Variable Hoisting + Fall-Through Optimization** (RECOMMENDED)
+
+Matches how JS backend works, adapted for Lua:
+
+```lua
+function init_module()
+  -- 1. HOIST: Declare ALL variables at function start
+  local v316, v318, v319, v320, v321, v322  -- All vars declared upfront
+
+  -- 2. FALL-THROUGH: Inline consecutive blocks (no goto needed)
+  -- Block 2
+  v316 = ...
+  if v316 == 0 then
+    goto block_4  -- ✅ Safe: v318 already declared
+  end
+  -- Fall through to block_3 (no label/goto needed!)
+
+  -- Block 3
+  v318 = caml_%direct_obj_tag(v316)  -- Assignment, not declaration
+  if v318 == 0 then
+    goto block_5
+  elseif v318 == 1 then
+    goto block_6
+  -- ... switch logic ...
+  end
+
+  ::block_4::  -- ✅ Safe: all vars already declared
+  v319 = 0
+  return v319
+
+  ::block_5::
+  v320 = v316[1]
+  -- ...
+end
+```
+
+**Why This Solution Is Best**:
+
+1. **Matches JS backend philosophy**: fall-through + labels for non-sequential flow
+2. **Lua-idiomatic**: Variable hoisting is standard Lua practice
+3. **Performance**: No runtime overhead, compiler optimization friendly
+4. **Maintainability**: Simple, no complex control flow analysis
+5. **Proven**: JS backend has used this pattern successfully for years
+
+---
+
+#### Task 0.1: Implement Variable Collection Pass (~50 lines)
+
+**Objective**: Collect all variables that will be used across all reachable blocks.
+
+**Location**: `compiler/lib-lua/lua_generate.ml`
+
+**Implementation**:
+
+```ocaml
+(** Collect all variables used in reachable blocks
+    Returns set of variable names that need to be hoisted
+
+    @param program Code IR program
+    @param start_addr Starting block address
+    @return Set of variable names (v_N format)
+*)
+let collect_block_variables ctx program start_addr =
+  (* Collect variables from an instruction *)
+  let collect_instr_vars acc = function
+    | Code.Let (var, _expr) ->
+        StringSet.add (var_name ctx var) acc
+    | Code.Assign (var, _) ->
+        StringSet.add (var_name ctx var) acc
+    | Code.Set_field _ | Code.Offset_ref _ | Code.Array_set _ | Code.Event _ ->
+        acc
+  in
+
+  (* Collect all reachable blocks (reuse existing logic) *)
+  let rec collect_reachable visited addr =
+    if Code.Addr.Set.mem addr visited then visited
+    else match Code.Addr.Map.find_opt addr program.Code.blocks with
+      | None -> visited
+      | Some block ->
+          let visited = Code.Addr.Set.add addr visited in
+          let successors = (* ... existing successor logic ... *) in
+          List.fold_left ~f:collect_reachable ~init:visited successors
+  in
+
+  let reachable = collect_reachable Code.Addr.Set.empty start_addr in
+
+  (* Collect variables from all reachable blocks *)
+  Code.Addr.Set.fold (fun addr acc ->
+    match Code.Addr.Map.find_opt addr program.Code.blocks with
+    | None -> acc
+    | Some block ->
+        List.fold_left ~f:collect_instr_vars ~init:acc block.Code.body
+  ) reachable StringSet.empty
+```
+
+**Test**:
+```ocaml
+let%expect_test "variable collection" =
+  let vars = collect_block_variables ctx program start_addr in
+  Printf.printf "Collected %d variables\n" (StringSet.cardinal vars);
+  [%expect {| Collected 157 variables |}]
+```
+
+**Success Criteria**:
+- ✅ Collects all variables from reachable blocks
+- ✅ Returns deduplicated set
+- ✅ Handles all instruction types
+- ✅ No compilation warnings
+
+---
+
+#### Task 0.2: Implement Variable Hoisting (~40 lines)
+
+**Objective**: Generate `local v1, v2, v3, ...` declaration at function start.
+
+**Location**: `compiler/lib-lua/lua_generate.ml`, modify `compile_blocks_with_labels`
+
+**Implementation**:
+
+```ocaml
+and compile_blocks_with_labels ctx program start_addr =
+  (* Collect all variables that need hoisting *)
+  let hoisted_vars = collect_block_variables ctx program start_addr in
+
+  (* Generate variable declaration statement *)
+  let hoist_stmt =
+    if StringSet.is_empty hoisted_vars
+    then []
+    else
+      let var_list =
+        hoisted_vars
+        |> StringSet.elements
+        |> List.sort ~cmp:String.compare
+        |> String.concat ~sep:", "
+      in
+      [ L.Comment (Printf.sprintf "Hoisted variables (%d total)"
+                    (StringSet.cardinal hoisted_vars))
+      ; L.Local_decl (StringSet.elements hoisted_vars, []) ]
+  in
+
+  (* Generate blocks with labels (existing logic) *)
+  let block_stmts = (* ... existing block generation ... *) in
+
+  (* Return hoisted declarations + blocks *)
+  hoist_stmt @ block_stmts
+```
+
+**Test**:
+```ocaml
+let%expect_test "variable hoisting" =
+  let lua_code = compile_blocks_with_labels ctx program start_addr in
+  match lua_code with
+  | L.Comment _ :: L.Local_decl (vars, []) :: _ ->
+      Printf.printf "Hoisted %d variables\n" (List.length vars);
+      [%expect {| Hoisted 157 variables |}]
+  | _ -> failwith "Expected hoisted variables"
+```
+
+**Success Criteria**:
+- ✅ Generates single `local v1, v2, ...` at function start
+- ✅ All variables declared before any code
+- ✅ No duplicate declarations
+- ✅ No warnings
+
+---
+
+#### Task 0.3: Convert Local Declarations to Assignments (~30 lines)
+
+**Objective**: Change `local vN = expr` to `vN = expr` in block bodies.
+
+**Location**: `compiler/lib-lua/lua_generate.ml`, modify `generate_instrs`
+
+**Implementation**:
+
+```ocaml
+(** Generate Lua statements from Code instructions
+    With hoisting enabled, generates assignments instead of local declarations
+
+    @param ctx Code generation context
+    @param instrs List of Code instructions
+    @return List of Lua statements
+*)
+and generate_instrs ctx instrs =
+  List.concat_map ~f:(fun instr ->
+    match instr with
+    | Code.Let (var, expr) ->
+        let lua_expr = generate_expr ctx expr in
+        let var_name = var_name ctx var in
+        (* With hoisting: assignment instead of local declaration *)
+        [ L.Assign ([L.Ident var_name], [lua_expr]) ]
+    | Code.Assign (var, expr) ->
+        let lua_expr = generate_expr ctx expr in
+        let var_name = var_name ctx var in
+        [ L.Assign ([L.Ident var_name], [lua_expr]) ]
+    | (* ... other instructions ... *)
+  ) instrs
+```
+
+**Test**:
+```ocaml
+let%expect_test "assignments not locals" =
+  let stmts = generate_instrs ctx [Code.Let (v1, Code.Constant (Int 42L))] in
+  match stmts with
+  | [L.Assign ([L.Ident name], [L.Number _])] ->
+      Printf.printf "Generated assignment for %s\n" name;
+      [%expect {| Generated assignment for v_1 |}]
+  | _ -> failwith "Expected assignment, not local"
+```
+
+**Success Criteria**:
+- ✅ No `local` declarations in block bodies
+- ✅ All variables assigned, not declared
+- ✅ Generated Lua is syntactically valid
+- ✅ No warnings
+
+---
+
+#### Task 0.4: Implement Fall-Through Optimization (~80 lines)
+
+**Objective**: Inline consecutive blocks without goto (like JS backend).
+
+**Location**: `compiler/lib-lua/lua_generate.ml`, modify `compile_blocks_with_labels`
+
+**Implementation**:
+
+```ocaml
+and compile_blocks_with_labels ctx program start_addr =
+  (* ... hoisting logic from Task 0.2 ... *)
+
+  (* Build control flow graph *)
+  let rec build_cfg visited addr =
+    if Code.Addr.Set.mem addr visited then (visited, [])
+    else match Code.Addr.Map.find_opt addr program.Code.blocks with
+      | None -> (visited, [])
+      | Some block ->
+          let visited = Code.Addr.Set.add addr visited in
+          (* Check if this block can fall through to next *)
+          match block.Code.branch with
+          | Code.Branch (next, _) when next = addr + 1 ->
+              (* Sequential blocks - fall through optimization *)
+              let body = generate_instrs ctx block.Code.body in
+              let (visited', rest) = build_cfg visited next in
+              (visited', body @ rest)  (* Inline without label/goto *)
+          | _ ->
+              (* Non-sequential - need label and terminator *)
+              let label = L.Label ("block_" ^ Code.Addr.to_string addr) in
+              let body = generate_instrs ctx block.Code.body in
+              let term = generate_last ctx block.Code.branch in
+              (visited, [label] @ body @ term)
+  in
+
+  let (_visited, stmts) = build_cfg Code.Addr.Set.empty start_addr in
+  hoist_stmt @ stmts
+```
+
+**Test**:
+```ocaml
+let%expect_test "fall through optimization" =
+  (* Create sequential blocks: 0 -> 1 -> 2 *)
+  let program = (* ... *) in
+  let lua_code = compile_blocks_with_labels ctx program 0 in
+  (* Should NOT have labels for blocks 1 and 2 (fall through) *)
+  let has_block_1_label = List.exists (function
+    | L.Label "block_1" -> true | _ -> false) lua_code in
+  Printf.printf "Has block_1 label: %b\n" has_block_1_label;
+  [%expect {| Has block_1 label: false |}]  (* Should be false = optimized *)
+```
+
+**Success Criteria**:
+- ✅ Sequential blocks inlined (no label/goto)
+- ✅ Non-sequential blocks use labels
+- ✅ Correct control flow preserved
+- ✅ No warnings
+
+---
+
+#### Task 0.5: Verify Lua Execution (~20 lines)
+
+**Objective**: Test that generated Lua code actually executes.
+
+**Location**: `compiler/tests-lua/test_execution.ml`
+
+**Implementation**:
+
+```ocaml
+let%expect_test "hello_lua executes" =
+  (* Build hello.bc.lua with new generator *)
+  let _ = Sys.command "dune build examples/hello_lua/hello.bc.lua" in
+
+  (* Execute with Lua *)
+  let output =
+    let ic = Unix.open_process_in "lua _build/default/examples/hello_lua/hello.bc.lua" in
+    let result = In_channel.input_all ic in
+    let _ = Unix.close_process_in ic in
+    result
+  in
+
+  print_string output;
+  [%expect {| Hello from Lua_of_ocaml! |}]
+
+let%expect_test "minimal_exec executes" =
+  let _ = Sys.command "dune build compiler/tests-lua/minimal_exec.bc.lua" in
+  let output = (* ... *) in
+  print_string output;
+  [%expect {| test |}]
+```
+
+**Success Criteria**:
+- ✅ hello_lua executes without error
+- ✅ minimal_exec executes without error
+- ✅ Output matches expected
+- ✅ No Lua scope errors
+
+---
+
+#### Task 0.6: Performance Validation (~10 lines)
+
+**Objective**: Ensure hoisting doesn't regress performance.
+
+**Implementation**:
+
+Run existing benchmark:
+```bash
+dune exec compiler/tests-lua/bench_lua_generate.exe
+```
+
+**Expected**: Similar or better performance (hoisting may improve by reducing allocations).
+
+**Success Criteria**:
+- ✅ Compilation time <10ms for 269 blocks
+- ✅ Memory usage <2MB
+- ✅ No performance regression
+
+---
+
+#### Task 0.7: Update Documentation (~30 lines)
+
+**Objective**: Document the new code generation strategy.
+
+**Files**:
+- `compiler/lib-lua/lua_generate.ml` (add module comment)
+- `EXECUTION.md` (update with Phase 0 completion)
+- `SELF_HOSTING.md` (mark Phase 0 complete)
+
+**Success Criteria**:
+- ✅ Code generation strategy documented
+- ✅ Examples of generated code
+- ✅ Comparison with JS backend approach
+
+---
+
+### Phase 0 Summary
+
+**Total Effort**: ~260 lines, 3-4 hours
+
+**Tasks**:
+1. ✅ Task 0.1: Variable collection (~50 lines)
+2. ✅ Task 0.2: Variable hoisting (~40 lines)
+3. ✅ Task 0.3: Assignment conversion (~30 lines)
+4. ✅ Task 0.4: Fall-through optimization (~80 lines)
+5. ✅ Task 0.5: Execution verification (~20 lines)
+6. ✅ Task 0.6: Performance validation (~10 lines)
+7. ✅ Task 0.7: Documentation (~30 lines)
+
+**Success Criteria**:
+- ✅ All generated Lua code executes without scope errors
+- ✅ hello_lua prints "Hello from Lua_of_ocaml!"
+- ✅ minimal_exec prints "test"
+- ✅ Performance remains excellent (<10ms, <2MB)
+- ✅ Code generation matches JS backend philosophy
+
+**After Phase 0**: Proceed to Phase 1 (Basic Execution Testing)
+
+---
+
+### Phase 1: Basic Execution (UNBLOCKED after Phase 0)
 **Verify generated Lua can run at all**
 
 - [ ] Task 1.1: Test hello_lua execution
