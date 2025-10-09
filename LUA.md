@@ -1047,6 +1047,24 @@ Generated code calls runtime functions but doesn't load the runtime modules.
 
 **Architecture Strategy**: Use existing linker (DEPS.md) to embed primitive fragments directly into generated code. NO external file dependencies at runtime - everything is self-contained.
 
+**Important Clarification**:
+- **Existing `runtime/lua/*.lua` files**: Standalone modules for testing runtime in isolation. Use `require()`, export `M.function_name`. Do NOT have fragment headers. NOT used by compiler.
+- **New `runtime/lua/primitives/*.lua` files**: Fragment files for compiler embedding. Have `--// Provides:` headers, export global `caml_*` functions. Get embedded into generated code by linker. Must be created from scratch in this task.
+
+**Why separate?**:
+- Runtime modules (`array.lua`, `string.lua`, etc.) are for human testing and development
+- Primitive fragments (`caml_array.lua`, `caml_string.lua`, etc.) are for compiler code generation
+- Different APIs: `M.make()` vs `caml_array_make()`
+- Different dependency models: `require()` vs embedded
+- We're NOT adding headers to existing runtime files - we're creating NEW fragment files
+
+**Code Reuse Strategy**:
+- Copy/adapt logic FROM `runtime/lua/*.lua` TO `runtime/lua/primitives/*.lua`
+- Simplify: Remove module wrapper `M = {}`, remove `require()` calls
+- Adapt API: Change `M.make()` → `function caml_array_make()`
+- Add headers: `--// Provides: caml_array_make, caml_array_get, ...`
+- Keep implementations identical where possible (same OCaml semantics)
+
 **Implementation Plan**:
 
 ##### Subtask 14.3.1: Create Core Primitive Fragments (~150 lines)
