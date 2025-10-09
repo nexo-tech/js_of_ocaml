@@ -753,6 +753,20 @@ and collect_block_variables ctx program start_addr =
     @return List of Lua statements with labels and gotos
 *)
 and compile_blocks_with_labels ctx program start_addr =
+  (* Collect all variables that need hoisting *)
+  let hoisted_vars = collect_block_variables ctx program start_addr in
+
+  (* Generate variable declaration statement *)
+  let hoist_stmts =
+    if StringSet.is_empty hoisted_vars
+    then []
+    else
+      let var_list = StringSet.elements hoisted_vars |> List.sort ~cmp:String.compare in
+      [ L.Comment (Printf.sprintf "Hoisted variables (%d total)"
+                    (StringSet.cardinal hoisted_vars))
+      ; L.Local (var_list, None) ]
+  in
+
   (* Collect all reachable blocks from start *)
   let rec collect_reachable visited addr =
     if Code.Addr.Set.mem addr visited
@@ -775,17 +789,22 @@ and compile_blocks_with_labels ctx program start_addr =
   in
   let reachable = collect_reachable Code.Addr.Set.empty start_addr in
   (* Generate code for each block with label *)
-  reachable
-  |> Code.Addr.Set.elements
-  |> List.sort ~cmp:compare
-  |> List.concat_map ~f:(fun addr ->
-       match Code.Addr.Map.find_opt addr program.Code.blocks with
-       | None -> []
-       | Some block ->
-           let label = L.Label ("block_" ^ Code.Addr.to_string addr) in
-           let body = generate_instrs ctx block.Code.body in
-           let terminator = generate_last ctx block.Code.branch in
-           [ label ] @ body @ terminator)
+  let block_stmts =
+    reachable
+    |> Code.Addr.Set.elements
+    |> List.sort ~cmp:compare
+    |> List.concat_map ~f:(fun addr ->
+         match Code.Addr.Map.find_opt addr program.Code.blocks with
+         | None -> []
+         | Some block ->
+             let label = L.Label ("block_" ^ Code.Addr.to_string addr) in
+             let body = generate_instrs ctx block.Code.body in
+             let terminator = generate_last ctx block.Code.branch in
+             [ label ] @ body @ terminator)
+  in
+
+  (* Return hoisted declarations + blocks *)
+  hoist_stmts @ block_stmts
 
 (** {2 Function/Closure Generation} *)
 
