@@ -59,7 +59,27 @@ let%expect_test "record field access - simple" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = 1
@@ -68,7 +88,8 @@ let%expect_test "record field access - simple" =
       local v3 = v2[2]
       return v3
     end
-    __caml_init__() |}]
+    __caml_init__()
+    |}]
 
 (** Test variant construction optimization *)
 
@@ -93,14 +114,35 @@ let%expect_test "variant construction - simple constructor" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = 42
       local v1 = {tag = 1, v0}
       return v1
     end
-    __caml_init__() |}]
+    __caml_init__()
+    |}]
 
 (** Test variant discrimination optimization *)
 
@@ -157,7 +199,27 @@ let%expect_test "variant match - switch optimization" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = 0
@@ -209,7 +271,27 @@ let%expect_test "record - multiple field accesses" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = 1
@@ -221,7 +303,8 @@ let%expect_test "record - multiple field accesses" =
       local v6 = v3[3]
       return v4
     end
-    __caml_init__() |}]
+    __caml_init__()
+    |}]
 
 (** Test variant with inline record *)
 
@@ -248,7 +331,27 @@ let%expect_test "variant with inline record" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = 10
@@ -256,7 +359,8 @@ let%expect_test "variant with inline record" =
       local v2 = {tag = 0, v0, v1}
       return v2
     end
-    __caml_init__() |}]
+    __caml_init__()
+    |}]
 
 (** Test nested record access *)
 
@@ -286,7 +390,27 @@ let%expect_test "nested record access" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = 42
@@ -296,4 +420,5 @@ let%expect_test "nested record access" =
       local v4 = v3[1]
       return v4
     end
-    __caml_init__() |}]
+    __caml_init__()
+    |}]

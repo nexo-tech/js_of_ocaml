@@ -42,13 +42,34 @@ let%expect_test "generate standalone - empty program" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = 0
       return v0
     end
-    __caml_init__() |}]
+    __caml_init__()
+    |}]
 
 let%expect_test "generate standalone - simple computation" =
   let v1 = var_of_int 1 in
@@ -69,7 +90,27 @@ let%expect_test "generate standalone - simple computation" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = 5
@@ -77,7 +118,8 @@ let%expect_test "generate standalone - simple computation" =
       local v2 = v0 + v1
       return v2
     end
-    __caml_init__() |}]
+    __caml_init__()
+    |}]
 
 let%expect_test "generate standalone - with function" =
   let x = var_of_int 1 in
@@ -102,7 +144,27 @@ let%expect_test "generate standalone - with function" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = 42
@@ -234,7 +296,27 @@ let%expect_test "generate standalone - conditional program" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = 5
@@ -247,7 +329,8 @@ let%expect_test "generate standalone - conditional program" =
         return v2
       end
     end
-    __caml_init__() |}]
+    __caml_init__()
+    |}]
 
 (* Module dependency simulation tests *)
 

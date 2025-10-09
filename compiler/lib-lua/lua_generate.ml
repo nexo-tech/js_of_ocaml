@@ -549,7 +549,14 @@ let generate_prim ctx prim args =
           L.Call (L.Ident "caml_ml_set_buffered", [ chan; v ])
       (* Default: call external primitive function *)
       | _, args ->
-          let prim_func = L.Ident ("caml_" ^ name) in
+          (* Don't add caml_ prefix if name already starts with caml_ *)
+          let prim_name =
+            if String.starts_with ~prefix:"caml_" name then
+              name
+            else
+              "caml_" ^ name
+          in
+          let prim_func = L.Ident prim_name in
           L.Call (prim_func, args))
   (* Fallback for other cases *)
   | _ ->
@@ -1028,6 +1035,44 @@ let generate_module_init ctx program =
     chunk_funcs @ [ main_init_func; L.Call_stat (L.Call (L.Ident "__caml_init__", [])) ]
   end
 
+(** Generate minimal inline runtime
+    Provides essential runtime functions for standalone execution
+
+    @return List of Lua statements defining runtime functions
+*)
+let generate_inline_runtime () =
+  [
+    L.Comment "=== OCaml Runtime (Minimal Inline Version) ===";
+    L.Comment "Global storage for OCaml values";
+    L.Local ([ "_OCAML_GLOBALS" ], Some [ L.Table [] ]);
+    L.Comment "";
+    L.Comment "caml_register_global: Register a global OCaml value";
+    L.Comment "  n: global index";
+    L.Comment "  v: value to register";
+    L.Comment "  name: optional string name for the global";
+    L.Function_decl
+      ( "caml_register_global"
+      , [ "n"; "v"; "name" ]
+      , false
+      , [ L.Comment "Store value at index n+1 (Lua 1-indexed)";
+          L.Assign
+            ( [ L.Index (L.Ident "_OCAML_GLOBALS", L.BinOp (L.Add, L.Ident "n", L.Number "1")) ]
+            , [ L.Ident "v" ] );
+          L.Comment "Also store by name if provided";
+          L.If
+            ( L.Ident "name"
+            , [ L.Assign
+                  ( [ L.Index (L.Ident "_OCAML_GLOBALS", L.Ident "name") ]
+                  , [ L.Ident "v" ] )
+              ]
+            , None );
+          L.Comment "Return the value for chaining";
+          L.Return [ L.Ident "v" ]
+        ] );
+    L.Comment "";
+    L.Comment "=== End Runtime ==="
+  ]
+
 (** Generate standalone program
     Creates a complete Lua program that can be executed directly
 
@@ -1039,10 +1084,10 @@ let generate_standalone ctx program =
   (* Generate module initialization *)
   let init_code = generate_module_init ctx program in
 
-  (* Add runtime setup if needed *)
-  let runtime_setup = [ L.Comment "Runtime initialized by require statements" ] in
+  (* Add minimal inline runtime *)
+  let runtime_setup = generate_inline_runtime () in
 
-  runtime_setup @ init_code
+  runtime_setup @ [ L.Comment "" ] @ init_code
 
 (** Generate module code for separate compilation
     Creates module code that can be loaded via require()

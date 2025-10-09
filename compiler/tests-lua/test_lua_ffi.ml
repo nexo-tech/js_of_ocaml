@@ -47,13 +47,34 @@ let%expect_test "lua value - nil representation" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = 0
       return v0
     end
-    __caml_init__() |}]
+    __caml_init__()
+    |}]
 
 let%expect_test "lua value - boolean true" =
   (* Boolean true as 1 *)
@@ -69,13 +90,34 @@ let%expect_test "lua value - boolean true" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = 1
       return v0
     end
-    __caml_init__() |}]
+    __caml_init__()
+    |}]
 
 let%expect_test "lua value - boolean false" =
   (* Boolean false as 0 *)
@@ -91,13 +133,34 @@ let%expect_test "lua value - boolean false" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = 0
       return v0
     end
-    __caml_init__() |}]
+    __caml_init__()
+    |}]
 
 let%expect_test "lua value - number" =
   (* Numbers are represented directly *)
@@ -113,13 +176,34 @@ let%expect_test "lua value - number" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = 42
       return v0
     end
-    __caml_init__() |}]
+    __caml_init__()
+    |}]
 
 let%expect_test "lua value - string" =
   (* Strings are represented directly *)
@@ -135,13 +219,34 @@ let%expect_test "lua value - string" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = "hello"
       return v0
     end
-    __caml_init__() |}]
+    __caml_init__()
+    |}]
 
 let%expect_test "lua value - table (OCaml record)" =
   (* Tables are represented as blocks with tag field *)
@@ -164,7 +269,27 @@ let%expect_test "lua value - table (OCaml record)" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = 10
@@ -172,7 +297,8 @@ let%expect_test "lua value - table (OCaml record)" =
       local v2 = {tag = 0, v0, v1}
       return v2
     end
-    __caml_init__() |}]
+    __caml_init__()
+    |}]
 
 let%expect_test "lua value - array" =
   (* Arrays are blocks with elements *)
@@ -198,7 +324,27 @@ let%expect_test "lua value - array" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = 1
@@ -207,7 +353,8 @@ let%expect_test "lua value - array" =
       local v3 = {tag = 0, v0, v1, v2}
       return v3
     end
-    __caml_init__() |}]
+    __caml_init__()
+    |}]
 
 let%expect_test "lua value - option None" =
   (* Option None is 0 *)
@@ -223,13 +370,34 @@ let%expect_test "lua value - option None" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = 0
       return v0
     end
-    __caml_init__() |}]
+    __caml_init__()
+    |}]
 
 let%expect_test "lua value - option Some" =
   (* Option Some is a block with tag 0 *)
@@ -249,14 +417,35 @@ let%expect_test "lua value - option Some" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = 42
       local v1 = {tag = 0, v0}
       return v1
     end
-    __caml_init__() |}]
+    __caml_init__()
+    |}]
 
 let%expect_test "lua value - list" =
   (* Lists are represented as nested blocks *)
@@ -289,7 +478,27 @@ let%expect_test "lua value - list" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = 1
@@ -301,7 +510,8 @@ let%expect_test "lua value - list" =
       local v6 = {tag = 0, v0, v5}
       return v6
     end
-    __caml_init__() |}]
+    __caml_init__()
+    |}]
 
 let%expect_test "lua value - closure representation" =
   (* Functions/closures are represented as blocks *)
@@ -326,7 +536,27 @@ let%expect_test "lua value - closure representation" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = function()
@@ -360,7 +590,27 @@ let%expect_test "lua interop - function call with call1" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = caml_get_global_fn("print")
@@ -368,7 +618,8 @@ let%expect_test "lua interop - function call with call1" =
       local v2 = caml_call1(v0, v1)
       return v2
     end
-    __caml_init__() |}]
+    __caml_init__()
+    |}]
 
 let%expect_test "lua interop - table field access with get_int" =
   (* Simulates getting an integer field from a Lua table *)
@@ -390,7 +641,27 @@ let%expect_test "lua interop - table field access with get_int" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = caml_get_global_table("my_table")
@@ -398,7 +669,8 @@ let%expect_test "lua interop - table field access with get_int" =
       local v2 = caml_get_int(v0, v1)
       return v2
     end
-    __caml_init__() |}]
+    __caml_init__()
+    |}]
 
 let%expect_test "lua interop - global variable access" =
   (* Simulates getting and setting global variables *)
@@ -420,14 +692,35 @@ let%expect_test "lua interop - global variable access" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = 42
       local v1 = caml_set_global_int("my_var", v0)
       return v1
     end
-    __caml_init__() |}]
+    __caml_init__()
+    |}]
 
 let%expect_test "lua interop - module require" =
   (* Simulates requiring a Lua module *)
@@ -443,13 +736,34 @@ let%expect_test "lua interop - module require" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = caml_require("os")
       return v0
     end
-    __caml_init__() |}]
+    __caml_init__()
+    |}]
 
 let%expect_test "lua interop - method call" =
   (* Simulates calling a method on a Lua table *)
@@ -475,7 +789,27 @@ let%expect_test "lua interop - method call" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = caml_get_global_table("string")
@@ -484,7 +818,8 @@ let%expect_test "lua interop - method call" =
       local v3 = caml_call_method(v0, v1, v2)
       return v3
     end
-    __caml_init__() |}]
+    __caml_init__()
+    |}]
 
 let%expect_test "lua interop - table set operations" =
   (* Simulates setting fields in a Lua table *)
@@ -509,7 +844,27 @@ let%expect_test "lua interop - table set operations" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = caml_table()
@@ -518,7 +873,8 @@ let%expect_test "lua interop - table set operations" =
       local v3 = caml_set_string(v0, v1, v2)
       return v3
     end
-    __caml_init__() |}]
+    __caml_init__()
+    |}]
 
 (** Test OCaml function export **)
 
@@ -543,7 +899,27 @@ let%expect_test "lua export - export_fn1" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = function()
@@ -552,7 +928,8 @@ let%expect_test "lua export - export_fn1" =
       local v2 = caml_export_fn1("my_func", v0)
       return v2
     end
-    __caml_init__() |}]
+    __caml_init__()
+    |}]
 
 let%expect_test "lua export - export_module" =
   (* Simulates exporting an OCaml module to Lua *)
@@ -583,7 +960,27 @@ let%expect_test "lua export - export_module" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = function()
@@ -624,7 +1021,27 @@ let%expect_test "lua export - make_module" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = function()
@@ -662,13 +1079,34 @@ let%expect_test "lua export - wrapped function with marshalling" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = caml_export_wrapped1("add_one", "Int_marshal", "Int_marshal")
       return v0
     end
-    __caml_init__() |}]
+    __caml_init__()
+    |}]
 
 (** Library Wrapping Tests **)
 
@@ -692,12 +1130,32 @@ let%expect_test "library wrapping - method0 binding" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
-      local v0 = caml_caml_lua_get_global("vim")
+      local v0 = caml_lua_get_global("vim")
       local v1 = "nvim_get_current_buf"
-      local v2 = caml_caml_lua_method0(v0, v1)
+      local v2 = caml_lua_method0(v0, v1)
       return v2
     end
     __caml_init__()
@@ -727,12 +1185,32 @@ let%expect_test "library wrapping - method1 binding" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
-      local v0 = caml_caml_lua_create_table()
+      local v0 = caml_lua_create_table()
       local v1 = "set_line"
-      local v2 = caml_caml_lua_method1(v0, v1)
+      local v2 = caml_lua_method1(v0, v1)
       local v3 = "Hello, Lua!"
       local v4 = v2(v3)
       return v4
@@ -760,12 +1238,32 @@ let%expect_test "library wrapping - property access" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
-      local v0 = caml_caml_lua_create_table()
+      local v0 = caml_lua_create_table()
       local v1 = "name"
-      local v2 = caml_caml_lua_prop_get(v0, v1)
+      local v2 = caml_lua_prop_get(v0, v1)
       return v2
     end
     __caml_init__()
@@ -799,15 +1297,35 @@ let%expect_test "library wrapping - method chaining with pipe" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
-      local v0 = caml_caml_lua_create_table()
+      local v0 = caml_lua_create_table()
       local v1 = 10
       local v2 = 20
-      local v3 = caml_caml_lua_method1(v0, "foo")
+      local v3 = caml_lua_method1(v0, "foo")
       local v4 = v3(v1)
-      local v5 = caml_caml_lua_method1(v4, "bar")
+      local v5 = caml_lua_method1(v4, "bar")
       local v6 = v5(v2)
       return v6
     end
@@ -834,12 +1352,32 @@ let%expect_test "library wrapping - optional parameter with opt_param" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = 42
       local v1 = 0
-      local v2 = caml_caml_lua_opt_param(v0, v1)
+      local v2 = caml_lua_opt_param(v0, v1)
       return v2
     end
     __caml_init__()
@@ -869,14 +1407,34 @@ let%expect_test "library wrapping - bind_function typed wrapper" =
   print_endline (program_to_string lua_code);
   [%expect
     {|
-    -- Runtime initialized by require statements
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = "math"
       local v1 = "sqrt"
       local v2 = "Float_marshal"
       local v3 = "Float_marshal"
-      local v4 = caml_caml_lua_bind_function(v0, v1, v2, v3)
+      local v4 = caml_lua_bind_function(v0, v1, v2, v3)
       return v4
     end
     __caml_init__()
