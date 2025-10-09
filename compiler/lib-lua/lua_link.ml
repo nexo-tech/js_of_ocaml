@@ -33,25 +33,36 @@ type state =
 
 let init () = { fragments = StringMap.empty; required = StringSet.empty }
 
-(* Parse provides header: "--// Provides: foo, bar" -> ["foo"; "bar"] *)
-let parse_provides (line : string) : string list =
-  let prefix = "--// Provides:" in
+(* Parse provides header: "--Provides: caml_foo" -> Some "caml_foo"
+   Unlike js_of_ocaml which uses "//Provides:", Lua uses "--Provides:"
+   Each line declares ONE function name (matching js_of_ocaml semantics).
+
+   Example:
+     --Provides: caml_array_make
+     function caml_array_make(len, init)
+       ...
+     end
+*)
+let parse_provides (line : string) : string option =
+  let prefix = "--Provides:" in
   let prefix_len = String.length prefix in
   if String.length line >= prefix_len
      && String.equal (String.sub line ~pos:0 ~len:prefix_len) prefix
   then
     let rest = String.sub line ~pos:prefix_len ~len:(String.length line - prefix_len) in
-    let symbols = String.split_on_char ~sep:',' rest in
-    List.filter_map
-      ~f:(fun s ->
-        let trimmed = String.trim s in
-        if String.length trimmed > 0 then Some trimmed else None)
-      symbols
-  else []
+    let symbol = String.trim rest in
+    if String.length symbol > 0 then Some symbol else None
+  else None
 
-(* Parse requires header: "--// Requires: foo, bar" -> ["foo"; "bar"] *)
+(* Parse requires header: "--Requires: caml_foo, caml_bar" -> ["caml_foo"; "caml_bar"]
+   Unlike js_of_ocaml which uses "//Requires:", Lua uses "--Requires:"
+   Multiple dependencies can be listed on one line, comma-separated.
+
+   Example:
+     --Requires: caml_make_vect, caml_array_get
+*)
 let parse_requires (line : string) : string list =
-  let prefix = "--// Requires:" in
+  let prefix = "--Requires:" in
   let prefix_len = String.length prefix in
   if String.length line >= prefix_len
      && String.equal (String.sub line ~pos:0 ~len:prefix_len) prefix
@@ -162,7 +173,22 @@ let check_version_constraints (fragment : fragment) : bool =
   in
   check_lines lines
 
-(* Parse complete fragment header from code string *)
+(* Parse complete fragment header from code string
+   Parses all --Provides: and --Requires: comments from the beginning of the file.
+   Each --Provides: declares one function. Multiple --Provides: lines can exist.
+
+   Example fragment:
+     --Provides: caml_array_make
+     --Requires: caml_make_vect
+     function caml_array_make(len, init)
+       return caml_make_vect(len, init)
+     end
+
+     --Provides: caml_array_get
+     function caml_array_get(arr, idx)
+       ...
+     end
+*)
 let parse_fragment_header ~name (code : string) : fragment =
   let lines = String.split_on_char ~sep:'\n' code in
   let rec parse_headers provides requires exports version_ok = function
@@ -174,25 +200,37 @@ let parse_fragment_header ~name (code : string) : fragment =
            && not (String.length trimmed >= 2
                    && String.equal (String.sub trimmed ~pos:0 ~len:2) "--")
         then provides, requires, exports, version_ok
-        (* Parse header directives *)
-        else if String.length trimmed >= 4
-                && String.equal (String.sub trimmed ~pos:0 ~len:4) "--//"
+        (* Parse --Provides: directive *)
+        else if String.starts_with ~prefix:"--Provides:" trimmed
         then
           let new_provides =
-            let p = parse_provides trimmed in
-            if List.length p > 0 then p else provides
+            match parse_provides trimmed with
+            | Some symbol -> symbol :: provides
+            | None -> provides
           in
+          parse_headers new_provides requires exports version_ok rest
+        (* Parse --Requires: directive *)
+        else if String.starts_with ~prefix:"--Requires:" trimmed
+        then
           let new_requires =
             let r = parse_requires trimmed in
             if List.length r > 0 then r @ requires else requires
           in
+          parse_headers provides new_requires exports version_ok rest
+        (* Parse --// Export: directive (legacy, to be removed in Task 1.2) *)
+        else if String.starts_with ~prefix:"--// Export:" trimmed
+        then
           let new_exports =
             match parse_export trimmed with
             | Some export -> export :: exports
             | None -> exports
           in
+          parse_headers provides requires new_exports version_ok rest
+        (* Parse --// Version: directive (legacy) *)
+        else if String.starts_with ~prefix:"--// Version:" trimmed
+        then
           let new_version_ok = version_ok && parse_version trimmed in
-          parse_headers new_provides new_requires new_exports new_version_ok rest
+          parse_headers provides requires exports new_version_ok rest
         else
           (* Regular comment, continue *)
           parse_headers provides requires exports version_ok rest
@@ -202,7 +240,9 @@ let parse_fragment_header ~name (code : string) : fragment =
   if not version_ok
   then { name; provides = []; requires = []; exports = []; code }
   else
-    (* If no provides found, default to fragment name *)
+    (* Reverse provides list to maintain declaration order *)
+    let provides = List.rev provides in
+    (* If no provides found, default to fragment name (legacy behavior) *)
     let provides = if List.length provides = 0 then [name] else provides in
     { name; provides; requires; exports = List.rev exports; code }
 

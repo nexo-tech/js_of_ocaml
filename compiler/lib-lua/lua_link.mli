@@ -36,14 +36,26 @@ type state
 val init : unit -> state
 
 (** Parse provides header from a line *)
-val parse_provides : string -> string list
-(** [parse_provides line] extracts symbols from a "--// Provides: sym1, sym2" header.
-    Returns empty list if line doesn't match the format. *)
+val parse_provides : string -> string option
+(** [parse_provides line] extracts a single symbol from a "--Provides: symbol" header.
+    Each line declares ONE function name (matching js_of_ocaml semantics).
+    Returns Some symbol if line matches the format, None otherwise.
+
+    Example:
+      parse_provides "--Provides: caml_array_make"  (* Returns Some "caml_array_make" *)
+      parse_provides "-- Regular comment"           (* Returns None *)
+*)
 
 (** Parse requires header from a line *)
 val parse_requires : string -> string list
-(** [parse_requires line] extracts symbols from a "--// Requires: sym1, sym2" header.
-    Returns empty list if line doesn't match the format. *)
+(** [parse_requires line] extracts symbols from a "--Requires: sym1, sym2" header.
+    Multiple dependencies can be listed on one line, comma-separated.
+    Returns empty list if line doesn't match the format.
+
+    Example:
+      parse_requires "--Requires: caml_foo, caml_bar"  (* Returns ["caml_foo"; "caml_bar"] *)
+      parse_requires "-- Regular comment"              (* Returns [] *)
+*)
 
 (** Parse export directive from a line *)
 val parse_export : string -> (string * string) option

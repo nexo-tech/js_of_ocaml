@@ -12,7 +12,11 @@ let%expect_test "create empty linking state" =
   [%expect {| state initialized |}]
 
 (* Task 1.1: Parse Provides Header Tests *)
+(* NOTE: These tests are DISABLED because they test the old --// Provides: format.
+   The new format uses --Provides: (without //) and returns string option, not string list.
+   See test_linker.ml for tests of the new format. *)
 
+(*
 let%expect_test "parse_provides with single symbol" =
   let line = "--// Provides: foo" in
   let result = Lua_link.parse_provides line in
@@ -54,6 +58,7 @@ let%expect_test "parse_provides case sensitive" =
   let result = Lua_link.parse_provides line in
   print_endline (String.concat ~sep:", " result);
   [%expect {| Foo, BAR, baz |}]
+*)
 
 (* Task 1.2: Parse Requires Header Tests *)
 
@@ -2602,11 +2607,14 @@ let%expect_test "version constraint affects fragment loading" =
 
 (* Task 7.1: Additional Header Parsing Edge Cases for Complete Coverage *)
 
+(* DISABLED: Old format test *)
+(*
 let%expect_test "parse_provides with malformed header - missing colon" =
   let line = "--// Provides foo, bar" in
   let result = Lua_link.parse_provides line in
   print_endline (String.concat ~sep:", " result);
   [%expect {| |}]
+*)
 
 let%expect_test "parse_requires with malformed header - missing colon" =
   let line = "--// Requires foo, bar" in
@@ -2666,11 +2674,14 @@ local function api() end
     requires: base
     |}]
 
+(* DISABLED: Old format test *)
+(*
 let%expect_test "parse_provides handles trailing comma" =
   let line = "--// Provides: foo, bar," in
   let result = Lua_link.parse_provides line in
   print_endline (String.concat ~sep:", " result);
   [%expect {| foo, bar |}]
+*)
 
 let%expect_test "parse_requires handles leading comma" =
   let line = "--// Requires: , foo, bar" in
