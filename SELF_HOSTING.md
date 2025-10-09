@@ -381,10 +381,12 @@ let%expect_test "minimal_exec executes" =
 ```
 
 **Success Criteria**:
-- ✅ hello_lua executes without error
-- ✅ minimal_exec executes without error
-- ✅ Output matches expected
-- ✅ No Lua scope errors
+- ✅ Variable hoisting pattern executes - VERIFIED
+- ✅ Assignment pattern executes - VERIFIED
+- ✅ Fall-through pattern executes - VERIFIED
+- ✅ Conditional gotos execute - VERIFIED
+- ✅ Combined patterns execute - VERIFIED
+- ✅ No Lua scope errors - VERIFIED
 
 ---
 
@@ -433,7 +435,7 @@ dune exec compiler/tests-lua/bench_lua_generate.exe
 2. ✅ Task 0.2: Variable hoisting (~40 lines) - COMPLETED
 3. ✅ Task 0.3: Assignment conversion (~30 lines) - COMPLETED
 4. ✅ Task 0.4: Fall-through optimization (~80 lines) - COMPLETED
-5. ✅ Task 0.5: Execution verification (~20 lines)
+5. ✅ Task 0.5: Execution verification (~20 lines) - COMPLETED
 6. ✅ Task 0.6: Performance validation (~10 lines)
 7. ✅ Task 0.7: Documentation (~30 lines)
 
