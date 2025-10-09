@@ -6,7 +6,7 @@ This document details the investigation and fix for why hello_lua generates only
 
 **Phase 5: Root Cause Investigation**
 - [x] Task 5.1: Add IR debug output to understand what bytecode parser generates (~50 lines)
-- [ ] Task 5.2: Compare JS backend output for hello.ml to identify differences (~30 lines)
+- [x] Task 5.2: Compare JS backend output for hello.ml to identify differences (~30 lines)
 - [ ] Task 5.3: Create minimal reproduction test case (~40 lines)
 
 **Phase 6: Identify and Fix the Problem**
