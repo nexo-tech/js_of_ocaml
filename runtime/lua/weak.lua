@@ -270,7 +270,7 @@ caml_weak_check = caml_ephe_check_key
 caml_weak_blit = caml_ephe_blit_key
 
 -- Export all functions as a module
-return {
+local M = {
   caml_weak_create = caml_weak_create,
   caml_weak_set = caml_weak_set,
   caml_weak_get = caml_weak_get,
@@ -292,3 +292,10 @@ return {
   caml_ephe_unset_data = caml_ephe_unset_data,
   caml_ephe_check_data = caml_ephe_check_data,
 }
+
+-- Add M.* aliases for naming convention
+M.create = caml_weak_create
+M.set = caml_weak_set
+M.get = caml_weak_get
+
+return M

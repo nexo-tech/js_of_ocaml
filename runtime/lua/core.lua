@@ -165,6 +165,14 @@ function M.size(block)
   return count
 end
 
+--- Set the value of a reference
+-- References are represented as blocks with tag 0 and a single field
+-- @param ref table The reference block
+-- @param value any The new value
+function M.ref_set(ref, value)
+  ref[1] = value
+end
+
 --- Check Lua version and feature availability
 M.lua_version = tonumber(_VERSION:match("%d+%.%d+"))
 M.has_bitops = M.lua_version >= 5.3  -- Native bitwise operators

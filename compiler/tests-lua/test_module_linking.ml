@@ -4035,3 +4035,136 @@ let%expect_test "compare module - wrapper generation" =
       return Compare.float_compare(...)
     end
     |}]
+
+(* ========================================================================= *)
+(* Task 3.2: Ref, Sys, and Weak Primitives Tests                            *)
+(* ========================================================================= *)
+
+let%expect_test "core module - ref_set naming convention" =
+  (* Test that caml_ref_set resolves via naming convention *)
+  let core_fragment = {
+    Lua_link.name = "core";
+    provides = [];
+    requires = [];
+    exports = [];
+    code = "local M = {}\nfunction M.ref_set(ref, val) ref[1] = val end\nreturn M"
+  } in
+
+  let fragments = [core_fragment] in
+
+  (match Lua_link.find_primitive_implementation "caml_ref_set" fragments with
+   | Some (frag, func) ->
+       Printf.printf "caml_ref_set: %s.%s\n" frag.name func
+   | None -> print_endline "caml_ref_set: NOT FOUND");
+
+  [%expect {| caml_ref_set: core.ref_set |}]
+
+let%expect_test "sys module - sys_open/sys_close naming convention" =
+  (* Test that sys primitives resolve via naming convention *)
+  let sys_fragment = {
+    Lua_link.name = "sys";
+    provides = [];
+    requires = [];
+    exports = [];
+    code = "local M = {}\nfunction M.sys_open(path, flags) error('not implemented') end\nfunction M.sys_close(fd) error('not implemented') end\nreturn M"
+  } in
+
+  let fragments = [sys_fragment] in
+
+  (match Lua_link.find_primitive_implementation "caml_sys_open" fragments with
+   | Some (frag, func) ->
+       Printf.printf "caml_sys_open: %s.%s\n" frag.name func
+   | None -> print_endline "caml_sys_open: NOT FOUND");
+
+  (match Lua_link.find_primitive_implementation "caml_sys_close" fragments with
+   | Some (frag, func) ->
+       Printf.printf "caml_sys_close: %s.%s\n" frag.name func
+   | None -> print_endline "caml_sys_close: NOT FOUND");
+
+  [%expect {|
+    caml_sys_open: sys.sys_open
+    caml_sys_close: sys.sys_close
+    |}]
+
+let%expect_test "weak module - naming convention for create/set/get" =
+  (* Test that weak primitives resolve via naming convention *)
+  let weak_fragment = {
+    Lua_link.name = "weak";
+    provides = [];
+    requires = [];
+    exports = [];
+    code = "local M = {}\nfunction M.create(n) return {} end\nfunction M.set(arr, i, v) end\nfunction M.get(arr, i) return nil end\nreturn M"
+  } in
+
+  let fragments = [weak_fragment] in
+
+  (match Lua_link.find_primitive_implementation "caml_weak_create" fragments with
+   | Some (frag, func) ->
+       Printf.printf "caml_weak_create: %s.%s\n" frag.name func
+   | None -> print_endline "caml_weak_create: NOT FOUND");
+
+  (match Lua_link.find_primitive_implementation "caml_weak_set" fragments with
+   | Some (frag, func) ->
+       Printf.printf "caml_weak_set: %s.%s\n" frag.name func
+   | None -> print_endline "caml_weak_set: NOT FOUND");
+
+  (match Lua_link.find_primitive_implementation "caml_weak_get" fragments with
+   | Some (frag, func) ->
+       Printf.printf "caml_weak_get: %s.%s\n" frag.name func
+   | None -> print_endline "caml_weak_get: NOT FOUND");
+
+  [%expect {|
+    caml_weak_create: weak.create
+    caml_weak_set: weak.set
+    caml_weak_get: weak.get
+    |}]
+
+let%expect_test "ref/sys/weak - wrapper generation" =
+  let core_fragment = {
+    Lua_link.name = "core";
+    provides = [];
+    requires = [];
+    exports = [];
+    code = "local M = {}\nfunction M.ref_set(ref, val) end\nreturn M"
+  } in
+
+  let sys_fragment = {
+    Lua_link.name = "sys";
+    provides = [];
+    requires = [];
+    exports = [];
+    code = "local M = {}\nfunction M.sys_open(p, f) end\nfunction M.sys_close(fd) end\nreturn M"
+  } in
+
+  let weak_fragment = {
+    Lua_link.name = "weak";
+    provides = [];
+    requires = [];
+    exports = [];
+    code = "local M = {}\nfunction M.create(n) end\nfunction M.set(a, i, v) end\nreturn M"
+  } in
+
+  let used_primitives = StringSet.of_list [
+    "caml_ref_set";
+    "caml_sys_open";
+    "caml_weak_create";
+    "caml_weak_set"
+  ] in
+
+  let wrappers = Lua_link.generate_wrappers used_primitives [core_fragment; sys_fragment; weak_fragment] in
+  print_endline wrappers;
+  [%expect {|
+    -- Global Primitive Wrappers
+    function caml_ref_set(...)
+      return Core.ref_set(...)
+    end
+    function caml_sys_open(...)
+      return Sys.sys_open(...)
+    end
+    function caml_weak_create(...)
+      return Weak.create(...)
+    end
+    function caml_weak_set(...)
+      return Weak.set(...)
+    end
+    |}]

@@ -14,7 +14,7 @@ This document details the implementation plan for Task 14.3: Runtime Primitive L
 
 **Phase 3: Runtime Primitives**
 - [x] Task 3.1: Add compare primitives (~52 lines)
-- [ ] Task 3.2: Add ref, sys, weak primitives (~80 lines)
+- [x] Task 3.2: Add ref, sys, weak primitives (~80 lines)
 
 **Phase 4: Testing & Verification**
 - [ ] Task 4.1: Add primitive coverage test (~100 lines)
@@ -801,11 +801,12 @@ return M
 - ✅ `caml_sys_open/close` throw appropriate errors
 - ✅ `caml_weak_*` work with Lua weak tables
 - ✅ All primitive tests pass
+- ✅ **COMPLETED**: All criteria met
 
 **Output**:
-- `runtime/lua/core.lua`: ~10 lines added
-- `runtime/lua/sys.lua`: ~30 lines (new file)
-- `runtime/lua/weak.lua`: ~40 lines (new file)
+- `runtime/lua/core.lua`: 6 lines added (ref_set function)
+- `runtime/lua/sys.lua`: 16 lines added (sys_open, sys_close stubs to existing file)
+- `runtime/lua/weak.lua`: 4 lines added (M.* aliases to existing file)
 
 **Commit**: `feat(lua/runtime): Add ref, sys, and weak primitives`
 

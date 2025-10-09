@@ -391,6 +391,21 @@ function M.caml_sys_exit(code)
   os.exit(code)
 end
 
+--- Open file (stub - not yet implemented)
+-- @param path string|table File path
+-- @param flags number Open flags
+-- @return number File descriptor (stub)
+function M.sys_open(path, flags)
+  error("caml_sys_open: not yet implemented in lua_of_ocaml")
+end
+
+--- Close file (stub - not yet implemented)
+-- @param fd number File descriptor
+-- @return number 0 (unit)
+function M.sys_close(fd)
+  error("caml_sys_close: not yet implemented in lua_of_ocaml")
+end
+
 --- Get random seed
 -- Returns array of random integers for seeding Random module
 -- @param _unit number Unit value (ignored)
