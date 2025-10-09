@@ -20,10 +20,9 @@ open! Stdlib
 
 type fragment =
   { name : string
-  ; provides : string list
-  ; requires : string list
-  ; exports : (string * string) list (* (module_func, global_name) *)
-  ; code : string
+  ; provides : string list  (** List of caml_* function names this fragment provides *)
+  ; requires : string list  (** List of caml_* function names this fragment requires *)
+  ; code : string  (** Lua code content *)
   }
 
 type state =
@@ -76,103 +75,6 @@ let parse_requires (line : string) : string list =
       symbols
   else []
 
-(* Parse export directive: "--// Export: make as caml_array_make" *)
-let parse_export (line : string) : (string * string) option =
-  let prefix = "--// Export:" in
-  let prefix_len = String.length prefix in
-  if String.length line >= prefix_len
-     && String.equal (String.sub line ~pos:0 ~len:prefix_len) prefix
-  then
-    let rest = String.sub line ~pos:prefix_len ~len:(String.length line - prefix_len) in
-    let trimmed = String.trim rest in
-    (* Parse "make as caml_array_make" *)
-    let parts = String.split_on_char ~sep:' ' trimmed in
-    let rec find_as acc = function
-      | [] -> None
-      | "as" :: global_parts ->
-          let global = String.concat ~sep:" " global_parts |> String.trim in
-          if String.length global > 0 && List.length acc > 0
-          then
-            let func = String.concat ~sep:" " (List.rev acc) |> String.trim in
-            Some (func, global)
-          else None
-      | part :: rest -> find_as (part :: acc) rest
-    in
-    find_as [] parts
-  else None
-
-(* Parse version constraint: "--// Version: >= 4.14" -> true/false *)
-let parse_version (line : string) : bool =
-  let prefix = "--// Version:" in
-  let prefix_len = String.length prefix in
-  if String.length line >= prefix_len
-     && String.equal (String.sub line ~pos:0 ~len:prefix_len) prefix
-  then
-    let rest = String.sub line ~pos:prefix_len ~len:(String.length line - prefix_len) in
-    let trimmed = String.trim rest in
-    (* Parse operator and version: ">= 4.14", "= 5.0", etc. *)
-    let parse_constraint s =
-      if String.length s < 2 then None
-      else
-        let op_str, ver_str =
-          if String.length s >= 2 && String.equal (String.sub s ~pos:0 ~len:2) ">="
-          then ">=", String.sub s ~pos:2 ~len:(String.length s - 2)
-          else if String.length s >= 2 && String.equal (String.sub s ~pos:0 ~len:2) "<="
-          then "<=", String.sub s ~pos:2 ~len:(String.length s - 2)
-          else if String.length s >= 1 && String.equal (String.sub s ~pos:0 ~len:1) ">"
-          then ">", String.sub s ~pos:1 ~len:(String.length s - 1)
-          else if String.length s >= 1 && String.equal (String.sub s ~pos:0 ~len:1) "<"
-          then "<", String.sub s ~pos:1 ~len:(String.length s - 1)
-          else if String.length s >= 1 && String.equal (String.sub s ~pos:0 ~len:1) "="
-          then "=", String.sub s ~pos:1 ~len:(String.length s - 1)
-          else "", s
-        in
-        if String.length op_str = 0 then None
-        else
-          let ver_str = String.trim ver_str in
-          let op = match op_str with
-            | ">=" -> (>=)
-            | "<=" -> (<=)
-            | ">" -> (>)
-            | "<" -> (<)
-            | "=" -> (=)
-            | _ -> (=)
-          in
-          Some (op, ver_str)
-    in
-    match parse_constraint trimmed with
-    | None -> true (* No valid constraint means accept all *)
-    | Some (op, ver_str) ->
-        op Ocaml_version.(compare current (split ver_str)) 0
-  else true (* No version header means accept all *)
-
-(* Check if a fragment's version constraints are satisfied *)
-let check_version_constraints (fragment : fragment) : bool =
-  (* Re-parse version constraints from the fragment code *)
-  let lines = String.split_on_char ~sep:'\n' fragment.code in
-  let rec check_lines = function
-    | [] -> true (* No version constraint found means accept *)
-    | line :: rest ->
-        let trimmed = String.trim line in
-        (* Stop at first non-comment line *)
-        if String.length trimmed > 0
-           && not (String.length trimmed >= 2
-                   && String.equal (String.sub trimmed ~pos:0 ~len:2) "--")
-        then true (* No more headers, accept *)
-        (* Check for version directive *)
-        else if String.length trimmed >= 4
-                && String.equal (String.sub trimmed ~pos:0 ~len:4) "--//"
-        then
-          let version_satisfied = parse_version trimmed in
-          if not version_satisfied
-          then false (* Version constraint failed *)
-          else check_lines rest
-        else
-          (* Regular comment, continue *)
-          check_lines rest
-  in
-  check_lines lines
-
 (* Parse complete fragment header from code string
    Parses all --Provides: and --Requires: comments from the beginning of the file.
    Each --Provides: declares one function. Multiple --Provides: lines can exist.
@@ -191,15 +93,15 @@ let check_version_constraints (fragment : fragment) : bool =
 *)
 let parse_fragment_header ~name (code : string) : fragment =
   let lines = String.split_on_char ~sep:'\n' code in
-  let rec parse_headers provides requires exports version_ok = function
-    | [] -> provides, requires, exports, version_ok
+  let rec parse_headers provides requires = function
+    | [] -> provides, requires
     | line :: rest ->
         let trimmed = String.trim line in
         (* Stop at first non-comment line *)
         if String.length trimmed > 0
            && not (String.length trimmed >= 2
                    && String.equal (String.sub trimmed ~pos:0 ~len:2) "--")
-        then provides, requires, exports, version_ok
+        then provides, requires
         (* Parse --Provides: directive *)
         else if String.starts_with ~prefix:"--Provides:" trimmed
         then
@@ -208,7 +110,7 @@ let parse_fragment_header ~name (code : string) : fragment =
             | Some symbol -> symbol :: provides
             | None -> provides
           in
-          parse_headers new_provides requires exports version_ok rest
+          parse_headers new_provides requires rest
         (* Parse --Requires: directive *)
         else if String.starts_with ~prefix:"--Requires:" trimmed
         then
@@ -216,35 +118,17 @@ let parse_fragment_header ~name (code : string) : fragment =
             let r = parse_requires trimmed in
             if List.length r > 0 then r @ requires else requires
           in
-          parse_headers provides new_requires exports version_ok rest
-        (* Parse --// Export: directive (legacy, to be removed in Task 1.2) *)
-        else if String.starts_with ~prefix:"--// Export:" trimmed
-        then
-          let new_exports =
-            match parse_export trimmed with
-            | Some export -> export :: exports
-            | None -> exports
-          in
-          parse_headers provides requires new_exports version_ok rest
-        (* Parse --// Version: directive (legacy) *)
-        else if String.starts_with ~prefix:"--// Version:" trimmed
-        then
-          let new_version_ok = version_ok && parse_version trimmed in
-          parse_headers provides requires exports new_version_ok rest
+          parse_headers provides new_requires rest
         else
           (* Regular comment, continue *)
-          parse_headers provides requires exports version_ok rest
+          parse_headers provides requires rest
   in
-  let provides, requires, exports, version_ok = parse_headers [] [] [] true lines in
-  (* If version constraint not satisfied, return empty provides/requires/exports *)
-  if not version_ok
-  then { name; provides = []; requires = []; exports = []; code }
-  else
-    (* Reverse provides list to maintain declaration order *)
-    let provides = List.rev provides in
-    (* If no provides found, default to fragment name (legacy behavior) *)
-    let provides = if List.length provides = 0 then [name] else provides in
-    { name; provides; requires; exports = List.rev exports; code }
+  let provides, requires = parse_headers [] [] lines in
+  (* Reverse provides list to maintain declaration order *)
+  let provides = List.rev provides in
+  (* If no provides found, default to fragment name *)
+  let provides = if List.length provides = 0 then [name] else provides in
+  { name; provides; requires; code }
 
 let load_runtime_file filename =
   let ic = open_in_bin filename in
@@ -650,34 +534,18 @@ let parse_primitive_name (prim : string) : (string * string) option =
   | [ func ] -> Some ("core", func) (* Default to core module *)
   | module_name :: func_parts -> Some (module_name, String.concat ~sep:"_" func_parts)
 
-(* Find primitive implementation using hybrid strategy:
-   1. Try naming convention first
-   2. Fall back to Export directive if not found *)
+(* Find primitive implementation using naming convention.
+   After refactoring, all primitives use caml_* names directly.
+   No more Export directives or module wrappers needed. *)
 let find_primitive_implementation
-    (prim_name : string)
-    (fragments : fragment list)
+    (_prim_name : string)
+    (_fragments : fragment list)
     : (fragment * string) option
   =
-  (* Strategy 1: Naming convention *)
-  let convention_result =
-    match parse_primitive_name prim_name with
-    | Some (module_name, func_name) ->
-        (* Find fragment with matching name *)
-        List.find_opt ~f:(fun f -> String.equal f.name module_name) fragments
-        |> Option.map ~f:(fun frag -> (frag, func_name))
-    | None -> None
-  in
-  match convention_result with
-  | Some _ -> convention_result (* Found via naming convention *)
-  | None ->
-      (* Strategy 2: Export directive fallback *)
-      List.find_map
-        ~f:(fun frag ->
-          List.find_map
-            ~f:(fun (mod_func, global) ->
-              if String.equal global prim_name then Some (frag, mod_func) else None)
-            frag.exports)
-        fragments
+  (* NOTE: This function is deprecated after refactoring.
+     All primitives will be direct caml_* functions, no wrappers needed.
+     Kept for compatibility during transition. *)
+  None
 
 (* Embed runtime module code directly (NOT wrapped in package.loaded) *)
 let embed_runtime_module (frag : fragment) : string =

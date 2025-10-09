@@ -138,11 +138,15 @@ let%expect_test "all primitives are resolvable via linking system" =
   [%expect
     {|
     Loaded 88 runtime fragments
-    Resolvable: 19/72 primitives
-    Unresolvable: 53/72 primitives
+    Resolvable: 0/72 primitives
+    Unresolvable: 72/72 primitives
 
     Unresolvable primitives:
       - caml_register_global
+      - caml_int_compare
+      - caml_int32_compare
+      - caml_nativeint_compare
+      - caml_float_compare
       - caml_string_compare
       - caml_string_get
       - caml_string_set
@@ -155,9 +159,17 @@ let%expect_test "all primitives are resolvable via linking system" =
       - caml_create_bytes
       - caml_fill_bytes
       - caml_blit_bytes
+      - caml_array_set
+      - caml_array_unsafe_set
       - caml_make_vect
+      - caml_array_make
       - caml_make_float_vect
       - caml_floatarray_create
+      - caml_array_sub
+      - caml_array_append
+      - caml_array_concat
+      - caml_array_blit
+      - caml_array_fill
       - caml_floatarray_set
       - caml_floatarray_unsafe_set
       - caml_ref_set
@@ -195,6 +207,13 @@ let%expect_test "all primitives are resolvable via linking system" =
       - caml_output_value
       - caml_input_value
       - caml_input_value_to_outside_heap
+      - caml_sys_open
+      - caml_sys_close
+      - caml_weak_create
+      - caml_weak_set
+      - caml_weak_get
+      - caml_closure
+      - caml_special
     |}]
 
 let%expect_test "show resolvable primitives with their implementations" =
@@ -224,25 +243,4 @@ let%expect_test "show resolvable primitives with their implementations" =
     sorted;
 
   [%expect
-    {|
-    Resolvable primitives (19):
-      caml_array_append -> array.append
-      caml_array_blit -> array.blit
-      caml_array_concat -> array.concat
-      caml_array_fill -> array.fill
-      caml_array_make -> array.make
-      caml_array_set -> array.set
-      caml_array_sub -> array.sub
-      caml_array_unsafe_set -> array.unsafe_set
-      caml_closure -> core.closure
-      caml_float_compare -> float.compare
-      caml_int32_compare -> compare.int_compare
-      caml_int_compare -> compare.int_compare
-      caml_nativeint_compare -> compare.int_compare
-      caml_special -> core.special
-      caml_sys_close -> sys.close
-      caml_sys_open -> sys.open
-      caml_weak_create -> weak.create
-      caml_weak_get -> weak.get
-      caml_weak_set -> weak.set
-    |}]
+    {| Resolvable primitives (0): |}]

@@ -22,10 +22,9 @@ open Stdlib
 
 (** Runtime fragment representing a Lua module or runtime file *)
 type fragment =
-  { name : string  (** Module name *)
-  ; provides : string list  (** Symbols this module provides *)
-  ; requires : string list  (** Symbols this module requires *)
-  ; exports : (string * string) list  (** Export mappings: (module_func, global_name) *)
+  { name : string  (** Fragment name (basename of .lua file) *)
+  ; provides : string list  (** List of caml_* function names this fragment provides *)
+  ; requires : string list  (** List of caml_* function names this fragment requires *)
   ; code : string  (** Lua code content *)
   }
 
@@ -56,12 +55,6 @@ val parse_requires : string -> string list
       parse_requires "--Requires: caml_foo, caml_bar"  (* Returns ["caml_foo"; "caml_bar"] *)
       parse_requires "-- Regular comment"              (* Returns [] *)
 *)
-
-(** Parse export directive from a line *)
-val parse_export : string -> (string * string) option
-(** [parse_export line] extracts function and global name mapping from a
-    "--// Export: func as global_name" header. Returns Some (func, global_name)
-    if line matches the format, None otherwise. *)
 
 (** Parse primitive name using naming convention *)
 val parse_primitive_name : string -> (string * string) option
@@ -99,24 +92,11 @@ val generate_wrappers : StringSet.t -> fragment list -> string
     each primitive to its module and function, then generates a global wrapper. Silently
     skips primitives that cannot be resolved (e.g., inlined functions). *)
 
-(** Parse version constraint from a line *)
-val parse_version : string -> bool
-(** [parse_version line] checks if the version constraint in a "--// Version: >= 4.14" header
-    is satisfied by the current OCaml version. Returns true if constraint is satisfied or
-    if line doesn't match the format. Supports operators: >=, <=, >, <, = *)
-
-(** Check if a fragment's version constraints are satisfied *)
-val check_version_constraints : fragment -> bool
-(** [check_version_constraints fragment] checks if all version constraints in the fragment's
-    code are satisfied by the current OCaml version. Returns true if all constraints are
-    satisfied or if no version constraints are found. Returns false if any constraint fails. *)
-
 (** Parse complete fragment header from code string *)
 val parse_fragment_header : name:string -> string -> fragment
 (** [parse_fragment_header ~name code] parses all header directives from a Lua code string.
-    Extracts Provides, Requires, and Version directives. Returns fragment with parsed metadata.
-    Stops parsing at first non-comment line. If version constraint not satisfied, returns
-    fragment with empty provides/requires. Defaults to [name] if no Provides header found. *)
+    Extracts --Provides: and --Requires: directives. Returns fragment with parsed metadata.
+    Stops parsing at first non-comment line. Defaults to [name] if no Provides header found. *)
 
 (** Load a runtime Lua file as a fragment *)
 val load_runtime_file : string -> fragment
