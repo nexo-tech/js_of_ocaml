@@ -342,10 +342,10 @@ let%expect_test "fall through optimization" =
 ```
 
 **Success Criteria**:
-- ✅ Sequential blocks inlined (no label/goto)
-- ✅ Non-sequential blocks use labels
-- ✅ Correct control flow preserved
-- ✅ No warnings
+- ✅ Sequential blocks inlined (no label/goto) - VERIFIED
+- ✅ Non-sequential blocks use labels - VERIFIED
+- ✅ Correct control flow preserved - VERIFIED
+- ✅ No warnings - VERIFIED
 
 ---
 
@@ -429,10 +429,10 @@ dune exec compiler/tests-lua/bench_lua_generate.exe
 **Total Effort**: ~260 lines, 3-4 hours
 
 **Tasks**:
-1. ✅ Task 0.1: Variable collection (~50 lines)
-2. ✅ Task 0.2: Variable hoisting (~40 lines)
+1. ✅ Task 0.1: Variable collection (~50 lines) - COMPLETED
+2. ✅ Task 0.2: Variable hoisting (~40 lines) - COMPLETED
 3. ✅ Task 0.3: Assignment conversion (~30 lines) - COMPLETED
-4. ✅ Task 0.4: Fall-through optimization (~80 lines)
+4. ✅ Task 0.4: Fall-through optimization (~80 lines) - COMPLETED
 5. ✅ Task 0.5: Execution verification (~20 lines)
 6. ✅ Task 0.6: Performance validation (~10 lines)
 7. ✅ Task 0.7: Documentation (~30 lines)

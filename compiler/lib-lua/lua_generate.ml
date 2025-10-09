@@ -788,19 +788,37 @@ and compile_blocks_with_labels ctx program start_addr =
           List.fold_left ~f:collect_reachable ~init:visited successors
   in
   let reachable = collect_reachable Code.Addr.Set.empty start_addr in
-  (* Generate code for each block with label *)
+
+  (* Build list of blocks sorted by address *)
+  let sorted_blocks = reachable |> Code.Addr.Set.elements |> List.sort ~cmp:compare in
+
+  (* Generate code for each block with fall-through optimization *)
   let block_stmts =
-    reachable
-    |> Code.Addr.Set.elements
-    |> List.sort ~cmp:compare
-    |> List.concat_map ~f:(fun addr ->
+    sorted_blocks
+    |> List.mapi ~f:(fun idx addr ->
          match Code.Addr.Map.find_opt addr program.Code.blocks with
          | None -> []
          | Some block ->
              let label = L.Label ("block_" ^ Code.Addr.to_string addr) in
              let body = generate_instrs ctx block.Code.body in
-             let terminator = generate_last ctx block.Code.branch in
+             (* Check if this block can fall through to the next *)
+             let can_fall_through =
+               match block.Code.branch with
+               | Code.Branch (next, _) ->
+                   (* Fall through if next block is sequential (addr + 1) *)
+                   next = addr + 1
+                   && (* And the next block is in our sorted list at the next position *)
+                   idx + 1 < List.length sorted_blocks
+                   && List.nth sorted_blocks (idx + 1) = next
+               | _ -> false
+             in
+             let terminator =
+               if can_fall_through
+               then [] (* Omit goto, let it fall through *)
+               else generate_last ctx block.Code.branch
+             in
              [ label ] @ body @ terminator)
+    |> List.concat
   in
 
   (* Return hoisted declarations + blocks *)

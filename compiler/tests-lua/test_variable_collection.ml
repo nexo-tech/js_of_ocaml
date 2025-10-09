@@ -429,3 +429,195 @@ let%expect_test "assignments_in_compiled_blocks" =
     {|
     Total assignments in block: 2
     No local declarations in block body |}]
+
+(* ========================================================================= *)
+(* Task 0.4: Fall-Through Optimization Tests                                *)
+(* ========================================================================= *)
+
+(* Test that sequential blocks fall through without goto *)
+let%expect_test "fall_through_sequential_blocks" =
+  let open Code in
+  let v1 = Var.fresh () in
+  let v2 = Var.fresh () in
+  (* Block 0: branches to block 1 (addr + 1) *)
+  let block0 =
+    { params = []
+    ; body = [ Let (v1, Constant (Int32 42l)) ]
+    ; branch = Branch (1, [])
+    }
+  in
+  (* Block 1: returns *)
+  let block1 =
+    { params = []; body = [ Let (v2, Constant (Int32 100l)) ]; branch = Return v2 }
+  in
+  let blocks = Addr.Map.empty |> Addr.Map.add 0 block0 |> Addr.Map.add 1 block1 in
+  let program = { start = 0; blocks; free_pc = 2 } in
+  let ctx =
+    Lua_of_ocaml_compiler__Lua_generate.make_context_with_program
+      ~debug:false
+      program
+  in
+  let stmts =
+    Lua_of_ocaml_compiler__Lua_generate.compile_blocks_with_labels ctx program 0
+  in
+  (* Count gotos - should be 0 for fall-through *)
+  let rec count_gotos = function
+    | [] -> 0
+    | Lua_of_ocaml_compiler__Lua_ast.Goto _ :: rest -> 1 + count_gotos rest
+    | _ :: rest -> count_gotos rest
+  in
+  Printf.printf "Total gotos: %d\n" (count_gotos stmts);
+  (* Check that block 0 doesn't have a goto *)
+  let has_block_0_goto =
+    List.exists
+      ~f:(function
+        | Lua_of_ocaml_compiler__Lua_ast.Goto "block_1" -> true
+        | _ -> false)
+      stmts
+  in
+  Printf.printf "Has goto to block_1: %b\n" has_block_0_goto;
+  [%expect {|
+    Total gotos: 0
+    Has goto to block_1: false |}]
+
+(* Test that non-sequential blocks still use goto *)
+let%expect_test "no_fall_through_non_sequential" =
+  let open Code in
+  let v1 = Var.fresh () in
+  let v2 = Var.fresh () in
+  (* Block 0: branches to block 2 (not addr + 1) *)
+  let block0 =
+    { params = []
+    ; body = [ Let (v1, Constant (Int32 42l)) ]
+    ; branch = Branch (2, [])
+    }
+  in
+  (* Block 2: returns *)
+  let block2 =
+    { params = []; body = [ Let (v2, Constant (Int32 100l)) ]; branch = Return v2 }
+  in
+  let blocks = Addr.Map.empty |> Addr.Map.add 0 block0 |> Addr.Map.add 2 block2 in
+  let program = { start = 0; blocks; free_pc = 3 } in
+  let ctx =
+    Lua_of_ocaml_compiler__Lua_generate.make_context_with_program
+      ~debug:false
+      program
+  in
+  let stmts =
+    Lua_of_ocaml_compiler__Lua_generate.compile_blocks_with_labels ctx program 0
+  in
+  (* Count gotos - should have 1 for non-sequential *)
+  let rec count_gotos = function
+    | [] -> 0
+    | Lua_of_ocaml_compiler__Lua_ast.Goto _ :: rest -> 1 + count_gotos rest
+    | _ :: rest -> count_gotos rest
+  in
+  Printf.printf "Total gotos: %d\n" (count_gotos stmts);
+  (* Check that block 0 has a goto *)
+  let has_block_2_goto =
+    List.exists
+      ~f:(function
+        | Lua_of_ocaml_compiler__Lua_ast.Goto "block_2" -> true
+        | _ -> false)
+      stmts
+  in
+  Printf.printf "Has goto to block_2: %b\n" has_block_2_goto;
+  [%expect {|
+    Total gotos: 1
+    Has goto to block_2: true |}]
+
+(* Test fall-through with multiple sequential blocks *)
+let%expect_test "fall_through_multiple_sequential" =
+  let open Code in
+  let v1 = Var.fresh () in
+  let v2 = Var.fresh () in
+  let v3 = Var.fresh () in
+  (* Block 0: branches to 1 *)
+  let block0 =
+    { params = []
+    ; body = [ Let (v1, Constant (Int32 1l)) ]
+    ; branch = Branch (1, [])
+    }
+  in
+  (* Block 1: branches to 2 *)
+  let block1 =
+    { params = []
+    ; body = [ Let (v2, Constant (Int32 2l)) ]
+    ; branch = Branch (2, [])
+    }
+  in
+  (* Block 2: returns *)
+  let block2 =
+    { params = []; body = [ Let (v3, Constant (Int32 3l)) ]; branch = Return v3 }
+  in
+  let blocks =
+    Addr.Map.empty
+    |> Addr.Map.add 0 block0
+    |> Addr.Map.add 1 block1
+    |> Addr.Map.add 2 block2
+  in
+  let program = { start = 0; blocks; free_pc = 3 } in
+  let ctx =
+    Lua_of_ocaml_compiler__Lua_generate.make_context_with_program
+      ~debug:false
+      program
+  in
+  let stmts =
+    Lua_of_ocaml_compiler__Lua_generate.compile_blocks_with_labels ctx program 0
+  in
+  (* All three blocks are sequential, so no gotos *)
+  let rec count_gotos = function
+    | [] -> 0
+    | Lua_of_ocaml_compiler__Lua_ast.Goto _ :: rest -> 1 + count_gotos rest
+    | _ :: rest -> count_gotos rest
+  in
+  Printf.printf "Total gotos: %d\n" (count_gotos stmts);
+  [%expect {| Total gotos: 0 |}]
+
+(* Test that conditional branches still generate gotos *)
+let%expect_test "conditional_still_has_gotos" =
+  let open Code in
+  let v1 = Var.fresh () in
+  let v2 = Var.fresh () in
+  (* Block 0: conditional branch *)
+  let block0 =
+    { params = []
+    ; body = [ Let (v1, Constant (Int32 1l)) ]
+    ; branch = Cond (v1, (1, []), (2, []))
+    }
+  in
+  (* Block 1: returns *)
+  let block1 =
+    { params = []; body = [ Let (v2, Constant (Int32 10l)) ]; branch = Return v2 }
+  in
+  (* Block 2: returns *)
+  let block2 =
+    { params = []; body = [ Let (v2, Constant (Int32 20l)) ]; branch = Return v2 }
+  in
+  let blocks =
+    Addr.Map.empty
+    |> Addr.Map.add 0 block0
+    |> Addr.Map.add 1 block1
+    |> Addr.Map.add 2 block2
+  in
+  let program = { start = 0; blocks; free_pc = 3 } in
+  let ctx =
+    Lua_of_ocaml_compiler__Lua_generate.make_context_with_program
+      ~debug:false
+      program
+  in
+  let stmts =
+    Lua_of_ocaml_compiler__Lua_generate.compile_blocks_with_labels ctx program 0
+  in
+  (* Conditional should generate 2 gotos (true and false branches) *)
+  let rec count_gotos_in_stmt = function
+    | Lua_of_ocaml_compiler__Lua_ast.Goto _ -> 1
+    | Lua_of_ocaml_compiler__Lua_ast.If (_, then_stmts, Some else_stmts) ->
+        count_gotos_in_stmts then_stmts + count_gotos_in_stmts else_stmts
+    | Lua_of_ocaml_compiler__Lua_ast.If (_, then_stmts, None) ->
+        count_gotos_in_stmts then_stmts
+    | _ -> 0
+  and count_gotos_in_stmts stmts = List.fold_left ~f:(fun acc s -> acc + count_gotos_in_stmt s) ~init:0 stmts
+  in
+  Printf.printf "Total gotos: %d\n" (count_gotos_in_stmts stmts);
+  [%expect {| Total gotos: 2 |}]
