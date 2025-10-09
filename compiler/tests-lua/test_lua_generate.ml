@@ -47,53 +47,55 @@ let rec stat_types = function
 let%expect_test "generate produces statements" =
   let result = Lua_generate.generate ~debug:false dummy_program in
   Printf.printf "Generated %d statements\n" (List.length result);
-  [%expect.unreachable]
-[@@expect.uncaught_exn {|
-  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
-     This is strongly discouraged as backtraces are fragile.
-     Please change this test to not include a backtrace. *)
-  (Failure "Program entry block not found")
-  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 972, characters 14-54
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 1244, characters 21-53
-  Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 48, characters 15-63
-  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
-  |}]
+  [%expect {| Generated 16 statements |}]
 
 let%expect_test "generate produces main function" =
   let result = Lua_generate.generate ~debug:false dummy_program in
   let types = stat_types result in
   List.iter ~f:(Printf.printf "Statement type: %s\n") types;
-  [%expect.unreachable]
-[@@expect.uncaught_exn {|
-  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
-     This is strongly discouraged as backtraces are fragile.
-     Please change this test to not include a backtrace. *)
-  (Failure "Program entry block not found")
-  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 972, characters 14-54
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 1244, characters 21-53
-  Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 64, characters 15-63
-  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
-  |}]
+  [%expect {|
+    Statement type: comment
+    Statement type: comment
+    Statement type: local
+    Statement type: comment
+    Statement type: comment
+    Statement type: comment
+    Statement type: comment
+    Statement type: comment
+    Statement type: function_decl
+    Statement type: comment
+    Statement type: comment
+    Statement type: comment
+    Statement type: comment
+    Statement type: comment
+    Statement type: function_decl
+    Statement type: call_stat
+    |}]
 
 let%expect_test "generate with debug produces same structure" =
   let result = Lua_generate.generate ~debug:true dummy_program in
   Printf.printf "Generated %d statements (debug mode)\n" (List.length result);
   let types = stat_types result in
   List.iter ~f:(Printf.printf "Statement type: %s\n") types;
-  [%expect.unreachable]
-[@@expect.uncaught_exn {|
-  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
-     This is strongly discouraged as backtraces are fragile.
-     Please change this test to not include a backtrace. *)
-  (Failure "Program entry block not found")
-  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 972, characters 14-54
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 1244, characters 21-53
-  Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 81, characters 15-62
-  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
-  |}]
+  [%expect {|
+    Generated 16 statements (debug mode)
+    Statement type: comment
+    Statement type: comment
+    Statement type: local
+    Statement type: comment
+    Statement type: comment
+    Statement type: comment
+    Statement type: comment
+    Statement type: comment
+    Statement type: function_decl
+    Statement type: comment
+    Statement type: comment
+    Statement type: comment
+    Statement type: comment
+    Statement type: comment
+    Statement type: function_decl
+    Statement type: call_stat
+    |}]
 
 let%expect_test "generate_to_string produces valid Lua" =
   let result = Lua_generate.generate_to_string ~debug:false dummy_program in
@@ -112,56 +114,81 @@ let%expect_test "generate_to_string produces valid Lua" =
   Printf.printf "Output contains 'function': %b\n" (contains "function");
   Printf.printf "Output contains 'main': %b\n" (contains "main");
   Printf.printf "Output contains 'return': %b\n" (contains "return");
-  [%expect.unreachable]
-[@@expect.uncaught_exn {|
-  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
-     This is strongly discouraged as backtraces are fragile.
-     Please change this test to not include a backtrace. *)
-  (Failure "Program entry block not found")
-  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 972, characters 14-54
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 1244, characters 21-53
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate in file "compiler/lib-lua/lua_generate.ml" (inlined), line 1289, characters 30-100
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_to_string in file "compiler/lib-lua/lua_generate.ml", line 1309, characters 20-43
-  Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 99, characters 15-73
-  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
-  |}]
+  [%expect {|
+    Output contains 'function': true
+    Output contains 'main': false
+    Output contains 'return': true
+    |}]
 
 let%expect_test "generate_to_string full output" =
   let result = Lua_generate.generate_to_string ~debug:false dummy_program in
   print_endline result;
-  [%expect.unreachable]
-[@@expect.uncaught_exn {|
-  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
-     This is strongly discouraged as backtraces are fragile.
-     Please change this test to not include a backtrace. *)
-  (Failure "Program entry block not found")
-  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 972, characters 14-54
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 1244, characters 21-53
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate in file "compiler/lib-lua/lua_generate.ml" (inlined), line 1289, characters 30-100
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_to_string in file "compiler/lib-lua/lua_generate.ml", line 1309, characters 20-43
-  Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 131, characters 15-73
-  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
-  |}]
+  [%expect {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    -- -- Global Primitive Wrappers
+
+
+    --
+    function __caml_init__()
+      -- Module initialization code
+    end
+    __caml_init__()
+    |}]
 
 let%expect_test "generate_to_string with debug" =
   let result = Lua_generate.generate_to_string ~debug:true dummy_program in
   print_endline result;
-  [%expect.unreachable]
-[@@expect.uncaught_exn {|
-  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
-     This is strongly discouraged as backtraces are fragile.
-     Please change this test to not include a backtrace. *)
-  (Failure "Program entry block not found")
-  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 972, characters 14-54
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 1244, characters 21-53
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate in file "compiler/lib-lua/lua_generate.ml" (inlined), line 1289, characters 30-100
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_to_string in file "compiler/lib-lua/lua_generate.ml", line 1309, characters 20-43
-  Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 149, characters 15-72
-  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
-  |}]
+  [%expect {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    -- -- Global Primitive Wrappers
+
+
+    --
+    function __caml_init__()
+      -- Module initialization code
+    end
+    __caml_init__()
+    |}]
 
 (* Test variable name generation by testing internal structure *)
 (* We can't directly test var_name since it's not exported, but we can test *)
@@ -185,18 +212,10 @@ let%expect_test "basic code generation produces valid output" =
       Printf.printf "Structure is correct\n"
   | _ ->
       Printf.printf "Unexpected structure\n");
-  [%expect.unreachable]
-[@@expect.uncaught_exn {|
-  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
-     This is strongly discouraged as backtraces are fragile.
-     Please change this test to not include a backtrace. *)
-  (Failure "Program entry block not found")
-  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 972, characters 14-54
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 1244, characters 21-53
-  Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 172, characters 13-61
-  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
-  |}]
+  [%expect {|
+    Statement count: 16
+    Unexpected structure
+    |}]
 
 let%expect_test "code generation produces compilable Lua" =
   (* Verify the output is syntactically valid Lua by checking key elements *)
@@ -209,20 +228,11 @@ let%expect_test "code generation produces compilable Lua" =
   Printf.printf "Has 'function' keyword: %b\n" (contains "function");
   Printf.printf "Has 'end' keyword: %b\n" (contains "end");
   Printf.printf "Has 'return' keyword: %b\n" (contains "return");
-  [%expect.unreachable]
-[@@expect.uncaught_exn {|
-  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
-     This is strongly discouraged as backtraces are fragile.
-     Please change this test to not include a backtrace. *)
-  (Failure "Program entry block not found")
-  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 972, characters 14-54
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 1244, characters 21-53
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate in file "compiler/lib-lua/lua_generate.ml" (inlined), line 1289, characters 30-100
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_to_string in file "compiler/lib-lua/lua_generate.ml", line 1309, characters 20-43
-  Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 203, characters 17-75
-  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
-  |}]
+  [%expect {|
+    Has 'function' keyword: true
+    Has 'end' keyword: true
+    Has 'return' keyword: true
+    |}]
 
 let%expect_test "empty program generation" =
   (* Test with completely empty program *)
@@ -242,18 +252,11 @@ let%expect_test "empty program generation" =
     with Not_found -> false
   in
   Printf.printf "Contains main function: %b\n" contains_main;
-  [%expect.unreachable]
-[@@expect.uncaught_exn {|
-  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
-     This is strongly discouraged as backtraces are fragile.
-     Please change this test to not include a backtrace. *)
-  (Failure "Program entry block not found")
-  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_module_init in file "compiler/lib-lua/lua_generate.ml", line 972, characters 14-54
-  Called from Lua_of_ocaml_compiler__Lua_generate.generate_standalone in file "compiler/lib-lua/lua_generate.ml", line 1244, characters 21-53
-  Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 235, characters 15-60
-  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
-  |}]
+  [%expect {|
+    Empty program generates 16 statements
+    Generated Lua length: 662
+    Contains main function: false
+    |}]
 
 (* Task 2.2: Primitive Usage Tracking Tests *)
 
@@ -296,7 +299,7 @@ let%expect_test "collect_used_primitives with single external primitive" =
   Called from Js_of_ocaml_compiler__Targetint.offset in file "compiler/lib/targetint.ml" (inlined), line 16, characters 29-40
   Called from Js_of_ocaml_compiler__Targetint.wrap_modulo in file "compiler/lib/targetint.ml", line 27, characters 15-24
   Called from Js_of_ocaml_compiler__Stdlib.Int32.convert_warning_on_overflow in file "compiler/lib/stdlib.ml", line 276, characters 14-24
-  Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 277, characters 140-180
+  Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 280, characters 140-180
   Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
   |}]
 
@@ -332,7 +335,7 @@ let%expect_test "collect_used_primitives with multiple primitives" =
   Called from Js_of_ocaml_compiler__Targetint.offset in file "compiler/lib/targetint.ml" (inlined), line 16, characters 29-40
   Called from Js_of_ocaml_compiler__Targetint.wrap_modulo in file "compiler/lib/targetint.ml", line 27, characters 15-24
   Called from Js_of_ocaml_compiler__Stdlib.Int32.convert_warning_on_overflow in file "compiler/lib/stdlib.ml", line 276, characters 14-24
-  Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 312, characters 91-131
+  Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 315, characters 91-131
   Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
   |}]
 
@@ -364,7 +367,7 @@ let%expect_test "collect_used_primitives adds caml_ prefix" =
   Called from Js_of_ocaml_compiler__Targetint.offset in file "compiler/lib/targetint.ml" (inlined), line 16, characters 29-40
   Called from Js_of_ocaml_compiler__Targetint.wrap_modulo in file "compiler/lib/targetint.ml", line 27, characters 15-24
   Called from Js_of_ocaml_compiler__Stdlib.Int32.convert_warning_on_overflow in file "compiler/lib/stdlib.ml", line 276, characters 14-24
-  Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 345, characters 80-122
+  Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 348, characters 80-122
   Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
   |}]
 
@@ -396,7 +399,7 @@ let%expect_test "collect_used_primitives preserves existing caml_ prefix" =
   Called from Js_of_ocaml_compiler__Targetint.offset in file "compiler/lib/targetint.ml" (inlined), line 16, characters 29-40
   Called from Js_of_ocaml_compiler__Targetint.wrap_modulo in file "compiler/lib/targetint.ml", line 27, characters 15-24
   Called from Js_of_ocaml_compiler__Stdlib.Int32.convert_warning_on_overflow in file "compiler/lib/stdlib.ml", line 276, characters 14-24
-  Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 377, characters 88-128
+  Called from Test_lua_generate.(fun) in file "compiler/tests-lua/test_lua_generate.ml", line 380, characters 88-128
   Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
   |}]
 

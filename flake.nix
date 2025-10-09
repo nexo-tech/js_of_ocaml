@@ -43,14 +43,23 @@
         devShells = {
           default = pkgs.mkShell {
             buildInputs = with pkgs; [
-              # Primary Lua environment (5.4)
-              luaEnvs.lua54
+              # Native libraries for OCaml packages
+              gmp              # for num library
+              libiconv         # for sedlex/Unicode
+
+              # Lua runtime for lua_of_ocaml
+              lua5_4
 
               # Build tools
               gnumake
-              gcc
               pkg-config
               git
+
+              # Testing tools
+              nodejs_20
+
+              # Documentation
+              graphviz
 
               # Development utilities
               rlwrap
@@ -65,32 +74,39 @@
             ];
 
             shellHook = ''
-              echo "🌙 Lua Development Environment"
-              echo "=============================="
-              echo "Lua version: $(lua -v 2>&1)"
-              echo "LuaRocks version: $(luarocks --version | head -1)"
+              echo "js_of_ocaml & lua_of_ocaml native dependencies"
+              echo "=============================================="
               echo ""
-              echo "Available Lua environments:"
-              echo "  nix develop .#lua51  - Lua 5.1 environment"
-              echo "  nix develop .#lua54  - Lua 5.4 environment (default)"
-              echo "  nix develop .#luajit - LuaJIT environment"
+              echo "Native libraries available:"
+              echo "  GMP, libiconv, CoreFoundation (macOS)"
+              echo "  Node.js: $(node --version)"
+              echo "  Lua: $(lua -v 2>&1)"
               echo ""
-              echo "Useful commands:"
-              echo "  lua script.lua    - Run Lua script"
-              echo "  luarocks install  - Install Lua packages"
+              echo "OCaml/OPAM managed externally - make sure to activate your switch:"
+              echo "  eval \$(opam env --switch=lua_of_ocaml_52)"
+              echo ""
+              echo "Build commands:"
+              echo "  make          - Build all packages"
+              echo "  make tests    - Run JavaScript tests"
+              echo "  make tests-wasm - Run WebAssembly tests"
+              echo "  make fmt      - Format code"
+              echo ""
+              echo "Available Lua test environments:"
+              echo "  nix develop .#lua51  - Lua 5.1"
+              echo "  nix develop .#lua54  - Lua 5.4 (default)"
+              echo "  nix develop .#luajit - LuaJIT"
               echo ""
 
               # Create lua_modules directory for local development
               if [ ! -d "lua_modules" ]; then
                 mkdir -p lua_modules
-                echo "📁 Created lua_modules/ directory for local Lua packages"
               fi
 
               export LUA_PATH="$PWD/lua_modules/?.lua;$PWD/runtime/lua/?.lua;$LUA_PATH"
               export LUA_CPATH="$PWD/lua_modules/?.so;$LUA_CPATH"
             '';
 
-            # Environment variables
+            # Lua environment variables
             LUA_PATH = "./lua_modules/?.lua;./runtime/lua/?.lua;;";
             LUA_CPATH = "./lua_modules/?.so;;";
           };

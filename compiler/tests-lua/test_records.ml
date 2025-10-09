@@ -21,7 +21,7 @@ let%expect_test "simple record" =
       print_int p.y;
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:173: <goto block_4> at line 105 jumps into the scope of local 'v187' |}]
 
 let%expect_test "record update" =
   compile_and_run
@@ -40,7 +40,7 @@ let%expect_test "record update" =
       print_int p2.y;
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
 
 let%expect_test "nested records" =
   compile_and_run
@@ -58,7 +58,7 @@ let%expect_test "nested records" =
       print_int r.bottom_right.x;
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:173: <goto block_4> at line 105 jumps into the scope of local 'v189' |}]
 
 let%expect_test "record pattern matching" =
   compile_and_run
@@ -74,7 +74,7 @@ let%expect_test "record pattern matching" =
       print_endline (if is_origin { x = 0; y = 0 } then "yes" else "no");
       print_endline (if is_origin { x = 1; y = 0 } then "yes" else "no")
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:178: <goto block_4> at line 110 jumps into the scope of local 'v187' |}]
 
 let%expect_test "record with function" =
   compile_and_run
@@ -91,7 +91,7 @@ let%expect_test "record with function" =
       print_int (distance_from_origin { x = (-5); y = 12 });
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:174: <goto block_4> at line 106 jumps into the scope of local 'v189' |}]
 
 let%expect_test "mutable record fields" =
   compile_and_run
@@ -107,7 +107,7 @@ let%expect_test "mutable record fields" =
       print_int c.count;
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
 
 let%expect_test "record with different types" =
   compile_and_run
@@ -125,7 +125,7 @@ let%expect_test "record with different types" =
       print_newline ();
       print_endline (if p.active then "active" else "inactive")
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:175: <goto block_4> at line 107 jumps into the scope of local 'v189' |}]
 
 let%expect_test "polymorphic record" =
   compile_and_run
@@ -139,4 +139,4 @@ let%expect_test "polymorphic record" =
       print_newline ();
       print_endline str_cont.value
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:174: <goto block_4> at line 106 jumps into the scope of local 'v185' |}]

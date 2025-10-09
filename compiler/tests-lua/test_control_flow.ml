@@ -19,7 +19,7 @@ let%expect_test "if then else" =
       else
         print_endline "smaller"
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:174: <goto block_4> at line 106 jumps into the scope of local 'v182' |}]
 
 let%expect_test "nested if" =
   compile_and_run
@@ -37,7 +37,7 @@ let%expect_test "nested if" =
       print_endline (classify (-3));
       print_endline (classify 0)
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
 
 let%expect_test "for loop" =
   compile_and_run
@@ -49,7 +49,7 @@ let%expect_test "for loop" =
       done;
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:172: <goto block_4> at line 104 jumps into the scope of local 'v190' |}]
 
 let%expect_test "for loop downto" =
   compile_and_run
@@ -61,7 +61,7 @@ let%expect_test "for loop downto" =
       done;
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:172: <goto block_4> at line 104 jumps into the scope of local 'v190' |}]
 
 let%expect_test "while loop" =
   compile_and_run
@@ -75,7 +75,7 @@ let%expect_test "while loop" =
       done;
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
 
 let%expect_test "pattern matching" =
   compile_and_run
@@ -92,7 +92,7 @@ let%expect_test "pattern matching" =
       print_endline (color_name Green);
       print_endline (color_name Blue)
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:175: <goto block_4> at line 107 jumps into the scope of local 'v190' |}]
 
 let%expect_test "pattern matching with values" =
   compile_and_run
@@ -107,7 +107,7 @@ let%expect_test "pattern matching with values" =
       print_endline (describe (Ok 42));
       print_endline (describe (Error "failed"))
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:176: <goto block_4> at line 108 jumps into the scope of local 'v185' |}]
 
 let%expect_test "list pattern matching" =
   compile_and_run
@@ -120,7 +120,7 @@ let%expect_test "list pattern matching" =
       print_int (sum [1; 2; 3; 4; 5]);
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:173: <goto block_4> at line 105 jumps into the scope of local 'v182' |}]
 
 let%expect_test "option pattern matching" =
   compile_and_run
@@ -136,7 +136,7 @@ let%expect_test "option pattern matching" =
       print_int (get_value None 99);
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:30: too many local variables (limit is 200) in function at line 26 near 'end' |}]
 
 let%expect_test "match with guard" =
   compile_and_run
@@ -154,7 +154,7 @@ let%expect_test "match with guard" =
       print_endline (classify (-5));
       print_endline (classify 0)
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
 
 let%expect_test "sequencing" =
   compile_and_run
@@ -167,7 +167,7 @@ let%expect_test "sequencing" =
       print_int 3;
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
 
 let%expect_test "let in expressions" =
   compile_and_run
@@ -182,4 +182,4 @@ let%expect_test "let in expressions" =
       print_int result;
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:172: <goto block_4> at line 104 jumps into the scope of local 'v184' |}]

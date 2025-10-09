@@ -42,7 +42,7 @@ let%expect_test "shadowing local variables" =
       print_int x;
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
 
 let%expect_test "shadowing in nested scopes" =
   compile_and_run
@@ -146,7 +146,7 @@ let%expect_test "underscore identifiers" =
       print_int (_x + _y_ + __ + x_y_z);
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:172: <goto block_4> at line 104 jumps into the scope of local 'v186' |}]
 
 let%expect_test "numeric suffixes in identifiers" =
   compile_and_run
@@ -159,7 +159,7 @@ let%expect_test "numeric suffixes in identifiers" =
       print_int (x1 + x2 + x10 + x100);
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:172: <goto block_4> at line 104 jumps into the scope of local 'v186' |}]
 
 let%expect_test "case sensitivity" =
   compile_and_run
@@ -182,7 +182,7 @@ let%expect_test "very long identifier names" =
       print_int this_is_a_very_long_identifier_name_that_should_still_work;
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:172: <goto block_4> at line 104 jumps into the scope of local 'v180' |}]
 
 let%expect_test "apostrophe in identifiers" =
   compile_and_run
@@ -194,7 +194,7 @@ let%expect_test "apostrophe in identifiers" =
       print_int (x' + x'' + x'y');
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:172: <goto block_4> at line 104 jumps into the scope of local 'v184' |}]
 
 let%expect_test "module-like naming" =
   compile_and_run
@@ -235,7 +235,7 @@ let%expect_test "multiple bindings same name" =
       print_int (x + y);
       print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:172: <goto block_4> at line 104 jumps into the scope of local 'v190' |}]
 
 let%expect_test "exception names as identifiers" =
   compile_and_run
@@ -249,7 +249,7 @@ let%expect_test "exception names as identifiers" =
         print_int n;
         print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:173: <goto block_4> at line 105 jumps into the scope of local 'v188' |}]
 
 let%expect_test "constructor names vs value names" =
   compile_and_run

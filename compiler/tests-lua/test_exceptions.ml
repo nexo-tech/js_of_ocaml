@@ -20,7 +20,7 @@ let%expect_test "basic exception" =
       with MyError ->
         print_endline "caught MyError"
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:174: <goto block_4> at line 106 jumps into the scope of local 'v182' |}]
 
 let%expect_test "exception with argument" =
   compile_and_run
@@ -33,7 +33,7 @@ let%expect_test "exception with argument" =
       with Error msg ->
         print_endline ("caught: " ^ msg)
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:175: <goto block_4> at line 107 jumps into the scope of local 'v188' |}]
 
 let%expect_test "nested exceptions" =
   compile_and_run
@@ -50,7 +50,7 @@ let%expect_test "nested exceptions" =
       with A ->
         print_endline "caught A"
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:176: <goto block_4> at line 108 jumps into the scope of local 'v190' |}]
 
 let%expect_test "exception propagation" =
   compile_and_run
@@ -71,7 +71,7 @@ let%expect_test "exception propagation" =
         print_int n;
         print_newline ()
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
 
 let%expect_test "multiple exception types" =
   compile_and_run
@@ -100,7 +100,7 @@ let%expect_test "multiple exception types" =
         print_newline ()
       end
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
 
 let%expect_test "finally simulation" =
   compile_and_run
@@ -127,7 +127,7 @@ let%expect_test "finally simulation" =
       with E ->
         print_endline "caught E"
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:176: <goto block_4> at line 108 jumps into the scope of local 'v188' |}]
 
 let%expect_test "builtin exceptions" =
   compile_and_run
@@ -146,4 +146,4 @@ let%expect_test "builtin exceptions" =
         print_endline "Not_found caught"
       end
     |};
-  [%expect {| /bin/sh: 1: lua: not found |}]
+  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
