@@ -2,6 +2,29 @@
 
 This document details the implementation plan for Task 14.3: Runtime Primitive Linking.
 
+## Master Checklist
+
+**Phase 1: Linker Infrastructure**
+- [ ] Task 1.1: Add Export parsing and hybrid resolution (~160 lines)
+
+**Phase 2: Code Generation**
+- [ ] Task 2.1: Module embedding and wrapper generation (~100 lines)
+- [ ] Task 2.2: Primitive usage tracking (~60 lines)
+- [ ] Task 2.3: Integrate linking in code generator (~80 lines)
+
+**Phase 3: Runtime Primitives**
+- [ ] Task 3.1: Add compare primitives (~52 lines)
+- [ ] Task 3.2: Add ref, sys, weak primitives (~80 lines)
+
+**Phase 4: Testing & Verification**
+- [ ] Task 4.1: Add primitive coverage test (~100 lines)
+- [ ] Task 4.2: Verify hello_lua works (verification)
+- [ ] Task 4.3: Verify all existing tests pass (verification)
+
+**Total**: 7 implementation tasks + 2 verification tasks = **~632 lines new code**
+
+---
+
 ## Problem Statement
 
 **Current State**:
