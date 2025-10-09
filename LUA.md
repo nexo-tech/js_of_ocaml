@@ -1074,73 +1074,161 @@ Generated code calls runtime functions but doesn't load the runtime modules.
 **Implementation Plan**:
 
 ##### Subtask 14.3.1: Create Core Primitive Fragments (~150 lines)
-Create fragments with inline implementations for missing primitives.
+Write simple primitives from scratch (these DON'T exist in runtime modules).
 
 - [ ] **File**: `runtime/lua/primitives/caml_compare.lua` (~60 lines)
-  - `caml_int_compare(a, b)` → -1/0/1
-  - `caml_int32_compare(a, b)` → -1/0/1
-  - `caml_nativeint_compare(a, b)` → -1/0/1
-  - `caml_float_compare(a, b)` → -1/0/1 (handle NaN correctly)
-  - Header: `--// Provides: caml_int_compare, caml_int32_compare, caml_nativeint_compare, caml_float_compare`
+  ```lua
+  --// Provides: caml_int_compare, caml_int32_compare, caml_nativeint_compare, caml_float_compare
 
-- [ ] **File**: `runtime/lua/primitives/caml_ref.lua` (~20 lines)
-  - `caml_ref_set(ref, value)` - set field [1] of {tag=0, [1]=value}
-  - Header: `--// Provides: caml_ref_set`
+  function caml_int_compare(a, b)
+    if a < b then return -1
+    elseif a > b then return 1
+    else return 0 end
+  end
+
+  function caml_int32_compare(a, b)
+    return caml_int_compare(a, b)
+  end
+
+  function caml_nativeint_compare(a, b)
+    return caml_int_compare(a, b)
+  end
+
+  function caml_float_compare(a, b)
+    -- Handle NaN: NaN != NaN in OCaml
+    if a ~= a then  -- a is NaN
+      if b ~= b then return 0 else return 1 end
+    elseif b ~= b then  -- b is NaN
+      return -1
+    elseif a < b then return -1
+    elseif a > b then return 1
+    else return 0 end
+  end
+  ```
+  **Note**: Simple 3-way comparison, NOT polymorphic comparison from compare.lua
+
+- [ ] **File**: `runtime/lua/primitives/caml_ref.lua` (~15 lines)
+  ```lua
+  --// Provides: caml_ref_set
+
+  function caml_ref_set(ref, value)
+    ref[1] = value
+  end
+  ```
 
 - [ ] **File**: `runtime/lua/primitives/caml_sys.lua` (~30 lines)
-  - `caml_sys_open(path, flags)` - stub implementation (error for now)
-  - `caml_sys_close(fd)` - stub implementation
-  - Header: `--// Provides: caml_sys_open, caml_sys_close`
+  ```lua
+  --// Provides: caml_sys_open, caml_sys_close
+
+  function caml_sys_open(path, flags)
+    error("caml_sys_open: System operations not yet implemented")
+  end
+
+  function caml_sys_close(fd)
+    error("caml_sys_close: System operations not yet implemented")
+  end
+  ```
+  **Note**: Stubs only, full implementation in Phase 15
 
 - [ ] **File**: `runtime/lua/primitives/caml_weak.lua` (~40 lines)
-  - `caml_weak_create(size)` - create table with __mode='v' metatable
-  - `caml_weak_set(arr, idx, val)` - set with 0→1 index conversion
-  - `caml_weak_get(arr, idx)` - get with 0→1 index conversion
-  - Header: `--// Provides: caml_weak_create, caml_weak_set, caml_weak_get`
+  ```lua
+  --// Provides: caml_weak_create, caml_weak_set, caml_weak_get
+
+  function caml_weak_create(size)
+    local arr = { tag = 0, [0] = size }
+    setmetatable(arr, { __mode = 'v' })  -- Weak values
+    return arr
+  end
+
+  function caml_weak_set(arr, idx, val)
+    arr[idx + 1] = val  -- 0→1 index conversion
+  end
+
+  function caml_weak_get(arr, idx)
+    return arr[idx + 1]  -- 0→1 index conversion
+  end
+  ```
+  **Note**: Can reference runtime/lua/weak.lua for guidance, but keep simple
 
 **Test**: `compiler/tests-lua/test_primitives_core.ml` - Test each primitive
 
 ##### Subtask 14.3.2: Create Array Primitive Fragments (~100 lines)
-Self-contained array operations (no dependencies on external modules).
+**Transform existing runtime/lua/array.lua** (don't write from scratch).
 
-- [ ] **File**: `runtime/lua/primitives/caml_array.lua` (~100 lines)
-  - `caml_array_make(len, init)` - inline implementation
-  - `caml_array_set(arr, idx, val)` - bounds check, 0→1 conversion
-  - `caml_array_unsafe_set(arr, idx, val)` - no bounds check
-  - `caml_make_vect(len, init)` - alias for make
-  - `caml_make_float_vect(len)` - create float array
-  - `caml_floatarray_create(len)` - uninitialized float array
-  - `caml_floatarray_set(arr, idx, val)` - bounds check
-  - `caml_floatarray_unsafe_set(arr, idx, val)` - no bounds check
-  - `caml_array_sub(arr, start, len)` - extract subarray
-  - `caml_array_append(arr1, arr2)` - concatenate arrays
-  - `caml_array_concat(list)` - concatenate list of arrays
-  - `caml_array_blit(src, spos, dst, dpos, len)` - copy range
-  - `caml_array_fill(arr, start, len, val)` - fill range
-  - Header: `--// Provides: caml_array_make, caml_array_set, ...` (all 13 primitives)
+**Approach**:
+1. Copy `runtime/lua/array.lua` to `runtime/lua/primitives/caml_array.lua`
+2. Add fragment header: `--// Provides: caml_array_make, caml_array_set, ...`
+3. Transform API:
+   - Remove: `local M = {}` and `return M`
+   - Remove: `local core = require("core")` (copy needed functions inline if any)
+   - Change: `function M.make(...)` → `function caml_array_make(...)`
+   - Change: `function M.set(...)` → `function caml_array_set(...)`
+   - Change: All `M.xxx` → `caml_array_xxx`
+4. Keep all implementation logic IDENTICAL
+5. Result: ~100 lines (array.lua is ~90 lines without comments)
+
+**Functions to export** (13 primitives):
+- `caml_array_make(len, init)` ← from `M.make`
+- `caml_array_set(arr, idx, val)` ← from `M.set`
+- `caml_array_unsafe_set(arr, idx, val)` ← from `M.unsafe_set` (if exists)
+- `caml_make_vect(len, init)` ← alias to caml_array_make
+- `caml_make_float_vect(len)` ← create {tag=0, [0]=len} for floats
+- `caml_floatarray_create(len)` ← same as make_float_vect
+- `caml_floatarray_set(arr, idx, val)` ← from `M.set`
+- `caml_floatarray_unsafe_set(arr, idx, val)` ← no bounds check
+- `caml_array_sub(arr, start, len)` ← from `M.sub`
+- `caml_array_append(arr1, arr2)` ← from `M.append`
+- `caml_array_concat(list)` ← from `M.concat`
+- `caml_array_blit(src, spos, dst, dpos, len)` ← from `M.blit`
+- `caml_array_fill(arr, start, len, val)` ← from `M.fill`
+
+**Why this approach**:
+- ✅ Reuses tested code from array.lua
+- ✅ No code duplication (transformation, not rewrite)
+- ✅ Maintains same OCaml semantics
+- ✅ Simple mechanical transformation
 
 **Test**: `compiler/tests-lua/test_primitives_array.ml`
 
 ##### Subtask 14.3.3: Create String/Bytes Primitive Fragments (~120 lines)
-Self-contained string and bytes operations.
+**Transform existing runtime/lua/mlBytes.lua** (don't write from scratch).
 
-- [ ] **File**: `runtime/lua/primitives/caml_string.lua` (~60 lines)
-  - `caml_string_compare(s1, s2)` - lexicographic comparison
-  - `caml_string_get(str, idx)` - char at idx (0→1 conversion)
-  - `caml_string_set(str, idx, char)` - set char (bytes only)
-  - `caml_string_unsafe_set(str, idx, char)` - no bounds check
-  - `caml_create_string(len)` - create string/bytes of length
-  - `caml_blit_string(src, spos, dst, dpos, len)` - copy substring
-  - Header: `--// Provides: caml_string_compare, caml_string_get, ...`
+**Note**: OCaml strings and bytes are both in `mlBytes.lua`, not separate files.
 
-- [ ] **File**: `runtime/lua/primitives/caml_bytes.lua` (~60 lines)
-  - `caml_bytes_get(bytes, idx)` - byte at idx
-  - `caml_bytes_set(bytes, idx, byte)` - set byte
-  - `caml_bytes_unsafe_set(bytes, idx, byte)` - no bounds check
-  - `caml_create_bytes(len)` - create bytes of length
-  - `caml_fill_bytes(bytes, start, len, char)` - fill range
-  - `caml_blit_bytes(src, spos, dst, dpos, len)` - copy range
-  - Header: `--// Provides: caml_bytes_get, caml_bytes_set, ...`
+**Approach**:
+1. Copy `runtime/lua/mlBytes.lua` to `runtime/lua/primitives/caml_string.lua`
+2. Add fragment header with all 13 primitives (6 string + 7 bytes)
+3. Transform API:
+   - Remove: `local M = {}` and `return M`
+   - Remove: any `require()` calls (inline if needed)
+   - Change: `function M.get(...)` → `function caml_bytes_get(...)`
+   - Change: `function M.set(...)` → `function caml_bytes_set(...)`
+   - Add aliases: `caml_string_get = caml_bytes_get` (strings and bytes use same ops)
+4. Result: Single file with all string/bytes operations (~120 lines)
+
+**Functions to export** (13 primitives total):
+
+**String operations** (6):
+- `caml_string_compare(s1, s2)` ← lexicographic comparison (simple Lua `<` on strings)
+- `caml_string_get(str, idx)` ← alias to `caml_bytes_get`
+- `caml_string_set(str, idx, char)` ← alias to `caml_bytes_set`
+- `caml_string_unsafe_set(str, idx, char)` ← alias to `caml_bytes_unsafe_set`
+- `caml_create_string(len)` ← from `M.create` or `M.make`
+- `caml_blit_string(src, spos, dst, dpos, len)` ← from `M.blit`
+
+**Bytes operations** (7):
+- `caml_bytes_get(bytes, idx)` ← from `M.get`
+- `caml_bytes_set(bytes, idx, byte)` ← from `M.set`
+- `caml_bytes_unsafe_set(bytes, idx, byte)` ← from `M.unsafe_set`
+- `caml_create_bytes(len)` ← from `M.create`
+- `caml_fill_bytes(bytes, start, len, char)` ← from `M.fill`
+- `caml_blit_bytes(src, spos, dst, dpos, len)` ← from `M.blit`
+
+**Why this approach**:
+- ✅ Reuses tested code from mlBytes.lua
+- ✅ OCaml strings/bytes already in one module
+- ✅ No code duplication
+- ✅ Simple mechanical transformation
 
 **Test**: `compiler/tests-lua/test_primitives_string.ml`
 
