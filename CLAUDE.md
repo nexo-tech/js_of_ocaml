@@ -39,6 +39,27 @@ dune --version  # Should be >= 3.17
 ocaml --version  # Should be 5.2.0
 ```
 
+### Lua Installation (for lua_of_ocaml testing)
+
+Install Lua 5.4 using Nix package manager:
+
+```bash
+# Install Nix (if not already installed)
+# See: https://nixos.org/download.html
+
+# Install Lua 5.4
+nix-env -iA nixpkgs.lua5_4
+
+# Verify installation
+lua -v  # Should show: Lua 5.4.x
+```
+
+**Note**: Lua is required for:
+- Running generated `.lua` files
+- Verifying lua_of_ocaml output
+- Testing runtime behavior
+- Validating hello_lua example
+
 ## Build Commands
 
 ### Primary Build Commands
