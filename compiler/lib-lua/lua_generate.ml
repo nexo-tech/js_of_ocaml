@@ -114,6 +114,57 @@ let var_name ctx var =
 *)
 let var_ident ctx var = L.Ident (var_name ctx var)
 
+(** {2 Variable Table Utilities} *)
+
+(** Name of the variable table used for functions with >180 locals
+
+    Lua has a hard limit of 200 local variables per function. When we need more
+    than 180 hoisted variables (leaving room for ~20 other locals like exception
+    names, loop vars, etc.), we use a single table to store all variables instead.
+
+    This bypasses Lua's limit since table fields are unlimited.
+*)
+let var_table_name = "_V"
+
+(** Threshold for switching to table-based variable storage
+
+    Lua limit: 200 locals per function
+    Reserved for: exception names (~12), loop vars/temps (~8)
+    Safety margin: 20
+    Therefore: 200 - 20 = 180 max hoisted variables before using table
+*)
+let var_table_threshold = 180
+
+(** Determine if a function should use table-based variable storage
+
+    @param var_count Number of variables that need to be hoisted
+    @return true if var_count > 180 (should use _V table), false otherwise
+
+    When true: Generate `local _V = {}; _V.v0 = 42`
+    When false: Generate `local v0, v1, ...; v0 = 42`
+*)
+let should_use_var_table var_count = var_count > var_table_threshold
+
+(** Create table field access expression for a variable
+
+    @param var_name The variable name (e.g., "v0")
+    @return Lua expression `_V.var_name` (e.g., `_V.v0`)
+
+    Used when function has >180 variables and needs table-based storage.
+*)
+let make_var_table_access var_name = L.Field (L.Ident var_table_name, var_name)
+
+(** Create table field assignment statement for a variable
+
+    @param var_name The variable name (e.g., "v0")
+    @param expr The expression to assign
+    @return Lua statement `_V.var_name = expr` (e.g., `_V.v0 = 42`)
+
+    Used when function has >180 variables and needs table-based storage.
+*)
+let make_var_table_assign var_name expr =
+  L.Assign ([ L.Field (L.Ident var_table_name, var_name) ], [ expr ])
+
 (** {2 Expression Generation} *)
 
 (** Generate Lua expression from Code constant
@@ -756,15 +807,45 @@ and compile_blocks_with_labels ctx program start_addr =
   (* Collect all variables that need hoisting *)
   let hoisted_vars = collect_block_variables ctx program start_addr in
 
-  (* Generate variable declaration statement *)
+  (* Generate variable declaration statements, split into chunks to respect
+     Lua's 200 local variable limit. We use 150 as max per statement for safety. *)
   let hoist_stmts =
     if StringSet.is_empty hoisted_vars
     then []
     else
       let var_list = StringSet.elements hoisted_vars |> List.sort ~cmp:String.compare in
-      [ L.Comment (Printf.sprintf "Hoisted variables (%d total)"
-                    (StringSet.cardinal hoisted_vars))
-      ; L.Local (var_list, None) ]
+      let total_vars = List.length var_list in
+      (* Split into chunks of at most 150 variables *)
+      let max_vars_per_chunk = 150 in
+      let rec chunk_vars acc current_chunk chunk_count remaining =
+        match remaining with
+        | [] ->
+            (match current_chunk with
+            | [] -> List.rev acc
+            | _ -> List.rev (List.rev current_chunk :: acc))
+        | var :: rest ->
+            let new_chunk = var :: current_chunk in
+            let new_count = chunk_count + 1 in
+            if new_count >= max_vars_per_chunk then
+              (* Chunk is full, start new chunk *)
+              chunk_vars (List.rev new_chunk :: acc) [] 0 rest
+            else
+              (* Continue building current chunk *)
+              chunk_vars acc new_chunk new_count rest
+      in
+      let var_chunks = chunk_vars [] [] 0 var_list in
+      let num_chunks = List.length var_chunks in
+      (* Generate comment + Local statements for each chunk *)
+      (if num_chunks = 1 then
+        [ L.Comment (Printf.sprintf "Hoisted variables (%d total)" total_vars) ]
+      else
+        [ L.Comment (Printf.sprintf "Hoisted variables (%d total, split into %d chunks due to Lua's 200 local limit)" total_vars num_chunks) ])
+      @ (var_chunks |> List.mapi ~f:(fun i vars ->
+            if num_chunks = 1 then
+              L.Local (vars, None)
+            else
+              L.Block [ L.Comment (Printf.sprintf "Chunk %d/%d (%d variables)" (i + 1) num_chunks (List.length vars))
+                      ; L.Local (vars, None) ]))
   in
 
   (* Collect all reachable blocks from start *)

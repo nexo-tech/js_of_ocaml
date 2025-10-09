@@ -4,6 +4,33 @@
 **Created**: 2025-10-09
 **Target**: Complete resolution in 1 session (~4 hours)
 
+## Master Checklist
+
+### Phase 0: Preparation (~30 min, ~50 lines)
+- [x] Task 0.1: Add Variable Count Analysis (~15 min)
+- [x] Task 0.2: Create Variable Table Utilities (~15 min)
+
+### Phase 1: Modify Variable Access (~1 hour, ~100 lines)
+- [ ] Task 1.1: Thread Table Mode Through Context (~20 min)
+- [ ] Task 1.2: Update Variable References (~20 min)
+- [ ] Task 1.3: Update Variable Hoisting Logic (~20 min)
+
+### Phase 2: Handle Nested Functions (~45 min, ~60 lines)
+- [ ] Task 2.1: Propagate Table Mode to Closures (~25 min)
+- [ ] Task 2.2: Handle Variable Capture (~20 min)
+
+### Phase 3: Testing & Validation (~1.5 hours, ~150 lines)
+- [ ] Task 3.1: Create Table-Based Variable Tests (~40 min)
+- [ ] Task 3.2: Test Real-World Examples (~30 min)
+- [ ] Task 3.3: Benchmark Performance Impact (~20 min)
+
+### Phase 4: Documentation & Cleanup (~30 min, ~40 lines)
+- [ ] Task 4.1: Update Phase 0 Documentation (~10 min)
+- [ ] Task 4.2: Add Implementation Comments (~10 min)
+- [ ] Task 4.3: Update CLAUDE.md Gotchas (~10 min)
+
+---
+
 ## Problem Statement
 
 Lua has a hard limit of **200 local variables per function**. Phase 0's variable hoisting (Tasks 0.1-0.6) successfully fixed the goto/scope issue but introduced a new blocker:
