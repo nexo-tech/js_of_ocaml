@@ -11,9 +11,9 @@
 - [x] Task 0.2: Create Variable Table Utilities (~15 min)
 
 ### Phase 1: Modify Variable Access (~1 hour, ~100 lines)
-- [ ] Task 1.1: Thread Table Mode Through Context (~20 min)
-- [ ] Task 1.2: Update Variable References (~20 min)
-- [ ] Task 1.3: Update Variable Hoisting Logic (~20 min)
+- [x] Task 1.1: Thread Table Mode Through Context (~20 min)
+- [x] Task 1.2: Update Variable References (~20 min)
+- [x] Task 1.3: Update Variable Hoisting Logic (~20 min)
 
 ### Phase 2: Handle Nested Functions (~45 min, ~60 lines)
 - [ ] Task 2.1: Propagate Table Mode to Closures (~25 min)

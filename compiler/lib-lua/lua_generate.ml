@@ -46,6 +46,11 @@ type context =
   ; _debug : bool  (** Enable debug output *)
   ; program : Code.program option  (** Full program for closure generation *)
   ; optimize_field_access : bool  (** Enable field access optimization *)
+  ; mutable use_var_table : bool
+        (** Use table-based variable storage instead of locals.
+            Set to true when function needs >180 hoisted variables.
+            When true: generates _V.v0 = expr
+            When false: generates v0 = expr *)
   }
 
 (** {2 Context Operations} *)
@@ -59,6 +64,7 @@ let make_context ~debug =
   ; _debug = debug
   ; program = None
   ; optimize_field_access = true
+  ; use_var_table = false  (* Default to locals, set to true in hoisting logic if needed *)
   }
 
 (** Create a context with program for closure generation *)
@@ -67,6 +73,7 @@ let make_context_with_program ~debug program =
   ; _debug = debug
   ; program = Some program
   ; optimize_field_access = true
+  ; use_var_table = false  (* Default to locals, set to true in hoisting logic if needed *)
   }
 
 (** Generate a fresh Lua variable name
@@ -107,13 +114,6 @@ let var_name ctx var =
       ctx.vars.var_map <- Code.Var.Map.add var name ctx.vars.var_map;
       name
 
-(** Get Lua identifier expression for a variable
-    @param ctx Code generation context
-    @param var IR variable
-    @return Lua identifier expression
-*)
-let var_ident ctx var = L.Ident (var_name ctx var)
-
 (** {2 Variable Table Utilities} *)
 
 (** Name of the variable table used for functions with >180 locals
@@ -152,18 +152,19 @@ let should_use_var_table var_count = var_count > var_table_threshold
 
     Used when function has >180 variables and needs table-based storage.
 *)
-let make_var_table_access var_name = L.Field (L.Ident var_table_name, var_name)
+let make_var_table_access var_name = L.Dot (L.Ident var_table_name, var_name)
 
-(** Create table field assignment statement for a variable
-
-    @param var_name The variable name (e.g., "v0")
-    @param expr The expression to assign
-    @return Lua statement `_V.var_name = expr` (e.g., `_V.v0 = 42`)
-
-    Used when function has >180 variables and needs table-based storage.
+(** Get Lua identifier expression for a variable
+    @param ctx Code generation context
+    @param var IR variable
+    @return Lua identifier expression (or table field access if use_var_table=true)
 *)
-let make_var_table_assign var_name expr =
-  L.Assign ([ L.Field (L.Ident var_table_name, var_name) ], [ expr ])
+let var_ident ctx var =
+  let name = var_name ctx var in
+  if ctx.use_var_table then
+    make_var_table_access name
+  else
+    L.Ident name
 
 (** {2 Expression Generation} *)
 
@@ -694,10 +695,10 @@ let rec generate_expr ctx expr =
 and generate_instr ctx instr =
   match instr with
   | Code.Let (var, expr) ->
-      (* Generate assignment (variables are hoisted at function start) *)
-      let var_name = var_name ctx var in
+      (* Generate assignment (variables are hoisted at function start or in _V table) *)
+      let target = var_ident ctx var in
       let lua_expr = generate_expr ctx expr in
-      L.Assign ([ L.Ident var_name ], [ lua_expr ])
+      L.Assign ([ target ], [ lua_expr ])
   | Code.Assign (target, source) ->
       (* Generate assignment statement *)
       let target_ident = var_ident ctx target in
@@ -807,45 +808,26 @@ and compile_blocks_with_labels ctx program start_addr =
   (* Collect all variables that need hoisting *)
   let hoisted_vars = collect_block_variables ctx program start_addr in
 
-  (* Generate variable declaration statements, split into chunks to respect
-     Lua's 200 local variable limit. We use 150 as max per statement for safety. *)
+  (* Determine if we need table-based storage and set context accordingly *)
+  let total_vars = StringSet.cardinal hoisted_vars in
+  let use_table = should_use_var_table total_vars in
+  ctx.use_var_table <- use_table;
+
+  (* Generate variable declaration statements *)
   let hoist_stmts =
     if StringSet.is_empty hoisted_vars
     then []
+    else if use_table then
+      (* Use table-based storage for >180 variables *)
+      [ L.Comment (Printf.sprintf "Hoisted variables (%d total, using table due to Lua's 200 local limit)" total_vars)
+      ; L.Local ([ var_table_name ], Some [ L.Table [] ])  (* local _V = {} *)
+      ]
     else
+      (* Use local declarations for ≤180 variables *)
       let var_list = StringSet.elements hoisted_vars |> List.sort ~cmp:String.compare in
-      let total_vars = List.length var_list in
-      (* Split into chunks of at most 150 variables *)
-      let max_vars_per_chunk = 150 in
-      let rec chunk_vars acc current_chunk chunk_count remaining =
-        match remaining with
-        | [] ->
-            (match current_chunk with
-            | [] -> List.rev acc
-            | _ -> List.rev (List.rev current_chunk :: acc))
-        | var :: rest ->
-            let new_chunk = var :: current_chunk in
-            let new_count = chunk_count + 1 in
-            if new_count >= max_vars_per_chunk then
-              (* Chunk is full, start new chunk *)
-              chunk_vars (List.rev new_chunk :: acc) [] 0 rest
-            else
-              (* Continue building current chunk *)
-              chunk_vars acc new_chunk new_count rest
-      in
-      let var_chunks = chunk_vars [] [] 0 var_list in
-      let num_chunks = List.length var_chunks in
-      (* Generate comment + Local statements for each chunk *)
-      (if num_chunks = 1 then
-        [ L.Comment (Printf.sprintf "Hoisted variables (%d total)" total_vars) ]
-      else
-        [ L.Comment (Printf.sprintf "Hoisted variables (%d total, split into %d chunks due to Lua's 200 local limit)" total_vars num_chunks) ])
-      @ (var_chunks |> List.mapi ~f:(fun i vars ->
-            if num_chunks = 1 then
-              L.Local (vars, None)
-            else
-              L.Block [ L.Comment (Printf.sprintf "Chunk %d/%d (%d variables)" (i + 1) num_chunks (List.length vars))
-                      ; L.Local (vars, None) ]))
+      [ L.Comment (Printf.sprintf "Hoisted variables (%d total)" total_vars)
+      ; L.Local (var_list, None)
+      ]
   in
 
   (* Collect all reachable blocks from start *)
