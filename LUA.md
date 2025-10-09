@@ -1065,6 +1065,12 @@ Generated code calls runtime functions but doesn't load the runtime modules.
 - Add headers: `--// Provides: caml_array_make, caml_array_get, ...`
 - Keep implementations identical where possible (same OCaml semantics)
 
+**Pre-Implementation Checklist**:
+- [ ] Run `dune build compiler/lib-lua` - must succeed with zero warnings
+- [ ] Run `dune runtest compiler/tests-lua` - document current test status
+- [ ] Create `runtime/lua/primitives/` directory
+- [ ] Verify linker can load from non-existent directory gracefully
+
 **Implementation Plan**:
 
 ##### Subtask 14.3.1: Create Core Primitive Fragments (~150 lines)
@@ -1192,7 +1198,16 @@ Modify code generator to track which primitives are used and tell linker.
   - Linker embeds fragment code into generated output
   - Result: Self-contained .lua file with all needed primitives
 
-**Test**: Generate program using arrays, verify fragment is embedded
+- [ ] **CRITICAL: Ensure backward compatibility**:
+  - If `runtime/lua/primitives/` directory doesn't exist, skip fragment loading (no error)
+  - Generated code should still work with inline runtime only
+  - All 35 existing tests must continue passing
+  - Run `dune runtest compiler/tests-lua` after each change
+
+**Test**:
+- Generate program using arrays, verify fragment is embedded
+- Run all existing tests: `dune runtest compiler/tests-lua`
+- Ensure no test regressions
 
 ##### Subtask 14.3.7: Fragment Loading Infrastructure (~50 lines)
 Add fragment file loading to compiler.
@@ -1235,6 +1250,13 @@ End-to-end tests verifying primitives work.
   - Verify fragment code is embedded correctly
   - Test that unused primitives are NOT included (minimal code)
 
+- [ ] **CRITICAL: Verify no test regressions**
+  - Before starting Task 14.3: Run `dune runtest compiler/tests-lua` and note which tests pass
+  - After each subtask: Run `dune runtest compiler/tests-lua` and verify same tests pass
+  - If any test breaks: Fix immediately before proceeding
+  - Document any intentional test output changes with `dune promote`
+  - Final verification: All 35+ tests pass with zero warnings
+
 **Files Created**:
 - `runtime/lua/primitives/caml_compare.lua` (60 lines)
 - `runtime/lua/primitives/caml_ref.lua` (20 lines)
@@ -1265,7 +1287,10 @@ End-to-end tests verifying primitives work.
 - ✅ Generated code is self-contained (no external requires)
 - ✅ hello_lua runs without primitive errors
 - ✅ Simple array/string programs compile and run
+- ✅ All 35 existing Lua tests still pass (no regressions)
+- ✅ New primitive tests pass
 - ✅ All tests pass without warnings
+- ✅ `dune build compiler/lib-lua` succeeds with zero warnings
 
 **Commit Strategy**:
 1. "feat(lua/primitives): Add core primitive fragments (compare, ref, sys, weak)"
