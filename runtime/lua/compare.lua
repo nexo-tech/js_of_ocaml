@@ -18,6 +18,11 @@
 -- Polymorphic comparison implementation
 -- Compatible with OCaml's polymorphic comparison
 -- Supports deep structural comparison with cycle detection
+--
+--// Export: int_compare as caml_int_compare
+--// Export: int_compare as caml_int32_compare
+--// Export: int_compare as caml_nativeint_compare
+--// Export: float_compare as caml_float_compare
 
 local M = {}
 
@@ -300,6 +305,42 @@ function M.caml_int_compare(a, b)
     return 0
   else
     return 1
+  end
+end
+
+-- Simpler int_compare alias (used by Export directives)
+function M.int_compare(a, b)
+  if a < b then
+    return -1
+  elseif a > b then
+    return 1
+  else
+    return 0
+  end
+end
+
+-- Float comparison with NaN handling
+function M.float_compare(a, b)
+  -- Handle NaN: NaN != NaN in OCaml
+  if a ~= a then
+    -- a is NaN
+    if b ~= b then
+      return 0  -- Both NaN
+    else
+      return 1  -- NaN > any number
+    end
+  end
+  if b ~= b then
+    return -1  -- any number < NaN
+  end
+
+  -- Normal comparison
+  if a < b then
+    return -1
+  elseif a > b then
+    return 1
+  else
+    return 0
   end
 end
 

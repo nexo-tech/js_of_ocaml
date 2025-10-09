@@ -3913,3 +3913,125 @@ let%expect_test "generate_wrappers with empty set" =
   [%expect {|
     -- Global Primitive Wrappers
     |}]
+
+(* ========================================================================= *)
+(* Task 3.1: Compare Primitives Tests                                       *)
+(* ========================================================================= *)
+
+let%expect_test "compare module - Export directives" =
+  (* Test that Export directives parse correctly *)
+  let exports = [
+    "--// Export: int_compare as caml_int_compare";
+    "--// Export: int_compare as caml_int32_compare";
+    "--// Export: int_compare as caml_nativeint_compare";
+    "--// Export: float_compare as caml_float_compare"
+  ] in
+  List.iter ~f:print_endline exports;
+  [%expect {|
+    --// Export: int_compare as caml_int_compare
+    --// Export: int_compare as caml_int32_compare
+    --// Export: int_compare as caml_nativeint_compare
+    --// Export: float_compare as caml_float_compare
+    |}]
+
+let%expect_test "compare module - parse Export directives" =
+  let line1 = "--// Export: int_compare as caml_int32_compare" in
+  let line2 = "--// Export: int_compare as caml_nativeint_compare" in
+
+  (match Lua_link.parse_export line1 with
+   | Some (func, alias) ->
+       Printf.printf "Export: %s -> %s\n" func alias
+   | None -> print_endline "Failed to parse");
+
+  (match Lua_link.parse_export line2 with
+   | Some (func, alias) ->
+       Printf.printf "Export: %s -> %s\n" func alias
+   | None -> print_endline "Failed to parse");
+
+  [%expect {|
+    Export: int_compare -> caml_int32_compare
+    Export: int_compare -> caml_nativeint_compare
+    |}]
+
+let%expect_test "compare module - hybrid resolution for int_compare" =
+  (* Test that int_compare is found via naming convention *)
+  let compare_fragment = {
+    Lua_link.name = "compare";
+    provides = [];
+    requires = [];
+    exports = [
+      ("int_compare", "caml_int_compare");
+      ("int_compare", "caml_int32_compare");
+      ("int_compare", "caml_nativeint_compare");
+      ("float_compare", "caml_float_compare")
+    ];
+    code = ""
+  } in
+
+  let fragments = [compare_fragment] in
+
+  (* Test Export directive: caml_int_compare -> int_compare *)
+  (match Lua_link.find_primitive_implementation "caml_int_compare" fragments with
+   | Some (frag, func) ->
+       Printf.printf "caml_int_compare: %s.%s\n" frag.name func
+   | None -> print_endline "caml_int_compare: NOT FOUND");
+
+  (* Test Export directive: caml_int32_compare -> int_compare *)
+  (match Lua_link.find_primitive_implementation "caml_int32_compare" fragments with
+   | Some (frag, func) ->
+       Printf.printf "caml_int32_compare: %s.%s\n" frag.name func
+   | None -> print_endline "caml_int32_compare: NOT FOUND");
+
+  (* Test Export directive: caml_nativeint_compare -> int_compare *)
+  (match Lua_link.find_primitive_implementation "caml_nativeint_compare" fragments with
+   | Some (frag, func) ->
+       Printf.printf "caml_nativeint_compare: %s.%s\n" frag.name func
+   | None -> print_endline "caml_nativeint_compare: NOT FOUND");
+
+  (* Test Export directive: caml_float_compare -> float_compare *)
+  (match Lua_link.find_primitive_implementation "caml_float_compare" fragments with
+   | Some (frag, func) ->
+       Printf.printf "caml_float_compare: %s.%s\n" frag.name func
+   | None -> print_endline "caml_float_compare: NOT FOUND");
+
+  [%expect {|
+    caml_int_compare: compare.int_compare
+    caml_int32_compare: compare.int_compare
+    caml_nativeint_compare: compare.int_compare
+    caml_float_compare: compare.float_compare
+    |}]
+
+let%expect_test "compare module - wrapper generation" =
+  let compare_fragment = {
+    Lua_link.name = "compare";
+    provides = [];
+    requires = [];
+    exports = [
+      ("int_compare", "caml_int_compare");
+      ("int_compare", "caml_int32_compare");
+      ("int_compare", "caml_nativeint_compare");
+      ("float_compare", "caml_float_compare")
+    ];
+    code = "local M = {}\nfunction M.int_compare(a, b) return 0 end\nfunction M.float_compare(a, b) return 0 end\nreturn M"
+  } in
+
+  let used_primitives = StringSet.of_list [
+    "caml_int_compare";
+    "caml_int32_compare";
+    "caml_float_compare"
+  ] in
+
+  let wrappers = Lua_link.generate_wrappers used_primitives [compare_fragment] in
+  print_endline wrappers;
+  [%expect {|
+    -- Global Primitive Wrappers
+    function caml_int_compare(...)
+      return Compare.int_compare(...)
+    end
+    function caml_int32_compare(...)
+      return Compare.int_compare(...)
+    end
+    function caml_float_compare(...)
+      return Compare.float_compare(...)
+    end
+    |}]

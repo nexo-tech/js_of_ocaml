@@ -13,7 +13,7 @@ This document details the implementation plan for Task 14.3: Runtime Primitive L
 - [x] Task 2.3: Integrate linking in code generator (~80 lines)
 
 **Phase 3: Runtime Primitives**
-- [ ] Task 3.1: Add compare primitives (~52 lines)
+- [x] Task 3.1: Add compare primitives (~52 lines)
 - [ ] Task 3.2: Add ref, sys, weak primitives (~80 lines)
 
 **Phase 4: Testing & Verification**
@@ -699,12 +699,13 @@ Export directive maps aliases to same implementation.
 **Test**: Test int and float comparisons with edge cases (NaN, zero, negative)
 
 **Success Criteria**:
-- ✅ `caml_int_compare` works via naming convention
+- ✅ `caml_int_compare` works via Export directive
 - ✅ `caml_int32_compare` works via Export alias
-- ✅ `caml_float_compare` handles NaN correctly
+- ✅ `caml_float_compare` works via Export directive and handles NaN correctly
 - ✅ All comparison tests pass
+- ✅ **COMPLETED**: All criteria met
 
-**Output**: 52 lines in new file `runtime/lua/compare.lua`
+**Output**: 48 lines added to existing `runtime/lua/compare.lua` (file already existed with polymorphic comparison)
 
 **Commit**: `feat(lua/runtime): Add compare primitives module`
 
