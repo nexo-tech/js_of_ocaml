@@ -29,12 +29,12 @@ let time_function f =
   in
   result, time_ms, memory_mb
 
-(** Compile bytecode file and measure performance *)
+(** Compile bytecode file and measure performance with detailed breakdown *)
 let bench_compile_file ~name bytecode_path =
   Printf.eprintf "Benchmarking %s...\n" name;
-  let lua_string, time_ms, memory_mb =
+  (* Measure parse time *)
+  let parsed, parse_time_ms, parse_mem_mb =
     time_function (fun () ->
-      (* Parse bytecode *)
       let ic = open_in_bin bytecode_path in
       Js_of_ocaml_compiler.Config.set_target `Wasm;
       let parsed =
@@ -47,9 +47,20 @@ let bench_compile_file ~name bytecode_path =
           ic
       in
       close_in ic;
-      (* Generate Lua *)
-      Lua_generate.generate_to_string ~debug:false parsed.code)
+      parsed)
   in
+  (* Measure generation time *)
+  let lua_string, gen_time_ms, gen_mem_mb =
+    time_function (fun () -> Lua_generate.generate_to_string ~debug:false parsed.code)
+  in
+  let time_ms = parse_time_ms +. gen_time_ms in
+  let memory_mb = parse_mem_mb +. gen_mem_mb in
+  Printf.eprintf "  Parse: %.2fms (%.2fMB), Generate: %.2fms (%.2fMB)\n"
+    parse_time_ms
+    parse_mem_mb
+    gen_time_ms
+    gen_mem_mb;
+  let lua_string, time_ms, memory_mb = lua_string, time_ms, memory_mb in
   let num_blocks =
     let ic = open_in_bin bytecode_path in
     Js_of_ocaml_compiler.Config.set_target `Wasm;
