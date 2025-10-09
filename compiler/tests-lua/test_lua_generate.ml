@@ -1,6 +1,7 @@
 (* Tests for Lua code generation *)
 
 open Js_of_ocaml_compiler
+open Js_of_ocaml_compiler.Stdlib
 
 module Lua_generate = struct
   include Lua_of_ocaml_compiler__Lua_generate
@@ -62,7 +63,7 @@ let%expect_test "generate produces statements" =
 let%expect_test "generate produces main function" =
   let result = Lua_generate.generate ~debug:false dummy_program in
   let types = stat_types result in
-  List.iter (Printf.printf "Statement type: %s\n") types;
+  List.iter ~f:(Printf.printf "Statement type: %s\n") types;
   [%expect.unreachable]
 [@@expect.uncaught_exn {|
   (* CR expect_test_collector: This test expectation appears to contain a backtrace.
@@ -80,7 +81,7 @@ let%expect_test "generate with debug produces same structure" =
   let result = Lua_generate.generate ~debug:true dummy_program in
   Printf.printf "Generated %d statements (debug mode)\n" (List.length result);
   let types = stat_types result in
-  List.iter (Printf.printf "Statement type: %s\n") types;
+  List.iter ~f:(Printf.printf "Statement type: %s\n") types;
   [%expect.unreachable]
 [@@expect.uncaught_exn {|
   (* CR expect_test_collector: This test expectation appears to contain a backtrace.
@@ -102,7 +103,7 @@ let%expect_test "generate_to_string produces valid Lua" =
         let rec search pos =
           let idx = String.index_from result pos (String.get s 0) in
           if String.length result >= idx + String.length s &&
-             String.sub result idx (String.length s) = s
+             String.equal (String.sub result ~pos:idx ~len:(String.length s)) s
           then true
           else search (idx + 1)
         in search 0
@@ -273,10 +274,9 @@ let%expect_test "collect_used_primitives with single external primitive" =
   let block = {
     Code.params = [];
     body = [
-      Code.Let (var1, Code.Prim (Code.Extern "array_make", [Code.Pc (Code.Int 10L); Code.Pc (Code.Int 0L)]))
+      Code.Let (var1, Code.Prim (Code.Extern "array_make", [Code.Pc (Code.Int (Targetint.of_int_warning_on_overflow 10)); Code.Pc (Code.Int (Targetint.of_int_warning_on_overflow 0))]))
     ];
-    branch = Code.Return var1;
-    handler = None
+    branch = Code.Return var1
   } in
   let program = {
     Code.blocks = Code.Addr.Map.singleton Code.Addr.zero block;
@@ -299,12 +299,11 @@ let%expect_test "collect_used_primitives with multiple primitives" =
   let block = {
     Code.params = [];
     body = [
-      Code.Let (var1, Code.Prim (Code.Extern "array_make", [Code.Pc (Code.Int 10L); Code.Pc (Code.Int 0L)]));
-      Code.Let (var2, Code.Prim (Code.Extern "array_get", [Code.Pv var1; Code.Pc (Code.Int 0L)]));
+      Code.Let (var1, Code.Prim (Code.Extern "array_make", [Code.Pc (Code.Int (Targetint.of_int_warning_on_overflow 10)); Code.Pc (Code.Int (Targetint.of_int_warning_on_overflow 0))]));
+      Code.Let (var2, Code.Prim (Code.Extern "array_get", [Code.Pv var1; Code.Pc (Code.Int (Targetint.of_int_warning_on_overflow 0))]));
       Code.Let (var3, Code.Prim (Code.Extern "string_compare", [Code.Pv var2; Code.Pv var2]))
     ];
-    branch = Code.Return var3;
-    handler = None
+    branch = Code.Return var3
   } in
   let program = {
     Code.blocks = Code.Addr.Map.singleton Code.Addr.zero block;
@@ -327,10 +326,9 @@ let%expect_test "collect_used_primitives adds caml_ prefix" =
   let block = {
     Code.params = [];
     body = [
-      Code.Let (var1, Code.Prim (Code.Extern "create_bytes", [Code.Pc (Code.Int 100L)]))
+      Code.Let (var1, Code.Prim (Code.Extern "create_bytes", [Code.Pc (Code.Int (Targetint.of_int_warning_on_overflow 100))]))
     ];
-    branch = Code.Return var1;
-    handler = None
+    branch = Code.Return var1
   } in
   let program = {
     Code.blocks = Code.Addr.Map.singleton Code.Addr.zero block;
@@ -351,10 +349,9 @@ let%expect_test "collect_used_primitives preserves existing caml_ prefix" =
   let block = {
     Code.params = [];
     body = [
-      Code.Let (var1, Code.Prim (Code.Extern "caml_register_global", [Code.Pc (Code.Int 0L); Code.Pv var1]))
+      Code.Let (var1, Code.Prim (Code.Extern "caml_register_global", [Code.Pc (Code.Int (Targetint.of_int_warning_on_overflow 0)); Code.Pv var1]))
     ];
-    branch = Code.Return var1;
-    handler = None
+    branch = Code.Return var1
   } in
   let program = {
     Code.blocks = Code.Addr.Map.singleton Code.Addr.zero block;
@@ -379,8 +376,7 @@ let%expect_test "collect_used_primitives ignores non-extern primitives" =
       Code.Let (var1, Code.Prim (Code.Not, [Code.Pv var1]));
       Code.Let (var2, Code.Prim (Code.IsInt, [Code.Pv var1]))
     ];
-    branch = Code.Return var2;
-    handler = None
+    branch = Code.Return var2
   } in
   let program = {
     Code.blocks = Code.Addr.Map.singleton Code.Addr.zero block;

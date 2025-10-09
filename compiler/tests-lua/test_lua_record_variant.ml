@@ -80,6 +80,10 @@ let%expect_test "record field access - simple" =
     --
     -- === End Runtime ===
     --
+    -- -- Global Primitive Wrappers
+
+
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = 1
@@ -134,6 +138,10 @@ let%expect_test "variant construction - simple constructor" =
     end
     --
     -- === End Runtime ===
+    --
+    -- -- Global Primitive Wrappers
+
+
     --
     function __caml_init__()
       -- Module initialization code
@@ -220,6 +228,10 @@ let%expect_test "variant match - switch optimization" =
     --
     -- === End Runtime ===
     --
+    -- -- Global Primitive Wrappers
+
+
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = 0
@@ -292,6 +304,10 @@ let%expect_test "record - multiple field accesses" =
     --
     -- === End Runtime ===
     --
+    -- -- Global Primitive Wrappers
+
+
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = 1
@@ -352,6 +368,10 @@ let%expect_test "variant with inline record" =
     --
     -- === End Runtime ===
     --
+    -- -- Global Primitive Wrappers
+
+
+    --
     function __caml_init__()
       -- Module initialization code
       local v0 = 10
@@ -410,6 +430,10 @@ let%expect_test "nested record access" =
     end
     --
     -- === End Runtime ===
+    --
+    -- -- Global Primitive Wrappers
+
+
     --
     function __caml_init__()
       -- Module initialization code

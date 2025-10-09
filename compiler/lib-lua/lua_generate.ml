@@ -1131,13 +1131,69 @@ let generate_inline_runtime () =
     @return Lua statements for standalone program
 *)
 let generate_standalone ctx program =
-  (* Generate module initialization *)
-  let init_code = generate_module_init ctx program in
+  (* 1. Track which primitives are used *)
+  let used_primitives = collect_used_primitives program in
 
-  (* Add minimal inline runtime *)
-  let runtime_setup = generate_inline_runtime () in
+  (* 2. Load runtime modules *)
+  let runtime_dir = "runtime/lua" in
+  let fragments =
+    try Lua_link.load_runtime_dir runtime_dir
+    with Sys_error _ ->
+      (* Runtime directory not found - continue without runtime modules *)
+      []
+  in
 
-  runtime_setup @ [ L.Comment "" ] @ init_code
+  (* 3. Find fragments that provide used primitives (using hybrid strategy) *)
+  let needed_fragments_set =
+    StringSet.fold
+      (fun prim_name acc ->
+        match Lua_link.find_primitive_implementation prim_name fragments with
+        | Some (frag, _func_name) -> StringSet.add frag.Lua_link.name acc
+        | None -> acc  (* Primitive not found - might be inlined *)
+      )
+      used_primitives
+      StringSet.empty
+  in
+
+  (* 4. Resolve dependencies between needed fragments *)
+  let sorted_fragments =
+    if List.length fragments = 0 || StringSet.is_empty needed_fragments_set
+    then []
+    else
+      let state =
+        List.fold_left
+          ~f:Lua_link.add_fragment
+          ~init:(Lua_link.init ())
+          fragments
+      in
+      let sorted_fragment_names, _missing =
+        Lua_link.resolve_deps state (StringSet.elements needed_fragments_set)
+      in
+      List.filter_map
+        ~f:(fun name ->
+          List.find_opt ~f:(fun f -> String.equal f.Lua_link.name name) fragments)
+        sorted_fragment_names
+  in
+
+  (* 5. Generate code in order:
+     - Inline runtime (caml_register_global)
+     - Runtime modules (embedded)
+     - Global wrappers (generated from used_primitives)
+     - Program code *)
+  let inline_runtime = generate_inline_runtime () in
+  let embedded_modules =
+    List.map ~f:Lua_link.embed_runtime_module sorted_fragments
+    |> List.map ~f:(fun code -> L.Comment code)
+  in
+  let wrappers_code = Lua_link.generate_wrappers used_primitives fragments in
+  let wrappers =
+    if String.length wrappers_code = 0
+    then []
+    else [ L.Comment wrappers_code ]
+  in
+  let program_code = generate_module_init ctx program in
+
+  inline_runtime @ [ L.Comment "" ] @ embedded_modules @ wrappers @ [ L.Comment "" ] @ program_code
 
 (** Generate module code for separate compilation
     Creates module code that can be loaded via require()
