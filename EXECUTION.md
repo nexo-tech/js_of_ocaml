@@ -19,7 +19,7 @@ This document details the investigation and fix for why hello_lua generates only
 - [ ] Task 7.3: Test all code paths (~50 lines)
 
 **Phase 8: Performance Optimization & Benchmarking** (CRITICAL for self-hosted compiler)
-- [ ] Task 8.1: Establish baseline benchmarks (~80 lines)
+- [x] Task 8.1: Establish baseline benchmarks (~80 lines)
 - [ ] Task 8.2: Profile and identify bottlenecks (~investigation)
 - [ ] Task 8.3: Implement core optimizations (~200 lines)
 - [ ] Task 8.4: Verify improvements with benchmarks (~50 lines)
@@ -892,10 +892,28 @@ let () = run_benchmarks ()
 dune exec compiler/tests-lua/bench_lua_generate.exe
 ```
 
+**Baseline Results** (established 2025-10-09):
+```
+=== BENCHMARK RESULTS ===
+Benchmark                        Time(ms)    Mem(MB)     Blocks   Output(KB)   ms/block
+------------------------------------------------------------------------------------------
+minimal_exec                         8.28       1.71        269       101.30     0.0308
+```
+
+**Analysis**:
+- Compilation is **very fast** for single programs (8.28ms for 269 blocks)
+- Memory usage is minimal (1.71MB)
+- Performance is **12x better** than target (<100ms for <100 blocks)
+- **However**: Tests still timeout, suggesting issue is NOT in single compilation but in:
+  1. Test infrastructure overhead
+  2. Repeated block traversal across multiple test cases
+  3. Expect test framework overhead
+  4. Possible infinite loops in specific code paths
+
 **Success Criteria**:
-- [ ] Benchmarks run successfully
-- [ ] Establish baseline metrics (document current performance)
-- [ ] Identify slowest operations
+- [x] Benchmarks run successfully
+- [x] Establish baseline metrics (document current performance)
+- [ ] Identify slowest operations (needs Task 8.2 profiling)
 
 ---
 

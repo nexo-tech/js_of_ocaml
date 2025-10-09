@@ -262,6 +262,11 @@
  (inline_tests)
  (preprocess (pps ppx_expect)))
 
+(executable
+ (name bench_lua_generate)
+ (libraries lua_of_ocaml_compiler unix)
+ (modules bench_lua_generate))
+
 (rule
  (alias runtest)
  (package lua_of_ocaml-compiler)
