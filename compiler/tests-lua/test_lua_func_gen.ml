@@ -355,7 +355,9 @@ let%expect_test "generate closure - function with if-then-else" =
       end
       ::block_11::
       v2 = 1
-      return v2
+      do
+        return v2
+      end
       ::block_12::
       v2 = 0
       return v2

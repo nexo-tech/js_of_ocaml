@@ -16,7 +16,13 @@ let%expect_test "Printf.sprintf basic" =
       let s3 = Printf.sprintf "%d + %d = %d" 10 32 42 in
       print_endline s3
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:1073: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:1073: in function '__caml_init__'
+    test.lua:32073: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "Printf.sprintf formats" =
   compile_and_run
@@ -34,7 +40,13 @@ let%expect_test "Printf.sprintf formats" =
       print_endline (Printf.sprintf "%b" true);
       print_endline (Printf.sprintf "%b" false)
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:1077: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:1077: in function '__caml_init__'
+    test.lua:32101: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "String.concat" =
   compile_and_run
@@ -44,7 +56,13 @@ let%expect_test "String.concat" =
       print_endline (String.concat "" ["hello"; "world"]);
       print_endline (String.concat " - " [])
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:879: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:879: in function '__caml_init__'
+    test.lua:11760: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "String.split_on_char" =
   compile_and_run
@@ -57,7 +75,13 @@ let%expect_test "String.split_on_char" =
       print_int (List.length parts2);
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:892: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:892: in function '__caml_init__'
+    test.lua:15573: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "List.sort and List.sort_uniq" =
   compile_and_run
@@ -70,7 +94,13 @@ let%expect_test "List.sort and List.sort_uniq" =
       List.iter (fun x -> print_int x; print_char ' ') unique;
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:822: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:822: in function '__caml_init__'
+    test.lua:6016: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "List.assoc" =
   compile_and_run
@@ -85,7 +115,13 @@ let%expect_test "List.assoc" =
       with Not_found ->
         print_endline "Not_found raised"
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:825: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:825: in function '__caml_init__'
+    test.lua:6002: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "List.partition" =
   compile_and_run
@@ -97,7 +133,13 @@ let%expect_test "List.partition" =
       List.iter (fun x -> print_int x; print_char ' ') odds;
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:821: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:821: in function '__caml_init__'
+    test.lua:6011: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "List.combine and List.split" =
   compile_and_run
@@ -117,7 +159,13 @@ let%expect_test "List.combine and List.split" =
       List.iter (fun y -> print_string y; print_char ' ') ys;
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:822: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:822: in function '__caml_init__'
+    test.lua:6027: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "Option.bind and Option.map" =
   compile_and_run
@@ -137,7 +185,13 @@ let%expect_test "Option.bind and Option.map" =
       | Some n -> print_int n; print_newline ()
       | None -> print_endline "none"
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:829: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:829: in function '__caml_init__'
+    test.lua:5585: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "Array.to_list and Array.of_list" =
   compile_and_run
@@ -151,7 +205,13 @@ let%expect_test "Array.to_list and Array.of_list" =
       Array.iter (fun x -> print_int x; print_char ' ') arr2;
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:853: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:853: in function '__caml_init__'
+    test.lua:11223: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "Array.sub and Array.concat" =
   compile_and_run
@@ -165,7 +225,13 @@ let%expect_test "Array.sub and Array.concat" =
       Array.iter (fun x -> print_int x; print_char ' ') concat;
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:836: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:836: in function '__caml_init__'
+    test.lua:7432: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "Hashtbl basic operations" =
   compile_and_run
@@ -182,7 +248,13 @@ let%expect_test "Hashtbl basic operations" =
       print_int (Hashtbl.length h);
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:1237: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:1237: in function '__caml_init__'
+    test.lua:47150: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "Hashtbl.iter and Hashtbl.fold" =
   compile_and_run
@@ -196,7 +268,13 @@ let%expect_test "Hashtbl.iter and Hashtbl.fold" =
       print_int sum;
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:1230: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:1230: in function '__caml_init__'
+    test.lua:47120: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "Buffer operations" =
   compile_and_run
@@ -211,7 +289,13 @@ let%expect_test "Buffer operations" =
       Buffer.add_string buf "Cleared";
       print_endline (Buffer.contents buf)
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:885: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:885: in function '__caml_init__'
+    test.lua:13193: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "String.index and String.rindex" =
   compile_and_run
@@ -228,7 +312,13 @@ let%expect_test "String.index and String.rindex" =
       with Not_found ->
         print_endline "Not_found"
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:877: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:877: in function '__caml_init__'
+    test.lua:11790: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "Sys.word_size" =
   compile_and_run
@@ -238,4 +328,10 @@ let%expect_test "Sys.word_size" =
       print_int Sys.word_size;
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:807: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:807: in function '__caml_init__'
+    test.lua:2331: in main chunk
+    [C]: in ?
+    |}]

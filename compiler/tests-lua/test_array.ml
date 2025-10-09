@@ -21,7 +21,13 @@ let%expect_test "array creation and access" =
       print_int a.(4);
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:805: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:805: in function '__caml_init__'
+    test.lua:2181: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "array set" =
   compile_and_run
@@ -36,7 +42,13 @@ let%expect_test "array set" =
       print_int a.(2);
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:804: in function '__caml_init__'
+    test.lua:2186: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "array length" =
   compile_and_run
@@ -49,7 +61,13 @@ let%expect_test "array length" =
       print_int (Array.length b);
       print_newline ()
     |};
-  [%expect {| lua: test.lua:173: <goto block_4> at line 105 jumps into the scope of local 'v189' |}]
+  [%expect {|
+    lua: test.lua:805: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:805: in function '__caml_init__'
+    test.lua:2173: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "array make" =
   compile_and_run
@@ -63,7 +81,13 @@ let%expect_test "array make" =
       print_int a.(2);
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:835: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:835: in function '__caml_init__'
+    test.lua:7402: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "array init" =
   compile_and_run
@@ -76,7 +100,13 @@ let%expect_test "array init" =
       done;
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:835: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:835: in function '__caml_init__'
+    test.lua:7429: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "array iter" =
   compile_and_run
@@ -86,7 +116,13 @@ let%expect_test "array iter" =
       Array.iter (fun x -> print_int x; print_char ' ') a;
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:836: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:836: in function '__caml_init__'
+    test.lua:7398: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "array map" =
   compile_and_run
@@ -97,7 +133,13 @@ let%expect_test "array map" =
       Array.iter (fun x -> print_int x; print_char ' ') b;
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:836: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:836: in function '__caml_init__'
+    test.lua:7408: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "array fold_left" =
   compile_and_run
@@ -108,7 +150,13 @@ let%expect_test "array fold_left" =
       print_int sum;
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:836: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:836: in function '__caml_init__'
+    test.lua:7397: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "array bounds check" =
   compile_and_run
@@ -121,4 +169,10 @@ let%expect_test "array bounds check" =
       with Invalid_argument msg ->
         print_endline "caught: Invalid_argument"
     |};
-  [%expect {| lua: test.lua:174: <goto block_4> at line 106 jumps into the scope of local 'v189' |}]
+  [%expect {|
+    lua: test.lua:806: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:806: in function '__caml_init__'
+    test.lua:2193: in main chunk
+    [C]: in ?
+    |}]

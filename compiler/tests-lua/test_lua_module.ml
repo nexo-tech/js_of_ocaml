@@ -372,7 +372,9 @@ let%expect_test "generate standalone - conditional program" =
       end
       ::block_1::
       v2 = 1
-      return v2
+      do
+        return v2
+      end
       ::block_2::
       v2 = 0
       return v2

@@ -16,7 +16,13 @@ let%expect_test "char operations" =
       print_char (Char.chr 66);
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:811: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:811: in function '__caml_init__'
+    test.lua:2463: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "char comparison" =
   compile_and_run
@@ -26,7 +32,13 @@ let%expect_test "char comparison" =
       print_endline (if 'z' > 'a' then "greater" else "not greater");
       print_endline (if 'A' = 'A' then "equal" else "not equal")
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:810: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:810: in function '__caml_init__'
+    test.lua:2203: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "char case conversion" =
   compile_and_run
@@ -37,7 +49,13 @@ let%expect_test "char case conversion" =
       print_char (Char.lowercase_ascii 'Z');
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:811: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:811: in function '__caml_init__'
+    test.lua:2460: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "escape sequences in strings" =
   compile_and_run
@@ -49,7 +67,13 @@ let%expect_test "escape sequences in strings" =
       print_endline "backslash\\test";
       print_endline "return\rtest"
     |};
-  [%expect {| lua: test.lua:177: <goto block_4> at line 109 jumps into the scope of local 'v189' |}]
+  [%expect {|
+    lua: test.lua:809: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:809: in function '__caml_init__'
+    test.lua:2173: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "escape sequences in chars" =
   compile_and_run
@@ -61,7 +85,13 @@ let%expect_test "escape sequences in chars" =
       print_char 'B';
       print_newline ()
     |};
-  [%expect {| lua: test.lua:172: <goto block_4> at line 104 jumps into the scope of local 'v189' |}]
+  [%expect {|
+    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:804: in function '__caml_init__'
+    test.lua:2173: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "null character" =
   compile_and_run
@@ -73,7 +103,13 @@ let%expect_test "null character" =
       print_int (Char.code s.[5]);
       print_newline ()
     |};
-  [%expect {| lua: test.lua:173: <goto block_4> at line 105 jumps into the scope of local 'v188' |}]
+  [%expect {|
+    lua: test.lua:805: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:805: in function '__caml_init__'
+    test.lua:2172: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "high ascii characters" =
   compile_and_run
@@ -85,7 +121,13 @@ let%expect_test "high ascii characters" =
       print_int (Char.code (Char.chr 255));
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:811: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:811: in function '__caml_init__'
+    test.lua:2460: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "string as char sequence" =
   compile_and_run
@@ -98,7 +140,13 @@ let%expect_test "string as char sequence" =
       done;
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:805: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:805: in function '__caml_init__'
+    test.lua:2190: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "string modification edge case" =
   compile_and_run
@@ -111,7 +159,13 @@ let%expect_test "string modification edge case" =
       print_endline s2;
       print_endline (if s1 == s2 then "same" else "different")
     |};
-  [%expect {| lua: test.lua:175: <goto block_4> at line 107 jumps into the scope of local 'v184' |}]
+  [%expect {|
+    lua: test.lua:807: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:807: in function '__caml_init__'
+    test.lua:2177: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "bytes creation and modification" =
   compile_and_run
@@ -123,7 +177,13 @@ let%expect_test "bytes creation and modification" =
       (* Original string unchanged *)
       print_endline "hello"
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:866: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:866: in function '__caml_init__'
+    test.lua:10534: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "bytes vs string" =
   compile_and_run
@@ -136,7 +196,13 @@ let%expect_test "bytes vs string" =
       print_endline s;
       print_endline (Bytes.to_string b)
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:865: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:865: in function '__caml_init__'
+    test.lua:10533: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "bytes operations" =
   compile_and_run
@@ -150,7 +216,13 @@ let%expect_test "bytes operations" =
       Bytes.set b 4 'o';
       print_endline (Bytes.to_string b)
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:864: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:864: in function '__caml_init__'
+    test.lua:10542: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "bytes concat and sub" =
   compile_and_run
@@ -163,7 +235,13 @@ let%expect_test "bytes concat and sub" =
       let sub = Bytes.sub b3 0 5 in
       print_endline (Bytes.to_string sub)
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:867: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:867: in function '__caml_init__'
+    test.lua:10547: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "string contains all char range" =
   compile_and_run
@@ -181,7 +259,13 @@ let%expect_test "string contains all char range" =
       print_int (Char.code (Bytes.get b 255));
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:864: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:864: in function '__caml_init__'
+    test.lua:10566: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "empty string edge cases" =
   compile_and_run
@@ -195,7 +279,13 @@ let%expect_test "empty string edge cases" =
       print_int (Bytes.length b);
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:869: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:869: in function '__caml_init__'
+    test.lua:10552: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "string equality with special chars" =
   compile_and_run
@@ -208,4 +298,10 @@ let%expect_test "string equality with special chars" =
       let s4 = "hello\000world" in
       print_endline (if s3 = s4 then "equal" else "not equal")
     |};
-  [%expect {| lua: test.lua:180: <goto block_4> at line 112 jumps into the scope of local 'v188' |}]
+  [%expect {|
+    lua: test.lua:812: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:812: in function '__caml_init__'
+    test.lua:2190: in main chunk
+    [C]: in ?
+    |}]

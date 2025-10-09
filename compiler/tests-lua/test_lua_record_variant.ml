@@ -259,10 +259,14 @@ let%expect_test "variant match - switch optimization" =
       end
       ::block_1::
       v1 = 10
-      return v1
+      do
+        return v1
+      end
       ::block_2::
       v1 = 20
-      return v1
+      do
+        return v1
+      end
       ::block_3::
       v1 = 30
       return v1

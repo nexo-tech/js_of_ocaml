@@ -12,7 +12,13 @@ let%expect_test "empty list patterns" =
       | [] -> print_endline "empty"
       | _ :: _ -> print_endline "non-empty"
     |};
-  [%expect {| lua: test.lua:174: <goto block_4> at line 106 jumps into the scope of local 'v181' |}]
+  [%expect {|
+    lua: test.lua:806: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:806: in function '__caml_init__'
+    test.lua:2174: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "deeply nested pattern matching" =
   compile_and_run
@@ -31,7 +37,13 @@ let%expect_test "deeply nested pattern matching" =
       print_int (count t);
       print_newline ()
     |};
-  [%expect {| lua: test.lua:173: <goto block_4> at line 105 jumps into the scope of local 'v182' |}]
+  [%expect {|
+    lua: test.lua:805: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:805: in function '__caml_init__'
+    test.lua:2230: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "mutual recursion across let rec" =
   compile_and_run
@@ -45,7 +57,13 @@ let%expect_test "mutual recursion across let rec" =
       print_endline (if is_even 100 then "even" else "odd");
       print_endline (if is_odd 99 then "odd" else "even")
     |};
-  [%expect {| lua: test.lua:176: <goto block_4> at line 108 jumps into the scope of local 'v188' |}]
+  [%expect {|
+    lua: test.lua:808: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:808: in function '__caml_init__'
+    test.lua:2232: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "nested let rec" =
   compile_and_run
@@ -63,7 +81,13 @@ let%expect_test "nested let rec" =
       print_int (outer 3);
       print_newline ()
     |};
-  [%expect {| lua: test.lua:172: <goto block_4> at line 104 jumps into the scope of local 'v182' |}]
+  [%expect {|
+    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:804: in function '__caml_init__'
+    test.lua:2212: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "lazy evaluation simulation" =
   compile_and_run
@@ -84,7 +108,13 @@ let%expect_test "lazy evaluation simulation" =
       print_int (force expensive);
       print_newline ()
     |};
-  [%expect {| lua: test.lua:173: <goto block_4> at line 105 jumps into the scope of local 'v185' |}]
+  [%expect {|
+    lua: test.lua:805: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:805: in function '__caml_init__'
+    test.lua:2209: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "option chaining" =
   compile_and_run
@@ -101,7 +131,13 @@ let%expect_test "option chaining" =
       | Some n -> print_int n; print_newline ()
       | None -> print_endline "none"
     |};
-  [%expect {| lua: test.lua:174: <goto block_4> at line 106 jumps into the scope of local 'v188' |}]
+  [%expect {|
+    lua: test.lua:806: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:806: in function '__caml_init__'
+    test.lua:2236: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "result type error handling" =
   compile_and_run
@@ -121,7 +157,13 @@ let%expect_test "result type error handling" =
       | Ok n -> print_int n; print_newline ()
       | Error msg -> print_endline msg
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:805: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:805: in function '__caml_init__'
+    test.lua:2232: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "accumulator pattern" =
   compile_and_run
@@ -141,7 +183,13 @@ let%expect_test "accumulator pattern" =
       List.iter (fun x -> print_int x; print_char ' ') rev;
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:822: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:822: in function '__caml_init__'
+    test.lua:6031: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "continuation passing style simulation" =
   compile_and_run
@@ -154,7 +202,13 @@ let%expect_test "continuation passing style simulation" =
       print_int (factorial_cps 5 (fun x -> x));
       print_newline ()
     |};
-  [%expect {| lua: test.lua:172: <goto block_4> at line 104 jumps into the scope of local 'v183' |}]
+  [%expect {|
+    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:804: in function '__caml_init__'
+    test.lua:2201: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "state monad simulation" =
   compile_and_run
@@ -182,7 +236,13 @@ let%expect_test "state monad simulation" =
       print_int (run_state counter 10);
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:804: in function '__caml_init__'
+    test.lua:2250: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "complex list comprehension pattern" =
   compile_and_run
@@ -206,7 +266,13 @@ let%expect_test "complex list comprehension pattern" =
       ) pairs;
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:822: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:822: in function '__caml_init__'
+    test.lua:6037: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "memoization pattern" =
   compile_and_run
@@ -233,7 +299,13 @@ let%expect_test "memoization pattern" =
       print_int (fib 20);
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:1227: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:1227: in function '__caml_init__'
+    test.lua:47154: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "zipper pattern for lists" =
   compile_and_run
@@ -259,7 +331,13 @@ let%expect_test "zipper pattern for lists" =
       | None ->
           print_endline "none"
     |};
-  [%expect {| lua: test.lua:174: <goto block_4> at line 106 jumps into the scope of local 'v188' |}]
+  [%expect {|
+    lua: test.lua:806: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:806: in function '__caml_init__'
+    test.lua:2231: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "type witness pattern" =
   compile_and_run
@@ -293,7 +371,13 @@ let%expect_test "varargs simulation with lists" =
       print_int (sum_all []);
       print_newline ()
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:822: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:822: in function '__caml_init__'
+    test.lua:6001: in main chunk
+    [C]: in ?
+    |}]
 
 let%expect_test "builder pattern" =
   compile_and_run
@@ -326,4 +410,10 @@ let%expect_test "builder pattern" =
       print_newline ();
       print_endline (if cfg.debug then "debug" else "no debug")
     |};
-  [%expect {| lua: test.lua:29: too many local variables (limit is 200) in function at line 26 near ',' |}]
+  [%expect {|
+    lua: test.lua:808: attempt to call a nil value (global 'caml_register_named_value')
+    stack traceback:
+    test.lua:808: in function '__caml_init__'
+    test.lua:2220: in main chunk
+    [C]: in ?
+    |}]
