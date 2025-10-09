@@ -643,10 +643,10 @@ let rec generate_expr ctx expr =
 and generate_instr ctx instr =
   match instr with
   | Code.Let (var, expr) ->
-      (* Generate local variable declaration with initialization *)
+      (* Generate assignment (variables are hoisted at function start) *)
       let var_name = var_name ctx var in
       let lua_expr = generate_expr ctx expr in
-      L.Local ([ var_name ], Some [ lua_expr ])
+      L.Assign ([ L.Ident var_name ], [ lua_expr ])
   | Code.Assign (target, source) ->
       (* Generate assignment statement *)
       let target_ident = var_ident ctx target in

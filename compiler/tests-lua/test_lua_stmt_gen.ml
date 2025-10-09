@@ -31,7 +31,7 @@ let%expect_test "generate instr - let with constant" =
   let lua_stmt = Lua_generate.generate_instr ctx instr in
   let lua_str = stat_to_string lua_stmt in
   print_endline lua_str;
-  [%expect {| local v0 = 42 |}]
+  [%expect {| v0 = 42 |}]
 
 let%expect_test "generate instr - let with string" =
   let ctx = make_ctx () in
@@ -41,7 +41,7 @@ let%expect_test "generate instr - let with string" =
   let lua_stmt = Lua_generate.generate_instr ctx instr in
   let lua_str = stat_to_string lua_stmt in
   print_endline lua_str;
-  [%expect {| local v0 = "hello" |}]
+  [%expect {| v0 = "hello" |}]
 
 let%expect_test "generate instr - let with variable" =
   let ctx = make_ctx () in
@@ -54,7 +54,7 @@ let%expect_test "generate instr - let with variable" =
   let lua_stmt = Lua_generate.generate_instr ctx instr in
   let lua_str = stat_to_string lua_stmt in
   print_endline lua_str;
-  [%expect {| local v1 = v0() |}]
+  [%expect {| v1 = v0() |}]
 
 let%expect_test "generate instr - let with block" =
   let ctx = make_ctx () in
@@ -68,7 +68,7 @@ let%expect_test "generate instr - let with block" =
   let lua_stmt = Lua_generate.generate_instr ctx instr in
   let lua_str = stat_to_string lua_stmt in
   print_endline lua_str;
-  [%expect {| local v2 = {tag = 0, v0, v1} |}]
+  [%expect {| v2 = {tag = 0, v0, v1} |}]
 
 (* Assignment tests *)
 
@@ -160,9 +160,10 @@ let%expect_test "generate instrs - multiple let bindings" =
   let lua_stmts = Lua_generate.generate_instrs ctx instrs in
   List.iter (fun s -> print_endline (stat_to_string s)) lua_stmts;
   [%expect {|
-    local v0 = 1
-    local v1 = 2
-    local v2 = 3 |}]
+    v0 = 1
+    v1 = 2
+    v2 = 3
+    |}]
 
 let%expect_test "generate instrs - let and assign sequence" =
   let ctx = make_ctx () in
@@ -177,9 +178,10 @@ let%expect_test "generate instrs - let and assign sequence" =
   let lua_stmts = Lua_generate.generate_instrs ctx instrs in
   List.iter (fun s -> print_endline (stat_to_string s)) lua_stmts;
   [%expect {|
-    local v0 = 10
-    local v1 = 20
-    v0 = v1 |}]
+    v0 = 10
+    v1 = 20
+    v0 = v1
+    |}]
 
 (* Terminator tests *)
 
@@ -226,9 +228,10 @@ let%expect_test "generate block - simple" =
   let lua_stmts = Lua_generate.generate_block ctx block in
   List.iter (fun s -> print_endline (stat_to_string s)) lua_stmts;
   [%expect {|
-    local v0 = 42
-    local v1 = "test"
-    return v1 |}]
+    v0 = 42
+    v1 = "test"
+    return v1
+    |}]
 
 let%expect_test "generate block - with assignment" =
   let ctx = make_ctx () in
@@ -247,10 +250,11 @@ let%expect_test "generate block - with assignment" =
   let lua_stmts = Lua_generate.generate_block ctx block in
   List.iter (fun s -> print_endline (stat_to_string s)) lua_stmts;
   [%expect {|
-    local v0 = 100
-    local v1 = 200
+    v0 = 100
+    v1 = 200
     v0 = v1
-    return v0 |}]
+    return v0
+    |}]
 
 let%expect_test "generate block - with field operations" =
   let ctx = make_ctx () in
@@ -274,13 +278,14 @@ let%expect_test "generate block - with field operations" =
   let lua_stmts = Lua_generate.generate_block ctx block in
   List.iter (fun s -> print_endline (stat_to_string s)) lua_stmts;
   [%expect {|
-    local v0 = {tag = 0}
-    local v1 = 10
-    local v2 = 20
+    v0 = {tag = 0}
+    v1 = 10
+    v2 = 20
     v0[1] = v1
     v0[2] = v2
-    local v3 = v0[1]
-    return v3 |}]
+    v3 = v0[1]
+    return v3
+    |}]
 
 let%expect_test "generate block - empty body" =
   let ctx = make_ctx () in
@@ -325,7 +330,7 @@ let%expect_test "variable scoping - nested lets" =
   let lua_stmts = Lua_generate.generate_instrs ctx instrs in
   List.iter (fun s -> print_endline (stat_to_string s)) lua_stmts;
   [%expect {|
-    local x = 1
-    local x1 = x()
-    local v0 = x1(x)
+    x = 1
+    x1 = x()
+    v0 = x1(x)
     |}]

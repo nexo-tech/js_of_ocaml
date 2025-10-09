@@ -74,7 +74,10 @@ let%expect_test "lua value - nil representation" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = 0
+      -- Hoisted variables (1 total)
+      local v0
+      ::block_0::
+      v0 = 0
       return v0
     end
     __caml_init__()
@@ -121,7 +124,10 @@ let%expect_test "lua value - boolean true" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = 1
+      -- Hoisted variables (1 total)
+      local v0
+      ::block_0::
+      v0 = 1
       return v0
     end
     __caml_init__()
@@ -168,7 +174,10 @@ let%expect_test "lua value - boolean false" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = 0
+      -- Hoisted variables (1 total)
+      local v0
+      ::block_0::
+      v0 = 0
       return v0
     end
     __caml_init__()
@@ -215,7 +224,10 @@ let%expect_test "lua value - number" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = 42
+      -- Hoisted variables (1 total)
+      local v0
+      ::block_0::
+      v0 = 42
       return v0
     end
     __caml_init__()
@@ -262,7 +274,10 @@ let%expect_test "lua value - string" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = "hello"
+      -- Hoisted variables (1 total)
+      local v0
+      ::block_0::
+      v0 = "hello"
       return v0
     end
     __caml_init__()
@@ -316,9 +331,12 @@ let%expect_test "lua value - table (OCaml record)" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = 10
-      local v1 = "test"
-      local v2 = {tag = 0, v0, v1}
+      -- Hoisted variables (3 total)
+      local v0, v1, v2
+      ::block_0::
+      v0 = 10
+      v1 = "test"
+      v2 = {tag = 0, v0, v1}
       return v2
     end
     __caml_init__()
@@ -375,10 +393,13 @@ let%expect_test "lua value - array" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = 1
-      local v1 = 2
-      local v2 = 3
-      local v3 = {tag = 0, v0, v1, v2}
+      -- Hoisted variables (4 total)
+      local v0, v1, v2, v3
+      ::block_0::
+      v0 = 1
+      v1 = 2
+      v2 = 3
+      v3 = {tag = 0, v0, v1, v2}
       return v3
     end
     __caml_init__()
@@ -425,7 +446,10 @@ let%expect_test "lua value - option None" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = 0
+      -- Hoisted variables (1 total)
+      local v0
+      ::block_0::
+      v0 = 0
       return v0
     end
     __caml_init__()
@@ -476,8 +500,11 @@ let%expect_test "lua value - option Some" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = 42
-      local v1 = {tag = 0, v0}
+      -- Hoisted variables (2 total)
+      local v0, v1
+      ::block_0::
+      v0 = 42
+      v1 = {tag = 0, v0}
       return v1
     end
     __caml_init__()
@@ -541,13 +568,16 @@ let%expect_test "lua value - list" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = 1
-      local v1 = 2
-      local v2 = 3
-      local v3 = 0
-      local v4 = {tag = 0, v2, v3}
-      local v5 = {tag = 0, v1, v4}
-      local v6 = {tag = 0, v0, v5}
+      -- Hoisted variables (7 total)
+      local v0, v1, v2, v3, v4, v5, v6
+      ::block_0::
+      v0 = 1
+      v1 = 2
+      v2 = 3
+      v3 = 0
+      v4 = {tag = 0, v2, v3}
+      v5 = {tag = 0, v1, v4}
+      v6 = {tag = 0, v0, v5}
       return v6
     end
     __caml_init__()
@@ -603,8 +633,14 @@ let%expect_test "lua value - closure representation" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = function()
-        local v1 = caml_id(v2)
+      -- Hoisted variables (1 total)
+      local v0
+      ::block_0::
+      v0 = function()
+        -- Hoisted variables (1 total)
+        local v1
+        ::block_1::
+        v1 = caml_id(v2)
         return v1
       end
       return v0
@@ -661,9 +697,12 @@ let%expect_test "lua interop - function call with call1" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = caml_get_global_fn("print")
-      local v1 = "Hello from OCaml"
-      local v2 = caml_call1(v0, v1)
+      -- Hoisted variables (3 total)
+      local v0, v1, v2
+      ::block_0::
+      v0 = caml_get_global_fn("print")
+      v1 = "Hello from OCaml"
+      v2 = caml_call1(v0, v1)
       return v2
     end
     __caml_init__()
@@ -716,9 +755,12 @@ let%expect_test "lua interop - table field access with get_int" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = caml_get_global_table("my_table")
-      local v1 = "count"
-      local v2 = caml_get_int(v0, v1)
+      -- Hoisted variables (3 total)
+      local v0, v1, v2
+      ::block_0::
+      v0 = caml_get_global_table("my_table")
+      v1 = "count"
+      v2 = caml_get_int(v0, v1)
       return v2
     end
     __caml_init__()
@@ -771,8 +813,11 @@ let%expect_test "lua interop - global variable access" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = 42
-      local v1 = caml_set_global_int("my_var", v0)
+      -- Hoisted variables (2 total)
+      local v0, v1
+      ::block_0::
+      v0 = 42
+      v1 = caml_set_global_int("my_var", v0)
       return v1
     end
     __caml_init__()
@@ -819,7 +864,10 @@ let%expect_test "lua interop - module require" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = caml_require("os")
+      -- Hoisted variables (1 total)
+      local v0
+      ::block_0::
+      v0 = caml_require("os")
       return v0
     end
     __caml_init__()
@@ -876,10 +924,13 @@ let%expect_test "lua interop - method call" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = caml_get_global_table("string")
-      local v1 = "upper"
-      local v2 = {tag = 0}
-      local v3 = caml_call_method(v0, v1, v2)
+      -- Hoisted variables (4 total)
+      local v0, v1, v2, v3
+      ::block_0::
+      v0 = caml_get_global_table("string")
+      v1 = "upper"
+      v2 = {tag = 0}
+      v3 = caml_call_method(v0, v1, v2)
       return v3
     end
     __caml_init__()
@@ -935,10 +986,13 @@ let%expect_test "lua interop - table set operations" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = caml_table()
-      local v1 = "name"
-      local v2 = "Lua"
-      local v3 = caml_set_string(v0, v1, v2)
+      -- Hoisted variables (4 total)
+      local v0, v1, v2, v3
+      ::block_0::
+      v0 = caml_table()
+      v1 = "name"
+      v2 = "Lua"
+      v3 = caml_set_string(v0, v1, v2)
       return v3
     end
     __caml_init__()
@@ -994,11 +1048,15 @@ let%expect_test "lua export - export_fn1" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = function()
-        return v1
+      -- Hoisted variables (2 total)
+      local v0, v1
+      ::block_0::
+      v0 = function()
+        ::block_1::
+        return v2
       end
-      local v2 = caml_export_fn1("my_func", v0)
-      return v2
+      v1 = caml_export_fn1("my_func", v0)
+      return v1
     end
     __caml_init__()
     |}]
@@ -1059,15 +1117,20 @@ let%expect_test "lua export - export_module" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = function()
-        return v1
+      -- Hoisted variables (4 total)
+      local v0, v1, v2, v3
+      ::block_0::
+      v0 = function()
+        ::block_1::
+        return v4
       end
-      local v2 = function()
-        return v3
+      v1 = function()
+        ::block_2::
+        return v5
       end
-      local v4 = {tag = 0, v0, v2}
-      local v5 = caml_export_module("MyMod", v4)
-      return v5
+      v2 = {tag = 0, v0, v1}
+      v3 = caml_export_module("MyMod", v2)
+      return v3
     end
     __caml_init__()
     |}]
@@ -1124,14 +1187,18 @@ let%expect_test "lua export - make_module" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = function()
-        return v1
+      -- Hoisted variables (5 total)
+      local v0, v1, v2, v3, v4
+      ::block_0::
+      v0 = function()
+        ::block_1::
+        return v5
       end
-      local v2 = "do_something"
-      local v3 = {tag = 0, v2, v0}
-      local v4 = {tag = 0, v3}
-      local v5 = caml_make_module(v4)
-      return v5
+      v1 = "do_something"
+      v2 = {tag = 0, v1, v0}
+      v3 = {tag = 0, v2}
+      v4 = caml_make_module(v3)
+      return v4
     end
     __caml_init__()
     |}]
@@ -1186,7 +1253,10 @@ let%expect_test "lua export - wrapped function with marshalling" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = caml_export_wrapped1("add_one", "Int_marshal", "Int_marshal")
+      -- Hoisted variables (1 total)
+      local v0
+      ::block_0::
+      v0 = caml_export_wrapped1("add_one", "Int_marshal", "Int_marshal")
       return v0
     end
     __caml_init__()
@@ -1241,9 +1311,12 @@ let%expect_test "library wrapping - method0 binding" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = caml_lua_get_global("vim")
-      local v1 = "nvim_get_current_buf"
-      local v2 = caml_lua_method0(v0, v1)
+      -- Hoisted variables (3 total)
+      local v0, v1, v2
+      ::block_0::
+      v0 = caml_lua_get_global("vim")
+      v1 = "nvim_get_current_buf"
+      v2 = caml_lua_method0(v0, v1)
       return v2
     end
     __caml_init__()
@@ -1300,11 +1373,14 @@ let%expect_test "library wrapping - method1 binding" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = caml_lua_create_table()
-      local v1 = "set_line"
-      local v2 = caml_lua_method1(v0, v1)
-      local v3 = "Hello, Lua!"
-      local v4 = v2(v3)
+      -- Hoisted variables (5 total)
+      local v0, v1, v2, v3, v4
+      ::block_0::
+      v0 = caml_lua_create_table()
+      v1 = "set_line"
+      v2 = caml_lua_method1(v0, v1)
+      v3 = "Hello, Lua!"
+      v4 = v2(v3)
       return v4
     end
     __caml_init__()
@@ -1357,9 +1433,12 @@ let%expect_test "library wrapping - property access" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = caml_lua_create_table()
-      local v1 = "name"
-      local v2 = caml_lua_prop_get(v0, v1)
+      -- Hoisted variables (3 total)
+      local v0, v1, v2
+      ::block_0::
+      v0 = caml_lua_create_table()
+      v1 = "name"
+      v2 = caml_lua_prop_get(v0, v1)
       return v2
     end
     __caml_init__()
@@ -1420,13 +1499,16 @@ let%expect_test "library wrapping - method chaining with pipe" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = caml_lua_create_table()
-      local v1 = 10
-      local v2 = 20
-      local v3 = caml_lua_method1(v0, "foo")
-      local v4 = v3(v1)
-      local v5 = caml_lua_method1(v4, "bar")
-      local v6 = v5(v2)
+      -- Hoisted variables (7 total)
+      local v0, v1, v2, v3, v4, v5, v6
+      ::block_0::
+      v0 = caml_lua_create_table()
+      v1 = 10
+      v2 = 20
+      v3 = caml_lua_method1(v0, "foo")
+      v4 = v3(v1)
+      v5 = caml_lua_method1(v4, "bar")
+      v6 = v5(v2)
       return v6
     end
     __caml_init__()
@@ -1479,9 +1561,12 @@ let%expect_test "library wrapping - optional parameter with opt_param" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = 42
-      local v1 = 0
-      local v2 = caml_lua_opt_param(v0, v1)
+      -- Hoisted variables (3 total)
+      local v0, v1, v2
+      ::block_0::
+      v0 = 42
+      v1 = 0
+      v2 = caml_lua_opt_param(v0, v1)
       return v2
     end
     __caml_init__()
@@ -1538,11 +1623,14 @@ let%expect_test "library wrapping - bind_function typed wrapper" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = "math"
-      local v1 = "sqrt"
-      local v2 = "Float_marshal"
-      local v3 = "Float_marshal"
-      local v4 = caml_lua_bind_function(v0, v1, v2, v3)
+      -- Hoisted variables (5 total)
+      local v0, v1, v2, v3, v4
+      ::block_0::
+      v0 = "math"
+      v1 = "sqrt"
+      v2 = "Float_marshal"
+      v3 = "Float_marshal"
+      v4 = caml_lua_bind_function(v0, v1, v2, v3)
       return v4
     end
     __caml_init__()

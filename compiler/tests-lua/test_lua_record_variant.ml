@@ -86,10 +86,13 @@ let%expect_test "record field access - simple" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = 1
-      local v1 = 2
-      local v2 = {tag = 0, v0, v1}
-      local v3 = v2[2]
+      -- Hoisted variables (4 total)
+      local v0, v1, v2, v3
+      ::block_0::
+      v0 = 1
+      v1 = 2
+      v2 = {tag = 0, v0, v1}
+      v3 = v2[2]
       return v3
     end
     __caml_init__()
@@ -145,8 +148,11 @@ let%expect_test "variant construction - simple constructor" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = 42
-      local v1 = {tag = 1, v0}
+      -- Hoisted variables (2 total)
+      local v0, v1
+      ::block_0::
+      v0 = 42
+      v1 = {tag = 1, v0}
       return v1
     end
     __caml_init__()
@@ -234,19 +240,32 @@ let%expect_test "variant match - switch optimization" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = 0
-      if (type(v0) == "table" and v0.tag or v0) == 0 then
-        local v1 = 10
-        return v1
+      -- Hoisted variables (2 total)
+      local v0, v1
+      ::block_0::
+      v0 = 0
+      if v0 == 0 then
+        goto block_1
       else
-        if (type(v0) == "table" and v0.tag or v0) == 1 then
-          local v1 = 20
-          return v1
+        if v0 == 1 then
+          goto block_2
         else
-          local v1 = 30
-          return v1
+          if v0 == 2 then
+            goto block_3
+          else
+            goto block_1
+          end
         end
       end
+      ::block_1::
+      v1 = 10
+      return v1
+      ::block_2::
+      v1 = 20
+      return v1
+      ::block_3::
+      v1 = 30
+      return v1
     end
     __caml_init__()
     |}]
@@ -310,13 +329,16 @@ let%expect_test "record - multiple field accesses" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = 1
-      local v1 = 2
-      local v2 = 3
-      local v3 = {tag = 0, v0, v1, v2}
-      local v4 = v3[1]
-      local v5 = v3[2]
-      local v6 = v3[3]
+      -- Hoisted variables (7 total)
+      local v0, v1, v2, v3, v4, v5, v6
+      ::block_0::
+      v0 = 1
+      v1 = 2
+      v2 = 3
+      v3 = {tag = 0, v0, v1, v2}
+      v4 = v3[1]
+      v5 = v3[2]
+      v6 = v3[3]
       return v4
     end
     __caml_init__()
@@ -374,9 +396,12 @@ let%expect_test "variant with inline record" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = 10
-      local v1 = 20
-      local v2 = {tag = 0, v0, v1}
+      -- Hoisted variables (3 total)
+      local v0, v1, v2
+      ::block_0::
+      v0 = 10
+      v1 = 20
+      v2 = {tag = 0, v0, v1}
       return v2
     end
     __caml_init__()
@@ -437,11 +462,14 @@ let%expect_test "nested record access" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = 42
-      local v1 = {tag = 0, v0}
-      local v2 = {tag = 0, v1}
-      local v3 = v2[1]
-      local v4 = v3[1]
+      -- Hoisted variables (5 total)
+      local v0, v1, v2, v3, v4
+      ::block_0::
+      v0 = 42
+      v1 = {tag = 0, v0}
+      v2 = {tag = 0, v1}
+      v3 = v2[1]
+      v4 = v3[1]
       return v4
     end
     __caml_init__()

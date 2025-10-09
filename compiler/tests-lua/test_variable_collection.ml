@@ -318,3 +318,114 @@ let%expect_test "variable_hoisting_complex" =
     {|
     Hoisted variables (4 total)
     Variables: v0, v1, v2, v3 |}]
+
+(* ========================================================================= *)
+(* Task 0.3: Assignment Generation Tests                                    *)
+(* ========================================================================= *)
+
+(* Test that Code.Let generates assignments instead of local declarations *)
+let%expect_test "let_generates_assignment" =
+  let open Code in
+  let v1 = Var.fresh () in
+  let ctx = Lua_of_ocaml_compiler__Lua_generate.make_context ~debug:false in
+  (* Generate instruction for Let *)
+  let stmt =
+    Lua_of_ocaml_compiler__Lua_generate.generate_instr
+      ctx
+      (Let (v1, Constant (Int32 42l)))
+  in
+  (* Verify it's an assignment, not a local declaration *)
+  (match stmt with
+  | Lua_of_ocaml_compiler__Lua_ast.Assign
+      ([ Lua_of_ocaml_compiler__Lua_ast.Ident name ], [ _expr ]) ->
+      Printf.printf "Generated assignment for %s\n" name
+  | Lua_of_ocaml_compiler__Lua_ast.Local _ ->
+      Printf.printf "ERROR: Generated local declaration instead of assignment\n"
+  | _ -> Printf.printf "ERROR: Unexpected statement type\n");
+  [%expect {| Generated assignment for v0 |}]
+
+(* Test that multiple Let instructions generate multiple assignments *)
+let%expect_test "multiple_lets_generate_assignments" =
+  let open Code in
+  let v1 = Var.fresh () in
+  let v2 = Var.fresh () in
+  let v3 = Var.fresh () in
+  let ctx = Lua_of_ocaml_compiler__Lua_generate.make_context ~debug:false in
+  (* Generate instructions *)
+  let instrs =
+    [ Let (v1, Constant (Int32 1l))
+    ; Let (v2, Constant (Int32 2l))
+    ; Let (v3, Constant (Int32 3l))
+    ]
+  in
+  let stmts =
+    Lua_of_ocaml_compiler__Lua_generate.generate_instrs ctx instrs
+  in
+  (* Verify all are assignments *)
+  Printf.printf "Generated %d statements\n" (List.length stmts);
+  List.iter
+    ~f:(fun stmt ->
+      match stmt with
+      | Lua_of_ocaml_compiler__Lua_ast.Assign
+          ([ Lua_of_ocaml_compiler__Lua_ast.Ident name ], _) ->
+          Printf.printf "Assignment: %s\n" name
+      | _ -> Printf.printf "ERROR: Not an assignment\n")
+    stmts;
+  [%expect
+    {|
+    Generated 3 statements
+    Assignment: v0
+    Assignment: v1
+    Assignment: v2 |}]
+
+(* Test that assignments work correctly in compiled blocks *)
+let%expect_test "assignments_in_compiled_blocks" =
+  let open Code in
+  let v1 = Var.fresh () in
+  let v2 = Var.fresh () in
+  (* Block 0: two assignments *)
+  let block0 =
+    { params = []
+    ; body = [ Let (v1, Constant (Int32 42l)); Let (v2, Constant (Int32 100l)) ]
+    ; branch = Return v1
+    }
+  in
+  let blocks = Addr.Map.empty |> Addr.Map.add 0 block0 in
+  let program = { start = 0; blocks; free_pc = 1 } in
+  let ctx =
+    Lua_of_ocaml_compiler__Lua_generate.make_context_with_program
+      ~debug:false
+      program
+  in
+  let stmts =
+    Lua_of_ocaml_compiler__Lua_generate.compile_blocks_with_labels ctx program 0
+  in
+  (* Count assignments in block (skip hoisting statements) *)
+  let rec count_assignments = function
+    | [] -> 0
+    | Lua_of_ocaml_compiler__Lua_ast.Comment _ :: rest -> count_assignments rest
+    | Lua_of_ocaml_compiler__Lua_ast.Local _ :: rest -> count_assignments rest
+    | Lua_of_ocaml_compiler__Lua_ast.Label _ :: rest -> count_assignments rest
+    | Lua_of_ocaml_compiler__Lua_ast.Assign _ :: rest -> 1 + count_assignments rest
+    | _ :: rest -> count_assignments rest
+  in
+  Printf.printf "Total assignments in block: %d\n" (count_assignments stmts);
+  (* Verify no local declarations in block body (only at start) *)
+  let rec has_local_in_body in_body = function
+    | [] -> false
+    | Lua_of_ocaml_compiler__Lua_ast.Local _ :: rest ->
+        if in_body
+        then (
+          Printf.printf "ERROR: Found local declaration in block body\n";
+          true)
+        else has_local_in_body false rest
+    | Lua_of_ocaml_compiler__Lua_ast.Label _ :: rest ->
+        has_local_in_body true rest
+    | _ :: rest -> has_local_in_body in_body rest
+  in
+  let has_error = has_local_in_body false stmts in
+  if not has_error then Printf.printf "No local declarations in block body\n";
+  [%expect
+    {|
+    Total assignments in block: 2
+    No local declarations in block body |}]

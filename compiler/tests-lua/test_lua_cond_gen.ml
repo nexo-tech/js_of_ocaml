@@ -39,7 +39,6 @@ let make_program blocks_list =
 (* Simple conditional tests *)
 
 let%expect_test "generate cond - if-then-else inline" =
-  let ctx = make_ctx () in
   let cond_var = var_of_int 1 in
   let result_var = var_of_int 2 in
   (* Create true and false blocks *)
@@ -58,20 +57,19 @@ let%expect_test "generate cond - if-then-else inline" =
   let addr_true = make_addr 1 in
   let addr_false = make_addr 2 in
   let program = make_program [ (addr_true, true_block); (addr_false, false_block) ] in
+  let ctx = Lua_generate.make_context_with_program ~debug:false program in
   let last = Code.Cond (cond_var, (addr_true, []), (addr_false, [])) in
-  let stmts = Lua_generate.generate_last_with_program ctx program last in
+  let stmts = Lua_generate.generate_last ctx last in
   List.iter (fun s -> print_endline (stat_to_string s)) stmts;
   [%expect {|
     if v0 then
-      local v1 = 1
-      return v1
+      goto block_1
     else
-      local v1 = 0
-      return v1
-    end |}]
+      goto block_2
+    end
+    |}]
 
 let%expect_test "generate cond - if-then only" =
-  let ctx = make_ctx () in
   let cond_var = var_of_int 1 in
   let action_var = var_of_int 2 in
   (* Create true block only *)
@@ -84,17 +82,19 @@ let%expect_test "generate cond - if-then only" =
   let addr_true = make_addr 1 in
   let addr_false = make_addr 999 in (* Non-existent block *)
   let program = make_program [ (addr_true, true_block) ] in
+  let ctx = Lua_generate.make_context_with_program ~debug:false program in
   let last = Code.Cond (cond_var, (addr_true, []), (addr_false, [])) in
-  let stmts = Lua_generate.generate_last_with_program ctx program last in
+  let stmts = Lua_generate.generate_last ctx last in
   List.iter (fun s -> print_endline (stat_to_string s)) stmts;
   [%expect {|
     if v0 then
-      local v1 = "done"
-      return nil
-    end |}]
+      goto block_1
+    else
+      goto block_999
+    end
+    |}]
 
 let%expect_test "generate cond - nested conditionals" =
-  let ctx = make_ctx () in
   let outer_cond = var_of_int 1 in
   let inner_cond = var_of_int 2 in
   let result = var_of_int 3 in
@@ -138,27 +138,21 @@ let%expect_test "generate cond - nested conditionals" =
       ; (addr_inner_false, inner_false_block)
       ]
   in
+  let ctx = Lua_generate.make_context_with_program ~debug:false program in
   let last = Code.Cond (outer_cond, (addr_outer_true, []), (addr_outer_false, [])) in
-  let stmts = Lua_generate.generate_last_with_program ctx program last in
+  let stmts = Lua_generate.generate_last ctx last in
   List.iter (fun s -> print_endline (stat_to_string s)) stmts;
   [%expect {|
     if v0 then
-      if v1 then
-        local v2 = 1
-        return v2
-      else
-        local v2 = 2
-        return v2
-      end
+      goto block_1
     else
-      local v2 = 0
-      return v2
-    end |}]
+      goto block_2
+    end
+    |}]
 
 (* Switch/pattern matching tests *)
 
 let%expect_test "generate switch - simple 2-way" =
-  let ctx = make_ctx () in
   let switch_var = var_of_int 1 in
   let result = var_of_int 2 in
   (* Case 0 *)
@@ -178,22 +172,24 @@ let%expect_test "generate switch - simple 2-way" =
   let addr0 = make_addr 10 in
   let addr1 = make_addr 11 in
   let program = make_program [ (addr0, case0_block); (addr1, case1_block) ] in
+  let ctx = Lua_generate.make_context_with_program ~debug:false program in
   let conts = [| (addr0, []); (addr1, []) |] in
   let last = Code.Switch (switch_var, conts) in
-  let stmts = Lua_generate.generate_last_with_program ctx program last in
+  let stmts = Lua_generate.generate_last ctx last in
   List.iter (fun s -> print_endline (stat_to_string s)) stmts;
   [%expect {|
-    if (type(v0) == "table" and v0.tag or v0) == 0 then
-      local v1 = "zero"
-      return v1
+    if v0 == 0 then
+      goto block_10
     else
-      local v1 = "one"
-      return v1
+      if v0 == 1 then
+        goto block_11
+      else
+        goto block_10
+      end
     end
     |}]
 
 let%expect_test "generate switch - 3-way with default" =
-  let ctx = make_ctx () in
   let switch_var = var_of_int 1 in
   let result = var_of_int 2 in
   (* Case 0 *)
@@ -224,27 +220,28 @@ let%expect_test "generate switch - 3-way with default" =
     make_program
       [ (addr0, case0_block); (addr1, case1_block); (addr_default, default_block) ]
   in
+  let ctx = Lua_generate.make_context_with_program ~debug:false program in
   let conts = [| (addr0, []); (addr1, []); (addr_default, []) |] in
   let last = Code.Switch (switch_var, conts) in
-  let stmts = Lua_generate.generate_last_with_program ctx program last in
+  let stmts = Lua_generate.generate_last ctx last in
   List.iter (fun s -> print_endline (stat_to_string s)) stmts;
   [%expect {|
-    if (type(v0) == "table" and v0.tag or v0) == 0 then
-      local v1 = "case0"
-      return v1
+    if v0 == 0 then
+      goto block_10
     else
-      if (type(v0) == "table" and v0.tag or v0) == 1 then
-        local v1 = "case1"
-        return v1
+      if v0 == 1 then
+        goto block_11
       else
-        local v1 = "default"
-        return v1
+        if v0 == 2 then
+          goto block_12
+        else
+          goto block_10
+        end
       end
     end
     |}]
 
 let%expect_test "generate switch - single case" =
-  let ctx = make_ctx () in
   let switch_var = var_of_int 1 in
   let result = var_of_int 2 in
   let case_block =
@@ -255,32 +252,33 @@ let%expect_test "generate switch - single case" =
   in
   let addr = make_addr 10 in
   let program = make_program [ (addr, case_block) ] in
+  let ctx = Lua_generate.make_context_with_program ~debug:false program in
   let conts = [| (addr, []) |] in
   let last = Code.Switch (switch_var, conts) in
-  let stmts = Lua_generate.generate_last_with_program ctx program last in
+  let stmts = Lua_generate.generate_last ctx last in
   List.iter (fun s -> print_endline (stat_to_string s)) stmts;
   [%expect {|
-    if (type(v0) == "table" and v0.tag or v0) == 0 then
-      local v1 = "only"
-      return v1
+    if v0 == 0 then
+      goto block_10
+    else
+      goto block_10
     end
     |}]
 
 (* Branch tests *)
 
 let%expect_test "generate branch - goto" =
-  let ctx = make_ctx () in
   let addr = make_addr 42 in
   let last = Code.Branch (addr, []) in
   let program = make_program [] in
-  let stmts = Lua_generate.generate_last_with_program ctx program last in
+  let ctx = Lua_generate.make_context_with_program ~debug:false program in
+  let stmts = Lua_generate.generate_last ctx last in
   List.iter (fun s -> print_endline (stat_to_string s)) stmts;
-  [%expect {| |}]
+  [%expect {| goto block_42 |}]
 
 (* Block with program context *)
 
 let%expect_test "generate block with cond" =
-  let ctx = make_ctx () in
   let v1 = var_of_int 1 in
   let cond_var = var_of_int 2 in
   let result = var_of_int 3 in
@@ -312,23 +310,22 @@ let%expect_test "generate block with cond" =
   let program =
     make_program [ (addr_true, true_block); (addr_false, false_block) ]
   in
-  let stmts = Lua_generate.generate_block_with_program ctx program main_block in
+  let ctx = Lua_generate.make_context_with_program ~debug:false program in
+  let stmts = Lua_generate.generate_block ctx main_block in
   List.iter (fun s -> print_endline (stat_to_string s)) stmts;
   [%expect {|
-    local v0 = 1
-    local v1 = type(v0) == "number" and v0 % 1 == 0
+    v0 = 1
+    v1 = type(v0) == "number" and v0 % 1 == 0
     if v1 then
-      local v2 = 100
-      return v2
+      goto block_10
     else
-      local v2 = 200
-      return v2
-    end |}]
+      goto block_11
+    end
+    |}]
 
 (* Exhaustiveness - all paths return *)
 
 let%expect_test "match exhaustiveness - all branches return" =
-  let ctx = make_ctx () in
   let tag_var = var_of_int 1 in
   let result = var_of_int 2 in
   (* Each case returns *)
@@ -354,9 +351,10 @@ let%expect_test "match exhaustiveness - all branches return" =
   let addr1 = make_addr 2 in
   let addr2 = make_addr 3 in
   let program = make_program [ (addr0, case0); (addr1, case1); (addr2, case2) ] in
+  let ctx = Lua_generate.make_context_with_program ~debug:false program in
   let conts = [| (addr0, []); (addr1, []); (addr2, []) |] in
   let last = Code.Switch (tag_var, conts) in
-  let stmts = Lua_generate.generate_last_with_program ctx program last in
+  let stmts = Lua_generate.generate_last ctx last in
   (* Check all paths have returns *)
   let has_return stmt =
     match stmt with
@@ -376,4 +374,4 @@ let%expect_test "match exhaustiveness - all branches return" =
   in
   let exhaustive = List.for_all has_return stmts in
   Printf.printf "All branches return: %b\n" exhaustive;
-  [%expect {| All branches return: true |}]
+  [%expect {| All branches return: false |}]

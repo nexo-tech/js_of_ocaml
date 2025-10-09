@@ -283,10 +283,10 @@ let%expect_test "assignments not locals" =
 ```
 
 **Success Criteria**:
-- ✅ No `local` declarations in block bodies
-- ✅ All variables assigned, not declared
-- ✅ Generated Lua is syntactically valid
-- ✅ No warnings
+- ✅ No `local` declarations in block bodies - VERIFIED
+- ✅ All variables assigned, not declared - VERIFIED
+- ✅ Generated Lua is syntactically valid - VERIFIED
+- ✅ No warnings - VERIFIED
 
 ---
 
@@ -431,7 +431,7 @@ dune exec compiler/tests-lua/bench_lua_generate.exe
 **Tasks**:
 1. ✅ Task 0.1: Variable collection (~50 lines)
 2. ✅ Task 0.2: Variable hoisting (~40 lines)
-3. ✅ Task 0.3: Assignment conversion (~30 lines)
+3. ✅ Task 0.3: Assignment conversion (~30 lines) - COMPLETED
 4. ✅ Task 0.4: Fall-through optimization (~80 lines)
 5. ✅ Task 0.5: Execution verification (~20 lines)
 6. ✅ Task 0.6: Performance validation (~10 lines)

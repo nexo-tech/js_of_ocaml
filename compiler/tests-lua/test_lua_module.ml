@@ -69,7 +69,10 @@ let%expect_test "generate standalone - empty program" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = 0
+      -- Hoisted variables (1 total)
+      local v0
+      ::block_0::
+      v0 = 0
       return v0
     end
     __caml_init__()
@@ -121,9 +124,12 @@ let%expect_test "generate standalone - simple computation" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = 5
-      local v1 = 3
-      local v2 = v0 + v1
+      -- Hoisted variables (3 total)
+      local v0, v1, v2
+      ::block_0::
+      v0 = 5
+      v1 = 3
+      v2 = v0 + v1
       return v2
     end
     __caml_init__()
@@ -179,8 +185,12 @@ let%expect_test "generate standalone - with function" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = 42
-      local v1 = function(v0)
+      -- Hoisted variables (2 total)
+      local v0, v1
+      ::block_0::
+      v0 = 42
+      v1 = function(v0)
+        ::block_10::
         return v0
       end
       return v2
@@ -205,9 +215,13 @@ let%expect_test "generate module - empty module" =
     {|
     -- Module: Test
     local M = {}
-    local v0 = 0
+    -- Hoisted variables (1 total)
+    local v0
+    ::block_0::
+    v0 = 0
     return v0
-    return M |}]
+    return M
+    |}]
 
 let%expect_test "generate module - with exports" =
   let v1 = var_of_int 1 in
@@ -230,11 +244,15 @@ let%expect_test "generate module - with exports" =
     {|
     -- Module: Math
     local M = {}
-    local v0 = 42
-    local v1 = 10
-    local v2 = v0 + v1
+    -- Hoisted variables (3 total)
+    local v0, v1, v2
+    ::block_0::
+    v0 = 42
+    v1 = 10
+    v2 = v0 + v1
     return v2
-    return M |}]
+    return M
+    |}]
 
 let%expect_test "generate module - with function definition" =
   let x = var_of_int 1 in
@@ -261,12 +279,19 @@ let%expect_test "generate module - with function definition" =
     {|
     -- Module: Utils
     local M = {}
-    local v0 = function(v1)
-      local v2 = v1 + v1
+    -- Hoisted variables (1 total)
+    local v0
+    ::block_0::
+    v0 = function(v1)
+      -- Hoisted variables (1 total)
+      local v2
+      ::block_10::
+      v2 = v1 + v1
       return v2
     end
     return v0
-    return M |}]
+    return M
+    |}]
 
 (* Multi-block program tests *)
 
@@ -335,15 +360,22 @@ let%expect_test "generate standalone - conditional program" =
     --
     function __caml_init__()
       -- Module initialization code
-      local v0 = 5
-      local v1 = v0 == 0
+      -- Hoisted variables (3 total)
+      local v0, v1, v2
+      ::block_0::
+      v0 = 5
+      v1 = v0 == 0
       if v1 then
-        local v2 = 1
-        return v2
+        goto block_1
       else
-        local v2 = 0
-        return v2
+        goto block_2
       end
+      ::block_1::
+      v2 = 1
+      return v2
+      ::block_2::
+      v2 = 0
+      return v2
     end
     __caml_init__()
     |}]

@@ -66,7 +66,10 @@ let%expect_test "generate closure - simple function" =
   [%expect
     {|
     function(v0, v1)
-      local v2 = v0 + v1
+      -- Hoisted variables (1 total)
+      local v2
+      ::block_10::
+      v2 = v0 + v1
       return v2
     end
     |}]
@@ -89,9 +92,13 @@ let%expect_test "generate closure - zero parameters" =
   [%expect
     {|
     function()
-      local v0 = 42
+      -- Hoisted variables (1 total)
+      local v0
+      ::block_10::
+      v0 = 42
       return v0
-    end |}]
+    end
+    |}]
 
 let%expect_test "generate closure - single parameter" =
   let x = var_of_int 1 in
@@ -108,8 +115,10 @@ let%expect_test "generate closure - single parameter" =
   print_endline (expr_to_string lua_expr);
   [%expect {|
     function(v0)
+      ::block_10::
       return v0
-    end |}]
+    end
+    |}]
 
 (* Function application tests *)
 
@@ -153,9 +162,11 @@ let%expect_test "generate instr - let with closure" =
   print_endline (stat_to_string lua_stmt);
   [%expect
     {|
-    local v0 = function(v1)
+    v0 = function(v1)
+      ::block_10::
       return v1
-    end |}]
+    end
+    |}]
 
 (* Recursive function tests *)
 
@@ -239,8 +250,14 @@ let%expect_test "generate closure - nested closures" =
   [%expect
     {|
     function(v0)
-      local v1 = function(v2)
-        local v3 = v0 + v2
+      -- Hoisted variables (1 total)
+      local v1
+      ::block_10::
+      v1 = function(v2)
+        -- Hoisted variables (1 total)
+        local v3
+        ::block_20::
+        v3 = v0 + v2
         return v3
       end
       return v1
@@ -272,11 +289,16 @@ let%expect_test "generate - function returning function" =
   [%expect
     {|
     function(v0)
-      local v1 = function()
+      -- Hoisted variables (1 total)
+      local v1
+      ::block_10::
+      v1 = function()
+        ::block_20::
         return v0
       end
       return v1
-    end |}]
+    end
+    |}]
 
 (* Function with conditional tests *)
 
@@ -322,15 +344,23 @@ let%expect_test "generate closure - function with if-then-else" =
   [%expect
     {|
     function(v0)
-      local v1 = v0 == 0
+      -- Hoisted variables (2 total)
+      local v1, v2
+      ::block_10::
+      v1 = v0 == 0
       if v1 then
-        local v2 = 1
-        return v2
+        goto block_11
       else
-        local v2 = 0
-        return v2
+        goto block_12
       end
-    end |}]
+      ::block_11::
+      v2 = 1
+      return v2
+      ::block_12::
+      v2 = 0
+      return v2
+    end
+    |}]
 
 (* Multiple parameters test *)
 
@@ -362,8 +392,11 @@ let%expect_test "generate closure - three parameters" =
   [%expect
     {|
     function(v0, v1, v2)
-      local v3 = v0 + v1
-      local v4 = v3 + v2
+      -- Hoisted variables (2 total)
+      local v3, v4
+      ::block_10::
+      v3 = v0 + v1
+      v4 = v3 + v2
       return v4
     end
     |}]
