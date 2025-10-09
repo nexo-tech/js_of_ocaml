@@ -16,7 +16,7 @@
 - [x] Task 1.3: Update Variable Hoisting Logic (~20 min)
 
 ### Phase 2: Handle Nested Functions (~45 min, ~60 lines)
-- [ ] Task 2.1: Propagate Table Mode to Closures (~25 min)
+- [x] Task 2.1: Propagate Table Mode to Closures (~25 min)
 - [ ] Task 2.2: Handle Variable Capture (~20 min)
 
 ### Phase 3: Testing & Validation (~1.5 hours, ~150 lines)

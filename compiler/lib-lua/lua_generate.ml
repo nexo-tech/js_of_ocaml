@@ -890,7 +890,12 @@ and compile_blocks_with_labels ctx program start_addr =
 (** {2 Function/Closure Generation} *)
 
 (** Generate Lua function from closure using unified block compilation
-    @param ctx Code generation context
+
+    Each closure gets its own independent context to decide whether to use
+    table-based storage or locals. This allows nested functions with >180 vars
+    to use _V tables while their parents use locals (or vice versa).
+
+    @param ctx Code generation context (parent)
     @param params Parameter list
     @param pc Program counter pointing to function body
     @return Lua function expression
@@ -906,9 +911,19 @@ and generate_closure ctx params pc =
           (* Block not found - return placeholder *)
           L.Ident "caml_closure"
       | Some _block ->
-          (* Generate function with parameters using unified approach *)
-          let param_names = List.map ~f:(var_name ctx) params in
-          let body_stmts = compile_blocks_with_labels ctx program pc in
+          (* Create new context for closure - each closure is independent *)
+          let closure_ctx = make_context_with_program ~debug:ctx._debug program in
+
+          (* Generate parameter names using the closure's context *)
+          let param_names = List.map ~f:(var_name closure_ctx) params in
+
+          (* compile_blocks_with_labels will:
+             1. Collect variables in this closure's blocks
+             2. Decide independently if use_var_table should be set
+             3. Generate either `local _V = {}` or `local v0, v1, ...`
+             Each closure gets its own _V table if needed (>180 vars) *)
+          let body_stmts = compile_blocks_with_labels closure_ctx program pc in
+
           L.Function (param_names, false, body_stmts))
 
 (** Generate Lua last statement from Code last (terminator) using gotos
