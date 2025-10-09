@@ -1045,7 +1045,7 @@ Generated code calls runtime functions but doesn't load the runtime modules.
 
 **Problem**: Generated code calls `caml_*` primitives that don't exist. Need to create fragment files that get embedded by the linker.
 
-**Architecture Strategy**: Use existing linker (DEPS.md) to embed primitive fragments directly into generated code. NO external file dependencies at runtime - everything is self-contained.
+**Architecture Strategy**: Create primitive fragments and embed them **directly as global functions** in generated code. Use linker's fragment parsing/resolution but NOT its `package.loaded` wrapping (that's for modules, not primitives). NO external file dependencies at runtime - everything is self-contained.
 
 **Important Clarification**:
 - **Existing `runtime/lua/*.lua` files**: Standalone modules for testing runtime in isolation. Use `require()`, export `M.function_name`. Do NOT have fragment headers. NOT used by compiler.
@@ -1101,7 +1101,7 @@ Create fragments with inline implementations for missing primitives.
 **Test**: `compiler/tests-lua/test_primitives_core.ml` - Test each primitive
 
 ##### Subtask 14.3.2: Create Array Primitive Fragments (~100 lines)
-Inline array operations (don't call external modules).
+Self-contained array operations (no dependencies on external modules).
 
 - [ ] **File**: `runtime/lua/primitives/caml_array.lua` (~100 lines)
   - `caml_array_make(len, init)` - inline implementation
@@ -1122,7 +1122,7 @@ Inline array operations (don't call external modules).
 **Test**: `compiler/tests-lua/test_primitives_array.ml`
 
 ##### Subtask 14.3.3: Create String/Bytes Primitive Fragments (~120 lines)
-Inline string and bytes operations.
+Self-contained string and bytes operations.
 
 - [ ] **File**: `runtime/lua/primitives/caml_string.lua` (~60 lines)
   - `caml_string_compare(s1, s2)` - lexicographic comparison
@@ -1192,11 +1192,14 @@ Modify code generator to track which primitives are used and tell linker.
       | _ -> None (* Already inlined or doesn't need fragment *)
     ```
 
-- [ ] **Integration with linker**:
-  - Load fragment files from `runtime/lua/primitives/` directory
-  - Call `Lua_link.link ~state ~program ~linkall:false`
-  - Linker embeds fragment code into generated output
-  - Result: Self-contained .lua file with all needed primitives
+- [ ] **Integration with linker** (USE SELECTIVELY):
+  - Load fragment files from `runtime/lua/primitives/` directory using `Lua_link.load_runtime_dir`
+  - Use `Lua_link.resolve_deps` to get dependency-ordered list of fragments
+  - Extract `.code` field from each fragment
+  - **DO NOT use `Lua_link.generate_loader`** (that wraps in `package.loaded` for modules)
+  - **Instead**: Directly embed fragment code as Lua comments in generated output
+  - Result: `-- Fragment: caml_array\nfunction caml_array_make(...) end\n...`
+  - Self-contained .lua file with all needed primitives as global functions
 
 - [ ] **CRITICAL: Ensure backward compatibility**:
   - If `runtime/lua/primitives/` directory doesn't exist, skip fragment loading (no error)
@@ -1204,8 +1207,48 @@ Modify code generator to track which primitives are used and tell linker.
   - All 35 existing tests must continue passing
   - Run `dune runtest compiler/tests-lua` after each change
 
+**Expected Generated Code Example**:
+```lua
+-- === OCaml Runtime (Minimal Inline Version) ===
+function caml_register_global(n, v, name)
+  _OCAML_GLOBALS[n + 1] = v
+  if name then _OCAML_GLOBALS[name] = v end
+  return v
+end
+-- === End Runtime ===
+
+-- Fragment: caml_array
+function caml_array_make(len, init)
+  local arr = { tag = 0, [0] = len }
+  for i = 1, len do
+    arr[i] = init
+  end
+  return arr
+end
+
+function caml_array_set(arr, idx, val)
+  if idx < 0 or idx >= arr[0] then
+    error("array index out of bounds")
+  end
+  arr[idx + 1] = val
+end
+-- End Fragment: caml_array
+
+function __caml_init__()
+  local v0 = caml_array_make(10, 0)
+  caml_array_set(v0, 5, 42)
+  return 0
+end
+__caml_init__()
+```
+
+**Key Points**:
+- Fragment code embedded AS-IS (not wrapped in `package.loaded`)
+- Functions are global: `function caml_array_make(...)` not `package.loaded["caml_array_make"] = ...`
+- Generated code calls them directly: `caml_array_make(10, 0)`
+
 **Test**:
-- Generate program using arrays, verify fragment is embedded
+- Generate program using arrays, verify fragment is embedded directly
 - Run all existing tests: `dune runtest compiler/tests-lua`
 - Ensure no test regressions
 
@@ -1221,19 +1264,41 @@ Add fragment file loading to compiler.
 
 **Implementation**:
 ```ocaml
+(* Load primitive fragments from filesystem *)
 let load_runtime_fragments () =
   let runtime_dir = "runtime/lua/primitives" in
-  let state = Lua_link.init () in
-  (* Read all .lua files from runtime_dir *)
-  let files = Sys.readdir runtime_dir in
-  Array.fold_left (fun st filename ->
-    if Filename.extension filename = ".lua" then
-      let path = Filename.concat runtime_dir filename in
-      let content = read_file path in
-      let fragment = Lua_link.parse_fragment_header ~name:filename content in
-      Lua_link.add_fragment st fragment
-    else st
-  ) state files
+  if Sys.file_exists runtime_dir && Sys.is_directory runtime_dir
+  then Lua_link.load_runtime_dir runtime_dir
+  else []
+
+(* Embed fragment code directly into generated output *)
+let embed_primitive_fragments state required_primitives =
+  (* Convert primitive names to fragment symbol names *)
+  let required_symbols = StringSet.fold (fun prim acc ->
+    match primitive_to_fragment prim with
+    | Some fragment_name -> fragment_name :: acc
+    | None -> acc
+  ) required_primitives [] in
+
+  (* Resolve dependencies and get ordered fragments *)
+  let fragment_names, _ = Lua_link.resolve_deps state required_symbols in
+
+  (* Get fragment objects *)
+  let fragments = List.map (fun name ->
+    StringMap.find name state.Lua_link.fragments
+  ) fragment_names in
+
+  (* Generate embedded code (NOT using generate_loader!) *)
+  let embedded_code = String.concat "\n" (
+    List.map (fun frag ->
+      "-- Fragment: " ^ frag.Lua_link.name ^ "\n" ^
+      frag.Lua_link.code ^ "\n" ^
+      "-- End Fragment: " ^ frag.Lua_link.name ^ "\n"
+    ) fragments
+  ) in
+
+  (* Convert to Lua AST comment *)
+  L.Comment embedded_code
 ```
 
 **Test**: Verify all fragment files are loaded correctly
