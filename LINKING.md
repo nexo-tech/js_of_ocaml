@@ -197,21 +197,22 @@ return M
 
 ## Implementation Plan
 
-### Master Checklist
-
-- [ ] **Step 1**: Extend `lua_link.ml` to parse `--// Export:` directives
-- [ ] **Step 2**: Implement module embedding (not `package.loaded` wrapping)
-- [ ] **Step 3**: Implement global wrapper generation
-- [ ] **Step 4**: Implement primitive usage tracking in code generator
-- [ ] **Step 5**: Integrate linking in `lua_generate.ml`
-- [ ] **Step 6**: Add missing runtime primitives (compare, ref, sys, weak)
-- [ ] **Step 7**: Verify PRIMITIVES.md coverage
-- [ ] **Step 8**: Test hello_lua example works
-- [ ] **Step 9**: Verify all existing tests still pass
+Following CLAUDE.md task completion protocol:
+- Each task ≤300 lines
+- Complete implementation (no TODOs/placeholders)
+- Tests for all new code
+- Zero warnings, all tests pass
+- Update checklist and commit after each task
 
 ---
 
-### Step 1: Extend lua_link.ml for Hybrid Primitive Resolution
+## Phase 1: Linker Infrastructure (~160 lines)
+
+**Goal**: Extend `lua_link.ml` with hybrid primitive resolution (naming convention + Export fallback).
+
+---
+
+### Task 1.1: Add Export Directive Parsing and Hybrid Resolution (~160 lines)
 
 **File**: `compiler/lib-lua/lua_link.ml`
 
@@ -330,16 +331,29 @@ let find_primitive_implementation
         fragments
 ```
 
-**Test**:
+**Test**: Add unit tests in `compiler/tests-lua/test_lua_link.ml`:
 - Parse `--// Export: make as caml_array_make` correctly
 - Resolve `caml_array_make` via naming convention → (`array`, `make`)
 - Resolve `caml_create_bytes` via Export fallback → (`mlBytes`, `create`)
 
-**Files Modified**: `compiler/lib-lua/lua_link.ml` (~100 lines modified/added)
+**Success Criteria**:
+- ✅ `dune build compiler/lib-lua` succeeds with zero warnings
+- ✅ All link tests pass
+- ✅ Both naming convention and Export fallback work correctly
+
+**Output**: ~160 lines added to `lua_link.ml`
+
+**Commit**: `feat(lua/link): Add hybrid primitive resolution (naming + Export)`
 
 ---
 
-### Step 2: Implement Module Embedding
+## Phase 2: Code Generation (~200 lines)
+
+**Goal**: Generate embedded modules and wrappers in `lua_link.ml` and `lua_generate.ml`.
+
+---
+
+### Task 2.1: Implement Module Embedding and Wrapper Generation (~100 lines)
 
 **File**: `compiler/lib-lua/lua_link.ml`
 
@@ -441,11 +455,20 @@ end
 - Generates wrapper function
 - Automatically works for both convention-based and Export-based primitives
 
-**Files Modified**: `compiler/lib-lua/lua_link.ml` (~60 lines added)
+**Test**: Verify generated output structure in tests
+
+**Success Criteria**:
+- ✅ Modules embed correctly with local variables
+- ✅ Wrappers generate for all used primitives
+- ✅ Output is valid Lua code
+
+**Output**: ~100 lines added to `lua_link.ml`
+
+**Commit**: `feat(lua/link): Add module embedding and wrapper generation`
 
 ---
 
-### Step 4: Implement Primitive Usage Tracking
+### Task 2.2: Implement Primitive Usage Tracking (~60 lines)
 
 **File**: `compiler/lib-lua/lua_generate.ml`
 
@@ -495,11 +518,20 @@ let collect_used_primitives (program : Code.program) : StringSet.t =
     StringSet.empty
 ```
 
-**Files Modified**: `compiler/lib-lua/lua_generate.ml` (~60 lines added)
+**Test**: Verify primitives are tracked correctly in test programs
+
+**Success Criteria**:
+- ✅ All `caml_*` primitives from program are collected
+- ✅ Works with Code.Extern primitives
+- ✅ No false positives/negatives
+
+**Output**: ~60 lines added to `lua_generate.ml`
+
+**Commit**: `feat(lua): Track primitive usage in code generator`
 
 ---
 
-### Step 5: Integrate Linking in Code Generator
+### Task 2.3: Integrate Linking in Code Generator (~80 lines)
 
 **File**: `compiler/lib-lua/lua_generate.ml`
 
@@ -559,17 +591,29 @@ let generate_standalone ctx program =
   inline_runtime @ [ L.Comment "" ] @ embedded_modules @ wrappers @ [ L.Comment "" ] @ program_code
 ```
 
-**Files Modified**: `compiler/lib-lua/lua_generate.ml` (~80 lines modified)
+**Test**: Verify generated code structure in existing tests
+
+**Success Criteria**:
+- ✅ Generated code includes: runtime → modules → wrappers → program
+- ✅ Only needed modules are included
+- ✅ All existing Lua tests still pass
+- ✅ Generated code is self-contained
+
+**Output**: ~80 lines modified in `lua_generate.ml`
+
+**Commit**: `feat(lua): Integrate runtime linking in code generation`
 
 ---
 
-### Step 6: Add Missing Runtime Primitives
+## Phase 3: Runtime Primitives (~132 lines)
 
-Add runtime modules for primitives that don't exist yet.
+**Goal**: Add missing runtime primitives (compare, ref, sys, weak) with M.* pattern.
 
-#### 6a. Compare Primitives
+---
 
-**File**: `runtime/lua/compare.lua` (new file, ~50 lines)
+### Task 3.1: Add Compare Primitives (~52 lines)
+
+**File**: `runtime/lua/compare.lua` (new file)
 
 ```lua
 -- Compare primitives for OCaml values
@@ -628,7 +672,21 @@ return M
 
 Export directive maps aliases to same implementation.
 
-#### 6b. Reference Primitives
+**Test**: Test int and float comparisons with edge cases (NaN, zero, negative)
+
+**Success Criteria**:
+- ✅ `caml_int_compare` works via naming convention
+- ✅ `caml_int32_compare` works via Export alias
+- ✅ `caml_float_compare` handles NaN correctly
+- ✅ All comparison tests pass
+
+**Output**: 52 lines in new file `runtime/lua/compare.lua`
+
+**Commit**: `feat(lua/runtime): Add compare primitives module`
+
+---
+
+### Task 3.2: Add Ref, Sys, and Weak Primitives (~80 lines)
 
 **File**: `runtime/lua/core.lua` (add to existing, ~10 lines)
 
@@ -711,22 +769,30 @@ return M
 - `caml_weak_set` → `weak.lua`, `M.set` ✓
 - `caml_weak_get` → `weak.lua`, `M.get` ✓
 
-**Summary of Export Annotations**:
-- Total annotations needed: **2 lines** (compare.lua only)
-- 90% of primitives use naming convention (zero annotations)
-- Only aliases need Export directive
+**Test**: Test ref_set, sys stubs, weak arrays
 
-**Files Created**:
-- `runtime/lua/compare.lua` (~52 lines including 2 Export annotations)
-- `runtime/lua/sys.lua` (~30 lines, no annotations needed)
-- `runtime/lua/weak.lua` (~40 lines, no annotations needed)
+**Success Criteria**:
+- ✅ `caml_ref_set` works via naming convention
+- ✅ `caml_sys_open/close` throw appropriate errors
+- ✅ `caml_weak_*` work with Lua weak tables
+- ✅ All primitive tests pass
 
-**Files Modified**:
-- `runtime/lua/core.lua` (~10 lines added, no annotations needed)
+**Output**:
+- `runtime/lua/core.lua`: ~10 lines added
+- `runtime/lua/sys.lua`: ~30 lines (new file)
+- `runtime/lua/weak.lua`: ~40 lines (new file)
+
+**Commit**: `feat(lua/runtime): Add ref, sys, and weak primitives`
 
 ---
 
-### Step 7: Verify PRIMITIVES.md Coverage
+## Phase 4: Testing and Verification (~200 lines)
+
+**Goal**: Verify all primitives work and hello_lua example runs.
+
+---
+
+### Task 4.1: Add Primitive Coverage Test (~100 lines)
 
 Create a test that ensures all 70 primitives from PRIMITIVES.md are covered.
 
@@ -800,11 +866,20 @@ let%expect_test "all primitives covered" =
   [%expect {| All 70 primitives covered! |}]
 ```
 
-**Files Created**: `compiler/tests-lua/test_primitive_coverage.ml` (~100 lines)
+**Test**: Run coverage test
+
+**Success Criteria**:
+- ✅ All 70 primitives from PRIMITIVES.md are found
+- ✅ Test passes showing complete coverage
+- ✅ Both naming convention and Export cases work
+
+**Output**: ~100 lines in new file `compiler/tests-lua/test_primitive_coverage.ml`
+
+**Commit**: `test(lua): Add primitive coverage verification test`
 
 ---
 
-### Step 8: Test hello_lua Example
+### Task 4.2: Verify hello_lua Example Works (~0 lines)
 
 Verify the hello_lua example works end-to-end.
 
@@ -834,9 +909,19 @@ Hello from OCaml compiled to Lua!
    lua _build/default/examples/hello_lua/hello.bc.lua 2>&1 | head -50
    ```
 
+**Success Criteria**:
+- ✅ hello_lua example compiles
+- ✅ Generated .lua file has correct structure
+- ✅ Lua executes without errors
+- ✅ Correct output produced
+
+**Output**: Verification only (no code changes)
+
+**Commit**: None (verification task)
+
 ---
 
-### Step 9: Verify All Existing Tests Pass
+### Task 4.3: Verify All Existing Tests Pass (~0 lines)
 
 **Test Command**:
 ```bash
@@ -851,17 +936,41 @@ dune build @runtest
 3. Verify generated code structure matches expectations
 4. Use `dune promote` if new output is correct
 
+**Success Criteria**:
+- ✅ All 35 existing Lua tests pass
+- ✅ No regressions introduced
+- ✅ Generated code matches test expectations
+
+**Output**: Verification only (no code changes)
+
+**Commit**: None (verification task)
+
 ---
 
-## Success Criteria
+## Summary of Implementation
 
-- [ ] All 70 primitives from PRIMITIVES.md are covered (Step 7 test passes)
-- [ ] hello_lua example runs successfully (Step 8)
-- [ ] All 35 existing Lua tests pass (Step 9)
-- [ ] Zero code duplication (runtime modules embedded as-is)
-- [ ] No heavy refactoring (runtime modules keep M.* pattern)
-- [ ] Generated code is self-contained (no external dependencies)
-- [ ] `dune build compiler/lib-lua` succeeds with zero warnings
+### Phase Breakdown
+
+| Phase | Tasks | Total Lines | Purpose |
+|-------|-------|-------------|---------|
+| Phase 1 | Task 1.1 | ~160 | Linker infrastructure |
+| Phase 2 | Tasks 2.1-2.3 | ~240 | Code generation |
+| Phase 3 | Tasks 3.1-3.2 | ~132 | Runtime primitives |
+| Phase 4 | Tasks 4.1-4.3 | ~100 | Testing & verification |
+| **Total** | **7 tasks** | **~632 lines** | **Complete implementation** |
+
+### Success Criteria (Overall)
+
+- [ ] **Task 1.1**: Export parsing and hybrid resolution work
+- [ ] **Task 2.1**: Module embedding and wrappers generate correctly
+- [ ] **Task 2.2**: Primitive usage tracking works
+- [ ] **Task 2.3**: Code generator integration complete
+- [ ] **Task 3.1**: Compare primitives implemented
+- [ ] **Task 3.2**: Ref, sys, weak primitives implemented
+- [ ] **Task 4.1**: All 70 primitives covered
+- [ ] **Task 4.2**: hello_lua example runs
+- [ ] **Task 4.3**: All existing tests pass
+- [ ] **Overall**: Zero code duplication, no heavy refactoring, self-contained output
 
 ## Files Modified/Created Summary
 
@@ -882,17 +991,21 @@ dune build @runtest
 
 **Key Achievement**: 90% of primitives work via automatic naming convention, only 2 Export annotations needed for aliases.
 
-## Commit Strategy
+## Task Completion Commits
 
-1. `feat(lua/link): Add Export directive parsing for primitive linking`
-2. `feat(lua/link): Add module embedding and global wrapper generation`
-3. `feat(lua): Track primitive usage in code generator`
-4. `feat(lua): Integrate runtime linking in code generation`
-5. `feat(lua/runtime): Add compare primitives module`
-6. `feat(lua/runtime): Add sys and weak primitive stubs`
-7. `feat(lua/runtime): Add ref_set primitive to core`
-8. `test(lua): Add primitive coverage verification test`
-9. `docs(lua): Add LINKING.md with implementation strategy`
+Following CLAUDE.md protocol, each task gets one commit after completion:
+
+1. **Task 1.1**: `feat(lua/link): Add hybrid primitive resolution (naming + Export)`
+2. **Task 2.1**: `feat(lua/link): Add module embedding and wrapper generation`
+3. **Task 2.2**: `feat(lua): Track primitive usage in code generator`
+4. **Task 2.3**: `feat(lua): Integrate runtime linking in code generation`
+5. **Task 3.1**: `feat(lua/runtime): Add compare primitives module`
+6. **Task 3.2**: `feat(lua/runtime): Add ref, sys, and weak primitives`
+7. **Task 4.1**: `test(lua): Add primitive coverage verification test`
+8. **Task 4.2**: Verification only (no commit)
+9. **Task 4.3**: Verification only (no commit)
+
+**Final commit** (if needed): `docs(lua): Update LUA.md Task 14.3 checklist complete`
 
 ## References
 
