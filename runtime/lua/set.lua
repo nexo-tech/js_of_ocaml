@@ -15,124 +15,96 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
---- Set Module
---
--- Provides balanced binary search tree (AVL tree) implementation
--- for ordered sets with polymorphic comparison.
 
-dofile("core.lua")
-
--- AVL tree node structure:
--- {
---   elt = <element value>,
---   left = <left subtree or nil>,
---   right = <right subtree or nil>,
---   height = <tree height>
--- }
-
---- Get height of a tree node
--- @param node table|nil Tree node
--- @return number Height (0 for nil)
-local function height(node)
+--Provides: caml_set_height
+function caml_set_height(node)
   if not node then
     return 0
   end
   return node.height
 end
 
---- Create a new node
--- @param elt any Element
--- @param left table|nil Left subtree
--- @param right table|nil Right subtree
--- @return table New node
-local function create_node(elt, left, right)
+--Provides: caml_set_create_node
+--Requires: caml_set_height
+function caml_set_create_node(elt, left, right)
   return {
     elt = elt,
     left = left,
     right = right,
-    height = 1 + math.max(height(left), height(right))
+    height = 1 + math.max(caml_set_height(left), caml_set_height(right))
   }
 end
 
---- Get balance factor of a node
--- @param node table Tree node
--- @return number Balance factor (left height - right height)
-local function balance_factor(node)
+--Provides: caml_set_balance_factor
+--Requires: caml_set_height
+function caml_set_balance_factor(node)
   if not node then
     return 0
   end
-  return height(node.left) - height(node.right)
+  return caml_set_height(node.left) - caml_set_height(node.right)
 end
 
---- Right rotation
--- @param node table Tree node
--- @return table Rotated tree
-local function rotate_right(node)
+--Provides: caml_set_rotate_right
+--Requires: caml_set_height
+function caml_set_rotate_right(node)
   local left = node.left
   local left_right = left.right
 
   left.right = node
   node.left = left_right
 
-  node.height = 1 + math.max(height(node.left), height(node.right))
-  left.height = 1 + math.max(height(left.left), height(left.right))
+  node.height = 1 + math.max(caml_set_height(node.left), caml_set_height(node.right))
+  left.height = 1 + math.max(caml_set_height(left.left), caml_set_height(left.right))
 
   return left
 end
 
---- Left rotation
--- @param node table Tree node
--- @return table Rotated tree
-local function rotate_left(node)
+--Provides: caml_set_rotate_left
+--Requires: caml_set_height
+function caml_set_rotate_left(node)
   local right = node.right
   local right_left = right.left
 
   right.left = node
   node.right = right_left
 
-  node.height = 1 + math.max(height(node.left), height(node.right))
-  right.height = 1 + math.max(height(right.left), height(right.right))
+  node.height = 1 + math.max(caml_set_height(node.left), caml_set_height(node.right))
+  right.height = 1 + math.max(caml_set_height(right.left), caml_set_height(right.right))
 
   return right
 end
 
---- Balance a tree node
--- @param node table Tree node
--- @return table Balanced tree
-local function balance(node)
+--Provides: caml_set_balance
+--Requires: caml_set_balance_factor, caml_set_rotate_left, caml_set_rotate_right
+function caml_set_balance(node)
   if not node then
     return nil
   end
 
-  local bf = balance_factor(node)
+  local bf = caml_set_balance_factor(node)
 
-  -- Left-heavy
   if bf > 1 then
-    if balance_factor(node.left) < 0 then
-      node.left = rotate_left(node.left)
+    if caml_set_balance_factor(node.left) < 0 then
+      node.left = caml_set_rotate_left(node.left)
     end
-    return rotate_right(node)
+    return caml_set_rotate_right(node)
   end
 
-  -- Right-heavy
   if bf < -1 then
-    if balance_factor(node.right) > 0 then
-      node.right = rotate_right(node.right)
+    if caml_set_balance_factor(node.right) > 0 then
+      node.right = caml_set_rotate_right(node.right)
     end
-    return rotate_left(node)
+    return caml_set_rotate_left(node)
   end
 
   return node
 end
 
---- Add element to set
--- @param cmp function Comparison function
--- @param elt any Element
--- @param node table|nil Tree node
--- @return table Updated tree
-local function add(cmp, elt, node)
+--Provides: caml_set_add_internal
+--Requires: caml_set_create_node, caml_set_height, caml_set_balance
+function caml_set_add_internal(cmp, elt, node)
   if not node then
-    return create_node(elt, nil, nil)
+    return caml_set_create_node(elt, nil, nil)
   end
 
   local c = cmp(elt, node.elt)
@@ -140,21 +112,17 @@ local function add(cmp, elt, node)
   if c == 0 then
     return node  -- Element already exists
   elseif c < 0 then
-    node.left = add(cmp, elt, node.left)
+    node.left = caml_set_add_internal(cmp, elt, node.left)
   else
-    node.right = add(cmp, elt, node.right)
+    node.right = caml_set_add_internal(cmp, elt, node.right)
   end
 
-  node.height = 1 + math.max(height(node.left), height(node.right))
-  return balance(node)
+  node.height = 1 + math.max(caml_set_height(node.left), caml_set_height(node.right))
+  return caml_set_balance(node)
 end
 
---- Check if element exists in set
--- @param cmp function Comparison function
--- @param elt any Element
--- @param node table|nil Tree node
--- @return boolean True if element exists
-local function mem(cmp, elt, node)
+--Provides: caml_set_mem_internal
+function caml_set_mem_internal(cmp, elt, node)
   if not node then
     return false
   end
@@ -164,28 +132,23 @@ local function mem(cmp, elt, node)
   if c == 0 then
     return true
   elseif c < 0 then
-    return mem(cmp, elt, node.left)
+    return caml_set_mem_internal(cmp, elt, node.left)
   else
-    return mem(cmp, elt, node.right)
+    return caml_set_mem_internal(cmp, elt, node.right)
   end
 end
 
---- Find minimum node in tree
--- @param node table Tree node
--- @return table Minimum node
-local function min_node(node)
+--Provides: caml_set_min_node
+function caml_set_min_node(node)
   if not node.left then
     return node
   end
-  return min_node(node.left)
+  return caml_set_min_node(node.left)
 end
 
---- Remove element from set
--- @param cmp function Comparison function
--- @param elt any Element
--- @param node table|nil Tree node
--- @return table|nil Updated tree
-local function remove(cmp, elt, node)
+--Provides: caml_set_remove_internal
+--Requires: caml_set_min_node, caml_set_height, caml_set_balance
+function caml_set_remove_internal(cmp, elt, node)
   if not node then
     return nil
   end
@@ -193,19 +156,18 @@ local function remove(cmp, elt, node)
   local c = cmp(elt, node.elt)
 
   if c < 0 then
-    node.left = remove(cmp, elt, node.left)
+    node.left = caml_set_remove_internal(cmp, elt, node.left)
   elseif c > 0 then
-    node.right = remove(cmp, elt, node.right)
+    node.right = caml_set_remove_internal(cmp, elt, node.right)
   else
-    -- Found the node to remove
     if not node.left then
       return node.right
     elseif not node.right then
       return node.left
     else
-      local successor = min_node(node.right)
+      local successor = caml_set_min_node(node.right)
       node.elt = successor.elt
-      node.right = remove(cmp, successor.elt, node.right)
+      node.right = caml_set_remove_internal(cmp, successor.elt, node.right)
     end
   end
 
@@ -213,16 +175,13 @@ local function remove(cmp, elt, node)
     return nil
   end
 
-  node.height = 1 + math.max(height(node.left), height(node.right))
-  return balance(node)
+  node.height = 1 + math.max(caml_set_height(node.left), caml_set_height(node.right))
+  return caml_set_balance(node)
 end
 
---- Union of two sets
--- @param cmp function Comparison function
--- @param s1 table|nil First set
--- @param s2 table|nil Second set
--- @return table|nil Union set
-local function union(cmp, s1, s2)
+--Provides: caml_set_union_internal
+--Requires: caml_set_add_internal
+function caml_set_union_internal(cmp, s1, s2)
   if not s1 then
     return s2
   end
@@ -230,12 +189,11 @@ local function union(cmp, s1, s2)
     return s1
   end
 
-  -- Add all elements from s2 to s1
   local result = s1
   local function add_all(node)
     if node then
       add_all(node.left)
-      result = add(cmp, node.elt, result)
+      result = caml_set_add_internal(cmp, node.elt, result)
       add_all(node.right)
     end
   end
@@ -243,12 +201,9 @@ local function union(cmp, s1, s2)
   return result
 end
 
---- Intersection of two sets
--- @param cmp function Comparison function
--- @param s1 table|nil First set
--- @param s2 table|nil Second set
--- @return table|nil Intersection set
-local function inter(cmp, s1, s2)
+--Provides: caml_set_inter_internal
+--Requires: caml_set_mem_internal, caml_set_add_internal
+function caml_set_inter_internal(cmp, s1, s2)
   if not s1 or not s2 then
     return nil
   end
@@ -257,8 +212,8 @@ local function inter(cmp, s1, s2)
   local function check_all(node)
     if node then
       check_all(node.left)
-      if mem(cmp, node.elt, s2) then
-        result = add(cmp, node.elt, result)
+      if caml_set_mem_internal(cmp, node.elt, s2) then
+        result = caml_set_add_internal(cmp, node.elt, result)
       end
       check_all(node.right)
     end
@@ -267,12 +222,9 @@ local function inter(cmp, s1, s2)
   return result
 end
 
---- Difference of two sets (s1 - s2)
--- @param cmp function Comparison function
--- @param s1 table|nil First set
--- @param s2 table|nil Second set
--- @return table|nil Difference set
-local function diff(cmp, s1, s2)
+--Provides: caml_set_diff_internal
+--Requires: caml_set_mem_internal, caml_set_add_internal
+function caml_set_diff_internal(cmp, s1, s2)
   if not s1 then
     return nil
   end
@@ -284,8 +236,8 @@ local function diff(cmp, s1, s2)
   local function check_all(node)
     if node then
       check_all(node.left)
-      if not mem(cmp, node.elt, s2) then
-        result = add(cmp, node.elt, result)
+      if not caml_set_mem_internal(cmp, node.elt, s2) then
+        result = caml_set_add_internal(cmp, node.elt, result)
       end
       check_all(node.right)
     end
@@ -294,293 +246,216 @@ local function diff(cmp, s1, s2)
   return result
 end
 
---- Iterate over set in ascending order
--- @param f function Function to call for each element
--- @param node table|nil Tree node
-local function iter(f, node)
+--Provides: caml_set_iter_internal
+function caml_set_iter_internal(f, node)
   if not node then
     return
   end
-  iter(f, node.left)
+  caml_set_iter_internal(f, node.left)
   f(node.elt)
-  iter(f, node.right)
+  caml_set_iter_internal(f, node.right)
 end
 
---- Fold over set in ascending order
--- @param f function Fold function (elt, acc) -> acc
--- @param node table|nil Tree node
--- @param acc any Accumulator
--- @return any Final accumulator value
-local function fold(f, node, acc)
+--Provides: caml_set_fold_internal
+function caml_set_fold_internal(f, node, acc)
   if not node then
     return acc
   end
-  acc = fold(f, node.left, acc)
+  acc = caml_set_fold_internal(f, node.left, acc)
   acc = f(node.elt, acc)
-  acc = fold(f, node.right, acc)
+  acc = caml_set_fold_internal(f, node.right, acc)
   return acc
 end
 
---- Check if predicate holds for all elements
--- @param p function Predicate (elt) -> bool
--- @param node table|nil Tree node
--- @return boolean True if predicate holds for all
-local function for_all(p, node)
+--Provides: caml_set_for_all_internal
+function caml_set_for_all_internal(p, node)
   if not node then
     return true
   end
-  return p(node.elt) and for_all(p, node.left) and for_all(p, node.right)
+  return p(node.elt) and caml_set_for_all_internal(p, node.left) and caml_set_for_all_internal(p, node.right)
 end
 
---- Check if predicate holds for at least one element
--- @param p function Predicate (elt) -> bool
--- @param node table|nil Tree node
--- @return boolean True if predicate holds for at least one
-local function exists(p, node)
+--Provides: caml_set_exists_internal
+function caml_set_exists_internal(p, node)
   if not node then
     return false
   end
-  return p(node.elt) or exists(p, node.left) or exists(p, node.right)
+  return p(node.elt) or caml_set_exists_internal(p, node.left) or caml_set_exists_internal(p, node.right)
 end
 
---- Count number of elements in set
--- @param node table|nil Tree node
--- @return number Number of elements
-local function cardinal(node)
+--Provides: caml_set_cardinal_internal
+function caml_set_cardinal_internal(node)
   if not node then
     return 0
   end
-  return 1 + cardinal(node.left) + cardinal(node.right)
+  return 1 + caml_set_cardinal_internal(node.left) + caml_set_cardinal_internal(node.right)
 end
 
---- Filter set by predicate
--- @param cmp function Comparison function
--- @param p function Predicate (elt) -> bool
--- @param node table|nil Tree node
--- @return table|nil Filtered set
-local function filter(cmp, p, node)
+--Provides: caml_set_filter_internal
+--Requires: caml_set_create_node, caml_set_balance, caml_set_min_node, caml_set_remove_internal
+function caml_set_filter_internal(cmp, p, node)
   if not node then
     return nil
   end
 
-  local left = filter(cmp, p, node.left)
-  local right = filter(cmp, p, node.right)
+  local left = caml_set_filter_internal(cmp, p, node.left)
+  local right = caml_set_filter_internal(cmp, p, node.right)
 
   if p(node.elt) then
-    local result = create_node(node.elt, left, right)
-    return balance(result)
+    local result = caml_set_create_node(node.elt, left, right)
+    return caml_set_balance(result)
   else
     if not left then
       return right
     elseif not right then
       return left
     else
-      local min = min_node(right)
-      local new_right = remove(cmp, min.elt, right)
-      local result = create_node(min.elt, left, new_right)
-      return balance(result)
+      local min = caml_set_min_node(right)
+      local new_right = caml_set_remove_internal(cmp, min.elt, right)
+      local result = caml_set_create_node(min.elt, left, new_right)
+      return caml_set_balance(result)
     end
   end
 end
 
---- Partition set by predicate
--- @param cmp function Comparison function
--- @param p function Predicate (elt) -> bool
--- @param node table|nil Tree node
--- @return table|nil, table|nil True set, False set
-local function partition(cmp, p, node)
+--Provides: caml_set_partition_internal
+--Requires: caml_set_create_node, caml_set_balance, caml_set_union_internal
+function caml_set_partition_internal(cmp, p, node)
   if not node then
     return nil, nil
   end
 
-  local left_t, left_f = partition(cmp, p, node.left)
-  local right_t, right_f = partition(cmp, p, node.right)
+  local left_t, left_f = caml_set_partition_internal(cmp, p, node.left)
+  local right_t, right_f = caml_set_partition_internal(cmp, p, node.right)
 
   if p(node.elt) then
-    local t = create_node(node.elt, left_t, right_t)
-    return balance(t), union(cmp, left_f, right_f)
+    local t = caml_set_create_node(node.elt, left_t, right_t)
+    return caml_set_balance(t), caml_set_union_internal(cmp, left_f, right_f)
   else
-    local f = create_node(node.elt, left_f, right_f)
-    return union(cmp, left_t, right_t), balance(f)
+    local f = caml_set_create_node(node.elt, left_f, right_f)
+    return caml_set_union_internal(cmp, left_t, right_t), caml_set_balance(f)
   end
 end
 
---- Check if s1 is subset of s2
--- @param cmp function Comparison function
--- @param s1 table|nil First set
--- @param s2 table|nil Second set
--- @return boolean True if s1 ⊆ s2
-local function subset(cmp, s1, s2)
+--Provides: caml_set_subset_internal
+--Requires: caml_set_for_all_internal, caml_set_mem_internal
+function caml_set_subset_internal(cmp, s1, s2)
   if not s1 then
     return true
   end
   if not s2 then
     return false
   end
-  return for_all(function(elt) return mem(cmp, elt, s2) end, s1)
+  return caml_set_for_all_internal(function(elt) return caml_set_mem_internal(cmp, elt, s2) end, s1)
 end
 
---- Get minimum element
--- @param node table|nil Tree node
--- @return any Minimum element
-local function min_elt(node)
+--Provides: caml_set_min_elt_internal
+function caml_set_min_elt_internal(node)
   if not node then
     return nil
   end
   if not node.left then
     return node.elt
   end
-  return min_elt(node.left)
+  return caml_set_min_elt_internal(node.left)
 end
 
---- Get maximum element
--- @param node table|nil Tree node
--- @return any Maximum element
-local function max_elt(node)
+--Provides: caml_set_max_elt_internal
+function caml_set_max_elt_internal(node)
   if not node then
     return nil
   end
   if not node.right then
     return node.elt
   end
-  return max_elt(node.right)
+  return caml_set_max_elt_internal(node.right)
 end
 
--- OCaml Set primitives
 
---- Create empty set
--- @param _unit number Unit value
--- @return nil Empty set
 --Provides: caml_set_empty
 function caml_set_empty(_unit)
   return nil
 end
 
---- Add element to set
--- @param cmp function Comparison function
--- @param elt any Element
--- @param set table|nil Set
--- @return table Updated set
 --Provides: caml_set_add
+--Requires: caml_set_add_internal
 function caml_set_add(cmp, elt, set)
-  return add(cmp, elt, set)
+  return caml_set_add_internal(cmp, elt, set)
 end
 
---- Remove element from set
--- @param cmp function Comparison function
--- @param elt any Element
--- @param set table|nil Set
--- @return table|nil Updated set
 --Provides: caml_set_remove
+--Requires: caml_set_remove_internal
 function caml_set_remove(cmp, elt, set)
-  return remove(cmp, elt, set)
+  return caml_set_remove_internal(cmp, elt, set)
 end
 
---- Check if element is in set
--- @param cmp function Comparison function
--- @param elt any Element
--- @param set table|nil Set
--- @return number 1 (true) or 0 (false)
 --Provides: caml_set_mem
---Requires: caml_true_val, caml_false_val
+--Requires: caml_set_mem_internal, caml_true_val, caml_false_val
 function caml_set_mem(cmp, elt, set)
-  if mem(cmp, elt, set) then
+  if caml_set_mem_internal(cmp, elt, set) then
     return caml_true_val
   else
     return caml_false_val
   end
 end
 
---- Union of two sets
--- @param cmp function Comparison function
--- @param s1 table|nil First set
--- @param s2 table|nil Second set
--- @return table|nil Union set
 --Provides: caml_set_union
+--Requires: caml_set_union_internal
 function caml_set_union(cmp, s1, s2)
-  return union(cmp, s1, s2)
+  return caml_set_union_internal(cmp, s1, s2)
 end
 
---- Intersection of two sets
--- @param cmp function Comparison function
--- @param s1 table|nil First set
--- @param s2 table|nil Second set
--- @return table|nil Intersection set
 --Provides: caml_set_inter
+--Requires: caml_set_inter_internal
 function caml_set_inter(cmp, s1, s2)
-  return inter(cmp, s1, s2)
+  return caml_set_inter_internal(cmp, s1, s2)
 end
 
---- Difference of two sets
--- @param cmp function Comparison function
--- @param s1 table|nil First set
--- @param s2 table|nil Second set
--- @return table|nil Difference set
 --Provides: caml_set_diff
+--Requires: caml_set_diff_internal
 function caml_set_diff(cmp, s1, s2)
-  return diff(cmp, s1, s2)
+  return caml_set_diff_internal(cmp, s1, s2)
 end
 
---- Iterate function over set elements
--- @param f function Function (elt) -> unit
--- @param set table|nil Set
--- @return number Unit value
 --Provides: caml_set_iter
---Requires: caml_unit
+--Requires: caml_set_iter_internal, caml_unit
 function caml_set_iter(f, set)
-  iter(f, set)
+  caml_set_iter_internal(f, set)
   return caml_unit
 end
 
---- Fold function over set elements
--- @param f function Fold function (elt, acc) -> acc
--- @param set table|nil Set
--- @param init any Initial accumulator
--- @return any Final accumulator
 --Provides: caml_set_fold
+--Requires: caml_set_fold_internal
 function caml_set_fold(f, set, init)
-  return fold(f, set, init)
+  return caml_set_fold_internal(f, set, init)
 end
 
---- Check if predicate holds for all elements
--- @param p function Predicate (elt) -> bool
--- @param set table|nil Set
--- @return number 1 (true) or 0 (false)
 --Provides: caml_set_for_all
---Requires: caml_true_val, caml_false_val
+--Requires: caml_set_for_all_internal, caml_true_val, caml_false_val
 function caml_set_for_all(p, set)
-  if for_all(p, set) then
+  if caml_set_for_all_internal(p, set) then
     return caml_true_val
   else
     return caml_false_val
   end
 end
 
---- Check if predicate holds for at least one element
--- @param p function Predicate (elt) -> bool
--- @param set table|nil Set
--- @return number 1 (true) or 0 (false)
 --Provides: caml_set_exists
---Requires: caml_true_val, caml_false_val
+--Requires: caml_set_exists_internal, caml_true_val, caml_false_val
 function caml_set_exists(p, set)
-  if exists(p, set) then
+  if caml_set_exists_internal(p, set) then
     return caml_true_val
   else
     return caml_false_val
   end
 end
 
---- Get number of elements in set
--- @param set table|nil Set
--- @return number Number of elements
 --Provides: caml_set_cardinal
+--Requires: caml_set_cardinal_internal
 function caml_set_cardinal(set)
-  return cardinal(set)
+  return caml_set_cardinal_internal(set)
 end
 
---- Check if set is empty
--- @param set table|nil Set
--- @return number 1 (true) or 0 (false)
 --Provides: caml_set_is_empty
 --Requires: caml_true_val, caml_false_val
 function caml_set_is_empty(set)
@@ -591,80 +466,56 @@ function caml_set_is_empty(set)
   end
 end
 
---- Filter set by predicate
--- @param cmp function Comparison function
--- @param p function Predicate (elt) -> bool
--- @param set table|nil Set
--- @return table|nil Filtered set
 --Provides: caml_set_filter
+--Requires: caml_set_filter_internal
 function caml_set_filter(cmp, p, set)
-  return filter(cmp, p, set)
+  return caml_set_filter_internal(cmp, p, set)
 end
 
---- Partition set by predicate
--- @param cmp function Comparison function
--- @param p function Predicate (elt) -> bool
--- @param set table|nil Set
--- @return table Tuple [0, true_set, false_set]
 --Provides: caml_set_partition
+--Requires: caml_set_partition_internal
 function caml_set_partition(cmp, p, set)
-  local t, f = partition(cmp, p, set)
+  local t, f = caml_set_partition_internal(cmp, p, set)
   return {tag = 0, [1] = t, [2] = f}
 end
 
---- Check if s1 is subset of s2
--- @param cmp function Comparison function
--- @param s1 table|nil First set
--- @param s2 table|nil Second set
--- @return number 1 (true) or 0 (false)
 --Provides: caml_set_subset
---Requires: caml_true_val, caml_false_val
+--Requires: caml_set_subset_internal, caml_true_val, caml_false_val
 function caml_set_subset(cmp, s1, s2)
-  if subset(cmp, s1, s2) then
+  if caml_set_subset_internal(cmp, s1, s2) then
     return caml_true_val
   else
     return caml_false_val
   end
 end
 
---- Get minimum element
--- @param set table|nil Set
--- @return any Minimum element (raises Not_found if empty)
 --Provides: caml_set_min_elt
---Requires: caml_raise_not_found
+--Requires: caml_set_min_elt_internal, caml_raise_not_found
 function caml_set_min_elt(set)
-  local min = min_elt(set)
+  local min = caml_set_min_elt_internal(set)
   if min == nil then
     caml_raise_not_found()
   end
   return min
 end
 
---- Get maximum element
--- @param set table|nil Set
--- @return any Maximum element (raises Not_found if empty)
 --Provides: caml_set_max_elt
---Requires: caml_raise_not_found
+--Requires: caml_set_max_elt_internal, caml_raise_not_found
 function caml_set_max_elt(set)
-  local max = max_elt(set)
+  local max = caml_set_max_elt_internal(set)
   if max == nil then
     caml_raise_not_found()
   end
   return max
 end
 
---- Check if two sets are equal
--- @param cmp function Comparison function
--- @param s1 table|nil First set
--- @param s2 table|nil Second set
--- @return number 1 (true) or 0 (false)
 --Provides: caml_set_equal
---Requires: caml_true_val, caml_false_val
+--Requires: caml_set_cardinal_internal, caml_set_subset_internal, caml_true_val, caml_false_val
 function caml_set_equal(cmp, s1, s2)
-  if cardinal(s1) ~= cardinal(s2) then
+  if caml_set_cardinal_internal(s1) ~= caml_set_cardinal_internal(s2) then
     return caml_false_val
   end
-  if subset(cmp, s1, s2) then
+  if caml_set_subset_internal(cmp, s1, s2) then
     return caml_true_val
   else
     return caml_false_val

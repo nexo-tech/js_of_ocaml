@@ -99,9 +99,15 @@
   - **VERIFIED**: All 30 queue tests pass, FIFO operations working correctly with flat table structure
 - [x] Task 3.12: Refactor `result.lua` - result primitives (30 min + tests)
   - **VERIFIED**: Clean (documentation comments removed)
-- [ ] Task 3.13: Refactor `set.lua` - set primitives (45 min + tests)
-  - **VIOLATIONS**: dofile() statement, 22 local helper functions (AVL tree)
-  - **STATUS**: Needs rewrite - remove dofile(), convert AVL helpers to caml_set_*
+- [x] Task 3.13: Refactor `set.lua` - set primitives (45 min + tests)
+  - **FIXED**: Removed dofile("core.lua") statement
+  - **FIXED**: Converted 23 local helper functions to global caml_set_* functions with --Provides
+  - **FIXED**: AVL tree helpers: height, create_node, balance_factor, rotate_right, rotate_left, balance
+  - **FIXED**: Core operations: add_internal, mem_internal, min_node, remove_internal
+  - **FIXED**: Set operations: union_internal, inter_internal, diff_internal
+  - **FIXED**: Traversal functions: iter_internal, fold_internal, for_all_internal, exists_internal
+  - **FIXED**: Transform functions: cardinal_internal, filter_internal, partition_internal, subset_internal, min_elt_internal, max_elt_internal
+  - **VERIFIED**: All 38 set tests pass, AVL balancing and set operations working correctly
 - [ ] Task 3.14: Refactor `stack.lua` - stack primitives (30 min + tests)
   - **VIOLATIONS**: Local table with metatable
   - **STATUS**: Needs rewrite - remove metatable pattern, redesign with flat functions
