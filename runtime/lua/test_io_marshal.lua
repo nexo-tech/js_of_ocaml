@@ -1,12 +1,11 @@
 #!/usr/bin/env lua
 -- Test suite for marshal channel I/O integration
 
--- Load modules
--- Load our custom io module (not Lua's builtin io library)
-package.loaded.io = nil  -- Unload builtin io if loaded
-local io_module = dofile("./io.lua")
-package.loaded.io = io_module  -- Register it for require() calls
-local marshal = require("marshal")
+-- Load modules in dependency order
+dofile("core.lua")
+dofile("fail.lua")
+dofile("marshal.lua")
+dofile("io.lua")
 
 -- Test framework
 local tests_run = 0

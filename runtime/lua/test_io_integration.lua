@@ -2,12 +2,11 @@
 -- Test suite for I/O integration
 -- Comprehensive tests for marshal + channels + files
 
--- Load our runtime modules
--- Some modules have been refactored to use global functions (core)
--- Others still use the old module pattern (marshal, fail, format)
+-- Load our runtime modules (all refactored to use global functions)
 dofile("core.lua")
-local marshal = require("marshal")
-local format = require("format")
+dofile("fail.lua")
+dofile("marshal.lua")
+dofile("format.lua")
 dofile("io.lua")
 
 local test_count = 0

@@ -17,10 +17,6 @@
 
 -- I/O operations for OCaml channels and file descriptors
 
--- Load dependencies
-dofile("marshal.lua")
-dofile("fail.lua")
-
 -- File descriptor table (similar to caml_sys_fds in JS runtime)
 local caml_sys_fds = {}
 
