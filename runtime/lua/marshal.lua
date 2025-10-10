@@ -440,15 +440,19 @@ end
 -- Core value marshaling functions
 
 --Provides: caml_marshal_write_value
---Requires: caml_marshal_write_int, caml_marshal_write_double, caml_marshal_write_string, caml_marshal_write_block, caml_marshal_write_float_array
-function caml_marshal_write_value(buf, value, seen)
-  -- Main marshaling dispatch function with cycle detection
+--Requires: caml_marshal_write_int, caml_marshal_write_double, caml_marshal_write_string, caml_marshal_write_block, caml_marshal_write_float_array, caml_marshal_buffer_write8u, caml_marshal_buffer_write32u
+function caml_marshal_write_value(buf, value, seen, object_table, next_id)
+  -- Main marshaling dispatch function with cycle detection and object sharing
   -- Dispatch based on Lua type: number → int/double, string → string, table → block/float_array
   -- Recursive marshaling for block fields
   -- seen: table tracking visited tables to detect cycles (optional, created if nil)
+  -- object_table: table mapping table → object_id for sharing (optional, created if nil)
+  -- next_id: table with {value = N} for next object ID (optional, created if nil)
 
-  -- Initialize seen table on first call
+  -- Initialize tables on first call
   seen = seen or {}
+  object_table = object_table or {}
+  next_id = next_id or {value = 1}
 
   local value_type = type(value)
 
@@ -466,12 +470,26 @@ function caml_marshal_write_value(buf, value, seen)
     caml_marshal_write_string(buf, value)
 
   elseif value_type == "table" then
-    -- Cycle detection: check if this table was already visited
-    if seen[value] then
-      error("caml_marshal_write_value: cyclic data structure detected (object sharing not implemented)")
+    -- Object sharing: check if this table was already marshaled
+    local obj_id = object_table[value]
+    if obj_id then
+      -- Write CODE_SHARED (0x04) + object_id as 32-bit unsigned big-endian
+      caml_marshal_buffer_write8u(buf, 0x04)
+      caml_marshal_buffer_write32u(buf, obj_id)
+      return
     end
 
-    -- Mark table as visited
+    -- Cycle detection: check if this table is currently being visited
+    if seen[value] then
+      error("caml_marshal_write_value: cyclic data structure detected")
+    end
+
+    -- Assign object ID and record in object_table
+    local current_id = next_id.value
+    object_table[value] = current_id
+    next_id.value = next_id.value + 1
+
+    -- Mark table as being visited
     seen[value] = true
 
     -- Table: could be block or float array
@@ -481,9 +499,9 @@ function caml_marshal_write_value(buf, value, seen)
 
     if value.tag ~= nil then
       -- Block: has tag field
-      -- Use recursive write_value for fields, passing seen table
+      -- Use recursive write_value for fields, passing seen, object_table, next_id
       caml_marshal_write_block(buf, value, function(b, v)
-        caml_marshal_write_value(b, v, seen)
+        caml_marshal_write_value(b, v, seen, object_table, next_id)
       end)
 
     else
@@ -513,14 +531,12 @@ function caml_marshal_write_value(buf, value, seen)
           block[i] = value[i]
         end
         caml_marshal_write_block(buf, block, function(b, v)
-          caml_marshal_write_value(b, v, seen)
+          caml_marshal_write_value(b, v, seen, object_table, next_id)
         end)
       end
     end
 
     -- Unmark table after marshaling (allows sibling references in DAG)
-    -- Note: This still detects cycles but allows DAG structure
-    -- For true object sharing, we need Task 6.1.8
     seen[value] = nil
 
   elseif value_type == "boolean" then
@@ -537,18 +553,36 @@ function caml_marshal_write_value(buf, value, seen)
 end
 
 --Provides: caml_marshal_read_value
---Requires: caml_marshal_read8u, caml_marshal_read_int, caml_marshal_read_double, caml_marshal_read_string, caml_marshal_read_block, caml_marshal_read_float_array
-function caml_marshal_read_value(str, offset)
-  -- Main unmarshaling dispatch function
+--Requires: caml_marshal_read8u, caml_marshal_read_int, caml_marshal_read_double, caml_marshal_read_string, caml_marshal_read_block, caml_marshal_read_float_array, caml_marshal_read32u
+function caml_marshal_read_value(str, offset, objects_by_id, next_id)
+  -- Main unmarshaling dispatch function with object sharing
   -- Read code byte and dispatch to appropriate reader
   -- Recursive unmarshaling for block fields
+  -- objects_by_id: table mapping object_id → table for sharing (optional, created if nil)
+  -- next_id: table with {value = N} for next object ID (optional, created if nil)
   -- Return {value, bytes_read}
+
+  -- Initialize tables on first call
+  objects_by_id = objects_by_id or {}
+  next_id = next_id or {value = 1}
 
   -- Read code byte to determine type
   local code = caml_marshal_read8u(str, offset)
 
+  -- CODE_SHARED (0x04): shared object reference
+  if code == 0x04 then
+    local obj_id = caml_marshal_read32u(str, offset + 1)
+    local shared_obj = objects_by_id[obj_id]
+    if not shared_obj then
+      error(string.format("caml_marshal_read_value: invalid shared object reference %d at offset %d", obj_id, offset))
+    end
+    return {
+      value = shared_obj,
+      bytes_read = 5
+    }
+
   -- Small int (0x40-0x7F): 0-63
-  if code >= 0x40 and code <= 0x7F then
+  elseif code >= 0x40 and code <= 0x7F then
     return caml_marshal_read_int(str, offset)
 
   -- CODE_INT8 (0x00): signed byte
@@ -581,19 +615,71 @@ function caml_marshal_read_value(str, offset)
 
   -- CODE_DOUBLE_ARRAY8_LITTLE (0x0E): float array with 8-bit length
   elseif code == 0x0E then
-    return caml_marshal_read_float_array(str, offset)
+    local result = caml_marshal_read_float_array(str, offset)
+    local obj_id = next_id.value
+    objects_by_id[obj_id] = result.value
+    next_id.value = next_id.value + 1
+    return result
 
   -- CODE_DOUBLE_ARRAY32_LITTLE (0x07): float array with 32-bit length
   elseif code == 0x07 then
-    return caml_marshal_read_float_array(str, offset)
+    local result = caml_marshal_read_float_array(str, offset)
+    local obj_id = next_id.value
+    objects_by_id[obj_id] = result.value
+    next_id.value = next_id.value + 1
+    return result
 
   -- Small block (0x80-0xFF): tag 0-15, size 0-7
   elseif code >= 0x80 and code <= 0xFF then
-    return caml_marshal_read_block(str, offset, caml_marshal_read_value)
+    -- Allocate object ID first (before reading fields, for cycles)
+    local obj_id = next_id.value
+    next_id.value = next_id.value + 1
+
+    -- Create placeholder to be filled by read_block
+    local placeholder = {}
+    objects_by_id[obj_id] = placeholder
+
+    -- Read block with fields
+    local result = caml_marshal_read_block(str, offset, function(s, o)
+      return caml_marshal_read_value(s, o, objects_by_id, next_id)
+    end)
+
+    -- Update placeholder with actual block content
+    local block = result.value
+    for k, v in pairs(block) do
+      placeholder[k] = v
+    end
+
+    return {
+      value = placeholder,
+      bytes_read = result.bytes_read
+    }
 
   -- CODE_BLOCK32 (0x08): large block
   elseif code == 0x08 then
-    return caml_marshal_read_block(str, offset, caml_marshal_read_value)
+    -- Allocate object ID first (before reading fields, for cycles)
+    local obj_id = next_id.value
+    next_id.value = next_id.value + 1
+
+    -- Create placeholder to be filled by read_block
+    local placeholder = {}
+    objects_by_id[obj_id] = placeholder
+
+    -- Read block with fields
+    local result = caml_marshal_read_block(str, offset, function(s, o)
+      return caml_marshal_read_value(s, o, objects_by_id, next_id)
+    end)
+
+    -- Update placeholder with actual block content
+    local block = result.value
+    for k, v in pairs(block) do
+      placeholder[k] = v
+    end
+
+    return {
+      value = placeholder,
+      bytes_read = result.bytes_read
+    }
 
   else
     error(string.format("caml_marshal_read_value: unknown code 0x%02X at offset %d", code, offset))
@@ -612,19 +698,26 @@ function caml_marshal_to_string(value, flags)
   -- Create buffer for marshaling the value
   local data_buf = caml_marshal_buffer_create()
 
-  -- Marshal the value to the data buffer
-  caml_marshal_write_value(data_buf, value)
+  -- Create object tracking tables for sharing
+  local seen = {}
+  local object_table = {}
+  local next_id = {value = 1}
 
-  -- Get data length
+  -- Marshal the value to the data buffer with object sharing
+  caml_marshal_write_value(data_buf, value, seen, object_table, next_id)
+
+  -- Get data length and number of objects
   local data_len = data_buf.length
+  local num_objects = next_id.value - 1
 
   -- Create buffer for header + data
   local buf = caml_marshal_buffer_create()
 
   -- Write 20-byte header
   -- Header format: magic (4) | data_len (4) | num_objects (4) | size_32 (4) | size_64 (4)
-  -- For simplicity: num_objects = 0, size_32 = 0, size_64 = 0 (no sharing)
-  caml_marshal_header_write(buf, data_len, 0, 0, 0)
+  -- num_objects: count of shared objects (tables/arrays)
+  -- size_32/size_64: reserved (0)
+  caml_marshal_header_write(buf, data_len, num_objects, 0, 0)
 
   -- Append data bytes
   for i = 1, data_len do
@@ -657,15 +750,18 @@ function caml_marshal_from_bytes(str, offset)
   local header = caml_marshal_header_read(str, offset)
 
   -- Header contains: magic, data_len, num_objects, size_32, size_64
-  -- We use data_len to know how much data to read
-  -- num_objects, size_32, size_64 are for sharing (not implemented yet)
+  -- num_objects tells us how many shared objects to expect
 
   -- Calculate data offset (after header)
   local header_size = caml_marshal_header_size()
   local data_offset = offset + header_size
 
-  -- Unmarshal value from data section
-  local result = caml_marshal_read_value(str, data_offset)
+  -- Create object tracking tables for sharing
+  local objects_by_id = {}
+  local next_id = {value = 1}
+
+  -- Unmarshal value from data section with object sharing
+  local result = caml_marshal_read_value(str, data_offset, objects_by_id, next_id)
 
   -- Return the unmarshaled value (not the bytes_read)
   return result.value
