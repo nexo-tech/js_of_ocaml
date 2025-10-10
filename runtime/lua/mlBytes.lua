@@ -16,6 +16,46 @@
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 
+--Provides: caml_bit_and
+function caml_bit_and(a, b)
+  local result = 0
+  local bit_val = 1
+  while a > 0 and b > 0 do
+    if a % 2 == 1 and b % 2 == 1 then
+      result = result + bit_val
+    end
+    a = math.floor(a / 2)
+    b = math.floor(b / 2)
+    bit_val = bit_val * 2
+  end
+  return result
+end
+
+--Provides: caml_bit_or
+function caml_bit_or(a, b)
+  local result = 0
+  local bit_val = 1
+  while a > 0 or b > 0 do
+    if a % 2 == 1 or b % 2 == 1 then
+      result = result + bit_val
+    end
+    a = math.floor(a / 2)
+    b = math.floor(b / 2)
+    bit_val = bit_val * 2
+  end
+  return result
+end
+
+--Provides: caml_bit_lshift
+function caml_bit_lshift(a, n)
+  return math.floor(a * (2 ^ n))
+end
+
+--Provides: caml_bit_rshift
+function caml_bit_rshift(a, n)
+  return math.floor(a / (2 ^ n))
+end
+
 --Provides: caml_bytes_of_string
 function caml_bytes_of_string(s)
   local len = #s
@@ -61,9 +101,10 @@ function caml_string_unsafe_get(b, i)
 end
 
 --Provides: caml_bytes_unsafe_set
+--Requires: caml_bit_and
 function caml_bytes_unsafe_set(b, i, c)
   if type(b) == "table" then
-    b[i] = c & 0xFF
+    b[i] = caml_bit_and(c, 0xFF)
   else
     error("Cannot set byte in immutable string")
   end
@@ -128,11 +169,12 @@ function caml_blit_string(src, src_off, dst, dst_off, len)
 end
 
 --Provides: caml_fill_bytes
+--Requires: caml_bit_and
 function caml_fill_bytes(b, off, len, c)
   if type(b) ~= "table" then
     error("Cannot fill immutable string")
   end
-  c = c & 0xFF
+  c = caml_bit_and(c, 0xFF)
   for i = 0, len - 1 do
     b[off + i] = c
   end
@@ -288,11 +330,11 @@ function caml_bytes_index(haystack, needle)
 end
 
 --Provides: caml_bytes_get16
---Requires: caml_bytes_unsafe_get
+--Requires: caml_bytes_unsafe_get, caml_bit_or, caml_bit_lshift
 function caml_bytes_get16(b, i)
   local b1 = caml_bytes_unsafe_get(b, i)
   local b2 = caml_bytes_unsafe_get(b, i + 1)
-  return b1 | (b2 << 8)
+  return caml_bit_or(b1, caml_bit_lshift(b2, 8))
 end
 
 --Provides: caml_string_get16
@@ -301,13 +343,13 @@ function caml_string_get16(b, i)
 end
 
 --Provides: caml_bytes_get32
---Requires: caml_bytes_unsafe_get
+--Requires: caml_bytes_unsafe_get, caml_bit_or, caml_bit_lshift
 function caml_bytes_get32(b, i)
   local b1 = caml_bytes_unsafe_get(b, i)
   local b2 = caml_bytes_unsafe_get(b, i + 1)
   local b3 = caml_bytes_unsafe_get(b, i + 2)
   local b4 = caml_bytes_unsafe_get(b, i + 3)
-  return b1 | (b2 << 8) | (b3 << 16) | (b4 << 24)
+  return caml_bit_or(caml_bit_or(caml_bit_or(b1, caml_bit_lshift(b2, 8)), caml_bit_lshift(b3, 16)), caml_bit_lshift(b4, 24))
 end
 
 --Provides: caml_string_get32
@@ -316,17 +358,17 @@ function caml_string_get32(b, i)
 end
 
 --Provides: caml_bytes_set16
---Requires: caml_bytes_unsafe_set
+--Requires: caml_bytes_unsafe_set, caml_bit_and, caml_bit_rshift
 function caml_bytes_set16(b, i, v)
-  caml_bytes_unsafe_set(b, i, v & 0xFF)
-  caml_bytes_unsafe_set(b, i + 1, (v >> 8) & 0xFF)
+  caml_bytes_unsafe_set(b, i, caml_bit_and(v, 0xFF))
+  caml_bytes_unsafe_set(b, i + 1, caml_bit_and(caml_bit_rshift(v, 8), 0xFF))
 end
 
 --Provides: caml_bytes_set32
---Requires: caml_bytes_unsafe_set
+--Requires: caml_bytes_unsafe_set, caml_bit_and, caml_bit_rshift
 function caml_bytes_set32(b, i, v)
-  caml_bytes_unsafe_set(b, i, v & 0xFF)
-  caml_bytes_unsafe_set(b, i + 1, (v >> 8) & 0xFF)
-  caml_bytes_unsafe_set(b, i + 2, (v >> 16) & 0xFF)
-  caml_bytes_unsafe_set(b, i + 3, (v >> 24) & 0xFF)
+  caml_bytes_unsafe_set(b, i, caml_bit_and(v, 0xFF))
+  caml_bytes_unsafe_set(b, i + 1, caml_bit_and(caml_bit_rshift(v, 8), 0xFF))
+  caml_bytes_unsafe_set(b, i + 2, caml_bit_and(caml_bit_rshift(v, 16), 0xFF))
+  caml_bytes_unsafe_set(b, i + 3, caml_bit_and(caml_bit_rshift(v, 24), 0xFF))
 end

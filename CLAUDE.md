@@ -41,24 +41,30 @@ ocaml --version  # Should be 5.2.0
 
 ### Lua Installation (for lua_of_ocaml testing)
 
-Install Lua 5.4 using Nix package manager:
+**CRITICAL**: Lua_of_ocaml targets **Lua 5.1 and LuaJIT** for maximum compatibility.
+
+Install Lua 5.1 using Nix package manager:
 
 ```bash
 # Install Nix (if not already installed)
 # See: https://nixos.org/download.html
 
-# Install Lua 5.4
-nix-env -iA nixpkgs.lua5_4
+# Install Lua 5.1 (NOT 5.2, 5.3, or 5.4)
+nix-env -iA nixpkgs.lua5_1
 
 # Verify installation
-lua -v  # Should show: Lua 5.4.x
+lua -v  # Should show: Lua 5.1.x
 ```
 
-**Note**: Lua is required for:
-- Running generated `.lua` files
-- Verifying lua_of_ocaml output
-- Testing runtime behavior
-- Validating hello_lua example
+**Note**:
+- Lua 5.1 compatibility is REQUIRED (LuaJIT is based on Lua 5.1)
+- Do NOT use Lua 5.2+ features (bitwise operators, goto, etc.)
+- Runtime code must work on both standard Lua 5.1 and LuaJIT
+- Lua is required for:
+  - Running generated `.lua` files
+  - Verifying lua_of_ocaml output
+  - Testing runtime behavior
+  - Validating hello_lua example
 
 ## Build Commands
 
@@ -149,6 +155,12 @@ The repository contains multiple related packages:
 
 **CRITICAL**: The Lua runtime (`runtime/lua/`) has strict requirements for linker compatibility. Follow these rules exactly:
 
+#### Compatibility Requirements
+- **Lua 5.1 compatibility REQUIRED**: All runtime code must work on Lua 5.1 and LuaJIT
+- **NO Lua 5.2+ features**: Cannot use bitwise operators (&, |, <<, >>), goto, etc.
+- **NO external dependencies**: Cannot use `require()` for external modules like bit, bit32, etc.
+- **Pure Lua 5.1**: Implement bitwise operations using math.floor and modulo if needed
+
 #### Function Structure
 - **ONLY global functions with `caml_` prefix**: Every runtime function must be named `caml_*` and be global
 - **Provides comment required**: Each function MUST have `--Provides: function_name` comment
@@ -169,6 +181,7 @@ end
 - **NO global tables**: Cannot have `MyTable = {}` or class definitions
 - **NO local helper functions**: Linker cannot inline local functions - all helpers must be `caml_` functions with `--Provides:`
 - **NO module wrappers**: No `local M = {}` or `return M` patterns
+- **NO local variables with require()**: Cannot have `local bit = require("compat_bit")` or similar
 
 #### Testing
 - **Tests use dofile()**: Test files load runtime with `dofile("filename.lua")`, NOT `require()`
