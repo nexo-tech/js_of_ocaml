@@ -1,4 +1,20 @@
--- Lua_of_ocaml runtime support
+-- Js_of_ocaml runtime support
+-- http://www.ocsigen.org/js_of_ocaml/
+--
+-- This program is free software; you can redistribute it and/or modify
+-- it under the terms of the GNU Lesser General Public License as published by
+-- the Free Software Foundation, with linking exception;
+-- either version 2.1 of the License, or (at your option) any later version.
+--
+-- This program is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU Lesser General Public License for more details.
+--
+-- You should have received a copy of the GNU Lesser General Public License
+-- along with this program; if not, write to the Free Software
+-- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
 -- Effect handlers (OCaml 5.x) using Lua coroutines
 --
 -- Maps OCaml effect handlers to Lua coroutines with fiber stacks.
@@ -15,8 +31,6 @@
 -- - When effect is performed, fiber yields to parent with effect value
 -- - Parent's effect handler processes the effect
 -- - Continuation can be resumed to return to child fiber
-
-local M = {}
 
 --
 -- Fiber Stack Structure
@@ -42,7 +56,8 @@ local current_stack = {
 --
 
 -- Save current stack for later restoration
-function M.save_stack()
+-- Helper function for testing
+function save_stack()
   return {
     k = current_stack.k,
     x = current_stack.x,
@@ -52,7 +67,8 @@ function M.save_stack()
 end
 
 -- Restore saved stack
-function M.restore_stack(stack)
+-- Helper function for testing
+function restore_stack(stack)
   current_stack.k = stack.k
   current_stack.x = stack.x
   current_stack.h = stack.h
@@ -60,7 +76,8 @@ function M.restore_stack(stack)
 end
 
 -- Get current stack (for debugging)
-function M.get_current_stack()
+-- Helper function for testing
+function get_current_stack()
   return current_stack
 end
 
@@ -68,13 +85,15 @@ end
 -- Exception Handlers
 --
 
+--Provides: caml_push_trap
 -- Push exception handler onto stack
-function M.caml_push_trap(handler)
+function caml_push_trap(handler)
   current_stack.x = {h = handler, t = current_stack.x}
 end
 
+--Provides: caml_pop_trap
 -- Pop exception handler from stack
-function M.caml_pop_trap()
+function caml_pop_trap()
   if not current_stack.x or current_stack.x == 0 then
     return function(x)
       error(x)
@@ -89,32 +108,35 @@ end
 -- Fiber Management
 --
 
+--Provides: caml_pop_fiber
 -- Pop fiber: move to parent fiber
-function M.caml_pop_fiber()
+function caml_pop_fiber()
   local parent = current_stack.e
   current_stack.e = 0
   current_stack = parent
   return parent.k
 end
 
+--Provides: caml_alloc_stack
+--Requires: caml_alloc_stack_call
 -- Allocate new fiber with handlers
 -- hv: value handler (continuation for normal return)
 -- hx: exception handler
 -- hf: effect handler
-function M.caml_alloc_stack(hv, hx, hf)
+function caml_alloc_stack(hv, hx, hf)
   local handlers = {hv, hx, hf}
 
   -- Handler wrappers that call handlers in parent fiber
   local function hval_wrapper(x)
     -- Call hv in parent fiber
     local f = current_stack.h[1]
-    return M.caml_alloc_stack_call(f, x)
+    return caml_alloc_stack_call(f, x)
   end
 
   local function hexn_wrapper(e)
     -- Call hx in parent fiber
     local f = current_stack.h[2]
-    return M.caml_alloc_stack_call(f, e)
+    return caml_alloc_stack_call(f, e)
   end
 
   return {
@@ -125,14 +147,17 @@ function M.caml_alloc_stack(hv, hx, hf)
   }
 end
 
+--Provides: caml_alloc_stack_call
+--Requires: caml_pop_fiber
 -- Call function in parent fiber context
-function M.caml_alloc_stack_call(f, x)
-  local args = {x, M.caml_pop_fiber()}
+function caml_alloc_stack_call(f, x)
+  local args = {x, caml_pop_fiber()}
   return f(table.unpack(args))
 end
 
+--Provides: caml_alloc_stack_disabled
 -- Stub for when effects are disabled
-function M.caml_alloc_stack_disabled()
+function caml_alloc_stack_disabled()
   return 0
 end
 
@@ -144,20 +169,24 @@ end
 local CONTINUATION_TAG = 245
 
 -- Create continuation from current fiber
-function M.make_continuation(stack, last)
+-- Helper function for testing
+function make_continuation(stack, last)
   return {tag = CONTINUATION_TAG, stack, last}
 end
 
+--Provides: caml_continuation_use_noexc
 -- Use continuation (one-shot: clears the continuation)
-function M.caml_continuation_use_noexc(cont)
+function caml_continuation_use_noexc(cont)
   local stack = cont[1]
   cont[1] = 0  -- Mark as used
   return stack
 end
 
+--Provides: caml_continuation_use_and_update_handler_noexc
+--Requires: caml_continuation_use_noexc
 -- Use continuation and update its handlers
-function M.caml_continuation_use_and_update_handler_noexc(cont, hval, hexn, heff)
-  local stack = M.caml_continuation_use_noexc(cont)
+function caml_continuation_use_and_update_handler_noexc(cont, hval, hexn, heff)
+  local stack = caml_continuation_use_noexc(cont)
   if stack == 0 then
     return stack
   end
@@ -183,15 +212,18 @@ local function make_unhandled_effect_exn(eff)
   }
 end
 
+--Provides: caml_raise_unhandled
 -- Raise unhandled effect exception
-function M.caml_raise_unhandled(eff)
+function caml_raise_unhandled(eff)
   error(make_unhandled_effect_exn(eff))
 end
 
+--Provides: caml_perform_effect
+--Requires: make_continuation, caml_pop_fiber
 -- Perform an effect
 -- eff: the effect value
 -- k0: current continuation
-function M.caml_perform_effect(eff, k0)
+function caml_perform_effect(eff, k0)
   if current_stack.e == 0 then
     -- No effect handler installed
     error(make_unhandled_effect_exn(eff))
@@ -203,21 +235,23 @@ function M.caml_perform_effect(eff, k0)
   last_fiber.k = k0
 
   -- Create continuation
-  local cont = M.make_continuation(last_fiber, last_fiber)
+  local cont = make_continuation(last_fiber, last_fiber)
 
   -- Move to parent fiber and execute effect handler
-  local k1 = M.caml_pop_fiber()
+  local k1 = caml_pop_fiber()
 
   -- Call effect handler with effect, continuation, and parent continuation
   return handler(eff, cont, last_fiber, k1)
 end
 
+--Provides: caml_reperform_effect
+--Requires: caml_pop_fiber, caml_continuation_use_noexc, caml_resume_stack
 -- Re-perform an effect (for effect forwarding)
-function M.caml_reperform_effect(eff, cont, last, k0)
+function caml_reperform_effect(eff, cont, last, k0)
   if current_stack.e == 0 then
     -- No effect handler installed
-    local stack = M.caml_continuation_use_noexc(cont)
-    M.caml_resume_stack(stack, last, k0)
+    local stack = caml_continuation_use_noexc(cont)
+    caml_resume_stack(stack, last, k0)
     error(make_unhandled_effect_exn(eff))
   end
 
@@ -229,7 +263,7 @@ function M.caml_reperform_effect(eff, cont, last, k0)
   cont[2] = last_fiber
 
   -- Move to parent fiber and execute effect handler
-  local k1 = M.caml_pop_fiber()
+  local k1 = caml_pop_fiber()
 
   return handler(eff, cont, last_fiber, k1)
 end
@@ -238,8 +272,9 @@ end
 -- Continuation Resume
 --
 
+--Provides: caml_resume_stack
 -- Resume a continuation with a value
-function M.caml_resume_stack(stack, last, k)
+function caml_resume_stack(stack, last, k)
   if not stack or stack == 0 then
     error("Effect.Continuation_already_resumed")
   end
@@ -258,14 +293,16 @@ function M.caml_resume_stack(stack, last, k)
   return stack.k
 end
 
+--Provides: caml_resume
+--Requires: save_stack, restore_stack, caml_resume_stack
 -- High-level resume function
-function M.caml_resume(f, arg, stack, last)
-  local saved_current_stack = M.save_stack()
+function caml_resume(f, arg, stack, last)
+  local saved_current_stack = save_stack()
 
   local success, result = pcall(function()
     current_stack = {k = 0, x = 0, h = 0, e = 0}
 
-    local k = M.caml_resume_stack(stack, last, function(x)
+    local k = caml_resume_stack(stack, last, function(x)
       return x
     end)
 
@@ -273,7 +310,7 @@ function M.caml_resume(f, arg, stack, last)
     return f(arg, k)
   end)
 
-  M.restore_stack(saved_current_stack)
+  restore_stack(saved_current_stack)
 
   if not success then
     error(result)
@@ -287,14 +324,16 @@ end
 --
 
 -- Wrap function in coroutine for effect handling
-function M.with_coroutine(f)
+-- Helper function for testing
+function with_coroutine(f)
   return coroutine.create(function(...)
     return f(...)
   end)
 end
 
 -- Yield current fiber (for cooperative multitasking)
-function M.fiber_yield(value)
+-- Helper function for testing
+function fiber_yield(value)
   if current_stack.e == 0 then
     -- No parent fiber, can't yield
     return value
@@ -305,7 +344,8 @@ function M.fiber_yield(value)
 end
 
 -- Resume a fiber coroutine
-function M.fiber_resume(co, value)
+-- Helper function for testing
+function fiber_resume(co, value)
   if coroutine.status(co) == "dead" then
     error("Cannot resume dead fiber")
   end
@@ -323,12 +363,14 @@ end
 --
 
 -- Check if effects are supported
-function M.effects_supported()
+-- Helper function for testing
+function effects_supported()
   return true  -- Lua coroutines provide necessary support
 end
 
+--Provides: caml_get_continuation_callstack
 -- Get continuation callstack (for debugging)
-function M.caml_get_continuation_callstack()
+function caml_get_continuation_callstack()
   -- Lua doesn't provide detailed callstack for continuations
   -- Return empty list
   return {tag = 0}  -- Empty OCaml list
@@ -338,19 +380,23 @@ end
 -- Condition Variables (for Stdlib.Condition)
 --
 
-function M.caml_ml_condition_new()
+--Provides: caml_ml_condition_new
+function caml_ml_condition_new()
   return {condition = 1}
 end
 
-function M.caml_ml_condition_wait()
+--Provides: caml_ml_condition_wait
+function caml_ml_condition_wait()
   return 0
 end
 
-function M.caml_ml_condition_broadcast()
+--Provides: caml_ml_condition_broadcast
+function caml_ml_condition_broadcast()
   return 0
 end
 
-function M.caml_ml_condition_signal()
+--Provides: caml_ml_condition_signal
+function caml_ml_condition_signal()
   return 0
 end
 
@@ -358,58 +404,8 @@ end
 -- Error Handling
 --
 
+--Provides: jsoo_effect_not_supported
 -- Raise "not supported" error
-function M.jsoo_effect_not_supported()
+function jsoo_effect_not_supported()
   error("Effect handlers are not supported")
 end
-
---
--- Module Exports
---
-
-return {
-  -- Stack management
-  save_stack = M.save_stack,
-  restore_stack = M.restore_stack,
-  get_current_stack = M.get_current_stack,
-
-  -- Exception handling
-  caml_push_trap = M.caml_push_trap,
-  caml_pop_trap = M.caml_pop_trap,
-
-  -- Fiber management
-  caml_pop_fiber = M.caml_pop_fiber,
-  caml_alloc_stack = M.caml_alloc_stack,
-  caml_alloc_stack_disabled = M.caml_alloc_stack_disabled,
-  caml_alloc_stack_call = M.caml_alloc_stack_call,
-
-  -- Continuation management
-  make_continuation = M.make_continuation,
-  caml_continuation_use_noexc = M.caml_continuation_use_noexc,
-  caml_continuation_use_and_update_handler_noexc = M.caml_continuation_use_and_update_handler_noexc,
-
-  -- Effect operations
-  caml_raise_unhandled = M.caml_raise_unhandled,
-  caml_perform_effect = M.caml_perform_effect,
-  caml_reperform_effect = M.caml_reperform_effect,
-  caml_resume_stack = M.caml_resume_stack,
-  caml_resume = M.caml_resume,
-
-  -- Coroutine integration
-  with_coroutine = M.with_coroutine,
-  fiber_yield = M.fiber_yield,
-  fiber_resume = M.fiber_resume,
-
-  -- Utilities
-  effects_supported = M.effects_supported,
-  caml_get_continuation_callstack = M.caml_get_continuation_callstack,
-
-  -- Condition variables
-  caml_ml_condition_new = M.caml_ml_condition_new,
-  caml_ml_condition_wait = M.caml_ml_condition_wait,
-  caml_ml_condition_broadcast = M.caml_ml_condition_broadcast,
-  caml_ml_condition_signal = M.caml_ml_condition_signal,
-
-  -- Error handling
-  jsoo_effect_not_supported = M.jsoo_effect_not_supported,
-}
