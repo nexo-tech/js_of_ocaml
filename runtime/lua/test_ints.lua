@@ -1,7 +1,9 @@
 #!/usr/bin/env lua
 -- Test suite for ints.lua integer operations primitives
 
--- Load ints.lua directly (it defines global caml_* functions)
+-- Load mlBytes.lua first (ints.lua requires caml_bit_* functions from it)
+dofile("mlBytes.lua")
+-- Load ints.lua (it defines global caml_* functions)
 dofile("ints.lua")
 
 local tests_passed = 0

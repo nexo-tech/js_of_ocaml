@@ -22,9 +22,12 @@
   - **VERIFIED**: All 36 tests pass, Lua 5.1 compatible, no external dependencies
 - [x] Task 2.4: Refactor `array.lua` - array primitives (1 hour + tests)
   - **VERIFIED**: Clean (documentation comments removed)
-- [ ] Task 2.5: Refactor `ints.lua` - integer primitives (1 hour + tests)
-  - **VIOLATION**: Has local variables and local helper functions (linker cannot inline!)
-  - **STATUS**: Needs rewrite - convert local functions to caml_ functions with --Provides
+- [x] Task 2.5: Refactor `ints.lua` - integer primitives (1 hour + tests)
+  - **FIXED**: Removed `local bit = require("compat_bit")` and all local helpers
+  - **FIXED**: Converted local function `to_int32()` to `caml_to_int32()` with --Provides
+  - **FIXED**: Implemented caml_int32_xor and caml_int32_not as pure Lua 5.1 functions
+  - **FIXED**: All int32 operations use caml_bit_* helper functions from mlBytes.lua
+  - **VERIFIED**: All 24 tests pass, Lua 5.1 compatible, no external dependencies
 - [x] Task 2.6: Refactor `float.lua` - float primitives (1 hour + tests)
   - **VERIFIED**: Clean after documentation comment removal
 
