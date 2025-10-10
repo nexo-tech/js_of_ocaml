@@ -269,23 +269,37 @@
   - **IMPLEMENTATION**: Lua 5.1 compatible, no object sharing (values may duplicate)
   - **KEY DECISIONS**: Tables without .tag infer type (all numbers = float array, else block tag 0)
 
-- [ ] Task 6.1.6: Implement public API in `marshal.lua` (45 min + tests)
+- [x] Task 6.1.6: Implement public API in `marshal.lua` (45 min + tests) ✓
   - **PREREQUISITES**: Task 6.1.5
-  - **DELIVERABLES**: ~200 lines
+  - **DELIVERABLES**: 112 lines implemented in `marshal.lua`
     - `caml_marshal_to_string(value, flags)` - complete implementation
-      - Create buffer, write value, prepend header, return string
-      - Support flags (optional): array of flag numbers (not used initially, reserved)
+      - Creates buffer, marshals value with caml_marshal_write_value
+      - Prepends 20-byte header with caml_marshal_header_write
+      - Header: magic 0x8495A6BE + data_len + num_objects (0) + size_32 (0) + size_64 (0)
+      - Returns complete string: 20-byte header + marshaled data
+      - flags parameter reserved (optional, not used)
     - `caml_marshal_from_bytes(str, offset)` - complete implementation
-      - Read and validate header
-      - Unmarshal value from data section
-      - Return unmarshaled value
-      - offset parameter (optional, defaults to 0)
-    - `caml_marshal_data_size(str, offset)` - return data length from header
-    - `caml_marshal_total_size(str, offset)` - return header size (20) + data length
-    - Keep aliases: `caml_marshal_to_bytes`, `caml_marshal_from_string`
-  - **TESTS**: Add public API tests to test_marshal.lua (roundtrip, size functions)
-  - **NO**: Local functions, sharing/custom blocks (future work)
-  - **YES**: Complete working Marshal module
+      - Reads and validates 20-byte header with caml_marshal_header_read
+      - Unmarshals value from data section using caml_marshal_read_value
+      - Returns unmarshaled value (not bytes_read)
+      - offset parameter optional (defaults to 0)
+    - `caml_marshal_data_size(str, offset)` - returns data length from header
+      - Reads header, returns data_len field
+      - Excludes header size (20 bytes)
+    - `caml_marshal_total_size(str, offset)` - returns header size (20) + data length
+      - Total size of marshaled value
+    - Aliases: `caml_marshal_to_bytes`, `caml_marshal_from_string`
+  - **TESTS**: 446 lines, 40 tests in `test_marshal_public.lua` - all passing ✓
+    - Basic roundtrip (integers, doubles, strings, blocks, nested blocks, float arrays, mixed types)
+    - Alias functions (to_bytes, from_string)
+    - Size functions (data_size, total_size for all types)
+    - Offset parameter handling (0, nil default, with padding)
+    - Complex roundtrips (arrays of values, deeply nested, blocks with float arrays)
+    - Header verification (magic number, data_len consistency, size matches length)
+    - Error handling (invalid magic, insufficient data, insufficient header)
+    - Multiple values in sequence (back-to-back marshaled values)
+  - **IMPLEMENTATION**: Lua 5.1 compatible, complete working Marshal module
+  - **NO SHARING**: num_objects/size_32/size_64 set to 0 (object sharing not implemented)
 
 - [ ] Task 6.4: Refactor `digest.lua` - digest primitives (45 min + tests)
 - [ ] Task 6.5: Refactor `bigarray.lua` - bigarray primitives (1 hour + tests)

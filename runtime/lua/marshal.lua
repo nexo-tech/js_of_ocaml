@@ -579,36 +579,115 @@ function caml_marshal_read_value(str, offset)
   end
 end
 
--- Public API (stubs to be implemented in later tasks)
+-- Public API
 
 --Provides: caml_marshal_to_string
+--Requires: caml_marshal_buffer_create, caml_marshal_write_value, caml_marshal_buffer_to_string, caml_marshal_header_write, caml_marshal_buffer_write8u
 function caml_marshal_to_string(value, flags)
-  error("caml_marshal_to_string: not yet implemented")
+  -- Marshal value to string with header
+  -- flags parameter is optional (reserved for future use, not implemented)
+  -- Returns: marshaled string with 20-byte header + data
+
+  -- Create buffer for marshaling the value
+  local data_buf = caml_marshal_buffer_create()
+
+  -- Marshal the value to the data buffer
+  caml_marshal_write_value(data_buf, value)
+
+  -- Get data length
+  local data_len = data_buf.length
+
+  -- Create buffer for header + data
+  local buf = caml_marshal_buffer_create()
+
+  -- Write 20-byte header
+  -- Header format: magic (4) | data_len (4) | num_objects (4) | size_32 (4) | size_64 (4)
+  -- For simplicity: num_objects = 0, size_32 = 0, size_64 = 0 (no sharing)
+  caml_marshal_header_write(buf, data_len, 0, 0, 0)
+
+  -- Append data bytes
+  for i = 1, data_len do
+    buf.length = buf.length + 1
+    buf.bytes[buf.length] = data_buf.bytes[i]
+  end
+
+  -- Convert to string
+  return caml_marshal_buffer_to_string(buf)
 end
 
 --Provides: caml_marshal_to_bytes
 --Requires: caml_marshal_to_string
 function caml_marshal_to_bytes(value, flags)
+  -- Alias for caml_marshal_to_string
   return caml_marshal_to_string(value, flags)
 end
 
 --Provides: caml_marshal_from_bytes
+--Requires: caml_marshal_header_read, caml_marshal_header_size, caml_marshal_read_value
 function caml_marshal_from_bytes(str, offset)
-  error("caml_marshal_from_bytes: not yet implemented")
+  -- Unmarshal value from string with header
+  -- offset parameter is optional (defaults to 0)
+  -- Returns: unmarshaled value
+
+  -- Default offset to 0
+  offset = offset or 0
+
+  -- Read and validate header (20 bytes)
+  local header = caml_marshal_header_read(str, offset)
+
+  -- Header contains: magic, data_len, num_objects, size_32, size_64
+  -- We use data_len to know how much data to read
+  -- num_objects, size_32, size_64 are for sharing (not implemented yet)
+
+  -- Calculate data offset (after header)
+  local header_size = caml_marshal_header_size()
+  local data_offset = offset + header_size
+
+  -- Unmarshal value from data section
+  local result = caml_marshal_read_value(str, data_offset)
+
+  -- Return the unmarshaled value (not the bytes_read)
+  return result.value
 end
 
 --Provides: caml_marshal_from_string
 --Requires: caml_marshal_from_bytes
 function caml_marshal_from_string(str, offset)
+  -- Alias for caml_marshal_from_bytes
   return caml_marshal_from_bytes(str, offset)
 end
 
 --Provides: caml_marshal_data_size
+--Requires: caml_marshal_header_read
 function caml_marshal_data_size(str, offset)
-  error("caml_marshal_data_size: not yet implemented")
+  -- Return data length from header (excludes header size)
+  -- offset parameter is optional (defaults to 0)
+
+  -- Default offset to 0
+  offset = offset or 0
+
+  -- Read header
+  local header = caml_marshal_header_read(str, offset)
+
+  -- Return data length
+  return header.data_len
 end
 
 --Provides: caml_marshal_total_size
+--Requires: caml_marshal_header_size, caml_marshal_data_size
 function caml_marshal_total_size(str, offset)
-  error("caml_marshal_total_size: not yet implemented")
+  -- Return total size: header size (20) + data length
+  -- offset parameter is optional (defaults to 0)
+
+  -- Default offset to 0
+  offset = offset or 0
+
+  -- Get header size (always 20)
+  local header_size = caml_marshal_header_size()
+
+  -- Get data size
+  local data_size = caml_marshal_data_size(str, offset)
+
+  -- Return total
+  return header_size + data_size
 end
