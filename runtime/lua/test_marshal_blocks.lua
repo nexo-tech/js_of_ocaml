@@ -1,6 +1,8 @@
 #!/usr/bin/env lua
 -- Test complex block marshalling
 
+dofile("marshal_io.lua")
+dofile("marshal_header.lua")
 dofile("marshal.lua")
 
 local tests_passed = 0

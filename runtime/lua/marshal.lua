@@ -232,7 +232,7 @@ function caml_marshal_write_block(buf, block, write_value_fn)
   -- Block format: {tag = N, size = M, [1] = field1, [2] = field2, ...}
 
   local tag = block.tag or 0
-  local size = block.size or 0
+  local size = block.size or #block
 
   -- Check for small block (tag 0-15, size 0-7)
   if tag >= 0 and tag <= 15 and size >= 0 and size <= 7 then

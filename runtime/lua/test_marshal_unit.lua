@@ -3,7 +3,9 @@
 --
 -- Tests all value types, immediate values, structured values, sharing, cycles, custom blocks, and edge cases
 
-local marshal = require("marshal")
+dofile("marshal_io.lua")
+dofile("marshal_header.lua")
+dofile("marshal.lua")
 
 -- Test counter
 local test_count = 0

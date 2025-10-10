@@ -10,7 +10,9 @@
 -- - Custom types
 -- - Large data
 
-local marshal = require("marshal")
+dofile("marshal_io.lua")
+dofile("marshal_header.lua")
+dofile("marshal.lua")
 
 -- Test counter
 local test_count = 0

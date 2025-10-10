@@ -3,7 +3,9 @@
 --
 -- Tests input validation, truncated data, corrupted data, and error messages
 
-local marshal = require("marshal")
+dofile("marshal_io.lua")
+dofile("marshal_header.lua")
+dofile("marshal.lua")
 
 -- Test counter
 local test_count = 0
