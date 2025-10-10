@@ -1,4 +1,20 @@
--- Lua_of_ocaml runtime support
+-- Js_of_ocaml runtime support
+-- http://www.ocsigen.org/js_of_ocaml/
+--
+-- This program is free software; you can redistribute it and/or modify
+-- it under the terms of the GNU Lesser General Public License as published by
+-- the Free Software Foundation, with linking exception;
+-- either version 2.1 of the License, or (at your option) any later version.
+--
+-- This program is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU Lesser General Public License for more details.
+--
+-- You should have received a copy of the GNU Lesser General Public License
+-- along with this program; if not, write to the Free Software
+-- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
 -- I/O operations for OCaml channels and file descriptors
 
 -- Load dependencies
@@ -40,6 +56,7 @@ local caml_io_buffer_size = 4096
 -- File descriptor operations
 --
 
+--Provides: caml_sys_open
 function caml_sys_open(name, flags, perms)
   -- Parse OCaml open flags
   -- flags is an OCaml list: 0 = [], [tag, [next]]
@@ -106,6 +123,7 @@ function caml_sys_open(name, flags, perms)
   return fd
 end
 
+--Provides: caml_sys_close
 function caml_sys_close(fd)
   local fd_desc = caml_sys_fds[fd]
   if fd_desc and fd_desc.file then
@@ -122,6 +140,7 @@ end
 -- Channel operations
 --
 
+--Provides: caml_ml_open_descriptor_in
 function caml_ml_open_descriptor_in(fd)
   local fd_desc = caml_sys_fds[fd]
   if not fd_desc then
@@ -148,6 +167,7 @@ function caml_ml_open_descriptor_in(fd)
   return chanid
 end
 
+--Provides: caml_ml_open_descriptor_out
 function caml_ml_open_descriptor_out(fd)
   local fd_desc = caml_sys_fds[fd]
   if not fd_desc then
@@ -174,16 +194,22 @@ function caml_ml_open_descriptor_out(fd)
   return chanid
 end
 
+--Provides: caml_ml_open_descriptor_in_with_flags
+--Requires: caml_ml_open_descriptor_in
 function caml_ml_open_descriptor_in_with_flags(fd, flags)
   -- OCaml 5.1+: currently ignoring flags
   return caml_ml_open_descriptor_in(fd)
 end
 
+--Provides: caml_ml_open_descriptor_out_with_flags
+--Requires: caml_ml_open_descriptor_out
 function caml_ml_open_descriptor_out_with_flags(fd, flags)
   -- OCaml 5.1+: currently ignoring flags
   return caml_ml_open_descriptor_out(fd)
 end
 
+--Provides: caml_ml_close_channel
+--Requires: caml_ml_flush, caml_sys_close
 function caml_ml_close_channel(chanid)
   local chan = caml_ml_channels[chanid]
   if chan and chan.opened then
@@ -203,6 +229,7 @@ function caml_ml_close_channel(chanid)
   return 0
 end
 
+--Provides: caml_channel_descriptor
 function caml_channel_descriptor(chanid)
   local chan = caml_ml_channels[chanid]
   if chan then
@@ -215,6 +242,7 @@ end
 -- Input operations
 --
 
+--Provides: caml_ml_input_char
 function caml_ml_input_char(chanid)
   local chan = caml_ml_channels[chanid]
   if not chan or not chan.opened then
@@ -260,6 +288,7 @@ function caml_ml_input_char(chanid)
   return string.byte(c)
 end
 
+--Provides: caml_ml_input
 function caml_ml_input(chanid, buf, offset, len)
   local chan = caml_ml_channels[chanid]
   if not chan or not chan.opened then
@@ -315,6 +344,8 @@ function caml_ml_input(chanid, buf, offset, len)
   return bytes_read
 end
 
+--Provides: caml_ml_input_int
+--Requires: caml_ml_input_char
 function caml_ml_input_int(chanid)
   local chan = caml_ml_channels[chanid]
   if not chan or not chan.opened then
@@ -331,6 +362,7 @@ function caml_ml_input_int(chanid)
   return result
 end
 
+--Provides: caml_ml_input_scan_line
 function caml_ml_input_scan_line(chanid)
   local chan = caml_ml_channels[chanid]
   if not chan or not chan.opened then
@@ -355,6 +387,8 @@ function caml_ml_input_scan_line(chanid)
   return -(#chan.buffer - chan.buffer_pos + 1)
 end
 
+--Provides: caml_input_value
+--Requires: caml_ml_input
 -- Read marshalled value from input channel
 -- This reads a complete marshal format (header + data) from a channel
 function caml_input_value(chanid)
@@ -413,6 +447,8 @@ function caml_input_value(chanid)
   return result
 end
 
+--Provides: caml_input_value_to_outside_heap
+--Requires: caml_input_value
 -- Alias for compatibility (OCaml 5.0+)
 function caml_input_value_to_outside_heap(chanid)
   return caml_input_value(chanid)
@@ -422,6 +458,7 @@ end
 -- Output operations
 --
 
+--Provides: caml_ml_flush
 function caml_ml_flush(chanid)
   local chan = caml_ml_channels[chanid]
   if not chan then
@@ -462,6 +499,8 @@ function caml_ml_flush(chanid)
   return 0
 end
 
+--Provides: caml_ml_output_char
+--Requires: caml_ml_flush
 function caml_ml_output_char(chanid, c)
   local chan = caml_ml_channels[chanid]
   if not chan or not chan.opened then
@@ -482,6 +521,8 @@ function caml_ml_output_char(chanid, c)
   return 0
 end
 
+--Provides: caml_ml_output
+--Requires: caml_ml_flush
 function caml_ml_output(chanid, str, offset, len)
   local chan = caml_ml_channels[chanid]
   if not chan or not chan.opened then
@@ -504,6 +545,8 @@ function caml_ml_output(chanid, str, offset, len)
   return 0
 end
 
+--Provides: caml_ml_output_bytes
+--Requires: caml_ml_output
 function caml_ml_output_bytes(chanid, bytes, offset, len)
   -- Convert bytes (table of byte values) to string
   local chars = {}
@@ -516,6 +559,8 @@ function caml_ml_output_bytes(chanid, bytes, offset, len)
   return caml_ml_output(chanid, str, 0, len)
 end
 
+--Provides: caml_ml_output_int
+--Requires: caml_ml_flush
 function caml_ml_output_int(chanid, i)
   local chan = caml_ml_channels[chanid]
   if not chan or not chan.opened then
@@ -538,6 +583,8 @@ function caml_ml_output_int(chanid, i)
   return 0
 end
 
+--Provides: caml_output_value
+--Requires: caml_ml_output
 -- Write marshalled value to output channel
 -- This writes a complete marshal format (header + data) to a channel
 function caml_output_value(chanid, v, flags)
@@ -570,6 +617,7 @@ end
 -- Channel positioning
 --
 
+--Provides: caml_ml_seek_in
 function caml_ml_seek_in(chanid, pos)
   local chan = caml_ml_channels[chanid]
   if not chan or not chan.opened then
@@ -583,11 +631,15 @@ function caml_ml_seek_in(chanid, pos)
   return 0
 end
 
+--Provides: caml_ml_seek_in_64
+--Requires: caml_ml_seek_in
 function caml_ml_seek_in_64(chanid, pos)
   -- Lua numbers are 64-bit floats, should handle most cases
   return caml_ml_seek_in(chanid, pos)
 end
 
+--Provides: caml_ml_seek_out
+--Requires: caml_ml_flush
 function caml_ml_seek_out(chanid, pos)
   local chan = caml_ml_channels[chanid]
   if not chan or not chan.opened then
@@ -600,10 +652,13 @@ function caml_ml_seek_out(chanid, pos)
   return 0
 end
 
+--Provides: caml_ml_seek_out_64
+--Requires: caml_ml_seek_out
 function caml_ml_seek_out_64(chanid, pos)
   return caml_ml_seek_out(chanid, pos)
 end
 
+--Provides: caml_ml_pos_in
 function caml_ml_pos_in(chanid)
   local chan = caml_ml_channels[chanid]
   if not chan then
@@ -614,10 +669,13 @@ function caml_ml_pos_in(chanid)
   return chan.offset - (#chan.buffer - chan.buffer_pos + 1)
 end
 
+--Provides: caml_ml_pos_in_64
+--Requires: caml_ml_pos_in
 function caml_ml_pos_in_64(chanid)
   return caml_ml_pos_in(chanid)
 end
 
+--Provides: caml_ml_pos_out
 function caml_ml_pos_out(chanid)
   local chan = caml_ml_channels[chanid]
   if not chan then
@@ -632,10 +690,13 @@ function caml_ml_pos_out(chanid)
   return chan.offset + buffered
 end
 
+--Provides: caml_ml_pos_out_64
+--Requires: caml_ml_pos_out
 function caml_ml_pos_out_64(chanid)
   return caml_ml_pos_out(chanid)
 end
 
+--Provides: caml_ml_channel_size
 function caml_ml_channel_size(chanid)
   local chan = caml_ml_channels[chanid]
   if not chan then
@@ -648,6 +709,8 @@ function caml_ml_channel_size(chanid)
   return size
 end
 
+--Provides: caml_ml_channel_size_64
+--Requires: caml_ml_channel_size
 function caml_ml_channel_size_64(chanid)
   return caml_ml_channel_size(chanid)
 end
@@ -656,6 +719,7 @@ end
 -- Channel configuration
 --
 
+--Provides: caml_ml_set_binary_mode
 function caml_ml_set_binary_mode(chanid, mode)
   local chan = caml_ml_channels[chanid]
   if chan then
@@ -665,6 +729,7 @@ function caml_ml_set_binary_mode(chanid, mode)
   return 0
 end
 
+--Provides: caml_ml_is_binary_mode
 function caml_ml_is_binary_mode(chanid)
   local chan = caml_ml_channels[chanid]
   if chan and chan.flags.binary then
@@ -673,6 +738,7 @@ function caml_ml_is_binary_mode(chanid)
   return 0
 end
 
+--Provides: caml_ml_set_channel_name
 function caml_ml_set_channel_name(chanid, name)
   local chan = caml_ml_channels[chanid]
   if chan then
@@ -681,6 +747,7 @@ function caml_ml_set_channel_name(chanid, name)
   return 0
 end
 
+--Provides: caml_ml_out_channels_list
 function caml_ml_out_channels_list()
   -- Return OCaml list of all open output channels
   local list = 0 -- empty list
@@ -692,6 +759,7 @@ function caml_ml_out_channels_list()
   return list
 end
 
+--Provides: caml_ml_is_buffered
 function caml_ml_is_buffered(chanid)
   local chan = caml_ml_channels[chanid]
   if chan and chan.buffered and chan.buffered > 0 then
@@ -700,6 +768,8 @@ function caml_ml_is_buffered(chanid)
   return 0
 end
 
+--Provides: caml_ml_set_buffered
+--Requires: caml_ml_flush
 function caml_ml_set_buffered(chanid, v)
   local chan = caml_ml_channels[chanid]
   if chan then
@@ -715,6 +785,7 @@ end
 -- In-memory channels
 --
 
+--Provides: caml_ml_open_string_in
 -- Create input channel from string
 function caml_ml_open_string_in(str)
   local chanid = next_chanid
@@ -735,6 +806,7 @@ function caml_ml_open_string_in(str)
   return chanid
 end
 
+--Provides: caml_ml_open_buffer_out
 -- Create output channel to buffer
 function caml_ml_open_buffer_out()
   local chanid = next_chanid
@@ -753,6 +825,8 @@ function caml_ml_open_buffer_out()
   return chanid
 end
 
+--Provides: caml_ml_buffer_contents
+--Requires: caml_ml_flush
 -- Get contents from buffer output channel
 function caml_ml_buffer_contents(chanid)
   local chan = caml_ml_channels[chanid]
@@ -767,6 +841,7 @@ function caml_ml_buffer_contents(chanid)
   return table.concat(chan.buffer)
 end
 
+--Provides: caml_ml_buffer_reset
 -- Reset buffer output channel
 function caml_ml_buffer_reset(chanid)
   local chan = caml_ml_channels[chanid]
@@ -782,6 +857,7 @@ end
 -- Custom Channel Backends
 --
 
+--Provides: caml_ml_open_custom_in
 -- Create input channel with custom backend
 -- backend must implement: read(n) -> string or nil
 function caml_ml_open_custom_in(backend)
@@ -801,6 +877,7 @@ function caml_ml_open_custom_in(backend)
   return chanid
 end
 
+--Provides: caml_ml_open_custom_out
 -- Create output channel with custom backend
 -- backend must implement: write(str) -> number, flush() (optional)
 function caml_ml_open_custom_out(backend)
@@ -820,48 +897,3 @@ function caml_ml_open_custom_out(backend)
   return chanid
 end
 
--- Export all functions as a module
-return {
-  caml_sys_open = caml_sys_open,
-  caml_sys_close = caml_sys_close,
-  caml_ml_open_descriptor_in = caml_ml_open_descriptor_in,
-  caml_ml_open_descriptor_out = caml_ml_open_descriptor_out,
-  caml_ml_open_descriptor_in_with_flags = caml_ml_open_descriptor_in_with_flags,
-  caml_ml_open_descriptor_out_with_flags = caml_ml_open_descriptor_out_with_flags,
-  caml_ml_close_channel = caml_ml_close_channel,
-  caml_channel_descriptor = caml_channel_descriptor,
-  caml_ml_flush = caml_ml_flush,
-  caml_ml_input_char = caml_ml_input_char,
-  caml_ml_input = caml_ml_input,
-  caml_ml_input_int = caml_ml_input_int,
-  caml_ml_input_scan_line = caml_ml_input_scan_line,
-  caml_input_value = caml_input_value,
-  caml_input_value_to_outside_heap = caml_input_value_to_outside_heap,
-  caml_ml_output_char = caml_ml_output_char,
-  caml_ml_output = caml_ml_output,
-  caml_ml_output_bytes = caml_ml_output_bytes,
-  caml_ml_output_int = caml_ml_output_int,
-  caml_output_value = caml_output_value,
-  caml_ml_seek_in = caml_ml_seek_in,
-  caml_ml_seek_in_64 = caml_ml_seek_in_64,
-  caml_ml_seek_out = caml_ml_seek_out,
-  caml_ml_seek_out_64 = caml_ml_seek_out_64,
-  caml_ml_pos_in = caml_ml_pos_in,
-  caml_ml_pos_in_64 = caml_ml_pos_in_64,
-  caml_ml_pos_out = caml_ml_pos_out,
-  caml_ml_pos_out_64 = caml_ml_pos_out_64,
-  caml_ml_channel_size = caml_ml_channel_size,
-  caml_ml_channel_size_64 = caml_ml_channel_size_64,
-  caml_ml_set_binary_mode = caml_ml_set_binary_mode,
-  caml_ml_is_binary_mode = caml_ml_is_binary_mode,
-  caml_ml_set_channel_name = caml_ml_set_channel_name,
-  caml_ml_out_channels_list = caml_ml_out_channels_list,
-  caml_ml_is_buffered = caml_ml_is_buffered,
-  caml_ml_set_buffered = caml_ml_set_buffered,
-  caml_ml_open_string_in = caml_ml_open_string_in,
-  caml_ml_open_buffer_out = caml_ml_open_buffer_out,
-  caml_ml_buffer_contents = caml_ml_buffer_contents,
-  caml_ml_buffer_reset = caml_ml_buffer_reset,
-  caml_ml_open_custom_in = caml_ml_open_custom_in,
-  caml_ml_open_custom_out = caml_ml_open_custom_out,
-}

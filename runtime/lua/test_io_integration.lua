@@ -2,12 +2,13 @@
 -- Test suite for I/O integration
 -- Comprehensive tests for marshal + channels + files
 
--- Preload our runtime modules (they clash with standard Lua modules)
-package.loaded.io = dofile("io.lua")
-local io_module = package.loaded.io
+-- Load our runtime modules
+-- Some modules have been refactored to use global functions (core)
+-- Others still use the old module pattern (marshal, fail, format)
+dofile("core.lua")
 local marshal = require("marshal")
 local format = require("format")
-local core = require("core")
+dofile("io.lua")
 
 local test_count = 0
 local pass_count = 0
@@ -78,26 +79,26 @@ end
 -- Helper: open file for writing and get channel
 local function open_write(filename, binary)
   local flags = make_list(binary and {1, 3, 4, 6} or {1, 3, 4})  -- WRONLY, CREAT, TRUNC, [BINARY]
-  local fd = io_module.caml_sys_open(filename, flags, 420)  -- 0644 octal = 420 decimal
-  return io_module.caml_ml_open_descriptor_out(fd)
+  local fd = caml_sys_open(filename, flags, 420)  -- 0644 octal = 420 decimal
+  return caml_ml_open_descriptor_out(fd)
 end
 
 -- Helper: open file for reading and get channel
 local function open_read(filename, binary)
   local flags = make_list(binary and {0, 6} or {0})  -- RDONLY, [BINARY]
-  local fd = io_module.caml_sys_open(filename, flags, 0)
-  return io_module.caml_ml_open_descriptor_in(fd)
+  local fd = caml_sys_open(filename, flags, 0)
+  return caml_ml_open_descriptor_in(fd)
 end
 
 -- Helper: write string to channel
 local function output_string(chan, str)
-  io_module.caml_ml_output(chan, str, 0, #str)
+  caml_ml_output(chan, str, 0, #str)
 end
 
 -- Helper: input string from channel
 local function input_string(chan, len)
   local buf = {}
-  local bytes_read = io_module.caml_ml_input(chan, buf, 0, len)
+  local bytes_read = caml_ml_input(chan, buf, 0, len)
   local chars = {}
   for i = 1, bytes_read do
     table.insert(chars, string.char(buf[i]))
@@ -109,7 +110,7 @@ end
 local function input_line(chan)
   local chars = {}
   while true do
-    local ok, c = pcall(io_module.caml_ml_input_char, chan)
+    local ok, c = pcall(caml_ml_input_char, chan)
     if not ok then
       if #chars == 0 then
         error("End_of_file")
@@ -133,13 +134,13 @@ test("marshal int to file and read back", function()
   -- Write
   local chan_out = open_write(filename, true)
   marshal.to_channel(chan_out, 42, {tag = 0})
-  io_module.caml_ml_flush(chan_out)
-  io_module.caml_ml_close_channel(chan_out)
+  caml_ml_flush(chan_out)
+  caml_ml_close_channel(chan_out)
 
   -- Read
   local chan_in = open_read(filename, true)
   local value = marshal.from_channel(chan_in)
-  io_module.caml_ml_close_channel(chan_in)
+  caml_ml_close_channel(chan_in)
 
   assert_equal(value, 42, "should read back 42")
   cleanup_file(filename)
@@ -151,13 +152,13 @@ test("marshal string to file and read back", function()
   -- Write
   local chan_out = open_write(filename, true)
   marshal.to_channel(chan_out, "hello world", {tag = 0})
-  io_module.caml_ml_flush(chan_out)
-  io_module.caml_ml_close_channel(chan_out)
+  caml_ml_flush(chan_out)
+  caml_ml_close_channel(chan_out)
 
   -- Read
   local chan_in = open_read(filename, true)
   local value = marshal.from_channel(chan_in)
-  io_module.caml_ml_close_channel(chan_in)
+  caml_ml_close_channel(chan_in)
 
   assert_equal(value, "hello world", "should read back string")
   cleanup_file(filename)
@@ -170,13 +171,13 @@ test("marshal list to file and read back", function()
   -- Write
   local chan_out = open_write(filename, true)
   marshal.to_channel(chan_out, list, {tag = 0})
-  io_module.caml_ml_flush(chan_out)
-  io_module.caml_ml_close_channel(chan_out)
+  caml_ml_flush(chan_out)
+  caml_ml_close_channel(chan_out)
 
   -- Read
   local chan_in = open_read(filename, true)
   local value = marshal.from_channel(chan_in)
-  io_module.caml_ml_close_channel(chan_in)
+  caml_ml_close_channel(chan_in)
 
   local result = list_to_table(value)
   assert_equal(#result, 5)
@@ -193,15 +194,15 @@ test("marshal multiple values to same file", function()
   marshal.to_channel(chan_out, 42, {tag = 0})
   marshal.to_channel(chan_out, "hello", {tag = 0})
   marshal.to_channel(chan_out, make_list({1, 2, 3}), {tag = 0})
-  io_module.caml_ml_flush(chan_out)
-  io_module.caml_ml_close_channel(chan_out)
+  caml_ml_flush(chan_out)
+  caml_ml_close_channel(chan_out)
 
   -- Read back in order
   local chan_in = open_read(filename, true)
   local v1 = marshal.from_channel(chan_in)
   local v2 = marshal.from_channel(chan_in)
   local v3 = marshal.from_channel(chan_in)
-  io_module.caml_ml_close_channel(chan_in)
+  caml_ml_close_channel(chan_in)
 
   assert_equal(v1, 42)
   assert_equal(v2, "hello")
@@ -216,8 +217,8 @@ test("marshal value sizes", function()
   -- Write a value
   local chan_out = open_write(filename, true)
   marshal.to_channel(chan_out, 12345, {tag = 0})
-  io_module.caml_ml_flush(chan_out)
-  io_module.caml_ml_close_channel(chan_out)
+  caml_ml_flush(chan_out)
+  caml_ml_close_channel(chan_out)
 
   -- Get file size
   local f = io.open(filename, "rb")
@@ -234,8 +235,8 @@ test("fprintf to file", function()
 
   local chan = open_write(filename, true)
   format.caml_fprintf(chan, "Number: %d, String: %s\n", 42, "hello")
-  io_module.caml_ml_flush(chan)
-  io_module.caml_ml_close_channel(chan)
+  caml_ml_flush(chan)
+  caml_ml_close_channel(chan)
 
   -- Read back and verify
   local f = io.open(filename, "rb")
@@ -253,8 +254,8 @@ test("fprintf multiple lines", function()
   format.caml_fprintf(chan, "Line 1: %d\n", 1)
   format.caml_fprintf(chan, "Line 2: %d\n", 2)
   format.caml_fprintf(chan, "Line 3: %d\n", 3)
-  io_module.caml_ml_flush(chan)
-  io_module.caml_ml_close_channel(chan)
+  caml_ml_flush(chan)
+  caml_ml_close_channel(chan)
 
   -- Read and verify
   local f = io.open(filename, "rb")
@@ -272,8 +273,8 @@ test("fprintf with float", function()
 
   local chan = open_write(filename, true)
   format.caml_fprintf(chan, "Pi: %.2f", 3.14159)
-  io_module.caml_ml_flush(chan)
-  io_module.caml_ml_close_channel(chan)
+  caml_ml_flush(chan)
+  caml_ml_close_channel(chan)
 
   local f = io.open(filename, "rb")
   local content = f:read("*all")
@@ -288,8 +289,8 @@ test("fprintf with multiple formats", function()
 
   local chan = open_write(filename, true)
   format.caml_fprintf(chan, "%s = %d (0x%x)", "answer", 42, 42)
-  io_module.caml_ml_flush(chan)
-  io_module.caml_ml_close_channel(chan)
+  caml_ml_flush(chan)
+  caml_ml_close_channel(chan)
 
   local f = io.open(filename, "rb")
   local content = f:read("*all")
@@ -305,8 +306,8 @@ test("fprintf with percent escape", function()
 
   local chan = open_write(filename, true)
   format.caml_fprintf(chan, "100%% complete")
-  io_module.caml_ml_flush(chan)
-  io_module.caml_ml_close_channel(chan)
+  caml_ml_flush(chan)
+  caml_ml_close_channel(chan)
 
   local f = io.open(filename, "rb")
   local content = f:read("*all")
@@ -324,13 +325,13 @@ test("binary mode preserves all bytes", function()
   local data = "\x00\x01\x02\xFF\xFE"
   local chan = open_write(filename, true)
   output_string(chan, data)
-  io_module.caml_ml_flush(chan)
-  io_module.caml_ml_close_channel(chan)
+  caml_ml_flush(chan)
+  caml_ml_close_channel(chan)
 
   -- Read back
   local chan_in = open_read(filename, true)
   local result = input_string(chan_in, #data)
-  io_module.caml_ml_close_channel(chan_in)
+  caml_ml_close_channel(chan_in)
 
   assert_equal(result, data, "binary data should be preserved")
   cleanup_file(filename)
@@ -342,15 +343,15 @@ test("text mode handles newlines", function()
   -- Write text with newlines
   local chan = open_write(filename, false)
   output_string(chan, "line1\nline2\nline3\n")
-  io_module.caml_ml_flush(chan)
-  io_module.caml_ml_close_channel(chan)
+  caml_ml_flush(chan)
+  caml_ml_close_channel(chan)
 
   -- Read back
   local chan_in = open_read(filename, false)
   local line1 = input_line(chan_in)
   local line2 = input_line(chan_in)
   local line3 = input_line(chan_in)
-  io_module.caml_ml_close_channel(chan_in)
+  caml_ml_close_channel(chan_in)
 
   assert_equal(line1, "line1")
   assert_equal(line2, "line2")
@@ -362,17 +363,17 @@ test("binary write/read char", function()
   local filename = "/tmp/test_binary_char.dat"
 
   local chan_out = open_write(filename, true)
-  io_module.caml_ml_output_char(chan_out, 65)  -- 'A'
-  io_module.caml_ml_output_char(chan_out, 0)   -- null byte
-  io_module.caml_ml_output_char(chan_out, 255) -- max byte
-  io_module.caml_ml_flush(chan_out)
-  io_module.caml_ml_close_channel(chan_out)
+  caml_ml_output_char(chan_out, 65)  -- 'A'
+  caml_ml_output_char(chan_out, 0)   -- null byte
+  caml_ml_output_char(chan_out, 255) -- max byte
+  caml_ml_flush(chan_out)
+  caml_ml_close_channel(chan_out)
 
   local chan_in = open_read(filename, true)
-  local c1 = io_module.caml_ml_input_char(chan_in)
-  local c2 = io_module.caml_ml_input_char(chan_in)
-  local c3 = io_module.caml_ml_input_char(chan_in)
-  io_module.caml_ml_close_channel(chan_in)
+  local c1 = caml_ml_input_char(chan_in)
+  local c2 = caml_ml_input_char(chan_in)
+  local c3 = caml_ml_input_char(chan_in)
+  caml_ml_close_channel(chan_in)
 
   assert_equal(c1, 65)
   assert_equal(c2, 0)
@@ -395,7 +396,7 @@ test("text mode input_line strips newline", function()
   assert_equal(l1, "first")
   assert_equal(l2, "second")
 
-  io_module.caml_ml_close_channel(chan)
+  caml_ml_close_channel(chan)
   cleanup_file(filename)
 end)
 
@@ -405,12 +406,12 @@ test("binary mode exact byte count", function()
 
   local chan_out = open_write(filename, true)
   output_string(chan_out, data)
-  io_module.caml_ml_flush(chan_out)
-  io_module.caml_ml_close_channel(chan_out)
+  caml_ml_flush(chan_out)
+  caml_ml_close_channel(chan_out)
 
   local chan_in = open_read(filename, true)
   local result = input_string(chan_in, 1000)
-  io_module.caml_ml_close_channel(chan_in)
+  caml_ml_close_channel(chan_in)
 
   assert_equal(#result, 1000)
   assert_equal(result, data)
@@ -423,7 +424,7 @@ test("flush forces write", function()
 
   local chan = open_write(filename, true)
   output_string(chan, "before flush")
-  io_module.caml_ml_flush(chan)
+  caml_ml_flush(chan)
 
   -- Read while channel still open (should see flushed data)
   local f = io.open(filename, "rb")
@@ -432,7 +433,7 @@ test("flush forces write", function()
 
   assert_equal(content, "before flush")
 
-  io_module.caml_ml_close_channel(chan)
+  caml_ml_close_channel(chan)
   cleanup_file(filename)
 end)
 
@@ -441,7 +442,7 @@ test("close flushes buffer", function()
 
   local chan = open_write(filename, true)
   output_string(chan, "data")
-  io_module.caml_ml_close_channel(chan)  -- Should flush
+  caml_ml_close_channel(chan)  -- Should flush
 
   local f = io.open(filename, "rb")
   local content = f:read("*all")
@@ -456,11 +457,11 @@ test("multiple flushes", function()
 
   local chan = open_write(filename, true)
   output_string(chan, "part1")
-  io_module.caml_ml_flush(chan)
+  caml_ml_flush(chan)
   output_string(chan, "part2")
-  io_module.caml_ml_flush(chan)
+  caml_ml_flush(chan)
   output_string(chan, "part3")
-  io_module.caml_ml_close_channel(chan)
+  caml_ml_close_channel(chan)
 
   local f = io.open(filename, "rb")
   local content = f:read("*all")
@@ -475,7 +476,7 @@ test("flush on output_value", function()
 
   local chan = open_write(filename, true)
   marshal.to_channel(chan, 42, {tag = 0})
-  io_module.caml_ml_flush(chan)
+  caml_ml_flush(chan)
 
   -- Verify data was written
   local f = io.open(filename, "rb")
@@ -484,7 +485,7 @@ test("flush on output_value", function()
 
   assert_true(size > 0, "marshal should write data")
 
-  io_module.caml_ml_close_channel(chan)
+  caml_ml_close_channel(chan)
   cleanup_file(filename)
 end)
 
@@ -498,11 +499,11 @@ test("channel buffer independence", function()
   output_string(chan1, "channel1")
   output_string(chan2, "channel2")
 
-  io_module.caml_ml_flush(chan1)
-  io_module.caml_ml_flush(chan2)
+  caml_ml_flush(chan1)
+  caml_ml_flush(chan2)
 
-  io_module.caml_ml_close_channel(chan1)
-  io_module.caml_ml_close_channel(chan2)
+  caml_ml_close_channel(chan1)
+  caml_ml_close_channel(chan2)
 
   local f1 = io.open(filename1, "rb")
   local c1 = f1:read("*all")
@@ -530,17 +531,17 @@ test("seek to beginning", function()
   local chan = open_read(filename, true)
 
   -- Read first char
-  local c1 = io_module.caml_ml_input_char(chan)
+  local c1 = caml_ml_input_char(chan)
   assert_equal(c1, string.byte("0"))
 
   -- Seek to beginning
-  io_module.caml_ml_seek_in(chan, 0)
+  caml_ml_seek_in(chan, 0)
 
   -- Read again
-  local c2 = io_module.caml_ml_input_char(chan)
+  local c2 = caml_ml_input_char(chan)
   assert_equal(c2, string.byte("0"))
 
-  io_module.caml_ml_close_channel(chan)
+  caml_ml_close_channel(chan)
   cleanup_file(filename)
 end)
 
@@ -554,12 +555,12 @@ test("seek forward", function()
   local chan = open_read(filename, true)
 
   -- Seek to position 5
-  io_module.caml_ml_seek_in(chan, 5)
+  caml_ml_seek_in(chan, 5)
 
-  local c = io_module.caml_ml_input_char(chan)
+  local c = caml_ml_input_char(chan)
   assert_equal(c, string.byte("5"))
 
-  io_module.caml_ml_close_channel(chan)
+  caml_ml_close_channel(chan)
   cleanup_file(filename)
 end)
 
@@ -572,16 +573,16 @@ test("pos_in reports position", function()
 
   local chan = open_read(filename, true)
 
-  assert_equal(io_module.caml_ml_pos_in(chan), 0)
+  assert_equal(caml_ml_pos_in(chan), 0)
 
-  io_module.caml_ml_input_char(chan)
-  assert_equal(io_module.caml_ml_pos_in(chan), 1)
+  caml_ml_input_char(chan)
+  assert_equal(caml_ml_pos_in(chan), 1)
 
-  io_module.caml_ml_input_char(chan)
-  io_module.caml_ml_input_char(chan)
-  assert_equal(io_module.caml_ml_pos_in(chan), 3)
+  caml_ml_input_char(chan)
+  caml_ml_input_char(chan)
+  assert_equal(caml_ml_pos_in(chan), 3)
 
-  io_module.caml_ml_close_channel(chan)
+  caml_ml_close_channel(chan)
   cleanup_file(filename)
 end)
 
@@ -594,12 +595,12 @@ test("seek and read after seek", function()
 
   local chan = open_read(filename, true)
 
-  io_module.caml_ml_seek_in(chan, 3)
+  caml_ml_seek_in(chan, 3)
   local data = input_string(chan, 3)
 
   assert_equal(data, "def")
 
-  io_module.caml_ml_close_channel(chan)
+  caml_ml_close_channel(chan)
   cleanup_file(filename)
 end)
 
@@ -612,14 +613,14 @@ test("seek to end with channel_size", function()
 
   local chan = open_read(filename, true)
 
-  local size = io_module.caml_ml_channel_size(chan)
+  local size = caml_ml_channel_size(chan)
   assert_equal(size, 10)
 
-  io_module.caml_ml_seek_in(chan, size - 1)
-  local c = io_module.caml_ml_input_char(chan)
+  caml_ml_seek_in(chan, size - 1)
+  local c = caml_ml_input_char(chan)
   assert_equal(c, string.byte("9"))
 
-  io_module.caml_ml_close_channel(chan)
+  caml_ml_close_channel(chan)
   cleanup_file(filename)
 end)
 
@@ -634,11 +635,11 @@ test("open and close input channel", function()
   local chan = open_read(filename, true)
   assert_true(chan ~= nil)
 
-  io_module.caml_ml_close_channel(chan)
+  caml_ml_close_channel(chan)
 
   -- Channel should be closed now
   assert_error(function()
-    io_module.caml_ml_input_char(chan)
+    caml_ml_input_char(chan)
   end, "should not read from closed channel")
 
   cleanup_file(filename)
@@ -651,7 +652,7 @@ test("open and close output channel", function()
   assert_true(chan ~= nil)
 
   output_string(chan, "data")
-  io_module.caml_ml_close_channel(chan)
+  caml_ml_close_channel(chan)
 
   -- Verify data was written
   local f = io.open(filename, "rb")
@@ -667,9 +668,9 @@ test("flush before close", function()
 
   local chan = open_write(filename, true)
   output_string(chan, "test")
-  io_module.caml_ml_flush(chan)
-  io_module.caml_ml_flush(chan)  -- Flush twice is safe
-  io_module.caml_ml_close_channel(chan)
+  caml_ml_flush(chan)
+  caml_ml_flush(chan)  -- Flush twice is safe
+  caml_ml_close_channel(chan)
 
   local f = io.open(filename, "rb")
   local content = f:read("*all")
@@ -685,14 +686,14 @@ test("channel reopen after close", function()
   -- First open/close cycle
   local chan1 = open_write(filename, true)
   output_string(chan1, "first")
-  io_module.caml_ml_close_channel(chan1)
+  caml_ml_close_channel(chan1)
 
   -- Second open/close cycle (append mode)
   local flags = make_list({1, 2, 6})  -- WRONLY, APPEND, BINARY
-  local fd = io_module.caml_sys_open(filename, flags, 420)  -- 0644 octal = 420 decimal
-  local chan2 = io_module.caml_ml_open_descriptor_out(fd)
+  local fd = caml_sys_open(filename, flags, 420)  -- 0644 octal = 420 decimal
+  local chan2 = caml_ml_open_descriptor_out(fd)
   output_string(chan2, "second")
-  io_module.caml_ml_close_channel(chan2)
+  caml_ml_close_channel(chan2)
 
   local f = io.open(filename, "rb")
   local content = f:read("*all")
@@ -708,12 +709,12 @@ test("multiple channels to same file", function()
   -- Write with first channel
   local chan1 = open_write(filename, true)
   output_string(chan1, "data1")
-  io_module.caml_ml_close_channel(chan1)
+  caml_ml_close_channel(chan1)
 
   -- Read with second channel
   local chan2 = open_read(filename, true)
   local content = input_string(chan2, 5)
-  io_module.caml_ml_close_channel(chan2)
+  caml_ml_close_channel(chan2)
 
   assert_equal(content, "data1")
   cleanup_file(filename)
@@ -728,10 +729,10 @@ test("read from closed channel raises error", function()
   f:close()
 
   local chan = open_read(filename, true)
-  io_module.caml_ml_close_channel(chan)
+  caml_ml_close_channel(chan)
 
   assert_error(function()
-    io_module.caml_ml_input_char(chan)
+    caml_ml_input_char(chan)
   end, "should raise error on closed channel")
 
   cleanup_file(filename)
@@ -741,7 +742,7 @@ test("write to closed channel raises error", function()
   local filename = "/tmp/test_error_closed_write.txt"
 
   local chan = open_write(filename, true)
-  io_module.caml_ml_close_channel(chan)
+  caml_ml_close_channel(chan)
 
   assert_error(function()
     output_string(chan, "data")
@@ -758,13 +759,13 @@ test("read past EOF raises End_of_file", function()
   f:close()
 
   local chan = open_read(filename, true)
-  io_module.caml_ml_input_char(chan)  -- Read the only char
+  caml_ml_input_char(chan)  -- Read the only char
 
   assert_error(function()
-    io_module.caml_ml_input_char(chan)  -- Should raise End_of_file
+    caml_ml_input_char(chan)  -- Should raise End_of_file
   end, "should raise End_of_file")
 
-  io_module.caml_ml_close_channel(chan)
+  caml_ml_close_channel(chan)
   cleanup_file(filename)
 end)
 
@@ -782,13 +783,13 @@ test("input_line at EOF raises End_of_file", function()
     input_line(chan)  -- Should raise End_of_file
   end, "should raise End_of_file")
 
-  io_module.caml_ml_close_channel(chan)
+  caml_ml_close_channel(chan)
   cleanup_file(filename)
 end)
 
 test("invalid file descriptor raises error", function()
   assert_error(function()
-    io_module.caml_ml_open_descriptor_in(9999)  -- Invalid FD
+    caml_ml_open_descriptor_in(9999)  -- Invalid FD
   end, "should raise error on invalid FD")
 end)
 

@@ -35,7 +35,9 @@
 
 ### Phase 4: Refactor System & I/O Modules (Est: 4 hours)
 - [x] Task 4.1: Refactor `sys.lua` - system primitives (1 hour + tests)
-- [ ] Task 4.2: Refactor `io.lua` - I/O primitives (1 hour + tests)
+- [x] Task 4.2: Refactor `io.lua` - I/O primitives (1 hour + tests)
+  - **Note**: test_io_integration.lua cannot run until Phase 6 (marshal.lua, format.lua) and fail.lua are refactored
+  - Test execution deferred to Task 7.1
 - [ ] Task 4.3: Refactor `filename.lua` - filename primitives (45 min + tests)
 - [ ] Task 4.4: Refactor `stream.lua` - stream primitives (45 min + tests)
 
