@@ -108,9 +108,10 @@
   - **FIXED**: Traversal functions: iter_internal, fold_internal, for_all_internal, exists_internal
   - **FIXED**: Transform functions: cardinal_internal, filter_internal, partition_internal, subset_internal, min_elt_internal, max_elt_internal
   - **VERIFIED**: All 38 set tests pass, AVL balancing and set operations working correctly
-- [ ] Task 3.14: Refactor `stack.lua` - stack primitives (30 min + tests)
-  - **VIOLATIONS**: Local table with metatable
-  - **STATUS**: Needs rewrite - remove metatable pattern, redesign with flat functions
+- [x] Task 3.14: Refactor `stack.lua` - stack primitives (30 min + tests)
+  - **FIXED**: Removed local Stack table with __index metatable
+  - **FIXED**: Removed setmetatable call in caml_stack_create
+  - **VERIFIED**: All 32 stack tests pass, LIFO operations working correctly with flat table structure
 
 ### Phase 4: Refactor System & I/O Modules (Est: 4 hours)
 - [x] Task 4.1: Refactor `sys.lua` - system primitives (1 hour + tests)
