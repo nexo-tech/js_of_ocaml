@@ -1,6 +1,6 @@
 -- Tests for GC module
 
-local gc = require("gc")
+dofile("gc.lua")
 local weak = require("weak")
 
 -- Test helpers
@@ -31,47 +31,47 @@ end
 print("Testing GC module...")
 
 -- Test GC control functions
-local result = gc.caml_gc_minor(0)
+local result = caml_gc_minor(0)
 assert_eq(result, 0, "gc_minor returns 0")
 
-result = gc.caml_gc_major(0)
+result = caml_gc_major(0)
 assert_eq(result, 0, "gc_major returns 0")
 
-result = gc.caml_gc_full_major(0)
+result = caml_gc_full_major(0)
 assert_eq(result, 0, "gc_full_major returns 0")
 
-result = gc.caml_gc_compaction(0)
+result = caml_gc_compaction(0)
 assert_eq(result, 0, "gc_compaction returns 0")
 
 -- Test GC counters
-local counters = gc.caml_gc_counters(0)
+local counters = caml_gc_counters(0)
 assert_type(counters, "table", "counters is a table")
 assert_eq(counters[1], 254, "counters tag is 254")
 
 -- Test GC stats
-local stats = gc.caml_gc_quick_stat(0)
+local stats = caml_gc_quick_stat(0)
 assert_type(stats, "table", "stats is a table")
 assert_eq(#stats, 18, "stats has 18 elements")
 
-local stats2 = gc.caml_gc_stat(0)
+local stats2 = caml_gc_stat(0)
 assert_type(stats2, "table", "gc_stat returns table")
 
 -- Test GC control
-result = gc.caml_gc_set({0, 0, 0})
+result = caml_gc_set({0, 0, 0})
 assert_eq(result, 0, "gc_set returns 0")
 
-local control = gc.caml_gc_get(0)
+local control = caml_gc_get(0)
 assert_type(control, "table", "gc_get returns table")
 
 -- Test GC slice
-result = gc.caml_gc_major_slice(100)
+result = caml_gc_major_slice(100)
 assert_eq(result, 0, "gc_major_slice returns 0")
 
 -- Test GC memory functions
-local minor_words = gc.caml_gc_minor_words(0)
+local minor_words = caml_gc_minor_words(0)
 assert_eq(minor_words, 0, "gc_minor_words returns 0")
 
-local minor_free = gc.caml_get_minor_free(0)
+local minor_free = caml_get_minor_free(0)
 assert_eq(minor_free, 0, "get_minor_free returns 0")
 
 -- Test finalizer registration
@@ -81,7 +81,7 @@ local function my_finalizer(x)
 end
 
 local obj = {value = 42}
-result = gc.caml_final_register(my_finalizer, obj)
+result = caml_final_register(my_finalizer, obj)
 assert_eq(result, 0, "final_register returns 0")
 
 -- Test finalizer without value
@@ -91,31 +91,31 @@ local function my_finalizer_no_val()
 end
 
 local obj2 = {value = 99}
-result = gc.caml_final_register_called_without_value(my_finalizer_no_val, obj2)
+result = caml_final_register_called_without_value(my_finalizer_no_val, obj2)
 assert_eq(result, 0, "final_register_called_without_value returns 0")
 
 -- Test final release
-result = gc.caml_final_release(0)
+result = caml_final_release(0)
 assert_eq(result, 0, "final_release returns 0")
 
 -- Test memory profiling (no-ops)
-result = gc.caml_memprof_start(100, 10, nil)
+result = caml_memprof_start(100, 10, nil)
 assert_eq(result, 0, "memprof_start returns 0")
 
-result = gc.caml_memprof_stop(0)
+result = caml_memprof_stop(0)
 assert_eq(result, 0, "memprof_stop returns 0")
 
-result = gc.caml_memprof_discard(nil)
+result = caml_memprof_discard(nil)
 assert_eq(result, 0, "memprof_discard returns 0")
 
 -- Test event logging (no-ops)
-result = gc.caml_eventlog_resume(0)
+result = caml_eventlog_resume(0)
 assert_eq(result, 0, "eventlog_resume returns 0")
 
-result = gc.caml_eventlog_pause(0)
+result = caml_eventlog_pause(0)
 assert_eq(result, 0, "eventlog_pause returns 0")
 
-result = gc.caml_gc_huge_fallback_count(0)
+result = caml_gc_huge_fallback_count(0)
 assert_eq(result, 0, "gc_huge_fallback_count returns 0")
 
 print("All GC tests passed!")

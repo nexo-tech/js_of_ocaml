@@ -43,7 +43,7 @@
 
 ### Phase 5: Refactor Special Modules (Est: 4 hours)
 - [x] Task 5.1: Refactor `obj.lua` - object primitives (1 hour + tests)
-- [ ] Task 5.2: Refactor `gc.lua` - GC primitives (45 min + tests)
+- [x] Task 5.2: Refactor `gc.lua` - GC primitives (45 min + tests)
 - [ ] Task 5.3: Refactor `weak.lua` - weak reference primitives (45 min + tests)
 - [ ] Task 5.4: Refactor `effect.lua` - effect handler primitives (1 hour + tests)
 - [ ] Task 5.5: Refactor `fun.lua` - function primitives (30 min + tests)
