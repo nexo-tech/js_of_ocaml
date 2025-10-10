@@ -30,7 +30,7 @@
 - [x] Task 3.10: Refactor `parsing.lua` - parser primitives (45 min + tests)
 - [x] Task 3.11: Refactor `queue.lua` - queue primitives (30 min + tests)
 - [x] Task 3.12: Refactor `result.lua` - result primitives (30 min + tests)
-- [ ] Task 3.13: Refactor `set.lua` - set primitives (45 min + tests)
+- [x] Task 3.13: Refactor `set.lua` - set primitives (45 min + tests)
 - [ ] Task 3.14: Refactor `stack.lua` - stack primitives (30 min + tests)
 
 ### Phase 4: Refactor System & I/O Modules (Est: 4 hours)

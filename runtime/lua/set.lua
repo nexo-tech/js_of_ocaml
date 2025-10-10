@@ -20,9 +20,7 @@
 -- Provides balanced binary search tree (AVL tree) implementation
 -- for ordered sets with polymorphic comparison.
 
-local core = require("core")
-
-local M = {}
+dofile("core.lua")
 
 -- AVL tree node structure:
 -- {
@@ -453,7 +451,8 @@ end
 --- Create empty set
 -- @param _unit number Unit value
 -- @return nil Empty set
-function M.caml_set_empty(_unit)
+--Provides: caml_set_empty
+function caml_set_empty(_unit)
   return nil
 end
 
@@ -462,7 +461,8 @@ end
 -- @param elt any Element
 -- @param set table|nil Set
 -- @return table Updated set
-function M.caml_set_add(cmp, elt, set)
+--Provides: caml_set_add
+function caml_set_add(cmp, elt, set)
   return add(cmp, elt, set)
 end
 
@@ -471,7 +471,8 @@ end
 -- @param elt any Element
 -- @param set table|nil Set
 -- @return table|nil Updated set
-function M.caml_set_remove(cmp, elt, set)
+--Provides: caml_set_remove
+function caml_set_remove(cmp, elt, set)
   return remove(cmp, elt, set)
 end
 
@@ -480,11 +481,13 @@ end
 -- @param elt any Element
 -- @param set table|nil Set
 -- @return number 1 (true) or 0 (false)
-function M.caml_set_mem(cmp, elt, set)
+--Provides: caml_set_mem
+--Requires: caml_true_val, caml_false_val
+function caml_set_mem(cmp, elt, set)
   if mem(cmp, elt, set) then
-    return core.true_val
+    return caml_true_val
   else
-    return core.false_val
+    return caml_false_val
   end
 end
 
@@ -493,7 +496,8 @@ end
 -- @param s1 table|nil First set
 -- @param s2 table|nil Second set
 -- @return table|nil Union set
-function M.caml_set_union(cmp, s1, s2)
+--Provides: caml_set_union
+function caml_set_union(cmp, s1, s2)
   return union(cmp, s1, s2)
 end
 
@@ -502,7 +506,8 @@ end
 -- @param s1 table|nil First set
 -- @param s2 table|nil Second set
 -- @return table|nil Intersection set
-function M.caml_set_inter(cmp, s1, s2)
+--Provides: caml_set_inter
+function caml_set_inter(cmp, s1, s2)
   return inter(cmp, s1, s2)
 end
 
@@ -511,7 +516,8 @@ end
 -- @param s1 table|nil First set
 -- @param s2 table|nil Second set
 -- @return table|nil Difference set
-function M.caml_set_diff(cmp, s1, s2)
+--Provides: caml_set_diff
+function caml_set_diff(cmp, s1, s2)
   return diff(cmp, s1, s2)
 end
 
@@ -519,9 +525,11 @@ end
 -- @param f function Function (elt) -> unit
 -- @param set table|nil Set
 -- @return number Unit value
-function M.caml_set_iter(f, set)
+--Provides: caml_set_iter
+--Requires: caml_unit
+function caml_set_iter(f, set)
   iter(f, set)
-  return core.unit
+  return caml_unit
 end
 
 --- Fold function over set elements
@@ -529,7 +537,8 @@ end
 -- @param set table|nil Set
 -- @param init any Initial accumulator
 -- @return any Final accumulator
-function M.caml_set_fold(f, set, init)
+--Provides: caml_set_fold
+function caml_set_fold(f, set, init)
   return fold(f, set, init)
 end
 
@@ -537,11 +546,13 @@ end
 -- @param p function Predicate (elt) -> bool
 -- @param set table|nil Set
 -- @return number 1 (true) or 0 (false)
-function M.caml_set_for_all(p, set)
+--Provides: caml_set_for_all
+--Requires: caml_true_val, caml_false_val
+function caml_set_for_all(p, set)
   if for_all(p, set) then
-    return core.true_val
+    return caml_true_val
   else
-    return core.false_val
+    return caml_false_val
   end
 end
 
@@ -549,29 +560,34 @@ end
 -- @param p function Predicate (elt) -> bool
 -- @param set table|nil Set
 -- @return number 1 (true) or 0 (false)
-function M.caml_set_exists(p, set)
+--Provides: caml_set_exists
+--Requires: caml_true_val, caml_false_val
+function caml_set_exists(p, set)
   if exists(p, set) then
-    return core.true_val
+    return caml_true_val
   else
-    return core.false_val
+    return caml_false_val
   end
 end
 
 --- Get number of elements in set
 -- @param set table|nil Set
 -- @return number Number of elements
-function M.caml_set_cardinal(set)
+--Provides: caml_set_cardinal
+function caml_set_cardinal(set)
   return cardinal(set)
 end
 
 --- Check if set is empty
 -- @param set table|nil Set
 -- @return number 1 (true) or 0 (false)
-function M.caml_set_is_empty(set)
+--Provides: caml_set_is_empty
+--Requires: caml_true_val, caml_false_val
+function caml_set_is_empty(set)
   if set == nil then
-    return core.true_val
+    return caml_true_val
   else
-    return core.false_val
+    return caml_false_val
   end
 end
 
@@ -580,7 +596,8 @@ end
 -- @param p function Predicate (elt) -> bool
 -- @param set table|nil Set
 -- @return table|nil Filtered set
-function M.caml_set_filter(cmp, p, set)
+--Provides: caml_set_filter
+function caml_set_filter(cmp, p, set)
   return filter(cmp, p, set)
 end
 
@@ -589,7 +606,8 @@ end
 -- @param p function Predicate (elt) -> bool
 -- @param set table|nil Set
 -- @return table Tuple [0, true_set, false_set]
-function M.caml_set_partition(cmp, p, set)
+--Provides: caml_set_partition
+function caml_set_partition(cmp, p, set)
   local t, f = partition(cmp, p, set)
   return {tag = 0, [1] = t, [2] = f}
 end
@@ -599,22 +617,25 @@ end
 -- @param s1 table|nil First set
 -- @param s2 table|nil Second set
 -- @return number 1 (true) or 0 (false)
-function M.caml_set_subset(cmp, s1, s2)
+--Provides: caml_set_subset
+--Requires: caml_true_val, caml_false_val
+function caml_set_subset(cmp, s1, s2)
   if subset(cmp, s1, s2) then
-    return core.true_val
+    return caml_true_val
   else
-    return core.false_val
+    return caml_false_val
   end
 end
 
 --- Get minimum element
 -- @param set table|nil Set
 -- @return any Minimum element (raises Not_found if empty)
-function M.caml_set_min_elt(set)
+--Provides: caml_set_min_elt
+--Requires: caml_raise_not_found
+function caml_set_min_elt(set)
   local min = min_elt(set)
   if min == nil then
-    local fail = require("fail")
-    fail.caml_raise_not_found()
+    caml_raise_not_found()
   end
   return min
 end
@@ -622,11 +643,12 @@ end
 --- Get maximum element
 -- @param set table|nil Set
 -- @return any Maximum element (raises Not_found if empty)
-function M.caml_set_max_elt(set)
+--Provides: caml_set_max_elt
+--Requires: caml_raise_not_found
+function caml_set_max_elt(set)
   local max = max_elt(set)
   if max == nil then
-    local fail = require("fail")
-    fail.caml_raise_not_found()
+    caml_raise_not_found()
   end
   return max
 end
@@ -636,36 +658,15 @@ end
 -- @param s1 table|nil First set
 -- @param s2 table|nil Second set
 -- @return number 1 (true) or 0 (false)
-function M.caml_set_equal(cmp, s1, s2)
+--Provides: caml_set_equal
+--Requires: caml_true_val, caml_false_val
+function caml_set_equal(cmp, s1, s2)
   if cardinal(s1) ~= cardinal(s2) then
-    return core.false_val
+    return caml_false_val
   end
   if subset(cmp, s1, s2) then
-    return core.true_val
+    return caml_true_val
   else
-    return core.false_val
+    return caml_false_val
   end
 end
-
--- Register primitives
-core.register("caml_set_empty", M.caml_set_empty)
-core.register("caml_set_add", M.caml_set_add)
-core.register("caml_set_remove", M.caml_set_remove)
-core.register("caml_set_mem", M.caml_set_mem)
-core.register("caml_set_union", M.caml_set_union)
-core.register("caml_set_inter", M.caml_set_inter)
-core.register("caml_set_diff", M.caml_set_diff)
-core.register("caml_set_iter", M.caml_set_iter)
-core.register("caml_set_fold", M.caml_set_fold)
-core.register("caml_set_for_all", M.caml_set_for_all)
-core.register("caml_set_exists", M.caml_set_exists)
-core.register("caml_set_cardinal", M.caml_set_cardinal)
-core.register("caml_set_is_empty", M.caml_set_is_empty)
-core.register("caml_set_filter", M.caml_set_filter)
-core.register("caml_set_partition", M.caml_set_partition)
-core.register("caml_set_subset", M.caml_set_subset)
-core.register("caml_set_min_elt", M.caml_set_min_elt)
-core.register("caml_set_max_elt", M.caml_set_max_elt)
-core.register("caml_set_equal", M.caml_set_equal)
-
-return M
