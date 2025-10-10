@@ -555,7 +555,187 @@
 - [ ] Task 7.4: Benchmark performance vs old implementation (30 min)
 - [ ] Task 7.5: Update documentation (30 min)
 
-**Total Estimated Time: 32 hours**
+### Phase 8: Fix Known Issues & Remaining Refactorings (Est: 12 hours)
+
+**PRIORITY**: Fix issues in refactored modules first, then complete remaining module refactorings
+
+#### Fix Known Issues in Refactored Modules (Est: 2 hours)
+
+- [ ] Task 8.1: Fix `test_marshal_double.lua` failures (1 hour)
+  - **ISSUE**: 9 test failures - float array size field not populated
+  - **CURRENT**: Float arrays use `{tag=254, values={...}}` format
+  - **PROBLEM**: Tests expect `size` field, getting `nil`
+  - **AFFECTED TESTS**:
+    - read_float_array: empty, 1 element, 5 elements, 255 elements, 256 elements, at offset
+    - roundtrip: DOUBLE_ARRAY8 boundary (0, 1, 255)
+    - roundtrip: DOUBLE_ARRAY32 (256, 300)
+    - roundtrip: special values in array
+  - **RESOLUTION PLAN**:
+    1. Review marshal_double.lua float array read/write implementation
+    2. Ensure `size` field is set: `{tag=254, size=N, values={...}}`
+    3. Update caml_marshal_read_float_array to populate size field
+    4. Verify all 9 tests pass
+    5. Run test_io_marshal.lua and test_io_integration.lua to ensure no regressions
+
+- [ ] Task 8.2: Fix `test_marshal_public.lua` offset failures (1 hour)
+  - **ISSUE**: 3 test failures - offset parameter not working in public API
+  - **CURRENT**: Offset parameter ignored, reads from start of string
+  - **PROBLEM**: Invalid magic number errors when offset > 0
+  - **AFFECTED TESTS**:
+    - from_bytes: with padding before
+    - data_size: with offset
+    - total_size: with offset
+  - **RESOLUTION PLAN**:
+    1. Review caml_marshal_from_bytes, caml_marshal_data_size, caml_marshal_total_size
+    2. Implement proper string.sub(data, offset+1) for offset handling
+    3. Update all public API functions to respect offset parameter
+    4. Verify all 3 tests pass
+    5. Test with various offset values (0, 1, 10, 100)
+
+#### Refactor Remaining Core Modules (Est: 6 hours)
+
+**PREREQUISITES**: These modules need refactoring before full runtime functionality
+
+- [ ] Task 8.3: Refactor `compare.lua` - comparison primitives (1 hour + tests)
+  - **FAILING TEST**: test_compare.lua
+  - **CURRENT STATE**: Uses module pattern with require("core")
+  - **FUNCTIONS TO REFACTOR**:
+    - caml_compare, caml_equal, caml_notequal
+    - caml_lessthan, caml_lessequal, caml_greaterthan, caml_greaterequal
+    - caml_compare_val (polymorphic comparison)
+  - **IMPLEMENTATION**: Follow refactoring pattern (global functions, --Provides directives)
+
+- [ ] Task 8.4: Refactor `float.lua` - floating point primitives (1 hour + tests)
+  - **FAILING TEST**: test_float.lua
+  - **CURRENT STATE**: Uses module pattern
+  - **FUNCTIONS TO REFACTOR**:
+    - caml_float_of_string, caml_string_of_float
+    - caml_classify_float (NaN, Inf, Zero, Normal, Subnormal)
+    - caml_copysign_float, caml_signbit
+    - Math operations: caml_modf_float, caml_frexp_float, caml_ldexp_float
+  - **IMPLEMENTATION**: Pure Lua 5.1, no bitwise operators
+
+- [ ] Task 8.5: Refactor `hash.lua` - hashing primitives (1 hour + tests)
+  - **FAILING TEST**: test_hash.lua
+  - **CURRENT STATE**: Uses module pattern
+  - **FUNCTIONS TO REFACTOR**:
+    - caml_hash (polymorphic hash function)
+    - caml_hash_mix_int, caml_hash_mix_string
+    - caml_hash_univ_param (configurable depth/breadth)
+  - **IMPLEMENTATION**: Follow OCaml hashing semantics
+
+- [ ] Task 8.6: Refactor `sys.lua` - system primitives (1.5 hours + tests)
+  - **FAILING TEST**: test_sys.lua
+  - **CURRENT STATE**: Partially refactored, uses both patterns
+  - **FUNCTIONS TO REFACTOR**:
+    - Environment: caml_sys_getenv, caml_sys_environment
+    - Command execution: caml_sys_system_command
+    - File operations: caml_sys_file_exists, caml_sys_is_directory, caml_sys_remove
+    - Time: caml_sys_time, caml_sys_random_seed
+  - **DEPENDENCIES**: Already has caml_sys_temp_dir_name refactored
+  - **NOTE**: Some functions use Lua os/io libraries - ensure compatibility
+
+- [ ] Task 8.7: Refactor `format_channel.lua` - channel formatting (45 min + tests)
+  - **FAILING TEST**: test_format_channel.lua
+  - **CURRENT STATE**: Uses module pattern
+  - **FUNCTIONS TO REFACTOR**:
+    - caml_fprintf (format to channel)
+    - caml_ifprintf (no-op format)
+    - Channel-based formatting helpers
+  - **DEPENDENCIES**: Requires format.lua and io.lua (both refactored)
+
+- [ ] Task 8.8: Refactor `fun.lua` - function primitives (45 min + tests)
+  - **FAILING TEST**: test_fun.lua
+  - **CURRENT STATE**: Uses module pattern
+  - **FUNCTIONS TO REFACTOR**:
+    - caml_fun_id (identity function)
+    - caml_fun_const (constant function)
+    - caml_fun_flip (argument flip)
+    - Function composition and application helpers
+  - **IMPLEMENTATION**: Simple function wrappers
+
+#### Refactor Data Structure Modules (Est: 4 hours)
+
+**OPTIONAL**: These provide stdlib compatibility but aren't critical for runtime
+
+- [ ] Task 8.9: Refactor `hashtbl.lua` - hash table primitives (1 hour + tests)
+  - **FAILING TEST**: test_hashtbl.lua
+  - **DEPENDENCIES**: hash.lua (Task 8.5)
+  - **FUNCTIONS**: create, add, find, remove, iter, fold, etc.
+
+- [ ] Task 8.10: Refactor `map.lua` - map primitives (1 hour + tests)
+  - **FAILING TEST**: test_map.lua
+  - **DEPENDENCIES**: compare.lua (Task 8.3)
+  - **FUNCTIONS**: empty, add, find, remove, map, fold, etc.
+
+- [ ] Task 8.11: Refactor `set.lua` - set primitives (1 hour + tests)
+  - **FAILING TEST**: test_set.lua
+  - **DEPENDENCIES**: compare.lua (Task 8.3)
+  - **FUNCTIONS**: empty, add, remove, mem, union, inter, diff, etc.
+
+- [ ] Task 8.12: Refactor `gc.lua` - GC primitives (1 hour + tests)
+  - **FAILING TEST**: test_gc.lua
+  - **CURRENT STATE**: Uses module pattern
+  - **FUNCTIONS**: caml_gc_stat, caml_gc_get, caml_gc_set, caml_gc_minor, caml_gc_major, caml_gc_full_major, caml_gc_compact
+  - **IMPLEMENTATION**: Lua collectgarbage() wrappers
+
+**Total Estimated Time for Phase 8: 12 hours**
+
+**Total Project Time: 32 + 12 = 44 hours**
+
+---
+
+## Test Files Status Summary
+
+**REFACTORED & PASSING (24 files)**:
+- Phase 1: test_array.lua, test_list.lua, test_option.lua, test_result.lua
+- Phase 2: test_buffer.lua, test_mlBytes.lua
+- Phase 3: test_lazy.lua, test_queue.lua, test_stack.lua
+- Phase 4: test_fail.lua, test_filename.lua, test_stream.lua
+- Phase 5: test_obj.lua, test_effect.lua
+- Phase 6: test_lexing.lua, test_digest.lua, test_bigarray.lua
+- Marshal: test_marshal_header.lua, test_marshal_io.lua, test_marshal_int.lua, test_marshal_string.lua, test_marshal_block.lua, test_marshal_blocks.lua, test_marshal_value.lua, test_marshal_sharing.lua
+- I/O: test_io_marshal.lua, test_io_integration.lua
+
+**REFACTORED WITH KNOWN ISSUES (2 files)**:
+- test_marshal_double.lua (31/40 - Task 8.1)
+- test_marshal_public.lua (37/40 - Task 8.2)
+
+**NEEDS REFACTORING - CORE (6 files)**:
+- test_compare.lua (Task 8.3)
+- test_float.lua (Task 8.4)
+- test_hash.lua (Task 8.5)
+- test_sys.lua (Task 8.6)
+- test_format_channel.lua (Task 8.7)
+- test_fun.lua (Task 8.8)
+
+**NEEDS REFACTORING - DATA STRUCTURES (4 files)**:
+- test_hashtbl.lua (Task 8.9)
+- test_map.lua (Task 8.10)
+- test_set.lua (Task 8.11)
+- test_gc.lua (Task 8.12)
+
+**OUT OF SCOPE / SPECIAL CASES (11 files)**:
+- test_custom_backends.lua (custom backend support)
+- test_lua51_full.lua (Lua 5.1 compatibility suite)
+- test_luajit_full.lua (LuaJIT compatibility suite)
+- test_luajit_optimizations.lua (LuaJIT optimizations)
+- test_marshal.lua (high-level marshal API wrapper)
+- test_marshal_compat.lua (backward compatibility)
+- test_marshal_cycles.lua (cyclic structure support - expected failure)
+- test_marshal_errors.lua (error handling integration)
+- test_marshal_roundtrip.lua (roundtrip integration tests)
+- test_marshal_unit.lua (unit value marshaling)
+- test_memory_channels.lua (in-memory channel support)
+- test_parsing.lua (parser primitives)
+
+**CORE RUNTIME TESTS (passing)**:
+- test_core.lua ✓ (runtime initialization)
+- test_compat_bit.lua ✓ (bitwise compatibility layer)
+- test_ints.lua ✓ (integer operations)
+- test_format.lua ✓ (format module)
+- test_format_printf.lua ✓ (printf)
+- test_format_scanf.lua ✓ (scanf)
 
 ---
 
