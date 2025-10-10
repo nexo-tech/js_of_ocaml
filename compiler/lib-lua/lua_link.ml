@@ -551,14 +551,11 @@ let find_primitive_implementation
 let embed_runtime_module (frag : fragment) : string =
   let buf = Buffer.create 512 in
   (* Add comment header *)
-  Buffer.add_string buf ("-- Runtime Module: " ^ frag.name ^ "\n");
-  (* Embed module code directly *)
+  Buffer.add_string buf ("-- Runtime: " ^ frag.name ^ "\n");
+  (* Embed code verbatim - no module wrapping needed *)
   Buffer.add_string buf frag.code;
   if not (String.ends_with ~suffix:"\n" frag.code)
   then Buffer.add_char buf '\n';
-  (* Store module in local variable for wrappers to use *)
-  let module_var = String.capitalize_ascii frag.name in
-  Buffer.add_string buf ("local " ^ module_var ^ " = M\n");
   Buffer.add_char buf '\n';
   Buffer.contents buf
 

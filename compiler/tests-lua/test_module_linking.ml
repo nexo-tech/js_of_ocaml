@@ -3019,6 +3019,11 @@ let%expect_test "loader generation - multiple fragments in dependency order" =
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
   [%expect {| dependency order preserved: ok |}]
 
 let%expect_test "loader generation - fragment with multiple symbols" =
@@ -3218,6 +3223,11 @@ let%expect_test "loader generation - verify registration happens before code exe
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
   [%expect {| registration before execution: ok |}]
 
 (* ========================================================================= *)
@@ -3300,6 +3310,11 @@ let%expect_test "integration - complete link with linkall=true includes all frag
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
   [%expect {|
     linked statements: 1
     all fragments included: ok
@@ -3328,6 +3343,11 @@ let%expect_test "integration - complete link with linkall=false only includes ne
       print_endline ("loader lines: " ^ string_of_int (List.length lines));
       print_endline (if List.length lines < 10 then "minimal loader: ok" else "includes fragments")
   | _ -> print_endline "ERROR: unexpected structure";
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
@@ -3457,6 +3477,11 @@ let%expect_test "integration - link with complex dependency tree" =
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
   [%expect {|
     program preserved: 1
     all fragments linked: ok
@@ -3489,6 +3514,11 @@ let%expect_test "integration - link preserves program statements order" =
       print_endline (if String.contains loader 'L' then "loader first: ok" else "ERROR");
       print_endline ("program statements: " ^ string_of_int (List.length rest))
   | _ -> print_endline "ERROR";
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
@@ -3594,6 +3624,11 @@ let%expect_test "integration - link with transitive dependencies resolved correc
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
   [%expect {| transitive deps resolved: ok |}]
 
 let%expect_test "integration - link with diamond dependency pattern" =
@@ -3622,6 +3657,11 @@ let%expect_test "integration - link with diamond dependency pattern" =
       print_endline ("unique fragments: " ^ string_of_int fragment_count);
       print_endline (if fragment_count = 4 then "diamond handled: ok" else "ERROR")
   | _ -> print_endline "ERROR";
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
@@ -3732,6 +3772,11 @@ let%expect_test "integration - link generates syntactically complete output" =
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
   [%expect {|
     prologue: ok
     package system: ok
@@ -3791,6 +3836,11 @@ let%expect_test "integration - link with empty state produces minimal output" =
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
   [%expect {|
     total statements: 2
     minimal loader lines: 6
@@ -3812,6 +3862,11 @@ let%expect_test "integration - link handles fragments with no provides gracefull
   | Lua_ast.Comment loader :: _ ->
       print_endline (if String.contains loader 'L' then "loader created: ok" else "ERROR")
   | _ -> print_endline "ERROR";
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
+  [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
   [%expect.unreachable];
@@ -4016,62 +4071,59 @@ return M
 let%expect_test "embed_runtime_module with simple module" =
   let frag = {
     Lua_link.name = "array";
-    provides = ["array"];
+    provides = ["caml_array_make"; "caml_array_get"];
     requires = [];
 
-    code = "local M = {}\nfunction M.make() end\nfunction M.get() end\nreturn M\n"
+    code = "--Provides: caml_array_make\nfunction caml_array_make(len, init) end\n--Provides: caml_array_get\nfunction caml_array_get(arr, idx) end\n"
   } in
   let embedded = Lua_link.embed_runtime_module frag in
   print_endline embedded;
   [%expect {|
-    -- Runtime Module: array
-    local M = {}
-    function M.make() end
-    function M.get() end
-    return M
-    local Array = M
+    -- Runtime: array
+    --Provides: caml_array_make
+    function caml_array_make(len, init) end
+    --Provides: caml_array_get
+    function caml_array_get(arr, idx) end
     |}]
 
-let%expect_test "embed_runtime_module capitalizes module variable" =
+let%expect_test "embed_runtime_module embeds code verbatim" =
   let frag = {
     Lua_link.name = "mlBytes";
-    provides = ["mlBytes"];
+    provides = ["caml_bytes_create"];
     requires = [];
 
-    code = "local M = {}\nreturn M"
+    code = "--Provides: caml_bytes_create\nfunction caml_bytes_create(len) return {} end"
   } in
   let embedded = Lua_link.embed_runtime_module frag in
-  (* Check that MlBytes is capitalized correctly *)
-  let has_mlbytes = String.contains embedded 'M' && String.contains embedded 'l' in
-  print_endline ("contains Ml: " ^ string_of_bool has_mlbytes);
-  (* Extract the local line *)
+  (* Check that code is embedded verbatim *)
+  let has_function = String.contains embedded 'f' in
+  print_endline ("contains function: " ^ string_of_bool has_function);
+  (* Check header *)
   let lines = String.split_on_char ~sep:'\n' embedded in
-  let local_line = List.find_opt ~f:(fun l -> String.starts_with ~prefix:"local " l) lines in
-  (match local_line with
-  | Some line -> print_endline line
-  | None -> print_endline "ERROR: no local line");
+  let header_line = List.hd lines in
+  print_endline header_line;
   [%expect {|
-    contains Ml: true
-    local M = {}
+    contains function: true
+    -- Runtime: mlBytes
     |}]
 
 let%expect_test "embed_runtime_module adds newline if missing" =
   let frag = {
     Lua_link.name = "test";
-    provides = ["test"];
+    provides = ["caml_test"];
     requires = [];
 
-    code = "local M = {}\nreturn M"  (* No trailing newline *)
+    code = "function caml_test() end"  (* No trailing newline *)
   } in
   let embedded = Lua_link.embed_runtime_module frag in
-  (* Check that there's a newline before the local variable assignment *)
-  let has_double_newline = String.contains embedded '\n' in
-  print_endline ("has newlines: " ^ string_of_bool has_double_newline);
+  (* Check that there's a newline after the code *)
+  let has_newlines = String.contains embedded '\n' in
+  print_endline ("has newlines: " ^ string_of_bool has_newlines);
   let lines = String.split_on_char ~sep:'\n' embedded in
   print_endline ("lines: " ^ string_of_int (List.length lines));
   [%expect {|
     has newlines: true
-    lines: 6
+    lines: 4
     |}]
 
 let%expect_test "generate_wrapper_for_primitive creates correct wrapper" =

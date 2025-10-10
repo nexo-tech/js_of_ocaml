@@ -71,12 +71,11 @@ val find_primitive_implementation : string -> fragment list -> (fragment * strin
     2. Fall back to Export directive if not found
     Returns Some (fragment, func_name) if found, None otherwise. *)
 
-(** Embed runtime module code directly *)
+(** Embed runtime code directly *)
 val embed_runtime_module : fragment -> string
-(** [embed_runtime_module frag] embeds a runtime module's code directly without wrapping
-    it in package.loaded. The module's code is embedded as-is, and the returned module
-    value (M) is stored in a local variable with a capitalized name for use by wrappers.
-    For example, array.lua becomes "local Array = M". *)
+(** [embed_runtime_module frag] embeds a runtime fragment's code directly with a header
+    comment. The code is embedded verbatim without any module wrapping or variable creation.
+    Functions are already global with caml_* prefix, no transformation needed. *)
 
 (** Generate wrapper function for a specific primitive *)
 val generate_wrapper_for_primitive : string -> fragment -> string -> string
