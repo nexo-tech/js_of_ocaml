@@ -75,9 +75,13 @@
   - **VERIFIED**: All 33 lexing tests pass, Lua 5.1 compatible
 - [x] Task 3.7: Refactor `list.lua` - list primitives (45 min + tests)
   - **VERIFIED**: Clean (documentation comments removed)
-- [ ] Task 3.8: Refactor `map.lua` - map primitives (45 min + tests)
-  - **VIOLATIONS**: 19 local helper functions (AVL tree operations)
-  - **STATUS**: Needs rewrite - convert all AVL helpers to caml_map_* functions
+- [x] Task 3.8: Refactor `map.lua` - map primitives (45 min + tests)
+  - **FIXED**: Converted 19 local helper functions to global caml_map_* functions with --Provides
+  - **FIXED**: AVL tree helpers: height, create_node, balance_factor, rotate_right, rotate_left, balance
+  - **FIXED**: Core operations: add_internal, find_internal, mem_internal, min_node, remove_internal
+  - **FIXED**: Traversal functions: iter_internal, fold_internal, for_all_internal, exists_internal
+  - **FIXED**: Transform functions: cardinal_internal, map_values_internal, mapi_internal, filter_internal
+  - **VERIFIED**: All 33 map tests pass, AVL balancing working correctly
 - [x] Task 3.9: Refactor `option.lua` - option primitives (30 min + tests)
   - **VERIFIED**: Clean (documentation comments removed)
 - [ ] Task 3.10: Refactor `parsing.lua` - parser primitives (45 min + tests)
