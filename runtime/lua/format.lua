@@ -779,8 +779,8 @@ function caml_fprintf(chanid, fmt, ...)
 
   local output = table.concat(result_parts)
   local output_bytes = caml_lua_string_to_ocaml(output)
-  io_module.caml_ml_output_bytes(chanid, output_bytes, 0, #output_bytes)
-  io_module.caml_ml_flush(chanid)
+  caml_ml_output_bytes(chanid, output_bytes, 0, #output_bytes)
+  caml_ml_flush(chanid)
 
   return 0  -- Unit in OCaml
 end
@@ -789,7 +789,7 @@ end
 --Requires: caml_fprintf
 function caml_printf(fmt, ...)
   local io_module = package.loaded.io or require("io")
-  local stdout_chanid = io_module.caml_ml_open_descriptor_out(1)
+  local stdout_chanid = caml_ml_open_descriptor_out(1)
   return caml_fprintf(stdout_chanid, fmt, ...)
 end
 
@@ -797,7 +797,7 @@ end
 --Requires: caml_fprintf
 function caml_eprintf(fmt, ...)
   local io_module = package.loaded.io or require("io")
-  local stderr_chanid = io_module.caml_ml_open_descriptor_out(2)
+  local stderr_chanid = caml_ml_open_descriptor_out(2)
   return caml_fprintf(stderr_chanid, fmt, ...)
 end
 
@@ -806,13 +806,13 @@ end
 function caml_fscanf(chanid, fmt)
   local io_module = package.loaded.io or require("io")
 
-  local line_len = io_module.caml_ml_input_scan_line(chanid)
+  local line_len = caml_ml_input_scan_line(chanid)
   if not line_len or line_len <= 0 then
     return nil
   end
 
   local line_bytes = {}
-  local actual_len = io_module.caml_ml_input(chanid, line_bytes, 0, math.abs(line_len))
+  local actual_len = caml_ml_input(chanid, line_bytes, 0, math.abs(line_len))
 
   if actual_len <= 0 then
     return nil
@@ -827,6 +827,6 @@ end
 --Requires: caml_fscanf
 function caml_scanf(fmt)
   local io_module = package.loaded.io or require("io")
-  local stdin_chanid = io_module.caml_ml_open_descriptor_in(0)
+  local stdin_chanid = caml_ml_open_descriptor_in(0)
   return caml_fscanf(stdin_chanid, fmt)
 end

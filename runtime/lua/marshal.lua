@@ -417,19 +417,23 @@ function caml_marshal_read_float_array(str, offset)
     error(string.format("caml_marshal_read_float_array: insufficient data (need %d bytes for %d doubles)", data_size, len))
   end
 
-  -- Create array table with size
-  local arr = {
-    size = len
-  }
+  -- Create values array
+  local values = {}
 
   -- Read each double using marshal_io function
   local data_offset = offset + bytes_consumed
   for i = 1, len do
     local value = caml_marshal_read_double_little(str, data_offset)
-    arr[i] = value
+    values[i] = value
     data_offset = data_offset + 8
     bytes_consumed = bytes_consumed + 8
   end
+
+  -- Return float array in OCaml format: {tag = 254, values = {...}}
+  local arr = {
+    tag = 254,
+    values = values
+  }
 
   return {
     value = arr,
@@ -497,7 +501,12 @@ function caml_marshal_write_value(buf, value, seen, object_table, next_id)
     -- Float arrays have numeric indices and all number elements
     -- For simplicity: if table has .tag field, treat as block; else check if float array
 
-    if value.tag ~= nil then
+    if value.tag == 254 and value.values then
+      -- Float array with explicit tag 254 and values field: {tag = 254, values = {...}}
+      -- Extract the values array and marshal it as a float array
+      caml_marshal_write_float_array(buf, value.values)
+
+    elseif value.tag ~= nil then
       -- Block: has tag field
       -- Use recursive write_value for fields, passing seen, object_table, next_id
       caml_marshal_write_block(buf, value, function(b, v)
@@ -505,35 +514,20 @@ function caml_marshal_write_value(buf, value, seen, object_table, next_id)
       end)
 
     else
-      -- Check if it's a float array (all elements are numbers)
-      local is_float_array = true
+      -- Plain array without .tag field: treat as block with tag 0
+      -- Note: We don't auto-detect float arrays from plain arrays of numbers
+      -- Float arrays must be explicitly marked with {tag = 254, values = {...}}
       local len = value.size or #value
-
-      if len > 0 then
-        for i = 1, len do
-          if type(value[i]) ~= "number" then
-            is_float_array = false
-            break
-          end
-        end
+      local block = {
+        tag = 0,
+        size = len
+      }
+      for i = 1, len do
+        block[i] = value[i]
       end
-
-      if is_float_array and len > 0 then
-        -- Float array
-        caml_marshal_write_float_array(buf, value)
-      else
-        -- Treat as block with tag 0
-        local block = {
-          tag = 0,
-          size = len
-        }
-        for i = 1, len do
-          block[i] = value[i]
-        end
-        caml_marshal_write_block(buf, block, function(b, v)
-          caml_marshal_write_value(b, v, seen, object_table, next_id)
-        end)
-      end
+      caml_marshal_write_block(buf, block, function(b, v)
+        caml_marshal_write_value(b, v, seen, object_table, next_id)
+      end)
     end
 
     -- Unmark table after marshaling (allows sibling references in DAG)

@@ -398,7 +398,7 @@ function caml_input_value(chanid)
   local bytes_read = caml_ml_input(chanid, header_bytes, 0, header_size)
 
   if bytes_read < header_size then
-    caml_raise_end_of_file()
+    error("caml_input_value: truncated marshal header (expected 20 bytes, got " .. bytes_read .. ")")
   end
 
   -- Convert byte array to string for marshal functions
@@ -418,7 +418,7 @@ function caml_input_value(chanid)
   if data_size > 0 then
     bytes_read = caml_ml_input(chanid, data_bytes, 0, data_size)
     if bytes_read < data_size then
-      caml_raise_end_of_file()
+      error("caml_input_value: truncated marshal data (expected " .. data_size .. " bytes, got " .. bytes_read .. ")")
     end
 
     -- Convert data bytes to string
