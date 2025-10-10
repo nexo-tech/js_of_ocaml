@@ -98,10 +98,8 @@ end
 -- Read header from byte string
 -- Returns header table or throws error
 -- Helper function for marshal
---Requires: get_Reader_class
 function marshal_header_read_header(str, offset)
   offset = offset or 0
-  local Reader = get_Reader_class()
   local reader = Reader:new(str, offset)
 
   local old_pos = reader:position()
@@ -170,13 +168,11 @@ end
 -- size_32, size_64: size fields (usually 0)
 -- Returns: byte string
 -- Helper function for marshal
---Requires: get_Writer_class
 function marshal_header_write_header(data_len, num_objects, size_32, size_64)
   num_objects = num_objects or 0
   size_32 = size_32 or 0
   size_64 = size_64 or 0
 
-  local Writer = get_Writer_class()
   local writer = Writer:new()
 
   -- Write magic number
@@ -194,13 +190,11 @@ end
 -- Write compressed header (VLQ format)
 -- Note: This is for future compression support
 -- Helper function for marshal
---Requires: get_Writer_class
 function marshal_header_write_compressed_header(data_len, uncompressed_data_len, num_objects, size_32, size_64)
   num_objects = num_objects or 0
   size_32 = size_32 or 0
   size_64 = size_64 or 0
 
-  local Writer = get_Writer_class()
   local writer = Writer:new()
 
   -- Write magic number

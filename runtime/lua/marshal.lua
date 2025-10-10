@@ -506,7 +506,6 @@ local MarshalWriter = {}
 MarshalWriter.__index = MarshalWriter
 
 function MarshalWriter:new(no_sharing)
-  local Writer = get_Writer_class()
   local obj = {
     writer = Writer:new(),
     size_32 = 0,
@@ -928,7 +927,6 @@ function MarshalReader:new(str, offset, num_objects, compressed)
   offset = offset or 0
   num_objects = num_objects or 0
   compressed = compressed or false
-  local Reader = get_Reader_class()
   local obj = {
     reader = Reader:new(str, offset),
     obj_counter = 0,
@@ -1414,7 +1412,6 @@ local function unmarshal_value_internal(str, offset)
 end
 
 --Provides: caml_marshal_to_string
---Requires: get_Writer_class
 -- Marshal value with flags (high-level API)
 -- Produces complete marshal format with header
 -- flags: array of flag constants (MARSHAL_NO_SHARING, MARSHAL_CLOSURES, MARSHAL_COMPAT_32)
@@ -1489,7 +1486,6 @@ function caml_marshal_to_bytes(value, flags)
 end
 
 --Provides: caml_marshal_from_bytes
---Requires: get_Reader_class
 -- Unmarshal from full marshal format (with header)
 -- This is the main entry point for unmarshalling complete marshal data
 function caml_marshal_from_bytes(str, offset)

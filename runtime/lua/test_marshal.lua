@@ -2,7 +2,6 @@
 -- Test suite for marshal.lua (Task 2.1 - Immediate Values)
 
 dofile("marshal.lua")
-local Writer = get_Writer_class()
 
 -- Test framework
 local tests_run = 0

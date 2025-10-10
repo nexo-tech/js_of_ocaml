@@ -2,8 +2,6 @@
 -- Test suite for marshal_header.lua (Task 1.2)
 
 dofile("marshal_header.lua")
-local Reader = get_Reader_class()
-local Writer = get_Writer_class()
 
 -- Test framework
 local tests_run = 0

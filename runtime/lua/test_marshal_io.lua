@@ -2,8 +2,6 @@
 -- Test suite for marshal_io.lua (Binary Reader/Writer - Task 1.1)
 
 dofile("marshal_io.lua")
-local Reader = get_Reader_class()
-local Writer = get_Writer_class()
 
 -- Test framework
 local tests_run = 0
