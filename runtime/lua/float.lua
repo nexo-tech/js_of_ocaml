@@ -22,6 +22,7 @@ local FP_zero = 2
 local FP_infinite = 3
 local FP_nan = 4
 
+--Provides: caml_classify_float
 function caml_classify_float(x)
   if x ~= x then
     return FP_nan
@@ -45,17 +46,20 @@ end
 -- Basic Float Operations
 --
 
+--Provides: caml_modf_float
 function caml_modf_float(x)
   local int_part = math.floor(x)
   local frac_part = x - int_part
   return {int_part, frac_part}
 end
 
+--Provides: caml_ldexp_float
 function caml_ldexp_float(x, exp)
   -- x * 2^exp
   return x * (2 ^ exp)
 end
 
+--Provides: caml_frexp_float
 function caml_frexp_float(x)
   -- Extract mantissa and exponent: x = m * 2^e where 0.5 <= |m| < 1
   if x == 0 then
@@ -88,6 +92,7 @@ function caml_frexp_float(x)
   return {mantissa, exp}
 end
 
+--Provides: caml_copysign_float
 function caml_copysign_float(x, y)
   local abs_x = math.abs(x)
   if y < 0 or (y == 0 and 1/y < 0) then
@@ -97,6 +102,7 @@ function caml_copysign_float(x, y)
   end
 end
 
+--Provides: caml_signbit_float
 function caml_signbit_float(x)
   -- Returns 1 if sign bit is set (negative), 0 otherwise
   if x < 0 or (x == 0 and 1/x < 0) then
@@ -106,6 +112,7 @@ function caml_signbit_float(x)
   end
 end
 
+--Provides: caml_nextafter_float
 function caml_nextafter_float(x, y)
   -- Next representable float after x in direction of y
   if x == y then
@@ -136,6 +143,7 @@ end
 -- Rounding Operations
 --
 
+--Provides: caml_trunc_float
 function caml_trunc_float(x)
   if x >= 0 then
     return math.floor(x)
@@ -144,6 +152,7 @@ function caml_trunc_float(x)
   end
 end
 
+--Provides: caml_round_float
 function caml_round_float(x)
   -- Round to nearest integer, halfway cases away from zero
   if x >= 0 then
@@ -157,14 +166,17 @@ end
 -- Special Value Checks
 --
 
+--Provides: caml_is_nan
 function caml_is_nan(x)
   return x ~= x
 end
 
+--Provides: caml_is_infinite
 function caml_is_infinite(x)
   return x == INFINITY or x == NEG_INFINITY
 end
 
+--Provides: caml_is_finite
 function caml_is_finite(x)
   return x == x and x ~= INFINITY and x ~= NEG_INFINITY
 end
@@ -173,6 +185,7 @@ end
 -- Float Comparison
 --
 
+--Provides: caml_float_compare
 function caml_float_compare(x, y)
   -- OCaml-style comparison: NaN = NaN, NaN < other values
   if x ~= x and y ~= y then
@@ -193,12 +206,14 @@ function caml_float_compare(x, y)
   return 0
 end
 
+--Provides: caml_float_min
 function caml_float_min(x, y)
   if x ~= x then return x end
   if y ~= y then return y end
   if x < y then return x else return y end
 end
 
+--Provides: caml_float_max
 function caml_float_max(x, y)
   if x ~= x then return x end
   if y ~= y then return y end
@@ -213,6 +228,7 @@ end
 -- [0] = 254 (double_array_tag)
 -- [1..n] = float values
 
+--Provides: caml_floatarray_create
 function caml_floatarray_create(size)
   local arr = {}
   arr[0] = 254  -- double_array_tag
@@ -222,28 +238,34 @@ function caml_floatarray_create(size)
   return arr
 end
 
+--Provides: caml_floatarray_get
 function caml_floatarray_get(arr, idx)
   return arr[idx + 1]
 end
 
+--Provides: caml_floatarray_set
 function caml_floatarray_set(arr, idx, val)
   arr[idx + 1] = val
   return 0
 end
 
+--Provides: caml_floatarray_unsafe_get
 function caml_floatarray_unsafe_get(arr, idx)
   return arr[idx + 1]
 end
 
+--Provides: caml_floatarray_unsafe_set
 function caml_floatarray_unsafe_set(arr, idx, val)
   arr[idx + 1] = val
   return 0
 end
 
+--Provides: caml_floatarray_length
 function caml_floatarray_length(arr)
   return #arr
 end
 
+--Provides: caml_floatarray_blit
 function caml_floatarray_blit(src, src_pos, dst, dst_pos, len)
   for i = 0, len - 1 do
     dst[dst_pos + i + 1] = src[src_pos + i + 1]
@@ -251,6 +273,7 @@ function caml_floatarray_blit(src, src_pos, dst, dst_pos, len)
   return 0
 end
 
+--Provides: caml_floatarray_fill
 function caml_floatarray_fill(arr, ofs, len, val)
   for i = 0, len - 1 do
     arr[ofs + i + 1] = val
@@ -258,6 +281,7 @@ function caml_floatarray_fill(arr, ofs, len, val)
   return 0
 end
 
+--Provides: caml_floatarray_of_array
 function caml_floatarray_of_array(arr)
   local farr = caml_floatarray_create(#arr)
   for i = 1, #arr do
@@ -266,6 +290,7 @@ function caml_floatarray_of_array(arr)
   return farr
 end
 
+--Provides: caml_floatarray_to_array
 function caml_floatarray_to_array(farr)
   local arr = {}
   arr[0] = 0  -- normal array tag
@@ -275,6 +300,7 @@ function caml_floatarray_to_array(farr)
   return arr
 end
 
+--Provides: caml_floatarray_concat
 function caml_floatarray_concat(arrays)
   local total_len = 0
   for i = 1, #arrays do
@@ -294,6 +320,7 @@ function caml_floatarray_concat(arrays)
   return result
 end
 
+--Provides: caml_floatarray_sub
 function caml_floatarray_sub(arr, ofs, len)
   local result = caml_floatarray_create(len)
   for i = 0, len - 1 do
@@ -302,6 +329,7 @@ function caml_floatarray_sub(arr, ofs, len)
   return result
 end
 
+--Provides: caml_floatarray_append
 function caml_floatarray_append(arr1, arr2)
   local len1 = #arr1
   local len2 = #arr2
@@ -321,6 +349,7 @@ end
 -- Float Parsing and Formatting
 --
 
+--Provides: caml_format_float
 function caml_format_float(fmt, x)
   -- Simple float formatting
   if x ~= x then
@@ -335,6 +364,7 @@ function caml_format_float(fmt, x)
   return string.format(fmt, x)
 end
 
+--Provides: caml_hexstring_of_float
 function caml_hexstring_of_float(x)
   -- Hexadecimal float representation
   if x ~= x then
@@ -381,6 +411,7 @@ function caml_hexstring_of_float(x)
     exp)
 end
 
+--Provides: caml_float_of_string
 function caml_float_of_string(s)
   -- Parse float from string
   if s == "nan" or s == "NaN" then
@@ -399,51 +430,3 @@ function caml_float_of_string(s)
   end
   return num
 end
-
--- Export all functions as a module
-return {
-  -- Classification
-  caml_classify_float = caml_classify_float,
-
-  -- Basic operations
-  caml_modf_float = caml_modf_float,
-  caml_ldexp_float = caml_ldexp_float,
-  caml_frexp_float = caml_frexp_float,
-  caml_copysign_float = caml_copysign_float,
-  caml_signbit_float = caml_signbit_float,
-  caml_nextafter_float = caml_nextafter_float,
-
-  -- Rounding
-  caml_trunc_float = caml_trunc_float,
-  caml_round_float = caml_round_float,
-
-  -- Special checks
-  caml_is_nan = caml_is_nan,
-  caml_is_infinite = caml_is_infinite,
-  caml_is_finite = caml_is_finite,
-
-  -- Comparison
-  caml_float_compare = caml_float_compare,
-  caml_float_min = caml_float_min,
-  caml_float_max = caml_float_max,
-
-  -- Float arrays
-  caml_floatarray_create = caml_floatarray_create,
-  caml_floatarray_get = caml_floatarray_get,
-  caml_floatarray_set = caml_floatarray_set,
-  caml_floatarray_unsafe_get = caml_floatarray_unsafe_get,
-  caml_floatarray_unsafe_set = caml_floatarray_unsafe_set,
-  caml_floatarray_length = caml_floatarray_length,
-  caml_floatarray_blit = caml_floatarray_blit,
-  caml_floatarray_fill = caml_floatarray_fill,
-  caml_floatarray_of_array = caml_floatarray_of_array,
-  caml_floatarray_to_array = caml_floatarray_to_array,
-  caml_floatarray_concat = caml_floatarray_concat,
-  caml_floatarray_sub = caml_floatarray_sub,
-  caml_floatarray_append = caml_floatarray_append,
-
-  -- Formatting
-  caml_format_float = caml_format_float,
-  caml_hexstring_of_float = caml_hexstring_of_float,
-  caml_float_of_string = caml_float_of_string,
-}
