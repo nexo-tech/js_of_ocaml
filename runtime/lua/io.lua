@@ -347,11 +347,11 @@ function caml_ml_input_int(chanid)
     error("caml_ml_input_int: channel is closed")
   end
 
-  -- Read 4 bytes in big-endian order
+  -- Read 4 bytes in big-endian order (Lua 5.1 compatible)
   local result = 0
   for i = 1, 4 do
     local b = caml_ml_input_char(chanid)
-    result = (result << 8) | b
+    result = result * 256 + b
   end
 
   return result
@@ -383,7 +383,7 @@ function caml_ml_input_scan_line(chanid)
 end
 
 --Provides: caml_input_value
---Requires: caml_ml_input
+--Requires: caml_ml_input caml_marshal_from_bytes caml_marshal_total_size caml_raise_end_of_file
 -- Read marshalled value from input channel
 -- This reads a complete marshal format (header + data) from a channel
 function caml_input_value(chanid)
@@ -392,7 +392,51 @@ function caml_input_value(chanid)
     error("caml_input_value: channel is closed")
   end
 
-  error("caml_input_value: marshal functions not yet reimplemented")
+  -- Read the 20-byte marshal header first
+  local header_bytes = {}
+  local header_size = 20
+  local bytes_read = caml_ml_input(chanid, header_bytes, 0, header_size)
+
+  if bytes_read < header_size then
+    caml_raise_end_of_file()
+  end
+
+  -- Convert byte array to string for marshal functions
+  -- caml_ml_input fills buf[offset+1] to buf[offset+len] with byte values
+  local header_chars = {}
+  for i = 1, header_size do
+    header_chars[i] = string.char(header_bytes[i])
+  end
+  local header_str = table.concat(header_chars)
+
+  -- Get total size (header + data) from the header
+  local total_size = caml_marshal_total_size(header_str, 0)
+  local data_size = total_size - header_size
+
+  -- Read the remaining data
+  local data_bytes = {}
+  if data_size > 0 then
+    bytes_read = caml_ml_input(chanid, data_bytes, 0, data_size)
+    if bytes_read < data_size then
+      caml_raise_end_of_file()
+    end
+
+    -- Convert data bytes to string
+    local data_chars = {}
+    for i = 1, data_size do
+      data_chars[i] = string.char(data_bytes[i])
+    end
+    local data_str = table.concat(data_chars)
+
+    -- Combine header and data
+    local full_bytes = header_str .. data_str
+
+    -- Unmarshal the value
+    return caml_marshal_from_bytes(full_bytes, 0)
+  else
+    -- Only header, no data
+    return caml_marshal_from_bytes(header_str, 0)
+  end
 end
 
 --Provides: caml_input_value_to_outside_heap
@@ -515,12 +559,15 @@ function caml_ml_output_int(chanid, i)
     error("caml_ml_output_int: channel is closed")
   end
 
-  -- Write 4 bytes in big-endian order
+  -- Write 4 bytes in big-endian order (Lua 5.1 compatible)
+  local function byte_at(val, shift)
+    return math.floor(val / (2 ^ shift)) % 256
+  end
   local bytes = {
-    string.char((i >> 24) & 0xFF),
-    string.char((i >> 16) & 0xFF),
-    string.char((i >> 8) & 0xFF),
-    string.char(i & 0xFF)
+    string.char(byte_at(i, 24)),
+    string.char(byte_at(i, 16)),
+    string.char(byte_at(i, 8)),
+    string.char(i % 256)
   }
   table.insert(chan.buffer, table.concat(bytes))
 
@@ -532,7 +579,7 @@ function caml_ml_output_int(chanid, i)
 end
 
 --Provides: caml_output_value
---Requires: caml_ml_output
+--Requires: caml_ml_output caml_marshal_to_string
 -- Write marshalled value to output channel
 -- This writes a complete marshal format (header + data) to a channel
 function caml_output_value(chanid, v, flags)
@@ -545,7 +592,11 @@ function caml_output_value(chanid, v, flags)
     error("caml_output_value: channel is not an output channel")
   end
 
-  error("caml_output_value: marshal functions not yet reimplemented")
+  -- Marshal the value to a string (includes header)
+  local marshaled = caml_marshal_to_string(v, flags)
+
+  -- Write the marshaled bytes to the channel
+  caml_ml_output(chanid, marshaled, 0, #marshaled)
 end
 
 --

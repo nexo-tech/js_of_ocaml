@@ -5,6 +5,8 @@
 -- Load our runtime modules (all refactored to use global functions)
 dofile("core.lua")
 dofile("fail.lua")
+dofile("marshal_io.lua")
+dofile("marshal_header.lua")
 dofile("marshal.lua")
 dofile("format.lua")
 dofile("io.lua")
@@ -132,13 +134,13 @@ test("marshal int to file and read back", function()
 
   -- Write
   local chan_out = open_write(filename, true)
-  marshal.to_channel(chan_out, 42, {tag = 0})
+  caml_output_value(chan_out, 42, {tag = 0})
   caml_ml_flush(chan_out)
   caml_ml_close_channel(chan_out)
 
   -- Read
   local chan_in = open_read(filename, true)
-  local value = marshal.from_channel(chan_in)
+  local value = caml_input_value(chan_in)
   caml_ml_close_channel(chan_in)
 
   assert_equal(value, 42, "should read back 42")
@@ -150,13 +152,13 @@ test("marshal string to file and read back", function()
 
   -- Write
   local chan_out = open_write(filename, true)
-  marshal.to_channel(chan_out, "hello world", {tag = 0})
+  caml_output_value(chan_out, "hello world", {tag = 0})
   caml_ml_flush(chan_out)
   caml_ml_close_channel(chan_out)
 
   -- Read
   local chan_in = open_read(filename, true)
-  local value = marshal.from_channel(chan_in)
+  local value = caml_input_value(chan_in)
   caml_ml_close_channel(chan_in)
 
   assert_equal(value, "hello world", "should read back string")
@@ -169,13 +171,13 @@ test("marshal list to file and read back", function()
 
   -- Write
   local chan_out = open_write(filename, true)
-  marshal.to_channel(chan_out, list, {tag = 0})
+  caml_output_value(chan_out, list, {tag = 0})
   caml_ml_flush(chan_out)
   caml_ml_close_channel(chan_out)
 
   -- Read
   local chan_in = open_read(filename, true)
-  local value = marshal.from_channel(chan_in)
+  local value = caml_input_value(chan_in)
   caml_ml_close_channel(chan_in)
 
   local result = list_to_table(value)
@@ -190,17 +192,17 @@ test("marshal multiple values to same file", function()
 
   -- Write multiple values
   local chan_out = open_write(filename, true)
-  marshal.to_channel(chan_out, 42, {tag = 0})
-  marshal.to_channel(chan_out, "hello", {tag = 0})
-  marshal.to_channel(chan_out, make_list({1, 2, 3}), {tag = 0})
+  caml_output_value(chan_out, 42, {tag = 0})
+  caml_output_value(chan_out, "hello", {tag = 0})
+  caml_output_value(chan_out, make_list({1, 2, 3}), {tag = 0})
   caml_ml_flush(chan_out)
   caml_ml_close_channel(chan_out)
 
   -- Read back in order
   local chan_in = open_read(filename, true)
-  local v1 = marshal.from_channel(chan_in)
-  local v2 = marshal.from_channel(chan_in)
-  local v3 = marshal.from_channel(chan_in)
+  local v1 = caml_input_value(chan_in)
+  local v2 = caml_input_value(chan_in)
+  local v3 = caml_input_value(chan_in)
   caml_ml_close_channel(chan_in)
 
   assert_equal(v1, 42)
@@ -215,7 +217,7 @@ test("marshal value sizes", function()
 
   -- Write a value
   local chan_out = open_write(filename, true)
-  marshal.to_channel(chan_out, 12345, {tag = 0})
+  caml_output_value(chan_out, 12345, {tag = 0})
   caml_ml_flush(chan_out)
   caml_ml_close_channel(chan_out)
 
@@ -233,7 +235,7 @@ test("fprintf to file", function()
   local filename = "/tmp/test_fprintf.txt"
 
   local chan = open_write(filename, true)
-  format.caml_fprintf(chan, "Number: %d, String: %s\n", 42, "hello")
+  caml_fprintf(chan, "Number: %d, String: %s\n", 42, "hello")
   caml_ml_flush(chan)
   caml_ml_close_channel(chan)
 
@@ -250,9 +252,9 @@ test("fprintf multiple lines", function()
   local filename = "/tmp/test_fprintf_multi.txt"
 
   local chan = open_write(filename, true)
-  format.caml_fprintf(chan, "Line 1: %d\n", 1)
-  format.caml_fprintf(chan, "Line 2: %d\n", 2)
-  format.caml_fprintf(chan, "Line 3: %d\n", 3)
+  caml_fprintf(chan, "Line 1: %d\n", 1)
+  caml_fprintf(chan, "Line 2: %d\n", 2)
+  caml_fprintf(chan, "Line 3: %d\n", 3)
   caml_ml_flush(chan)
   caml_ml_close_channel(chan)
 
@@ -271,7 +273,7 @@ test("fprintf with float", function()
   local filename = "/tmp/test_fprintf_float.txt"
 
   local chan = open_write(filename, true)
-  format.caml_fprintf(chan, "Pi: %.2f", 3.14159)
+  caml_fprintf(chan, "Pi: %.2f", 3.14159)
   caml_ml_flush(chan)
   caml_ml_close_channel(chan)
 
@@ -287,7 +289,7 @@ test("fprintf with multiple formats", function()
   local filename = "/tmp/test_fprintf_multi_fmt.txt"
 
   local chan = open_write(filename, true)
-  format.caml_fprintf(chan, "%s = %d (0x%x)", "answer", 42, 42)
+  caml_fprintf(chan, "%s = %d (0x%x)", "answer", 42, 42)
   caml_ml_flush(chan)
   caml_ml_close_channel(chan)
 
@@ -304,7 +306,7 @@ test("fprintf with percent escape", function()
   local filename = "/tmp/test_fprintf_percent.txt"
 
   local chan = open_write(filename, true)
-  format.caml_fprintf(chan, "100%% complete")
+  caml_fprintf(chan, "100%% complete")
   caml_ml_flush(chan)
   caml_ml_close_channel(chan)
 
@@ -474,7 +476,7 @@ test("flush on output_value", function()
   local filename = "/tmp/test_marshal_flush.dat"
 
   local chan = open_write(filename, true)
-  marshal.to_channel(chan, 42, {tag = 0})
+  caml_output_value(chan, 42, {tag = 0})
   caml_ml_flush(chan)
 
   -- Verify data was written
