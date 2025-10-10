@@ -17,12 +17,8 @@
 
 -- Format string parsing and formatting for Printf/Scanf support
 
-local M = {}
-
--- Parse a format string into a format specification
--- Returns a table with fields: justify, signstyle, filler, alternate, base,
--- signedconv, width, uppercase, sign, prec, conv
-function M.caml_parse_format(fmt)
+--Provides: caml_parse_format
+function caml_parse_format(fmt)
   if type(fmt) == "table" then
     -- OCaml string (bytes array)
     local chars = {}
@@ -138,9 +134,8 @@ function M.caml_parse_format(fmt)
   return f
 end
 
--- Finish formatting by applying width, padding, and sign
--- Returns an OCaml string (bytes array)
-function M.caml_finish_formatting(f, rawbuffer)
+--Provides: caml_finish_formatting
+function caml_finish_formatting(f, rawbuffer)
   if f.uppercase then
     rawbuffer = rawbuffer:upper()
   end
@@ -242,11 +237,8 @@ local function str_repeat(n, s)
   return table.concat(result)
 end
 
--- Format an integer according to format specification
--- fmt: OCaml string (byte array) or Lua string
--- i: integer value
--- Returns: OCaml string (byte array)
-function M.caml_format_int(fmt, i)
+--Provides: caml_format_int
+function caml_format_int(fmt, i)
   local fmt_str = ocaml_string_to_lua(fmt)
 
   -- Fast path for simple %d
@@ -254,7 +246,7 @@ function M.caml_format_int(fmt, i)
     return lua_string_to_ocaml(tostring(i))
   end
 
-  local f = M.caml_parse_format(fmt)
+  local f = caml_parse_format(fmt)
 
   -- Handle negative numbers
   if i < 0 then
@@ -290,15 +282,12 @@ function M.caml_format_int(fmt, i)
     end
   end
 
-  return M.caml_finish_formatting(f, s)
+  return caml_finish_formatting(f, s)
 end
 
--- Format a float according to format specification
--- fmt: OCaml string (byte array) or Lua string
--- x: float value
--- Returns: OCaml string (byte array)
-function M.caml_format_float(fmt, x)
-  local f = M.caml_parse_format(fmt)
+--Provides: caml_format_float
+function caml_format_float(fmt, x)
+  local f = caml_parse_format(fmt)
   local prec = f.prec < 0 and 6 or f.prec
 
   -- Handle sign
@@ -369,15 +358,12 @@ function M.caml_format_float(fmt, x)
     end
   end
 
-  return M.caml_finish_formatting(f, s)
+  return caml_finish_formatting(f, s)
 end
 
--- Format a string according to format specification
--- fmt: OCaml string (byte array) or Lua string
--- s: OCaml string (byte array) or Lua string
--- Returns: OCaml string (byte array)
-function M.caml_format_string(fmt, s)
-  local f = M.caml_parse_format(fmt)
+--Provides: caml_format_string
+function caml_format_string(fmt, s)
+  local f = caml_parse_format(fmt)
   local str = ocaml_string_to_lua(s)
 
   -- Apply precision (maximum length)
@@ -402,12 +388,9 @@ function M.caml_format_string(fmt, s)
   return lua_string_to_ocaml(buffer)
 end
 
--- Format a character according to format specification
--- fmt: OCaml string (byte array) or Lua string
--- c: integer (character code) or single-char string
--- Returns: OCaml string (byte array)
-function M.caml_format_char(fmt, c)
-  local f = M.caml_parse_format(fmt)
+--Provides: caml_format_char
+function caml_format_char(fmt, c)
+  local f = caml_parse_format(fmt)
 
   -- Convert to character
   local char
@@ -453,12 +436,11 @@ local function skip_whitespace(s, pos)
   return pos
 end
 
--- Parse an integer from string starting at position pos
--- Returns: value, new_position or nil, error_position
-function M.caml_scan_int(s, pos, fmt)
+--Provides: caml_scan_int
+function caml_scan_int(s, pos, fmt)
   pos = pos or 1
   local str = ocaml_string_to_lua(s)
-  local f = M.caml_parse_format(fmt or "%d")
+  local f = caml_parse_format(fmt or "%d")
 
   -- Skip leading whitespace
   pos = skip_whitespace(str, pos)
@@ -540,9 +522,8 @@ function M.caml_scan_int(s, pos, fmt)
   return sign * value, pos
 end
 
--- Parse a float from string starting at position pos
--- Returns: value, new_position or nil, error_position
-function M.caml_scan_float(s, pos)
+--Provides: caml_scan_float
+function caml_scan_float(s, pos)
   pos = pos or 1
   local str = ocaml_string_to_lua(s)
 
@@ -655,11 +636,8 @@ function M.caml_scan_float(s, pos)
   end
 end
 
--- Parse a string from input starting at position pos
--- For Scanf %s: reads non-whitespace characters
--- width: maximum number of characters to read (from format precision)
--- Returns: string, new_position or nil, error_position
-function M.caml_scan_string(s, pos, width)
+--Provides: caml_scan_string
+function caml_scan_string(s, pos, width)
   pos = pos or 1
   local str = ocaml_string_to_lua(s)
 
@@ -697,9 +675,8 @@ function M.caml_scan_string(s, pos, width)
   return result, pos
 end
 
--- Parse a character from input starting at position pos
--- Returns: character (as byte value), new_position or nil, error_position
-function M.caml_scan_char(s, pos, skip_ws)
+--Provides: caml_scan_char
+function caml_scan_char(s, pos, skip_ws)
   pos = pos or 1
   local str = ocaml_string_to_lua(s)
 
@@ -716,10 +693,8 @@ function M.caml_scan_char(s, pos, skip_ws)
   return c, pos + 1
 end
 
--- Simple sscanf-like function
--- Scans a string according to a format
--- Returns: table of parsed values or nil on error
-function M.caml_sscanf(input, fmt)
+--Provides: caml_sscanf
+function caml_sscanf(input, fmt)
   local str = ocaml_string_to_lua(input)
   local fmt_str = ocaml_string_to_lua(fmt)
 
@@ -739,28 +714,28 @@ function M.caml_sscanf(input, fmt)
       local conv = fmt_str:sub(fmt_pos, fmt_pos)
 
       if conv == "d" or conv == "i" or conv == "u" or conv == "x" or conv == "o" then
-        local value, new_pos = M.caml_scan_int(str, pos, "%" .. conv)
+        local value, new_pos = caml_scan_int(str, pos, "%" .. conv)
         if not value then
           return nil
         end
         table.insert(results, value)
         pos = new_pos
       elseif conv == "f" or conv == "e" or conv == "g" then
-        local value, new_pos = M.caml_scan_float(str, pos)
+        local value, new_pos = caml_scan_float(str, pos)
         if not value then
           return nil
         end
         table.insert(results, value)
         pos = new_pos
       elseif conv == "s" then
-        local value, new_pos = M.caml_scan_string(str, pos)
+        local value, new_pos = caml_scan_string(str, pos)
         if not value then
           return nil
         end
         table.insert(results, value)
         pos = new_pos
       elseif conv == "c" then
-        local value, new_pos = M.caml_scan_char(str, pos, false)
+        local value, new_pos = caml_scan_char(str, pos, false)
         if not value then
           return nil
         end
@@ -802,11 +777,8 @@ end
 
 -- Printf-style channel output functions
 
--- Format and output to a channel
--- chanid: channel ID from io.lua
--- fmt: format string (OCaml string or Lua string)
--- ...: values to format
-function M.caml_fprintf(chanid, fmt, ...)
+--Provides: caml_fprintf
+function caml_fprintf(chanid, fmt, ...)
   -- Lazy load io module
   local io_module = package.loaded.io or require("io")
 
@@ -847,25 +819,25 @@ function M.caml_fprintf(chanid, fmt, ...)
         table.insert(result_parts, "%")
       elseif conv == "d" or conv == "i" or conv == "u" or conv == "x" or conv == "X" or conv == "o" then
         if arg_idx <= #args then
-          local formatted = M.caml_format_int("%" .. spec, args[arg_idx])
+          local formatted = caml_format_int("%" .. spec, args[arg_idx])
           table.insert(result_parts, ocaml_string_to_lua(formatted))
           arg_idx = arg_idx + 1
         end
       elseif conv == "f" or conv == "F" or conv == "e" or conv == "E" or conv == "g" or conv == "G" then
         if arg_idx <= #args then
-          local formatted = M.caml_format_float("%" .. spec, args[arg_idx])
+          local formatted = caml_format_float("%" .. spec, args[arg_idx])
           table.insert(result_parts, ocaml_string_to_lua(formatted))
           arg_idx = arg_idx + 1
         end
       elseif conv == "s" then
         if arg_idx <= #args then
-          local formatted = M.caml_format_string("%" .. spec, args[arg_idx])
+          local formatted = caml_format_string("%" .. spec, args[arg_idx])
           table.insert(result_parts, ocaml_string_to_lua(formatted))
           arg_idx = arg_idx + 1
         end
       elseif conv == "c" then
         if arg_idx <= #args then
-          local formatted = M.caml_format_char("%" .. spec, args[arg_idx])
+          local formatted = caml_format_char("%" .. spec, args[arg_idx])
           table.insert(result_parts, ocaml_string_to_lua(formatted))
           arg_idx = arg_idx + 1
         end
@@ -885,31 +857,28 @@ function M.caml_fprintf(chanid, fmt, ...)
   return 0  -- Unit in OCaml
 end
 
--- Format and output to stdout
-function M.caml_printf(fmt, ...)
+--Provides: caml_printf
+function caml_printf(fmt, ...)
   -- Lazy load io module
   local io_module = package.loaded.io or require("io")
   -- stdout channel is typically 1
   local stdout_chanid = io_module.caml_ml_open_descriptor_out(1)
-  return M.caml_fprintf(stdout_chanid, fmt, ...)
+  return caml_fprintf(stdout_chanid, fmt, ...)
 end
 
--- Format and output to stderr
-function M.caml_eprintf(fmt, ...)
+--Provides: caml_eprintf
+function caml_eprintf(fmt, ...)
   -- Lazy load io module
   local io_module = package.loaded.io or require("io")
   -- stderr channel is typically 2
   local stderr_chanid = io_module.caml_ml_open_descriptor_out(2)
-  return M.caml_fprintf(stderr_chanid, fmt, ...)
+  return caml_fprintf(stderr_chanid, fmt, ...)
 end
 
 -- Scanf-style channel input functions
 
--- Read a line from channel and scan according to format
--- chanid: channel ID from io.lua
--- fmt: format string (OCaml string or Lua string)
--- Returns: table of parsed values or nil on error
-function M.caml_fscanf(chanid, fmt)
+--Provides: caml_fscanf
+function caml_fscanf(chanid, fmt)
   -- Lazy load io module
   local io_module = package.loaded.io or require("io")
 
@@ -931,16 +900,14 @@ function M.caml_fscanf(chanid, fmt)
   local line = ocaml_string_to_lua(line_bytes)
 
   -- Parse using sscanf
-  return M.caml_sscanf(line, fmt)
+  return caml_sscanf(line, fmt)
 end
 
--- Read a line from stdin and scan according to format
-function M.caml_scanf(fmt)
+--Provides: caml_scanf
+function caml_scanf(fmt)
   -- Lazy load io module
   local io_module = package.loaded.io or require("io")
   -- stdin channel is typically 0
   local stdin_chanid = io_module.caml_ml_open_descriptor_in(0)
-  return M.caml_fscanf(stdin_chanid, fmt)
+  return caml_fscanf(stdin_chanid, fmt)
 end
-
-return M
