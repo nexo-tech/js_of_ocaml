@@ -9,10 +9,12 @@
 -- Option construction
 --
 
+--Provides: caml_option_none
 function caml_option_none()
   return 0
 end
 
+--Provides: caml_option_some
 function caml_option_some(value)
   return {tag = 0, value}
 end
@@ -21,10 +23,12 @@ end
 -- Option queries
 --
 
+--Provides: caml_option_is_none
 function caml_option_is_none(opt)
   return opt == 0
 end
 
+--Provides: caml_option_is_some
 function caml_option_is_some(opt)
   return opt ~= 0
 end
@@ -33,6 +37,7 @@ end
 -- Option extraction
 --
 
+--Provides: caml_option_get
 function caml_option_get(opt)
   if opt == 0 then
     error("Option.get")
@@ -40,6 +45,7 @@ function caml_option_get(opt)
   return opt[1]
 end
 
+--Provides: caml_option_value
 function caml_option_value(opt, default)
   if opt == 0 then
     return default
@@ -51,6 +57,7 @@ end
 -- Option mapping
 --
 
+--Provides: caml_option_map
 function caml_option_map(f, opt)
   if opt == 0 then
     return 0
@@ -58,6 +65,7 @@ function caml_option_map(f, opt)
   return {tag = 0, f(opt[1])}
 end
 
+--Provides: caml_option_bind
 function caml_option_bind(opt, f)
   if opt == 0 then
     return 0
@@ -65,6 +73,7 @@ function caml_option_bind(opt, f)
   return f(opt[1])
 end
 
+--Provides: caml_option_join
 function caml_option_join(opt)
   if opt == 0 then
     return 0
@@ -72,6 +81,7 @@ function caml_option_join(opt)
   return opt[1]
 end
 
+--Provides: caml_option_fold
 function caml_option_fold(none_case, some_f, opt)
   if opt == 0 then
     return none_case
@@ -79,6 +89,7 @@ function caml_option_fold(none_case, some_f, opt)
   return some_f(opt[1])
 end
 
+--Provides: caml_option_iter
 function caml_option_iter(f, opt)
   if opt ~= 0 then
     f(opt[1])
@@ -89,6 +100,7 @@ end
 -- Option comparison
 --
 
+--Provides: caml_option_equal
 function caml_option_equal(eq, opt1, opt2)
   if opt1 == 0 and opt2 == 0 then
     return true
@@ -99,6 +111,7 @@ function caml_option_equal(eq, opt1, opt2)
   return eq(opt1[1], opt2[1])
 end
 
+--Provides: caml_option_compare
 function caml_option_compare(cmp, opt1, opt2)
   if opt1 == 0 and opt2 == 0 then
     return 0
@@ -116,6 +129,7 @@ end
 -- Option conversion
 --
 
+--Provides: caml_option_to_result
 function caml_option_to_result(none_error, opt)
   if opt == 0 then
     return {tag = 1, none_error}  -- Error(none_error)
@@ -123,6 +137,7 @@ function caml_option_to_result(none_error, opt)
   return {tag = 0, opt[1]}  -- Ok(value)
 end
 
+--Provides: caml_option_to_list
 function caml_option_to_list(opt)
   if opt == 0 then
     return 0  -- Empty list
@@ -130,6 +145,7 @@ function caml_option_to_list(opt)
   return {tag = 0, opt[1], 0}  -- Single element list
 end
 
+--Provides: caml_option_to_seq
 function caml_option_to_seq(opt)
   -- Sequences are represented as functions
   if opt == 0 then
@@ -145,22 +161,3 @@ function caml_option_to_seq(opt)
   end
 end
 
--- Export all functions as a module
-return {
-  caml_option_none = caml_option_none,
-  caml_option_some = caml_option_some,
-  caml_option_is_none = caml_option_is_none,
-  caml_option_is_some = caml_option_is_some,
-  caml_option_get = caml_option_get,
-  caml_option_value = caml_option_value,
-  caml_option_map = caml_option_map,
-  caml_option_bind = caml_option_bind,
-  caml_option_join = caml_option_join,
-  caml_option_fold = caml_option_fold,
-  caml_option_iter = caml_option_iter,
-  caml_option_equal = caml_option_equal,
-  caml_option_compare = caml_option_compare,
-  caml_option_to_result = caml_option_to_result,
-  caml_option_to_list = caml_option_to_list,
-  caml_option_to_seq = caml_option_to_seq,
-}

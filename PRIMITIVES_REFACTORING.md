@@ -26,7 +26,7 @@
 - [x] Task 3.6: Refactor `lexing.lua` - lexer primitives (45 min + tests)
 - [x] Task 3.7: Refactor `list.lua` - list primitives (45 min + tests)
 - [x] Task 3.8: Refactor `map.lua` - map primitives (45 min + tests)
-- [ ] Task 3.9: Refactor `option.lua` - option primitives (30 min + tests)
+- [x] Task 3.9: Refactor `option.lua` - option primitives (30 min + tests)
 - [ ] Task 3.10: Refactor `parsing.lua` - parser primitives (45 min + tests)
 - [ ] Task 3.11: Refactor `queue.lua` - queue primitives (30 min + tests)
 - [ ] Task 3.12: Refactor `result.lua` - result primitives (30 min + tests)
