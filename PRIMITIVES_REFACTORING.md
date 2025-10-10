@@ -67,9 +67,12 @@
   - **FIXED**: Removed local constant FORCING_TAG (244) - inlined into all function bodies
   - **FIXED**: Removed local constant FORWARD_TAG (250) - inlined into all function bodies
   - **VERIFIED**: All lazy tests pass, Lua 5.1 compatible
-- [ ] Task 3.6: Refactor `lexing.lua` - lexer primitives (45 min + tests)
-  - **VIOLATIONS**: 17 local constants, local function in closure
-  - **STATUS**: Needs rewrite - inline constants, restructure lexbuf creation
+- [x] Task 3.6: Refactor `lexing.lua` - lexer primitives (45 min + tests)
+  - **FIXED**: Removed 12 local LEX_* constants (REFILL_BUF, BUFFER, BUFFER_LEN, ABS_POS, START_POS, CURR_POS, LAST_POS, LAST_ACTION, EOF_REACHED, MEM, START_P, CURR_P) - inlined numeric indices (1-12) into all function bodies
+  - **FIXED**: Removed 5 local TBL_* constants (BASE, BACKTRK, DEFAULT, TRANS, CHECK) - inlined numeric indices (1-5) into caml_lex_engine
+  - **FIXED**: Extracted local function refill_func to global caml_lexbuf_refill_from_channel
+  - **FIXED**: Replaced Lua 5.3+ bitwise operators (lo | (hi << 8)) with Lua 5.1 compatible arithmetic (lo + hi * 256) in caml_lex_array
+  - **VERIFIED**: All 33 lexing tests pass, Lua 5.1 compatible
 - [x] Task 3.7: Refactor `list.lua` - list primitives (45 min + tests)
   - **VERIFIED**: Clean (documentation comments removed)
 - [ ] Task 3.8: Refactor `map.lua` - map primitives (45 min + tests)
