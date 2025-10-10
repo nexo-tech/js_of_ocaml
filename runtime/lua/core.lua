@@ -15,6 +15,14 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
+-- Initialize global _OCAML namespace
+_G._OCAML = {
+  primitives = {},
+  modules = {},
+  version = "1.0.0",
+  initialized = false
+}
+
 --Provides: caml_register_global
 function caml_register_global(name, func)
   if type(name) ~= "string" then
@@ -23,13 +31,11 @@ function caml_register_global(name, func)
   if type(func) ~= "function" then
     error("Primitive must be a function, got " .. type(func))
   end
-  _G._OCAML = _G._OCAML or { primitives = {}, modules = {}, version = "1.0.0", initialized = false }
   _G._OCAML.primitives[name] = func
 end
 
 --Provides: caml_get_primitive
 function caml_get_primitive(name)
-  _G._OCAML = _G._OCAML or { primitives = {}, modules = {}, version = "1.0.0", initialized = false }
   local prim = _G._OCAML.primitives[name]
   if not prim then
     error("Undefined primitive: " .. tostring(name))
@@ -45,13 +51,11 @@ function caml_register_module(name, mod)
   if type(mod) ~= "table" then
     error("Module must be a table, got " .. type(mod))
   end
-  _G._OCAML = _G._OCAML or { primitives = {}, modules = {}, version = "1.0.0", initialized = false }
   _G._OCAML.modules[name] = mod
 end
 
 --Provides: caml_get_module
 function caml_get_module(name)
-  _G._OCAML = _G._OCAML or { primitives = {}, modules = {}, version = "1.0.0", initialized = false }
   return _G._OCAML.modules[name]
 end
 
@@ -113,33 +117,55 @@ function caml_ref_set(ref, value)
   ref[1] = value
 end
 
+--Provides: caml_unit
+caml_unit = 0
+
+--Provides: caml_false_val
+caml_false_val = 0
+
+--Provides: caml_true_val
+caml_true_val = 1
+
+--Provides: caml_none
+caml_none = 0
+
+--Provides: caml_lua_version
+caml_lua_version = tonumber(_VERSION:match("%d+%.%d+"))
+
+--Provides: caml_has_bitops
+caml_has_bitops = caml_lua_version >= 5.3
+
+--Provides: caml_has_utf8
+caml_has_utf8 = caml_lua_version >= 5.3
+
+--Provides: caml_has_integers
+caml_has_integers = caml_lua_version >= 5.3
+
 --Provides: caml_initialize
---Requires: caml_register_module
+--Requires: caml_register_module caml_unit caml_false_val caml_true_val caml_none caml_lua_version caml_has_bitops caml_has_utf8 caml_has_integers
 function caml_initialize()
-  _G._OCAML = _G._OCAML or { primitives = {}, modules = {}, version = "1.0.0", initialized = false }
   if _G._OCAML.initialized then
     return
   end
-  local lua_version = tonumber(_VERSION:match("%d+%.%d+"))
-  if lua_version < 5.1 then
+  if caml_lua_version < 5.1 then
     error("Lua_of_ocaml requires Lua 5.1 or later")
   end
   caml_register_module("core", {
-    unit = 0,
-    false_val = 0,
-    true_val = 1,
-    none = 0,
-    lua_version = lua_version,
-    has_bitops = lua_version >= 5.3,
-    has_utf8 = lua_version >= 5.3,
-    has_integers = lua_version >= 5.3
+    unit = caml_unit,
+    false_val = caml_false_val,
+    true_val = caml_true_val,
+    none = caml_none,
+    lua_version = caml_lua_version,
+    has_bitops = caml_has_bitops,
+    has_utf8 = caml_has_utf8,
+    has_integers = caml_has_integers
   })
   _G._OCAML.initialized = true
 end
 
 --Provides: caml_version_info
+--Requires: caml_lua_version
 function caml_version_info()
-  _G._OCAML = _G._OCAML or { primitives = {}, modules = {}, version = "1.0.0", initialized = false }
   local version = _G._OCAML.version
   local major, minor, patch = version:match("(%d+)%.(%d+)%.(%d+)")
   return {
@@ -147,6 +173,9 @@ function caml_version_info()
     minor = tonumber(minor),
     patch = tonumber(patch),
     string = version,
-    lua_version = tonumber(_VERSION:match("%d+%.%d+"))
+    lua_version = caml_lua_version
   }
 end
+
+-- Auto-initialize runtime
+caml_initialize()

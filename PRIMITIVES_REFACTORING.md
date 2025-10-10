@@ -10,19 +10,18 @@
 - [x] Task 1.5: Write tests for new linker infrastructure (30 min)
 
 ### Phase 2: Refactor Core Modules (Est: 6 hours)
-- [ ] Task 2.1: Refactor `core.lua` - base primitives (1 hour + tests)
-  - **FAILING TEST**: test_core.lua
-  - **RESOLUTION PLAN**:
-    1. Run `lua test_core.lua` to see specific failure details
-    2. Review core.lua implementation for issues with:
-       - caml_register_global / caml_named_value functions
-       - Global namespace initialization
-       - Primitive registration mechanism
-    3. Compare against expected test behavior in test_core.lua
-    4. Fix implementation issues found
-    5. Re-run test and verify all 17 tests pass
-    6. Update this task to [x] once verified
-  - **NOTE**: May be related to changes in how primitives are registered globally
+- [x] Task 2.1: Refactor `core.lua` - base primitives (1 hour + tests) ✓
+  - **FIXED**: Initialize _OCAML global namespace at module load time (not lazily)
+  - **FIXED**: Added global constants: caml_unit, caml_false_val, caml_true_val, caml_none
+  - **FIXED**: Added version detection globals: caml_lua_version, caml_has_bitops, caml_has_utf8, caml_has_integers
+  - **FIXED**: Auto-call caml_initialize() at module load to set up core module
+  - **FIXED**: Removed lazy initialization (`_G._OCAML = _G._OCAML or {...}`) from all functions
+  - **VERIFIED**: All 18 tests pass (test_core.lua: ✓ PASS)
+  - **IMPLEMENTATION**:
+    - _OCAML namespace initialized upfront: {primitives={}, modules={}, version="1.0.0", initialized=false}
+    - Global constants available immediately upon module load
+    - Core module auto-registered with compatibility fields
+    - Clean initialization without lazy checks
 - [x] Task 2.2: Refactor `compare.lua` - comparison primitives (1 hour + tests)
   - **FIXED**: Converted 5 local helper functions to caml_* functions with --Provides
   - **VERIFIED**: All 73 tests pass, no syntax errors
