@@ -1,0 +1,8 @@
+# Example direnv configuration for nix + opam
+# Copy to .envrc and customize as needed
+
+# Load Nix environment with native dependencies
+use flake
+
+# Activate OPAM switch
+eval $(opam env --switch=lua_of_ocaml_52)

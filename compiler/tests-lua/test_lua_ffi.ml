@@ -1,0 +1,1556 @@
+(* Tests for Lua FFI bindings *)
+
+open Js_of_ocaml_compiler
+
+(* Test helpers *)
+module Lua_ast = struct
+  include Lua_of_ocaml_compiler__Lua_ast
+end
+
+module Lua_generate = struct
+  include Lua_of_ocaml_compiler__Lua_generate
+end
+
+module Lua_output = struct
+  include Lua_of_ocaml_compiler__Lua_output
+end
+
+(* Helper to convert program to string *)
+let program_to_string stmts = Lua_output.program_to_string stmts
+
+(* Helper to create a variable *)
+let var_of_int i = Code.Var.of_idx i
+
+(* Helper to create a simple program *)
+let make_simple_program blocks =
+  let block_map =
+    List.fold_left
+      (fun map (addr, blk) -> Code.Addr.Map.add addr blk map)
+      Code.Addr.Map.empty
+      blocks
+  in
+  { Code.start = Code.Addr.zero; blocks = block_map; free_pc = List.length blocks }
+
+(** Test type representations **)
+
+let%expect_test "lua value - nil representation" =
+  (* Test that nil is represented as 0 in OCaml *)
+  let v_nil = var_of_int 1 in
+  let entry_block =
+    { Code.params = []
+    ; body = [ Code.Let (v_nil, Code.Constant (Code.Int32 0l)) ]
+    ; branch = Code.Return v_nil
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (1 total)
+      local v0
+      ::block_0::
+      v0 = 0
+      return v0
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "lua value - boolean true" =
+  (* Boolean true as 1 *)
+  let v_bool = var_of_int 1 in
+  let entry_block =
+    { Code.params = []
+    ; body = [ Code.Let (v_bool, Code.Constant (Code.Int32 1l)) ]
+    ; branch = Code.Return v_bool
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (1 total)
+      local v0
+      ::block_0::
+      v0 = 1
+      return v0
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "lua value - boolean false" =
+  (* Boolean false as 0 *)
+  let v_bool = var_of_int 1 in
+  let entry_block =
+    { Code.params = []
+    ; body = [ Code.Let (v_bool, Code.Constant (Code.Int32 0l)) ]
+    ; branch = Code.Return v_bool
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (1 total)
+      local v0
+      ::block_0::
+      v0 = 0
+      return v0
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "lua value - number" =
+  (* Numbers are represented directly *)
+  let v_num = var_of_int 1 in
+  let entry_block =
+    { Code.params = []
+    ; body = [ Code.Let (v_num, Code.Constant (Code.Int32 42l)) ]
+    ; branch = Code.Return v_num
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (1 total)
+      local v0
+      ::block_0::
+      v0 = 42
+      return v0
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "lua value - string" =
+  (* Strings are represented directly *)
+  let v_str = var_of_int 1 in
+  let entry_block =
+    { Code.params = []
+    ; body = [ Code.Let (v_str, Code.Constant (Code.String "hello")) ]
+    ; branch = Code.Return v_str
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (1 total)
+      local v0
+      ::block_0::
+      v0 = "hello"
+      return v0
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "lua value - table (OCaml record)" =
+  (* Tables are represented as blocks with tag field *)
+  let v_field1 = var_of_int 1 in
+  let v_field2 = var_of_int 2 in
+  let v_table = var_of_int 3 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_field1, Code.Constant (Code.Int32 10l))
+        ; Code.Let (v_field2, Code.Constant (Code.String "test"))
+        ; Code.Let
+            (v_table, Code.Block (0, [| v_field1; v_field2 |], Code.NotArray, Code.Immutable))
+        ]
+    ; branch = Code.Return v_table
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (3 total)
+      local v0, v1, v2
+      ::block_0::
+      v0 = 10
+      v1 = "test"
+      v2 = {tag = 0, v0, v1}
+      return v2
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "lua value - array" =
+  (* Arrays are blocks with elements *)
+  let v_elem1 = var_of_int 1 in
+  let v_elem2 = var_of_int 2 in
+  let v_elem3 = var_of_int 3 in
+  let v_array = var_of_int 4 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_elem1, Code.Constant (Code.Int32 1l))
+        ; Code.Let (v_elem2, Code.Constant (Code.Int32 2l))
+        ; Code.Let (v_elem3, Code.Constant (Code.Int32 3l))
+        ; Code.Let
+            ( v_array
+            , Code.Block (0, [| v_elem1; v_elem2; v_elem3 |], Code.Array, Code.Immutable) )
+        ]
+    ; branch = Code.Return v_array
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (4 total)
+      local v0, v1, v2, v3
+      ::block_0::
+      v0 = 1
+      v1 = 2
+      v2 = 3
+      v3 = {tag = 0, v0, v1, v2}
+      return v3
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "lua value - option None" =
+  (* Option None is 0 *)
+  let v_none = var_of_int 1 in
+  let entry_block =
+    { Code.params = []
+    ; body = [ Code.Let (v_none, Code.Constant (Code.Int32 0l)) ]
+    ; branch = Code.Return v_none
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (1 total)
+      local v0
+      ::block_0::
+      v0 = 0
+      return v0
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "lua value - option Some" =
+  (* Option Some is a block with tag 0 *)
+  let v_value = var_of_int 1 in
+  let v_some = var_of_int 2 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_value, Code.Constant (Code.Int32 42l))
+        ; Code.Let (v_some, Code.Block (0, [| v_value |], Code.NotArray, Code.Immutable))
+        ]
+    ; branch = Code.Return v_some
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (2 total)
+      local v0, v1
+      ::block_0::
+      v0 = 42
+      v1 = {tag = 0, v0}
+      return v1
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "lua value - list" =
+  (* Lists are represented as nested blocks *)
+  (* [1; 2; 3] = Some (1, Some (2, Some (3, None))) *)
+  let v_elem1 = var_of_int 1 in
+  let v_elem2 = var_of_int 2 in
+  let v_elem3 = var_of_int 3 in
+  let v_nil = var_of_int 4 in
+  let v_cons3 = var_of_int 5 in
+  let v_cons2 = var_of_int 6 in
+  let v_cons1 = var_of_int 7 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_elem1, Code.Constant (Code.Int32 1l))
+        ; Code.Let (v_elem2, Code.Constant (Code.Int32 2l))
+        ; Code.Let (v_elem3, Code.Constant (Code.Int32 3l))
+        ; Code.Let (v_nil, Code.Constant (Code.Int32 0l))
+        ; Code.Let (v_cons3, Code.Block (0, [| v_elem3; v_nil |], Code.NotArray, Code.Immutable))
+        ; Code.Let
+            (v_cons2, Code.Block (0, [| v_elem2; v_cons3 |], Code.NotArray, Code.Immutable))
+        ; Code.Let
+            (v_cons1, Code.Block (0, [| v_elem1; v_cons2 |], Code.NotArray, Code.Immutable))
+        ]
+    ; branch = Code.Return v_cons1
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (7 total)
+      local v0, v1, v2, v3, v4, v5, v6
+      ::block_0::
+      v0 = 1
+      v1 = 2
+      v2 = 3
+      v3 = 0
+      v4 = {tag = 0, v2, v3}
+      v5 = {tag = 0, v1, v4}
+      v6 = {tag = 0, v0, v5}
+      return v6
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "lua value - closure representation" =
+  (* Functions/closures are represented as blocks *)
+  let v_func = var_of_int 1 in
+  let v_arg = var_of_int 2 in
+  let v_result = var_of_int 3 in
+  (* Create a simple function that returns its argument *)
+  let func_block =
+    { Code.params = [ v_arg ]
+    ; body = [ Code.Let (v_result, Code.Prim (Extern "id", [ Pv v_arg ])) ]
+    ; branch = Code.Return v_result
+    }
+  in
+  let entry_block =
+    { Code.params = []
+    ; body = [ Code.Let (v_func, Code.Closure ([], (1, []), None)) ]
+    ; branch = Code.Return v_func
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block); (1, func_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (1 total)
+      local v0
+      ::block_0::
+      v0 = function()
+        -- Hoisted variables (1 total)
+        local v0
+        ::block_1::
+        v0 = caml_id(v1)
+        return v0
+      end
+      return v0
+    end
+    __caml_init__()
+    |}]
+
+(** Test convenience function calls **)
+
+let%expect_test "lua interop - function call with call1" =
+  (* Simulates calling a Lua function with one argument *)
+  let v_fn = var_of_int 1 in
+  let v_arg = var_of_int 2 in
+  let v_result = var_of_int 3 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_fn, Code.Prim (Extern "get_global_fn", [ Pc (String "print") ]))
+        ; Code.Let (v_arg, Code.Constant (Code.String "Hello from OCaml"))
+        ; Code.Let (v_result, Code.Prim (Extern "call1", [ Pv v_fn; Pv v_arg ]))
+        ]
+    ; branch = Code.Return v_result
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (3 total)
+      local v0, v1, v2
+      ::block_0::
+      v0 = caml_get_global_fn("print")
+      v1 = "Hello from OCaml"
+      v2 = caml_call1(v0, v1)
+      return v2
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "lua interop - table field access with get_int" =
+  (* Simulates getting an integer field from a Lua table *)
+  let v_tbl = var_of_int 1 in
+  let v_key = var_of_int 2 in
+  let v_result = var_of_int 3 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_tbl, Code.Prim (Extern "get_global_table", [ Pc (String "my_table") ]))
+        ; Code.Let (v_key, Code.Constant (Code.String "count"))
+        ; Code.Let (v_result, Code.Prim (Extern "get_int", [ Pv v_tbl; Pv v_key ]))
+        ]
+    ; branch = Code.Return v_result
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (3 total)
+      local v0, v1, v2
+      ::block_0::
+      v0 = caml_get_global_table("my_table")
+      v1 = "count"
+      v2 = caml_get_int(v0, v1)
+      return v2
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "lua interop - global variable access" =
+  (* Simulates getting and setting global variables *)
+  let v_value = var_of_int 1 in
+  let v_result = var_of_int 2 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_value, Code.Constant (Code.Int32 42l))
+        ; Code.Let
+            ( v_result
+            , Code.Prim (Extern "set_global_int", [ Pc (String "my_var"); Pv v_value ]) )
+        ]
+    ; branch = Code.Return v_result
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (2 total)
+      local v0, v1
+      ::block_0::
+      v0 = 42
+      v1 = caml_set_global_int("my_var", v0)
+      return v1
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "lua interop - module require" =
+  (* Simulates requiring a Lua module *)
+  let v_module = var_of_int 1 in
+  let entry_block =
+    { Code.params = []
+    ; body = [ Code.Let (v_module, Code.Prim (Extern "require", [ Pc (String "os") ])) ]
+    ; branch = Code.Return v_module
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (1 total)
+      local v0
+      ::block_0::
+      v0 = caml_require("os")
+      return v0
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "lua interop - method call" =
+  (* Simulates calling a method on a Lua table *)
+  let v_tbl = var_of_int 1 in
+  let v_method = var_of_int 2 in
+  let v_args = var_of_int 3 in
+  let v_result = var_of_int 4 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_tbl, Code.Prim (Extern "get_global_table", [ Pc (String "string") ]))
+        ; Code.Let (v_method, Code.Constant (Code.String "upper"))
+        ; Code.Let (v_args, Code.Block (0, [||], Code.Array, Code.Immutable))
+        ; Code.Let
+            ( v_result
+            , Code.Prim (Extern "call_method", [ Pv v_tbl; Pv v_method; Pv v_args ]) )
+        ]
+    ; branch = Code.Return v_result
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (4 total)
+      local v0, v1, v2, v3
+      ::block_0::
+      v0 = caml_get_global_table("string")
+      v1 = "upper"
+      v2 = {tag = 0}
+      v3 = caml_call_method(v0, v1, v2)
+      return v3
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "lua interop - table set operations" =
+  (* Simulates setting fields in a Lua table *)
+  let v_tbl = var_of_int 1 in
+  let v_key = var_of_int 2 in
+  let v_value = var_of_int 3 in
+  let v_result = var_of_int 4 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_tbl, Code.Prim (Extern "table", []))
+        ; Code.Let (v_key, Code.Constant (Code.String "name"))
+        ; Code.Let (v_value, Code.Constant (Code.String "Lua"))
+        ; Code.Let
+            (v_result, Code.Prim (Extern "set_string", [ Pv v_tbl; Pv v_key; Pv v_value ]))
+        ]
+    ; branch = Code.Return v_result
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (4 total)
+      local v0, v1, v2, v3
+      ::block_0::
+      v0 = caml_table()
+      v1 = "name"
+      v2 = "Lua"
+      v3 = caml_set_string(v0, v1, v2)
+      return v3
+    end
+    __caml_init__()
+    |}]
+
+(** Test OCaml function export **)
+
+let%expect_test "lua export - export_fn1" =
+  (* Simulates exporting an OCaml function to Lua *)
+  let v_fn = var_of_int 1 in
+  let v_arg = var_of_int 2 in
+  let v_result = var_of_int 3 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_fn, Code.Closure ([], (1, []), None))
+        ; Code.Let
+            (v_result, Code.Prim (Extern "export_fn1", [ Pc (String "my_func"); Pv v_fn ]))
+        ]
+    ; branch = Code.Return v_result
+    }
+  in
+  let func_block = { Code.params = [ v_arg ]; body = []; branch = Code.Return v_arg } in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block); (1, func_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (2 total)
+      local v0, v1
+      ::block_0::
+      v0 = function()
+        ::block_1::
+        return v0
+      end
+      v1 = caml_export_fn1("my_func", v0)
+      return v1
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "lua export - export_module" =
+  (* Simulates exporting an OCaml module to Lua *)
+  let v_fn1 = var_of_int 1 in
+  let v_fn2 = var_of_int 2 in
+  let v_fields = var_of_int 3 in
+  let v_result = var_of_int 4 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_fn1, Code.Closure ([], (1, []), None))
+        ; Code.Let (v_fn2, Code.Closure ([], (2, []), None))
+        ; Code.Let (v_fields, Code.Block (0, [| v_fn1; v_fn2 |], Code.Array, Code.Immutable))
+        ; Code.Let
+            ( v_result
+            , Code.Prim (Extern "export_module", [ Pc (String "MyMod"); Pv v_fields ]) )
+        ]
+    ; branch = Code.Return v_result
+    }
+  in
+  let func1_block = { Code.params = []; body = []; branch = Code.Return (var_of_int 10) } in
+  let func2_block = { Code.params = []; body = []; branch = Code.Return (var_of_int 20) } in
+  let program =
+    make_simple_program
+      [ (Code.Addr.zero, entry_block); (1, func1_block); (2, func2_block) ]
+  in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (4 total)
+      local v0, v1, v2, v3
+      ::block_0::
+      v0 = function()
+        ::block_1::
+        return v0
+      end
+      v1 = function()
+        ::block_2::
+        return v0
+      end
+      v2 = {tag = 0, v0, v1}
+      v3 = caml_export_module("MyMod", v2)
+      return v3
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "lua export - make_module" =
+  (* Simulates creating a Lua module table *)
+  let v_func = var_of_int 1 in
+  let v_key = var_of_int 2 in
+  let v_pair = var_of_int 3 in
+  let v_fields = var_of_int 4 in
+  let v_module = var_of_int 5 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_func, Code.Closure ([], (1, []), None))
+        ; Code.Let (v_key, Code.Constant (Code.String "do_something"))
+        ; Code.Let (v_pair, Code.Block (0, [| v_key; v_func |], Code.NotArray, Code.Immutable))
+        ; Code.Let (v_fields, Code.Block (0, [| v_pair |], Code.Array, Code.Immutable))
+        ; Code.Let (v_module, Code.Prim (Extern "make_module", [ Pv v_fields ]))
+        ]
+    ; branch = Code.Return v_module
+    }
+  in
+  let func_block = { Code.params = []; body = []; branch = Code.Return (var_of_int 42) } in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block); (1, func_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (5 total)
+      local v0, v1, v2, v3, v4
+      ::block_0::
+      v0 = function()
+        ::block_1::
+        return v0
+      end
+      v1 = "do_something"
+      v2 = {tag = 0, v1, v0}
+      v3 = {tag = 0, v2}
+      v4 = caml_make_module(v3)
+      return v4
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "lua export - wrapped function with marshalling" =
+  (* Simulates exporting a function with type marshalling *)
+  let v_result = var_of_int 1 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let
+            ( v_result
+            , Code.Prim
+                ( Extern "export_wrapped1"
+                , [ Pc (String "add_one")
+                  ; Pc (String "Int_marshal")
+                  ; Pc (String "Int_marshal")
+                  ] ) )
+        ]
+    ; branch = Code.Return v_result
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (1 total)
+      local v0
+      ::block_0::
+      v0 = caml_export_wrapped1("add_one", "Int_marshal", "Int_marshal")
+      return v0
+    end
+    __caml_init__()
+    |}]
+
+(** Library Wrapping Tests **)
+
+let%expect_test "library wrapping - method0 binding" =
+  (* Simulates: let get_current_buf = method0 vim_api "nvim_get_current_buf" *)
+  let v_api = var_of_int 1 in
+  let v_method_name = var_of_int 2 in
+  let v_method = var_of_int 3 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_api, Code.Prim (Extern "caml_lua_get_global", [ Pc (String "vim") ]))
+        ; Code.Let (v_method_name, Code.Constant (Code.String "nvim_get_current_buf"))
+        ; Code.Let (v_method, Code.Prim (Extern "caml_lua_method0", [ Pv v_api; Pv v_method_name ]))
+        ]
+    ; branch = Code.Return v_method
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (3 total)
+      local v0, v1, v2
+      ::block_0::
+      v0 = caml_lua_get_global("vim")
+      v1 = "nvim_get_current_buf"
+      v2 = caml_lua_method0(v0, v1)
+      return v2
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "library wrapping - method1 binding" =
+  (* Simulates: let set_line = method1 buf "set_line" *)
+  let v_buf = var_of_int 1 in
+  let v_method_name = var_of_int 2 in
+  let v_method = var_of_int 3 in
+  let v_line = var_of_int 4 in
+  let v_result = var_of_int 5 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_buf, Code.Prim (Extern "caml_lua_create_table", []))
+        ; Code.Let (v_method_name, Code.Constant (Code.String "set_line"))
+        ; Code.Let (v_method, Code.Prim (Extern "caml_lua_method1", [ Pv v_buf; Pv v_method_name ]))
+        ; Code.Let (v_line, Code.Constant (Code.String "Hello, Lua!"))
+        ; Code.Let (v_result, Code.Apply { f = v_method; args = [ v_line ]; exact = true })
+        ]
+    ; branch = Code.Return v_result
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (5 total)
+      local v0, v1, v2, v3, v4
+      ::block_0::
+      v0 = caml_lua_create_table()
+      v1 = "set_line"
+      v2 = caml_lua_method1(v0, v1)
+      v3 = "Hello, Lua!"
+      v4 = v2(v3)
+      return v4
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "library wrapping - property access" =
+  (* Simulates: prop_get obj "name" *)
+  let v_obj = var_of_int 1 in
+  let v_prop_name = var_of_int 2 in
+  let v_value = var_of_int 3 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_obj, Code.Prim (Extern "caml_lua_create_table", []))
+        ; Code.Let (v_prop_name, Code.Constant (Code.String "name"))
+        ; Code.Let (v_value, Code.Prim (Extern "caml_lua_prop_get", [ Pv v_obj; Pv v_prop_name ]))
+        ]
+    ; branch = Code.Return v_value
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (3 total)
+      local v0, v1, v2
+      ::block_0::
+      v0 = caml_lua_create_table()
+      v1 = "name"
+      v2 = caml_lua_prop_get(v0, v1)
+      return v2
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "library wrapping - method chaining with pipe" =
+  (* Simulates: obj |> method1 "foo" arg1 |> method1 "bar" arg2 *)
+  let v_obj = var_of_int 1 in
+  let v_arg1 = var_of_int 2 in
+  let v_arg2 = var_of_int 3 in
+  let v_foo_method = var_of_int 4 in
+  let v_bar_method = var_of_int 5 in
+  let v_intermediate = var_of_int 6 in
+  let v_result = var_of_int 7 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_obj, Code.Prim (Extern "caml_lua_create_table", []))
+        ; Code.Let (v_arg1, Code.Constant (Code.Int32 10l))
+        ; Code.Let (v_arg2, Code.Constant (Code.Int32 20l))
+        ; Code.Let (v_foo_method, Code.Prim (Extern "caml_lua_method1", [ Pv v_obj; Pc (String "foo") ]))
+        ; Code.Let (v_intermediate, Code.Apply { f = v_foo_method; args = [ v_arg1 ]; exact = true })
+        ; Code.Let (v_bar_method, Code.Prim (Extern "caml_lua_method1", [ Pv v_intermediate; Pc (String "bar") ]))
+        ; Code.Let (v_result, Code.Apply { f = v_bar_method; args = [ v_arg2 ]; exact = true })
+        ]
+    ; branch = Code.Return v_result
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (7 total)
+      local v0, v1, v2, v3, v4, v5, v6
+      ::block_0::
+      v0 = caml_lua_create_table()
+      v1 = 10
+      v2 = 20
+      v3 = caml_lua_method1(v0, "foo")
+      v4 = v3(v1)
+      v5 = caml_lua_method1(v4, "bar")
+      v6 = v5(v2)
+      return v6
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "library wrapping - optional parameter with opt_param" =
+  (* Simulates: opt_param default_val opt_val *)
+  let v_default = var_of_int 1 in
+  let v_opt = var_of_int 2 in
+  let v_result = var_of_int 3 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_default, Code.Constant (Code.Int32 42l))
+        ; Code.Let (v_opt, Code.Constant (Code.Int32 0l))
+        ; Code.Let (v_result, Code.Prim (Extern "caml_lua_opt_param", [ Pv v_default; Pv v_opt ]))
+        ]
+    ; branch = Code.Return v_result
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (3 total)
+      local v0, v1, v2
+      ::block_0::
+      v0 = 42
+      v1 = 0
+      v2 = caml_lua_opt_param(v0, v1)
+      return v2
+    end
+    __caml_init__()
+    |}]
+
+let%expect_test "library wrapping - bind_function typed wrapper" =
+  (* Simulates: bind_function "math" "sqrt" Float_marshal Float_marshal *)
+  let v_module_name = var_of_int 1 in
+  let v_fn_name = var_of_int 2 in
+  let v_arg_marsh = var_of_int 3 in
+  let v_ret_marsh = var_of_int 4 in
+  let v_wrapper = var_of_int 5 in
+  let entry_block =
+    { Code.params = []
+    ; body =
+        [ Code.Let (v_module_name, Code.Constant (Code.String "math"))
+        ; Code.Let (v_fn_name, Code.Constant (Code.String "sqrt"))
+        ; Code.Let (v_arg_marsh, Code.Constant (Code.String "Float_marshal"))
+        ; Code.Let (v_ret_marsh, Code.Constant (Code.String "Float_marshal"))
+        ; Code.Let (v_wrapper, Code.Prim (Extern "caml_lua_bind_function", [ Pv v_module_name; Pv v_fn_name; Pv v_arg_marsh; Pv v_ret_marsh ]))
+        ]
+    ; branch = Code.Return v_wrapper
+    }
+  in
+  let program = make_simple_program [ (Code.Addr.zero, entry_block) ] in
+  let lua_code = Lua_generate.generate ~debug:false program in
+  print_endline (program_to_string lua_code);
+  [%expect
+    {|
+    -- === OCaml Runtime (Minimal Inline Version) ===
+    -- Global storage for OCaml values
+    local _OCAML_GLOBALS = {}
+    --
+    -- caml_register_global: Register a global OCaml value
+    --   n: global index
+    --   v: value to register
+    --   name: optional string name for the global
+    function caml_register_global(n, v, name)
+      -- Store value at index n+1 (Lua 1-indexed)
+      _OCAML_GLOBALS[n + 1] = v
+      -- Also store by name if provided
+      if name then
+        _OCAML_GLOBALS[name] = v
+      end
+      -- Return the value for chaining
+      return v
+    end
+    --
+    -- === End Runtime ===
+    --
+    --
+    function __caml_init__()
+      -- Module initialization code
+      -- Hoisted variables (5 total)
+      local v0, v1, v2, v3, v4
+      ::block_0::
+      v0 = "math"
+      v1 = "sqrt"
+      v2 = "Float_marshal"
+      v3 = "Float_marshal"
+      v4 = caml_lua_bind_function(v0, v1, v2, v3)
+      return v4
+    end
+    __caml_init__()
+    |}]

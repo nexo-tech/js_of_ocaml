@@ -1,0 +1,4 @@
+(library
+ (name util)
+ (modules util)
+ (libraries lua_of_ocaml_compiler js_of_ocaml-compiler str unix))
