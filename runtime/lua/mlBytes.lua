@@ -16,12 +16,6 @@
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 --- String and Bytes Operations Primitives
---
--- This module provides OCaml string and bytes operations for Lua.
--- In OCaml, strings are immutable and bytes are mutable sequences of bytes.
--- In Lua:
--- - Strings are represented as native Lua strings (immutable)
--- - Bytes are represented as tables with byte values (mutable)
 
 local bit = require("compat_bit")
 

@@ -15,7 +15,6 @@ local NAN = 0/0
 -- Float Classification
 --
 
--- OCaml float class tags
 local FP_normal = 0
 local FP_subnormal = 1
 local FP_zero = 2
@@ -42,9 +41,6 @@ function caml_classify_float(x)
   return FP_normal
 end
 
---
--- Basic Float Operations
---
 
 --Provides: caml_modf_float
 function caml_modf_float(x)
@@ -139,9 +135,6 @@ function caml_nextafter_float(x, y)
   end
 end
 
---
--- Rounding Operations
---
 
 --Provides: caml_trunc_float
 function caml_trunc_float(x)
@@ -162,9 +155,6 @@ function caml_round_float(x)
   end
 end
 
---
--- Special Value Checks
---
 
 --Provides: caml_is_nan
 function caml_is_nan(x)
@@ -181,9 +171,6 @@ function caml_is_finite(x)
   return x == x and x ~= INFINITY and x ~= NEG_INFINITY
 end
 
---
--- Float Comparison
---
 
 --Provides: caml_float_compare
 function caml_float_compare(x, y)
@@ -220,11 +207,7 @@ function caml_float_max(x, y)
   if x > y then return x else return y end
 end
 
---
--- Float Array Operations
---
 
--- Float arrays are represented as regular Lua tables with:
 -- [0] = 254 (double_array_tag)
 -- [1..n] = float values
 
@@ -345,9 +328,6 @@ function caml_floatarray_append(arr1, arr2)
   return result
 end
 
---
--- Float Parsing and Formatting
---
 
 --Provides: caml_format_float
 function caml_format_float(fmt, x)

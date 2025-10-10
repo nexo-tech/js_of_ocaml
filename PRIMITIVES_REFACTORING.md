@@ -11,11 +11,20 @@
 
 ### Phase 2: Refactor Core Modules (Est: 6 hours)
 - [x] Task 2.1: Refactor `core.lua` - base primitives (1 hour + tests)
-- [x] Task 2.2: Refactor `compare.lua` - comparison primitives (1 hour + tests)
-- [x] Task 2.3: Refactor `mlBytes.lua` - bytes primitives (1 hour + tests)
+  - **FIXED**: Removed all global variables, documentation comments
+- [ ] Task 2.2: Refactor `compare.lua` - comparison primitives (1 hour + tests)
+  - **VIOLATION**: Has 5 local helper functions (linker cannot inline!)
+  - **STATUS**: Needs rewrite - convert local functions to caml_ functions with --Provides
+- [ ] Task 2.3: Refactor `mlBytes.lua` - bytes primitives (1 hour + tests)
+  - **VIOLATION**: Has `local bit = require("compat_bit")`
+  - **STATUS**: Needs review and potential rewrite
 - [x] Task 2.4: Refactor `array.lua` - array primitives (1 hour + tests)
-- [x] Task 2.5: Refactor `ints.lua` - integer primitives (1 hour + tests)
+  - **VERIFIED**: Clean (documentation comments removed)
+- [ ] Task 2.5: Refactor `ints.lua` - integer primitives (1 hour + tests)
+  - **VIOLATION**: Has local variables and local helper functions (linker cannot inline!)
+  - **STATUS**: Needs rewrite - convert local functions to caml_ functions with --Provides
 - [x] Task 2.6: Refactor `float.lua` - float primitives (1 hour + tests)
+  - **VERIFIED**: Clean after documentation comment removal
 
 ### Phase 3: Refactor Standard Library Modules (Est: 8 hours)
 - [x] Task 3.1: Refactor `buffer.lua` - buffer primitives (45 min + tests)

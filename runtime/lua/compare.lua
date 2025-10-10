@@ -16,14 +16,7 @@
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 --- Polymorphic Comparison Primitives
---
--- Provides OCaml-compatible polymorphic comparison with:
--- - Deep structural comparison with cycle detection
--- - Total order semantics
--- - NaN handling
--- - OCaml value representation support
 
--- Check if a value is an OCaml string (byte array)
 local function is_ocaml_string(v)
   if type(v) ~= "table" then
     return false
@@ -42,7 +35,6 @@ local function is_ocaml_string(v)
   return true
 end
 
--- Check if a value is an OCaml block (tagged array)
 local function is_ocaml_block(v)
   if type(v) ~= "table" then
     return false
@@ -51,8 +43,6 @@ local function is_ocaml_block(v)
   return v.tag ~= nil and type(v.tag) == "number"
 end
 
--- Get comparison tag for a value
--- Returns a numeric tag that determines comparison order
 local function compare_tag(v)
   local t = type(v)
 
@@ -85,7 +75,6 @@ local function compare_tag(v)
   end
 end
 
--- Compare two OCaml strings (byte arrays)
 local function compare_ocaml_strings(a, b)
   local len_a = #a
   local len_b = #b
@@ -109,7 +98,6 @@ local function compare_ocaml_strings(a, b)
   end
 end
 
--- Compare two numbers
 local function compare_numbers(a, b)
   if a < b then
     return -1

@@ -16,13 +16,6 @@
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 --- Array Operations Primitives
---
--- This module provides OCaml array operations for Lua.
--- OCaml arrays are mutable, fixed-size sequences indexed from 0.
--- In Lua, we represent them as tables with:
--- - tag = 0 (array tag for OCaml blocks)
--- - [1..n] = array elements (1-indexed in Lua, but exposed as 0-indexed to OCaml)
--- - length stored at index 0
 
 --Provides: caml_make_vect
 function caml_make_vect(len, init)

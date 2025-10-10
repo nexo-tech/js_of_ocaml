@@ -16,18 +16,14 @@
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 --- Integer Operations Primitives
---
--- This module provides 32-bit integer arithmetic with proper overflow semantics
 -- matching OCaml's Int32 and native int behavior, along with bitwise operations.
 
 local bit = require("compat_bit")
 
--- Constants
 local MIN_INT32 = -0x80000000  -- -2^31
 local MAX_INT32 = 0x7FFFFFFF   -- 2^31 - 1
 local UINT32_MAX = 0xFFFFFFFF  -- 2^32 - 1
 
--- Check Lua version for native bitwise operations
 local lua_version = tonumber(_VERSION:match("%d+%.%d+"))
 local has_bitops = lua_version >= 5.3
 
