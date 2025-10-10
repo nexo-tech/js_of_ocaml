@@ -15,7 +15,7 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
---- Array Operations Module
+--- Array Operations Primitives
 --
 -- This module provides OCaml array operations for Lua.
 -- OCaml arrays are mutable, fixed-size sequences indexed from 0.
@@ -24,14 +24,8 @@
 -- - [1..n] = array elements (1-indexed in Lua, but exposed as 0-indexed to OCaml)
 -- - length stored at index 0
 
-local core = require("core")
-local M = {}
-
---- Create a new array of given length with initial value
--- @param len number Array length
--- @param init any Initial value for all elements
--- @return table Array
-function M.make(len, init)
+--Provides: caml_make_vect
+function caml_make_vect(len, init)
   local arr = { tag = 0, [0] = len }
   for i = 1, len do
     arr[i] = init
@@ -39,10 +33,8 @@ function M.make(len, init)
   return arr
 end
 
---- Create array from list
--- @param list table OCaml list (tag-based structure)
--- @return table Array
-function M.of_list(list)
+--Provides: caml_array_of_list
+function caml_array_of_list(list)
   -- Count list length
   local len = 0
   local l = list
@@ -64,10 +56,8 @@ function M.of_list(list)
   return arr
 end
 
---- Convert array to list
--- @param arr table Array
--- @return table OCaml list
-function M.to_list(arr)
+--Provides: caml_array_to_list
+function caml_array_to_list(arr)
   local len = arr[0]
   local result = 0  -- nil/empty list
 
@@ -79,18 +69,13 @@ function M.to_list(arr)
   return result
 end
 
---- Get array length
--- @param arr table Array
--- @return number Length
-function M.length(arr)
+--Provides: caml_array_length
+function caml_array_length(arr)
   return arr[0]
 end
 
---- Get element at index (with bounds checking)
--- @param arr table Array
--- @param idx number Index (0-based)
--- @return any Element value
-function M.get(arr, idx)
+--Provides: caml_array_get
+function caml_array_get(arr, idx)
   local len = arr[0]
   if idx < 0 or idx >= len then
     error("index out of bounds")
@@ -98,11 +83,8 @@ function M.get(arr, idx)
   return arr[idx + 1]  -- Convert to 1-indexed
 end
 
---- Set element at index (with bounds checking)
--- @param arr table Array
--- @param idx number Index (0-based)
--- @param val any New value
-function M.set(arr, idx, val)
+--Provides: caml_array_set
+function caml_array_set(arr, idx, val)
   local len = arr[0]
   if idx < 0 or idx >= len then
     error("index out of bounds")
@@ -110,28 +92,18 @@ function M.set(arr, idx, val)
   arr[idx + 1] = val
 end
 
---- Get element at index (unsafe, no bounds checking)
--- @param arr table Array
--- @param idx number Index (0-based)
--- @return any Element value
-function M.unsafe_get(arr, idx)
+--Provides: caml_array_unsafe_get
+function caml_array_unsafe_get(arr, idx)
   return arr[idx + 1]
 end
 
---- Set element at index (unsafe, no bounds checking)
--- @param arr table Array
--- @param idx number Index (0-based)
--- @param val any New value
-function M.unsafe_set(arr, idx, val)
+--Provides: caml_array_unsafe_set
+function caml_array_unsafe_set(arr, idx, val)
   arr[idx + 1] = val
 end
 
---- Copy a sub-array
--- @param arr table Source array
--- @param start number Start index (0-based)
--- @param len number Length to copy
--- @return table New array with copied elements
-function M.sub(arr, start, len)
+--Provides: caml_array_sub
+function caml_array_sub(arr, start, len)
   local result = { tag = 0, [0] = len }
   for i = 0, len - 1 do
     result[i + 1] = arr[start + i + 1]
@@ -139,11 +111,8 @@ function M.sub(arr, start, len)
   return result
 end
 
---- Append two arrays
--- @param arr1 table First array
--- @param arr2 table Second array
--- @return table New array with concatenated elements
-function M.append(arr1, arr2)
+--Provides: caml_array_append
+function caml_array_append(arr1, arr2)
   local len1 = arr1[0]
   local len2 = arr2[0]
   local len = len1 + len2
@@ -163,10 +132,8 @@ function M.append(arr1, arr2)
   return result
 end
 
---- Concatenate a list of arrays
--- @param list table OCaml list of arrays
--- @return table New array with all elements
-function M.concat(list)
+--Provides: caml_array_concat
+function caml_array_concat(list)
   -- Calculate total length
   local total_len = 0
   local l = list
@@ -194,13 +161,8 @@ function M.concat(list)
   return result
 end
 
---- Blit (copy) elements from one array to another
--- @param src table Source array
--- @param src_pos number Source start position (0-based)
--- @param dst table Destination array
--- @param dst_pos number Destination start position (0-based)
--- @param len number Number of elements to copy
-function M.blit(src, src_pos, dst, dst_pos, len)
+--Provides: caml_array_blit
+function caml_array_blit(src, src_pos, dst, dst_pos, len)
   -- Handle overlapping ranges by copying in appropriate direction
   if dst == src and dst_pos > src_pos then
     -- Copy backwards to handle overlap
@@ -215,22 +177,15 @@ function M.blit(src, src_pos, dst, dst_pos, len)
   end
 end
 
---- Fill array range with value
--- @param arr table Array
--- @param start number Start position (0-based)
--- @param len number Number of elements to fill
--- @param val any Fill value
-function M.fill(arr, start, len, val)
+--Provides: caml_array_fill
+function caml_array_fill(arr, start, len, val)
   for i = 0, len - 1 do
     arr[start + i + 1] = val
   end
 end
 
---- Create array by mapping function over range
--- @param len number Array length
--- @param f function Function taking index (0-based) and returning value
--- @return table New array
-function M.init(len, f)
+--Provides: caml_array_init
+function caml_array_init(len, f)
   local arr = { tag = 0, [0] = len }
   for i = 0, len - 1 do
     arr[i + 1] = f(i)
@@ -238,31 +193,24 @@ function M.init(len, f)
   return arr
 end
 
---- Apply function to each element
--- @param f function Function to apply
--- @param arr table Array
-function M.iter(f, arr)
+--Provides: caml_array_iter
+function caml_array_iter(f, arr)
   local len = arr[0]
   for i = 0, len - 1 do
     f(arr[i + 1])
   end
 end
 
---- Apply function to each element with index
--- @param f function Function taking index and value
--- @param arr table Array
-function M.iteri(f, arr)
+--Provides: caml_array_iteri
+function caml_array_iteri(f, arr)
   local len = arr[0]
   for i = 0, len - 1 do
     f(i, arr[i + 1])
   end
 end
 
---- Map function over array
--- @param f function Mapping function
--- @param arr table Source array
--- @return table New array with mapped values
-function M.map(f, arr)
+--Provides: caml_array_map
+function caml_array_map(f, arr)
   local len = arr[0]
   local result = { tag = 0, [0] = len }
   for i = 0, len - 1 do
@@ -271,11 +219,8 @@ function M.map(f, arr)
   return result
 end
 
---- Map function over array with index
--- @param f function Mapping function taking index and value
--- @param arr table Source array
--- @return table New array with mapped values
-function M.mapi(f, arr)
+--Provides: caml_array_mapi
+function caml_array_mapi(f, arr)
   local len = arr[0]
   local result = { tag = 0, [0] = len }
   for i = 0, len - 1 do
@@ -284,12 +229,8 @@ function M.mapi(f, arr)
   return result
 end
 
---- Fold left over array
--- @param f function Folding function (acc, elem) -> acc
--- @param init any Initial accumulator
--- @param arr table Array
--- @return any Final accumulator
-function M.fold_left(f, init, arr)
+--Provides: caml_array_fold_left
+function caml_array_fold_left(f, init, arr)
   local acc = init
   local len = arr[0]
   for i = 0, len - 1 do
@@ -298,12 +239,8 @@ function M.fold_left(f, init, arr)
   return acc
 end
 
---- Fold right over array
--- @param f function Folding function (elem, acc) -> acc
--- @param arr table Array
--- @param init any Initial accumulator
--- @return any Final accumulator
-function M.fold_right(f, arr, init)
+--Provides: caml_array_fold_right
+function caml_array_fold_right(f, arr, init)
   local acc = init
   local len = arr[0]
   for i = len - 1, 0, -1 do
@@ -312,36 +249,52 @@ function M.fold_right(f, arr, init)
   return acc
 end
 
--- Register primitives
-core.register("caml_make_vect", M.make)
-core.register("caml_array_of_list", M.of_list)
-core.register("caml_array_to_list", M.to_list)
-core.register("caml_array_length", M.length)
-core.register("caml_array_get", M.get)
-core.register("caml_array_set", M.set)
-core.register("caml_array_unsafe_get", M.unsafe_get)
-core.register("caml_array_unsafe_set", M.unsafe_set)
-core.register("caml_array_sub", M.sub)
-core.register("caml_array_append", M.append)
-core.register("caml_array_concat", M.concat)
-core.register("caml_array_blit", M.blit)
-core.register("caml_array_fill", M.fill)
+--Provides: caml_floatarray_get
+function caml_floatarray_get(arr, idx)
+  return caml_array_get(arr, idx)
+end
 
--- Float array aliases (same implementation in Lua)
-core.register("caml_floatarray_get", M.get)
-core.register("caml_floatarray_set", M.set)
-core.register("caml_floatarray_sub", M.sub)
-core.register("caml_floatarray_append", M.append)
-core.register("caml_floatarray_concat", M.concat)
-core.register("caml_floatarray_blit", M.blit)
+--Provides: caml_floatarray_set
+function caml_floatarray_set(arr, idx, val)
+  return caml_array_set(arr, idx, val)
+end
 
--- Uniform array aliases (OCaml 5.3+)
-core.register("caml_uniform_array_sub", M.sub)
-core.register("caml_uniform_array_append", M.append)
-core.register("caml_uniform_array_concat", M.concat)
-core.register("caml_uniform_array_blit", M.blit)
+--Provides: caml_floatarray_sub
+function caml_floatarray_sub(arr, start, len)
+  return caml_array_sub(arr, start, len)
+end
 
--- Register module
-core.register_module("array", M)
+--Provides: caml_floatarray_append
+function caml_floatarray_append(arr1, arr2)
+  return caml_array_append(arr1, arr2)
+end
 
-return M
+--Provides: caml_floatarray_concat
+function caml_floatarray_concat(list)
+  return caml_array_concat(list)
+end
+
+--Provides: caml_floatarray_blit
+function caml_floatarray_blit(src, src_pos, dst, dst_pos, len)
+  return caml_array_blit(src, src_pos, dst, dst_pos, len)
+end
+
+--Provides: caml_uniform_array_sub
+function caml_uniform_array_sub(arr, start, len)
+  return caml_array_sub(arr, start, len)
+end
+
+--Provides: caml_uniform_array_append
+function caml_uniform_array_append(arr1, arr2)
+  return caml_array_append(arr1, arr2)
+end
+
+--Provides: caml_uniform_array_concat
+function caml_uniform_array_concat(list)
+  return caml_array_concat(list)
+end
+
+--Provides: caml_uniform_array_blit
+function caml_uniform_array_blit(src, src_pos, dst, dst_pos, len)
+  return caml_array_blit(src, src_pos, dst, dst_pos, len)
+end

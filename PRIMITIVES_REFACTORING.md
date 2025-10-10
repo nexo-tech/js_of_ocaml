@@ -13,7 +13,7 @@
 - [x] Task 2.1: Refactor `core.lua` - base primitives (1 hour + tests)
 - [x] Task 2.2: Refactor `compare.lua` - comparison primitives (1 hour + tests)
 - [x] Task 2.3: Refactor `mlBytes.lua` - bytes primitives (1 hour + tests)
-- [ ] Task 2.4: Refactor `array.lua` - array primitives (1 hour + tests)
+- [x] Task 2.4: Refactor `array.lua` - array primitives (1 hour + tests)
 - [ ] Task 2.5: Refactor `ints.lua` - integer primitives (1 hour + tests)
 - [ ] Task 2.6: Refactor `float.lua` - float primitives (1 hour + tests)
 
