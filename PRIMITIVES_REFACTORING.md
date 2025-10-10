@@ -184,18 +184,26 @@
     - ✓ Supports binary data (null bytes, special characters, UTF-8)
     - ✓ 38 tests passed (100% coverage)
 
-- [ ] Task 6.1.3: Implement block marshaling in `marshal.lua` (45 min + tests)
+- [x] Task 6.1.3: Implement block marshaling in `marshal.lua` (45 min + tests) ✓
   - **PREREQUISITES**: Task 6.1.2
-  - **DELIVERABLES**: ~200 lines
+  - **DELIVERABLES**: 84 lines implemented in `marshal.lua`
     - `caml_marshal_write_block(buf, block, write_value_fn)` - encode block with fields
       - Small block (tag 0-15, size 0-7): single byte 0x80 + (tag | (size << 4))
       - BLOCK32 (else): 0x08 + header (4 bytes: (size << 10) | tag big-endian) + fields
-    - `caml_marshal_read_block(str, offset, read_value_fn)` - decode block, return {block, bytes_read}
-    - Recursive field marshaling using provided write_value_fn/read_value_fn
+      - Recursive field marshaling via write_value_fn
+    - `caml_marshal_read_block(str, offset, read_value_fn)` - decode block, return {value, bytes_read}
+      - Recursive field unmarshaling via read_value_fn
+      - Returns {value = block, bytes_read = N} consistent with other read functions
   - **BLOCK FORMAT**: Lua table {tag = N, size = M, [1] = field1, [2] = field2, ...}
-  - **TESTS**: Add block marshaling tests to test_marshal.lua
-  - **NO**: Local functions, local constants
-  - **YES**: Inline format codes (0x80-0xFF, 0x08) with comments
+  - **TESTS**: 438 lines, 27 tests in `test_marshal_block.lua` - all passing ✓
+    - Small block write/read (tag 0-15, size 0-7)
+    - BLOCK32 write/read (tag >= 16 or size >= 8)
+    - Roundtrip tests (all combinations)
+    - Nested blocks (blocks containing blocks)
+    - Format selection verification
+    - Error handling (invalid codes)
+  - **IMPLEMENTATION**: Lua 5.1 compatible arithmetic (no bitwise ops), recursive field handling
+  - **KEY FIX**: Changed return from {block=..., bytes_read=...} to {value=..., bytes_read=...} for consistency
 
 - [ ] Task 6.1.4: Implement double/float marshaling in `marshal.lua` (45 min + tests)
   - **PREREQUISITES**: Task 6.1.3

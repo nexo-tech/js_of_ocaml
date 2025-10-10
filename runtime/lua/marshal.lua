@@ -221,6 +221,91 @@ function caml_marshal_read_string(str, offset)
   error(string.format("caml_marshal_read_string: unknown code 0x%02X at offset %d", code, offset))
 end
 
+-- Block marshaling functions
+
+--Provides: caml_marshal_write_block
+--Requires: caml_marshal_buffer_write8u, caml_marshal_buffer_write32u
+function caml_marshal_write_block(buf, block, write_value_fn)
+  -- Encode block with fields
+  -- Small block (tag 0-15, size 0-7): single byte 0x80 + (tag | (size << 4))
+  -- BLOCK32 (else): 0x08 + header (4 bytes: (size << 10) | tag big-endian) + fields
+  -- Block format: {tag = N, size = M, [1] = field1, [2] = field2, ...}
+
+  local tag = block.tag or 0
+  local size = block.size or 0
+
+  -- Check for small block (tag 0-15, size 0-7)
+  if tag >= 0 and tag <= 15 and size >= 0 and size <= 7 then
+    -- Small block: 0x80 + (tag | (size << 4))
+    -- Lua 5.1 compatible: use arithmetic instead of bitwise operators
+    local byte = 0x80 + tag + (size * 16)  -- size << 4 = size * 16
+    caml_marshal_buffer_write8u(buf, byte)
+  else
+    -- BLOCK32: 0x08 + header (4 bytes: (size << 10) | tag)
+    caml_marshal_buffer_write8u(buf, 0x08)  -- CODE_BLOCK32
+    -- Header: (size << 10) | tag
+    -- Lua 5.1 compatible: size * 1024 + tag
+    local header = size * 1024 + tag  -- size << 10 = size * 1024
+    caml_marshal_buffer_write32u(buf, header)
+  end
+
+  -- Write fields recursively using provided write_value_fn
+  for i = 1, size do
+    write_value_fn(buf, block[i])
+  end
+end
+
+--Provides: caml_marshal_read_block
+--Requires: caml_marshal_read8u, caml_marshal_read32u
+function caml_marshal_read_block(str, offset, read_value_fn)
+  -- Decode block and return {value, bytes_read}
+  -- Block format: {tag = N, size = M, [1] = field1, [2] = field2, ...}
+
+  -- Read code byte
+  local code = caml_marshal_read8u(str, offset)
+  local bytes_consumed = 1
+  local tag, size
+
+  -- Small block (0x80-0xFF): extract tag and size from single byte
+  if code >= 0x80 and code <= 0xFF then
+    -- Small block: code = 0x80 + (tag | (size << 4))
+    local val = code - 0x80
+    -- Extract tag and size using Lua 5.1 compatible arithmetic
+    tag = val % 16  -- val & 0x0F
+    size = math.floor(val / 16)  -- (val >> 4)
+
+  -- CODE_BLOCK32 (0x08): read 4-byte header
+  elseif code == 0x08 then
+    local header = caml_marshal_read32u(str, offset + 1)
+    bytes_consumed = bytes_consumed + 4
+    -- Extract tag and size: header = (size << 10) | tag
+    tag = header % 1024  -- header & 0x3FF
+    size = math.floor(header / 1024)  -- header >> 10
+  else
+    error(string.format("caml_marshal_read_block: unknown code 0x%02X at offset %d", code, offset))
+  end
+
+  -- Create block with tag and size
+  local block = {
+    tag = tag,
+    size = size
+  }
+
+  -- Read fields recursively using provided read_value_fn
+  local field_offset = offset + bytes_consumed
+  for i = 1, size do
+    local result = read_value_fn(str, field_offset)
+    block[i] = result.value
+    field_offset = field_offset + result.bytes_read
+    bytes_consumed = bytes_consumed + result.bytes_read
+  end
+
+  return {
+    value = block,
+    bytes_read = bytes_consumed
+  }
+end
+
 -- Public API (stubs to be implemented in later tasks)
 
 --Provides: caml_marshal_to_string
