@@ -27,35 +27,36 @@
 -- The method table is sorted by tag for binary search lookup.
 -- Metatables are used for method dispatch via __index metamethod.
 
-local core = require("core")
-local M = {}
-
 -- Compatibility: unpack is global in Lua 5.1/LuaJIT, table.unpack in Lua 5.2+
 local unpack = table.unpack or unpack
 
 -- Global object ID counter
 local oo_last_id = 0
 
+--Provides: caml_fresh_oo_id
 --- Generate a fresh object ID
 -- @return number New unique object ID
-function M.fresh_oo_id()
+function caml_fresh_oo_id()
   oo_last_id = oo_last_id + 1
   return oo_last_id
 end
 
+--Provides: caml_set_oo_id
+--Requires: caml_fresh_oo_id
 --- Set object ID on a block
 -- @param block table Object block
 -- @return table The same block with ID set
-function M.set_oo_id(block)
-  block[2] = M.fresh_oo_id()
+function caml_set_oo_id(block)
+  block[2] = caml_fresh_oo_id()
   return block
 end
 
+--Provides: caml_get_public_method
 --- Get method from object using binary search on method table
 -- @param obj table Object with method table at [1]
 -- @param tag number Method tag to look up
 -- @return function Method function or nil if not found
-function M.get_public_method(obj, tag)
+function caml_get_public_method(obj, tag)
   local meths = obj[1]
   if not meths then
     return nil
@@ -110,7 +111,8 @@ end
 -- The list should already be sorted by tag
 -- @param methods table Array of {tag, method} pairs, sorted by tag
 -- @return table Method table in OCaml format
-function M.create_method_table(methods)
+-- Helper function for testing and object construction
+function create_method_table(methods)
   local num_methods = #methods
   local meths = {num_methods, 0}  -- [1] = count, [2] = unused
 
@@ -128,11 +130,12 @@ end
 -- @param methods table Method table (from create_method_table)
 -- @param instance_vars table Optional array of instance variables
 -- @return table Object block
-function M.create_object(methods, instance_vars)
+-- Helper function for testing and object construction
+function create_object(methods, instance_vars)
   local obj = {
     tag = 0,  -- Objects typically have tag 0
     [1] = methods,
-    [2] = M.fresh_oo_id()
+    [2] = caml_fresh_oo_id()
   }
 
   -- Add instance variables if provided
@@ -147,7 +150,7 @@ function M.create_object(methods, instance_vars)
     __index = function(tbl, key)
       -- If key is a number (method tag), look up method
       if type(key) == "number" then
-        return M.get_public_method(tbl, key)
+        return caml_get_public_method(tbl, key)
       end
       return nil
     end
@@ -162,8 +165,9 @@ end
 -- @param tag number Method tag
 -- @param args table Array of arguments
 -- @return any Result of method call
-function M.call_method(obj, tag, args)
-  local method = M.get_public_method(obj, tag)
+-- Helper function for testing
+function call_method(obj, tag, args)
+  local method = caml_get_public_method(obj, tag)
   if not method then
     error("Method not found: tag " .. tag)
   end
@@ -177,20 +181,22 @@ function M.call_method(obj, tag, args)
   return method(unpack(all_args))
 end
 
+--Provides: caml_obj_raw_field
 --- Get object field (instance variable)
 -- @param obj table Object
 -- @param i number Field index (0-based, excluding method table and ID)
 -- @return any Field value
-function M.obj_raw_field(obj, i)
+function caml_obj_raw_field(obj, i)
   -- Fields start at index 3 (after method table [1] and ID [2])
   return obj[i + 3]
 end
 
+--Provides: caml_obj_set_raw_field
 --- Set object field (instance variable)
 -- @param obj table Object
 -- @param i number Field index (0-based)
 -- @param v any New value
-function M.obj_set_raw_field(obj, i, v)
+function caml_obj_set_raw_field(obj, i, v)
   obj[i + 3] = v
 end
 
@@ -200,7 +206,8 @@ end
 -- @param method_map table Map of method_name -> function
 -- @param instance_vars table Optional instance variables
 -- @return table Object
-function M.simple_object(method_map, instance_vars)
+-- Helper function for testing
+function simple_object(method_map, instance_vars)
   -- Convert method map to sorted method table
   -- For simplicity, we'll use string hashing for method tags
   local methods = {}
@@ -216,18 +223,6 @@ function M.simple_object(method_map, instance_vars)
   -- Sort by tag
   table.sort(methods, function(a, b) return a[1] < b[1] end)
 
-  local method_table = M.create_method_table(methods)
-  return M.create_object(method_table, instance_vars)
+  local method_table = create_method_table(methods)
+  return create_object(method_table, instance_vars)
 end
-
--- Register primitives
-core.register("caml_get_public_method", M.get_public_method)
-core.register("caml_fresh_oo_id", M.fresh_oo_id)
-core.register("caml_set_oo_id", M.set_oo_id)
-core.register("caml_obj_raw_field", M.obj_raw_field)
-core.register("caml_obj_set_raw_field", M.obj_set_raw_field)
-
--- Register module
-core.register_module("obj", M)
-
-return M
