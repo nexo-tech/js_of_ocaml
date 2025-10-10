@@ -162,3 +162,121 @@ let%expect_test "parse fragment header - mixed formats" =
   [%expect {|
     provides: caml_new_func
     requires: caml_dep |}]
+
+(* Test embed_runtime_module - code embedded verbatim *)
+let%expect_test "embed_runtime_module - direct functions" =
+  let frag = {
+    Lua_link.name = "array";
+    provides = ["caml_array_make"; "caml_array_get"];
+    requires = ["caml_make_vect"];
+    code = "--Provides: caml_array_make\n\
+            --Requires: caml_make_vect\n\
+            function caml_array_make(n, v)\n\
+            \  return caml_make_vect(n, v)\n\
+            end\n\
+            \n\
+            --Provides: caml_array_get\n\
+            function caml_array_get(arr, idx)\n\
+            \  return arr[idx]\n\
+            end\n"
+  } in
+  let result = Lua_link.embed_runtime_module frag in
+  print_endline result;
+  [%expect {|
+    -- Runtime: array
+    --Provides: caml_array_make
+    --Requires: caml_make_vect
+    function caml_array_make(n, v)
+      return caml_make_vect(n, v)
+    end
+
+    --Provides: caml_array_get
+    function caml_array_get(arr, idx)
+      return arr[idx]
+    end
+    |}]
+
+(* Test embed_runtime_module - adds trailing newline if missing *)
+let%expect_test "embed_runtime_module - adds newline" =
+  let frag = {
+    Lua_link.name = "test";
+    provides = ["caml_test"];
+    requires = [];
+    code = "function caml_test() return 42 end"
+  } in
+  let result = Lua_link.embed_runtime_module frag in
+  let has_trailing_newline = String.ends_with ~suffix:"\n\n" result in
+  print_endline ("has double newline at end: " ^ string_of_bool has_trailing_newline);
+  [%expect {| has double newline at end: true |}]
+
+(* Test embed_runtime_module - header format *)
+let%expect_test "embed_runtime_module - header format" =
+  let frag = {
+    Lua_link.name = "mlBytes";
+    provides = ["caml_bytes_create"];
+    requires = [];
+    code = "function caml_bytes_create(n) return {} end\n"
+  } in
+  let result = Lua_link.embed_runtime_module frag in
+  let lines = String.split_on_char '\n' result in
+  let header = List.hd lines in
+  print_endline header;
+  [%expect {| -- Runtime: mlBytes |}]
+
+(* Test generate_wrappers - deprecated, returns empty *)
+let%expect_test "generate_wrappers - returns empty after refactoring" =
+  let open Js_of_ocaml_compiler.Stdlib in
+  let fragments = [
+    { Lua_link.name = "array"; provides = ["caml_array_make"]; requires = []; code = "" }
+  ] in
+  let used_primitives = StringSet.of_list ["caml_array_make"; "caml_array_get"] in
+  let result = Lua_link.generate_wrappers used_primitives fragments in
+  print_endline (if String.equal result "" then "empty" else "not empty");
+  [%expect {| empty |}]
+
+(* Test generate_wrappers - empty with no primitives *)
+let%expect_test "generate_wrappers - empty with no primitives" =
+  let open Js_of_ocaml_compiler.Stdlib in
+  let fragments = [] in
+  let used_primitives = StringSet.empty in
+  let result = Lua_link.generate_wrappers used_primitives fragments in
+  print_endline (if String.equal result "" then "empty" else "not empty");
+  [%expect {| empty |}]
+
+(* Test generate_wrapper_for_primitive - deprecated, returns empty *)
+let%expect_test "generate_wrapper_for_primitive - returns empty" =
+  let frag = {
+    Lua_link.name = "array";
+    provides = ["caml_array_make"];
+    requires = [];
+    code = ""
+  } in
+  let result = Lua_link.generate_wrapper_for_primitive "caml_array_make" frag "make" in
+  print_endline (if String.equal result "" then "empty" else "not empty");
+  [%expect {| empty |}]
+
+(* Test load_runtime_file - basic functionality *)
+let%expect_test "load_runtime_file - parses file correctly" =
+  let temp_file = Filename.temp_file "test_runtime" ".lua" in
+  let oc = open_out temp_file in
+  output_string oc "--Provides: caml_test_func\n";
+  output_string oc "--Requires: caml_dependency\n";
+  output_string oc "function caml_test_func(x)\n";
+  output_string oc "  return caml_dependency(x * 2)\n";
+  output_string oc "end\n";
+  close_out oc;
+
+  let frag = Lua_link.load_runtime_file temp_file in
+  (* Extract base name without random suffix *)
+  let name_starts_with_test = String.starts_with ~prefix:"test_runtime" frag.name in
+  print_endline ("name starts with test_runtime: " ^ string_of_bool name_starts_with_test);
+  print_endline ("provides: " ^ String.concat ", " frag.provides);
+  print_endline ("requires: " ^ String.concat ", " frag.requires);
+  let code_has_content = String.length frag.code > 90 in
+  print_endline ("code has expected content: " ^ string_of_bool code_has_content);
+  Sys.remove temp_file;
+  [%expect {|
+    name starts with test_runtime: true
+    provides: caml_test_func
+    requires: caml_dependency
+    code has expected content: true |}]
