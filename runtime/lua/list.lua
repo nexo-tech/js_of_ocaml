@@ -10,11 +10,13 @@
 --
 
 -- Create empty list
+--Provides: caml_list_empty
 function caml_list_empty()
   return 0
 end
 
 -- Cons operation: add element to front of list
+--Provides: caml_list_cons
 function caml_list_cons(hd, tl)
   return {tag = 0, hd, tl}
 end
@@ -24,6 +26,7 @@ end
 --
 
 -- Get head of list (raises Failure if empty)
+--Provides: caml_list_hd
 function caml_list_hd(list)
   if list == 0 then
     error("hd")
@@ -32,6 +35,7 @@ function caml_list_hd(list)
 end
 
 -- Get tail of list (raises Failure if empty)
+--Provides: caml_list_tl
 function caml_list_tl(list)
   if list == 0 then
     error("tl")
@@ -40,6 +44,7 @@ function caml_list_tl(list)
 end
 
 -- Check if list is empty
+--Provides: caml_list_is_empty
 function caml_list_is_empty(list)
   return list == 0
 end
@@ -48,6 +53,7 @@ end
 -- List length
 --
 
+--Provides: caml_list_length
 function caml_list_length(list)
   local len = 0
   while list ~= 0 do
@@ -62,6 +68,7 @@ end
 --
 
 -- Get nth element (0-indexed, raises Failure if out of bounds)
+--Provides: caml_list_nth
 function caml_list_nth(list, n)
   local current = list
   local index = 0
@@ -76,6 +83,7 @@ function caml_list_nth(list, n)
 end
 
 -- Get nth element with Option return (0-indexed)
+--Provides: caml_list_nth_opt
 function caml_list_nth_opt(list, n)
   local current = list
   local index = 0
@@ -93,6 +101,7 @@ end
 -- List reversal
 --
 
+--Provides: caml_list_rev
 function caml_list_rev(list)
   local result = 0
   while list ~= 0 do
@@ -103,6 +112,7 @@ function caml_list_rev(list)
 end
 
 -- Reverse and append
+--Provides: caml_list_rev_append
 function caml_list_rev_append(list1, list2)
   local result = list2
   while list1 ~= 0 do
@@ -116,6 +126,7 @@ end
 -- List concatenation
 --
 
+--Provides: caml_list_append
 function caml_list_append(list1, list2)
   if list1 == 0 then
     return list2
@@ -137,6 +148,8 @@ function caml_list_append(list1, list2)
 end
 
 -- Concatenate list of lists
+--Provides: caml_list_concat
+--Requires: caml_list_append
 function caml_list_concat(lists)
   local result = 0
   -- First, reverse the list of lists to process in order
@@ -154,6 +167,8 @@ function caml_list_concat(lists)
 end
 
 -- Flatten alias
+--Provides: caml_list_flatten
+--Requires: caml_list_concat
 function caml_list_flatten(lists)
   return caml_list_concat(lists)
 end
@@ -162,6 +177,7 @@ end
 -- List iteration
 --
 
+--Provides: caml_list_iter
 function caml_list_iter(f, list)
   while list ~= 0 do
     f(list[1])
@@ -169,6 +185,7 @@ function caml_list_iter(f, list)
   end
 end
 
+--Provides: caml_list_iteri
 function caml_list_iteri(f, list)
   local i = 0
   while list ~= 0 do
@@ -182,6 +199,8 @@ end
 -- List mapping
 --
 
+--Provides: caml_list_map
+--Requires: caml_list_rev
 function caml_list_map(f, list)
   if list == 0 then
     return 0
@@ -196,6 +215,8 @@ function caml_list_map(f, list)
   return caml_list_rev(rev)
 end
 
+--Provides: caml_list_mapi
+--Requires: caml_list_rev
 function caml_list_mapi(f, list)
   if list == 0 then
     return 0
@@ -212,6 +233,7 @@ function caml_list_mapi(f, list)
   return caml_list_rev(rev)
 end
 
+--Provides: caml_list_rev_map
 function caml_list_rev_map(f, list)
   local result = 0
   while list ~= 0 do
@@ -221,6 +243,8 @@ function caml_list_rev_map(f, list)
   return result
 end
 
+--Provides: caml_list_filter_map
+--Requires: caml_list_rev
 function caml_list_filter_map(f, list)
   local rev = 0
   while list ~= 0 do
@@ -233,6 +257,8 @@ function caml_list_filter_map(f, list)
   return caml_list_rev(rev)
 end
 
+--Provides: caml_list_concat_map
+--Requires: caml_list_append
 function caml_list_concat_map(f, list)
   local result = 0
   -- Build reversed result
@@ -253,6 +279,7 @@ end
 -- List folding
 --
 
+--Provides: caml_list_fold_left
 function caml_list_fold_left(f, acc, list)
   while list ~= 0 do
     acc = f(acc, list[1])
@@ -261,6 +288,8 @@ function caml_list_fold_left(f, acc, list)
   return acc
 end
 
+--Provides: caml_list_fold_right
+--Requires: caml_list_rev
 function caml_list_fold_right(f, list, acc)
   -- Reverse list first to fold from right
   local rev = caml_list_rev(list)
@@ -275,6 +304,7 @@ end
 -- List scanning
 --
 
+--Provides: caml_list_for_all
 function caml_list_for_all(pred, list)
   while list ~= 0 do
     if not pred(list[1]) then
@@ -285,6 +315,7 @@ function caml_list_for_all(pred, list)
   return true
 end
 
+--Provides: caml_list_exists
 function caml_list_exists(pred, list)
   while list ~= 0 do
     if pred(list[1]) then
@@ -295,6 +326,7 @@ function caml_list_exists(pred, list)
   return false
 end
 
+--Provides: caml_list_mem
 function caml_list_mem(x, list)
   while list ~= 0 do
     if list[1] == x then
@@ -305,6 +337,8 @@ function caml_list_mem(x, list)
   return false
 end
 
+--Provides: caml_list_memq
+--Requires: caml_list_mem
 function caml_list_memq(x, list)
   -- Physical equality (same as mem in Lua)
   return caml_list_mem(x, list)
@@ -314,6 +348,7 @@ end
 -- List searching
 --
 
+--Provides: caml_list_find
 function caml_list_find(pred, list)
   while list ~= 0 do
     if pred(list[1]) then
@@ -324,6 +359,7 @@ function caml_list_find(pred, list)
   error("Not_found")
 end
 
+--Provides: caml_list_find_opt
 function caml_list_find_opt(pred, list)
   while list ~= 0 do
     if pred(list[1]) then
@@ -334,6 +370,7 @@ function caml_list_find_opt(pred, list)
   return 0  -- None
 end
 
+--Provides: caml_list_find_map
 function caml_list_find_map(f, list)
   while list ~= 0 do
     local opt = f(list[1])
@@ -345,6 +382,8 @@ function caml_list_find_map(f, list)
   return 0  -- None
 end
 
+--Provides: caml_list_filter
+--Requires: caml_list_rev
 function caml_list_filter(pred, list)
   local rev = 0
   while list ~= 0 do
@@ -356,6 +395,8 @@ function caml_list_filter(pred, list)
   return caml_list_rev(rev)
 end
 
+--Provides: caml_list_partition
+--Requires: caml_list_rev
 function caml_list_partition(pred, list)
   local true_list = 0
   local false_list = 0
@@ -376,6 +417,7 @@ end
 -- List association
 --
 
+--Provides: caml_list_assoc
 function caml_list_assoc(key, list)
   while list ~= 0 do
     local pair = list[1]
@@ -387,6 +429,7 @@ function caml_list_assoc(key, list)
   error("Not_found")
 end
 
+--Provides: caml_list_assoc_opt
 function caml_list_assoc_opt(key, list)
   while list ~= 0 do
     local pair = list[1]
@@ -398,15 +441,20 @@ function caml_list_assoc_opt(key, list)
   return 0  -- None
 end
 
+--Provides: caml_list_assq
+--Requires: caml_list_assoc
 function caml_list_assq(key, list)
   -- Physical equality (same as assoc in Lua)
   return caml_list_assoc(key, list)
 end
 
+--Provides: caml_list_assq_opt
+--Requires: caml_list_assoc_opt
 function caml_list_assq_opt(key, list)
   return caml_list_assoc_opt(key, list)
 end
 
+--Provides: caml_list_mem_assoc
 function caml_list_mem_assoc(key, list)
   while list ~= 0 do
     local pair = list[1]
@@ -418,10 +466,14 @@ function caml_list_mem_assoc(key, list)
   return false
 end
 
+--Provides: caml_list_mem_assq
+--Requires: caml_list_mem_assoc
 function caml_list_mem_assq(key, list)
   return caml_list_mem_assoc(key, list)
 end
 
+--Provides: caml_list_remove_assoc
+--Requires: caml_list_rev
 function caml_list_remove_assoc(key, list)
   if list == 0 then
     return 0
@@ -446,6 +498,8 @@ function caml_list_remove_assoc(key, list)
   return caml_list_rev(rev)
 end
 
+--Provides: caml_list_remove_assq
+--Requires: caml_list_remove_assoc
 function caml_list_remove_assq(key, list)
   return caml_list_remove_assoc(key, list)
 end
@@ -454,6 +508,8 @@ end
 -- List combination
 --
 
+--Provides: caml_list_split
+--Requires: caml_list_rev
 function caml_list_split(list)
   local list1 = 0
   local list2 = 0
@@ -468,6 +524,8 @@ function caml_list_split(list)
   return {caml_list_rev(list1), caml_list_rev(list2)}
 end
 
+--Provides: caml_list_combine
+--Requires: caml_list_rev
 function caml_list_combine(list1, list2)
   local result = 0
   local rev = 0
@@ -488,6 +546,7 @@ end
 -- List sorting
 --
 
+--Provides: caml_list_sort
 function caml_list_sort(cmp, list)
   if list == 0 or list[2] == 0 then
     return list
@@ -509,15 +568,21 @@ function caml_list_sort(cmp, list)
   return result
 end
 
+--Provides: caml_list_stable_sort
+--Requires: caml_list_sort
 function caml_list_stable_sort(cmp, list)
   -- Lua's table.sort is stable
   return caml_list_sort(cmp, list)
 end
 
+--Provides: caml_list_fast_sort
+--Requires: caml_list_sort
 function caml_list_fast_sort(cmp, list)
   return caml_list_sort(cmp, list)
 end
 
+--Provides: caml_list_sort_uniq
+--Requires: caml_list_sort
 function caml_list_sort_uniq(cmp, list)
   if list == 0 then
     return 0
@@ -539,6 +604,8 @@ function caml_list_sort_uniq(cmp, list)
 end
 
 -- Merge two sorted lists
+--Provides: caml_list_merge
+--Requires: caml_list_rev
 function caml_list_merge(cmp, list1, list2)
   if list1 == 0 then
     return list2
@@ -565,53 +632,3 @@ function caml_list_merge(cmp, list1, list2)
   end
   return caml_list_rev(rev)
 end
-
--- Export all functions as a module
-return {
-  caml_list_empty = caml_list_empty,
-  caml_list_cons = caml_list_cons,
-  caml_list_hd = caml_list_hd,
-  caml_list_tl = caml_list_tl,
-  caml_list_is_empty = caml_list_is_empty,
-  caml_list_length = caml_list_length,
-  caml_list_nth = caml_list_nth,
-  caml_list_nth_opt = caml_list_nth_opt,
-  caml_list_rev = caml_list_rev,
-  caml_list_rev_append = caml_list_rev_append,
-  caml_list_append = caml_list_append,
-  caml_list_concat = caml_list_concat,
-  caml_list_flatten = caml_list_flatten,
-  caml_list_iter = caml_list_iter,
-  caml_list_iteri = caml_list_iteri,
-  caml_list_map = caml_list_map,
-  caml_list_mapi = caml_list_mapi,
-  caml_list_rev_map = caml_list_rev_map,
-  caml_list_filter_map = caml_list_filter_map,
-  caml_list_concat_map = caml_list_concat_map,
-  caml_list_fold_left = caml_list_fold_left,
-  caml_list_fold_right = caml_list_fold_right,
-  caml_list_for_all = caml_list_for_all,
-  caml_list_exists = caml_list_exists,
-  caml_list_mem = caml_list_mem,
-  caml_list_memq = caml_list_memq,
-  caml_list_find = caml_list_find,
-  caml_list_find_opt = caml_list_find_opt,
-  caml_list_find_map = caml_list_find_map,
-  caml_list_filter = caml_list_filter,
-  caml_list_partition = caml_list_partition,
-  caml_list_assoc = caml_list_assoc,
-  caml_list_assoc_opt = caml_list_assoc_opt,
-  caml_list_assq = caml_list_assq,
-  caml_list_assq_opt = caml_list_assq_opt,
-  caml_list_mem_assoc = caml_list_mem_assoc,
-  caml_list_mem_assq = caml_list_mem_assq,
-  caml_list_remove_assoc = caml_list_remove_assoc,
-  caml_list_remove_assq = caml_list_remove_assq,
-  caml_list_split = caml_list_split,
-  caml_list_combine = caml_list_combine,
-  caml_list_sort = caml_list_sort,
-  caml_list_stable_sort = caml_list_stable_sort,
-  caml_list_fast_sort = caml_list_fast_sort,
-  caml_list_sort_uniq = caml_list_sort_uniq,
-  caml_list_merge = caml_list_merge,
-}
