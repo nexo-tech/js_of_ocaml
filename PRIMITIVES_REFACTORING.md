@@ -128,16 +128,130 @@
 - [x] Task 5.4: Refactor `effect.lua` - effect handler primitives (1 hour + tests)
 - [x] Task 5.5: Refactor `fun.lua` - function primitives (30 min + tests)
 
-### Phase 6: Refactor Advanced Modules (Est: 3 hours)
-- [ ] Task 6.1: Refactor `marshal.lua` - marshaling primitives (1 hour + tests)
-  - **NOTE**: Previous implementation VIOLATED runtime guidelines (global tables, local functions)
-  - **STATUS**: Placeholder stubs created, needs complete rewrite
-- [ ] Task 6.2: Refactor `marshal_header.lua` - marshal headers (30 min + tests)
-  - **NOTE**: Previous implementation VIOLATED runtime guidelines
-  - **STATUS**: Placeholder stub created, needs complete rewrite
-- [ ] Task 6.3: Refactor `marshal_io.lua` - marshal I/O (45 min + tests)
-  - **NOTE**: Previous implementation VIOLATED runtime guidelines (Reader/Writer classes)
-  - **STATUS**: Placeholder stub created, needs complete rewrite
+### Phase 6: Refactor Advanced Modules (Est: 8 hours)
+
+**IMPORTANT**: Marshal implementation order must be: 6.3 → 6.2 → 6.1.x (due to dependencies)
+
+- [ ] Task 6.3: Implement `marshal_io.lua` - Binary I/O helper functions (1 hour + tests)
+  - **PREREQUISITES**: None (foundation module)
+  - **DELIVERABLES**: ~200-250 lines
+    - `caml_marshal_buffer_create()` - create string buffer state
+    - `caml_marshal_buffer_write8u(buf, byte)` - write unsigned 8-bit
+    - `caml_marshal_buffer_write16u(buf, value)` - write unsigned 16-bit big-endian
+    - `caml_marshal_buffer_write32u(buf, value)` - write unsigned 32-bit big-endian
+    - `caml_marshal_buffer_write_bytes(buf, str)` - write byte sequence
+    - `caml_marshal_buffer_to_string(buf)` - convert buffer to string
+    - `caml_marshal_read8u(str, offset)` - read unsigned 8-bit
+    - `caml_marshal_read16u(str, offset)` - read unsigned 16-bit big-endian
+    - `caml_marshal_read32u(str, offset)` - read unsigned 32-bit big-endian
+    - `caml_marshal_read_bytes(str, offset, len)` - read byte sequence
+    - `caml_marshal_write_double_little(buf, value)` - write 64-bit float little-endian (if string.pack available)
+    - `caml_marshal_read_double_little(str, offset)` - read 64-bit float little-endian (if string.pack available)
+  - **TESTS**: Create test_marshal_io.lua with ~30 tests
+  - **NO**: Classes, metatables, local functions, local constants
+  - **YES**: Pure functions, Lua 5.1 compatible, inline constants with comments
+
+- [ ] Task 6.2: Implement `marshal_header.lua` - Marshal header functions (45 min + tests)
+  - **PREREQUISITES**: Task 6.3 (uses marshal_io functions)
+  - **DELIVERABLES**: ~150-200 lines
+    - `caml_marshal_header_write(buf, data_len, num_objects, size_32, size_64)` - write 20-byte header
+    - `caml_marshal_header_read(str, offset)` - read and validate header, return {magic, data_len, num_objects, size_32, size_64}
+  - **HEADER FORMAT** (20 bytes total):
+    - Magic number (4 bytes): 0x8495A6BE (MAGIC_SMALL) or 0x8495A6BF (MAGIC_BIG)
+    - Data length (4 bytes): length of marshaled data excluding header
+    - Number of objects (4 bytes): for sharing support
+    - Size 32-bit (4 bytes): size when read on 32-bit platform
+    - Size 64-bit (4 bytes): size when read on 64-bit platform
+  - **TESTS**: Create test_marshal_header.lua with ~20 tests
+  - **NO**: Classes, local functions, local constants
+  - **YES**: Inline all constants (0x8495A6BE, etc.) with comments
+
+- [ ] Task 6.1.1: Implement integer marshaling in `marshal.lua` (30 min + tests)
+  - **PREREQUISITES**: Tasks 6.3, 6.2
+  - **DELIVERABLES**: ~150 lines
+    - `caml_marshal_write_int(buf, value)` - encode integer with optimal format
+      - Small int (0-63): single byte 0x40-0x7F
+      - INT8 (-128 to 127 excluding 0-63): 0x00 + signed byte
+      - INT16 (-32768 to 32767 excluding INT8): 0x01 + signed 16-bit big-endian
+      - INT32 (else): 0x02 + signed 32-bit big-endian
+    - `caml_marshal_read_int(str, offset)` - decode integer, return {value, bytes_read}
+  - **TESTS**: Add integer marshaling tests to test_marshal.lua
+  - **NO**: Local functions, local constants
+  - **YES**: Inline format codes (0x40, 0x00, 0x01, 0x02) with comments
+
+- [ ] Task 6.1.2: Implement string marshaling in `marshal.lua` (30 min + tests)
+  - **PREREQUISITES**: Task 6.1.1
+  - **DELIVERABLES**: ~150 lines
+    - `caml_marshal_write_string(buf, str)` - encode string with optimal format
+      - Small string (0-31 bytes): single byte 0x20-0x3F (0x20 + length) + bytes
+      - STRING8 (32-255 bytes): 0x09 + length byte + bytes
+      - STRING32 (256+ bytes): 0x0A + length (4 bytes big-endian) + bytes
+    - `caml_marshal_read_string(str, offset)` - decode string, return {value, bytes_read}
+  - **TESTS**: Add string marshaling tests to test_marshal.lua
+  - **NO**: Local functions, local constants
+  - **YES**: Inline format codes (0x20-0x3F, 0x09, 0x0A) with comments
+
+- [ ] Task 6.1.3: Implement block marshaling in `marshal.lua` (45 min + tests)
+  - **PREREQUISITES**: Task 6.1.2
+  - **DELIVERABLES**: ~200 lines
+    - `caml_marshal_write_block(buf, block, write_value_fn)` - encode block with fields
+      - Small block (tag 0-15, size 0-7): single byte 0x80 + (tag | (size << 4))
+      - BLOCK32 (else): 0x08 + header (4 bytes: (size << 10) | tag big-endian) + fields
+    - `caml_marshal_read_block(str, offset, read_value_fn)` - decode block, return {block, bytes_read}
+    - Recursive field marshaling using provided write_value_fn/read_value_fn
+  - **BLOCK FORMAT**: Lua table {tag = N, size = M, [1] = field1, [2] = field2, ...}
+  - **TESTS**: Add block marshaling tests to test_marshal.lua
+  - **NO**: Local functions, local constants
+  - **YES**: Inline format codes (0x80-0xFF, 0x08) with comments
+
+- [ ] Task 6.1.4: Implement double/float marshaling in `marshal.lua` (45 min + tests)
+  - **PREREQUISITES**: Task 6.1.3
+  - **DELIVERABLES**: ~200 lines
+    - `caml_marshal_write_double(buf, value)` - encode double
+      - CODE_DOUBLE_LITTLE (0x0C): 1 byte code + 8 bytes IEEE 754 little-endian
+      - Requires: string.pack (Lua 5.3+) - use if available, else error
+    - `caml_marshal_read_double(str, offset)` - decode double, return {value, bytes_read}
+    - `caml_marshal_write_float_array(buf, arr)` - encode float array (tag 254)
+      - DOUBLE_ARRAY8_LITTLE (0x0E): code + length byte + doubles (if length < 256)
+      - DOUBLE_ARRAY32_LITTLE (0x07): code + length (4 bytes) + doubles (if length >= 256)
+    - `caml_marshal_read_float_array(str, offset)` - decode float array, return {array, bytes_read}
+  - **TESTS**: Add double/float tests to test_marshal.lua (skip if string.pack unavailable)
+  - **NO**: Local functions, local constants
+  - **YES**: Inline format codes, check string.pack availability
+
+- [ ] Task 6.1.5: Implement core value marshaling in `marshal.lua` (1 hour + tests)
+  - **PREREQUISITES**: Task 6.1.4
+  - **DELIVERABLES**: ~250 lines
+    - `caml_marshal_write_value(buf, value)` - main marshaling function
+      - Dispatch based on Lua type: number → int/double, string → string, table → block/float_array
+      - Handle tag 254 specially (float array)
+      - Recursive marshaling for block fields
+    - `caml_marshal_read_value(str, offset)` - main unmarshaling function
+      - Read code byte and dispatch to appropriate reader
+      - Recursive unmarshaling for block fields
+      - Return {value, bytes_read}
+  - **TESTS**: Add comprehensive value marshaling tests to test_marshal.lua
+  - **NO**: Local functions, local constants, sharing (Task 6.1.6)
+  - **YES**: Complete roundtrip for all types
+
+- [ ] Task 6.1.6: Implement public API in `marshal.lua` (45 min + tests)
+  - **PREREQUISITES**: Task 6.1.5
+  - **DELIVERABLES**: ~200 lines
+    - `caml_marshal_to_string(value, flags)` - complete implementation
+      - Create buffer, write value, prepend header, return string
+      - Support flags (optional): array of flag numbers (not used initially, reserved)
+    - `caml_marshal_from_bytes(str, offset)` - complete implementation
+      - Read and validate header
+      - Unmarshal value from data section
+      - Return unmarshaled value
+      - offset parameter (optional, defaults to 0)
+    - `caml_marshal_data_size(str, offset)` - return data length from header
+    - `caml_marshal_total_size(str, offset)` - return header size (20) + data length
+    - Keep aliases: `caml_marshal_to_bytes`, `caml_marshal_from_string`
+  - **TESTS**: Add public API tests to test_marshal.lua (roundtrip, size functions)
+  - **NO**: Local functions, sharing/custom blocks (future work)
+  - **YES**: Complete working Marshal module
+
 - [ ] Task 6.4: Refactor `digest.lua` - digest primitives (45 min + tests)
 - [ ] Task 6.5: Refactor `bigarray.lua` - bigarray primitives (1 hour + tests)
 
