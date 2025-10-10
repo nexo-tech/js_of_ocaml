@@ -68,9 +68,6 @@ let%expect_test "lua value - nil representation" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -118,9 +115,6 @@ let%expect_test "lua value - boolean true" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -168,9 +162,6 @@ let%expect_test "lua value - boolean false" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -218,9 +209,6 @@ let%expect_test "lua value - number" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -268,9 +256,6 @@ let%expect_test "lua value - string" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -325,9 +310,6 @@ let%expect_test "lua value - table (OCaml record)" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -387,9 +369,6 @@ let%expect_test "lua value - array" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -440,9 +419,6 @@ let%expect_test "lua value - option None" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -494,9 +470,6 @@ let%expect_test "lua value - option Some" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -562,9 +535,6 @@ let%expect_test "lua value - list" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -627,9 +597,6 @@ let%expect_test "lua value - closure representation" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -691,9 +658,6 @@ let%expect_test "lua interop - function call with call1" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -749,9 +713,6 @@ let%expect_test "lua interop - table field access with get_int" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -807,9 +768,6 @@ let%expect_test "lua interop - global variable access" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -858,9 +816,6 @@ let%expect_test "lua interop - module require" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -918,9 +873,6 @@ let%expect_test "lua interop - method call" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -980,9 +932,6 @@ let%expect_test "lua interop - table set operations" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -1042,9 +991,6 @@ let%expect_test "lua export - export_fn1" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -1111,9 +1057,6 @@ let%expect_test "lua export - export_module" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -1181,9 +1124,6 @@ let%expect_test "lua export - make_module" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -1247,9 +1187,6 @@ let%expect_test "lua export - wrapped function with marshalling" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -1305,9 +1242,6 @@ let%expect_test "library wrapping - method0 binding" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -1367,9 +1301,6 @@ let%expect_test "library wrapping - method1 binding" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -1427,9 +1358,6 @@ let%expect_test "library wrapping - property access" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -1493,9 +1421,6 @@ let%expect_test "library wrapping - method chaining with pipe" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -1555,9 +1480,6 @@ let%expect_test "library wrapping - optional parameter with opt_param" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -1617,9 +1539,6 @@ let%expect_test "library wrapping - bind_function typed wrapper" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code

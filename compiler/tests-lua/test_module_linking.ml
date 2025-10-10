@@ -4126,6 +4126,8 @@ let%expect_test "embed_runtime_module adds newline if missing" =
     lines: 4
     |}]
 
+(* DEPRECATED: Wrappers removed in Task 1.4 - direct caml_* functions now *)
+(*
 let%expect_test "generate_wrapper_for_primitive creates correct wrapper" =
   let frag = {
     Lua_link.name = "array";
@@ -4141,7 +4143,10 @@ let%expect_test "generate_wrapper_for_primitive creates correct wrapper" =
       return Array.make(...)
     end
     |}]
+*)
 
+(* DEPRECATED: Wrappers removed in Task 1.4 - direct caml_* functions now *)
+(*
 let%expect_test "generate_wrapper_for_primitive with multi-part function name" =
   let frag = {
     Lua_link.name = "array";
@@ -4157,18 +4162,19 @@ let%expect_test "generate_wrapper_for_primitive with multi-part function name" =
       return Array.unsafe_get(...)
     end
     |}]
+*)
 
-let%expect_test "generate_wrappers with multiple primitives" =
+let%expect_test "generate_wrappers returns empty after refactoring" =
   let fragments = [
-    { Lua_link.name = "array"; provides = ["array"]; requires = [];
+    { Lua_link.name = "array"; provides = ["caml_array_make"; "caml_array_get"]; requires = [];
       code = "" };
-    { Lua_link.name = "mlBytes"; provides = ["mlBytes"]; requires = [];
+    { Lua_link.name = "mlBytes"; provides = ["caml_bytes_create"]; requires = [];
       code = "" }
   ] in
   let used_primitives = StringSet.of_list ["caml_array_make"; "caml_array_get"] in
   let wrappers = Lua_link.generate_wrappers used_primitives fragments in
-  print_endline wrappers;
-  [%expect {| -- Global Primitive Wrappers |}]
+  print_endline (if String.equal wrappers "" then "empty" else "not empty");
+  [%expect {| empty |}]
 
 (* DISABLED: Export directives removed in Task 1.2 *)
 (*
@@ -4189,34 +4195,25 @@ let%expect_test "generate_wrappers with export directive fallback" =
     |}]
 *)
 
-let%expect_test "generate_wrappers skips unresolved primitives" =
+let%expect_test "generate_wrappers always returns empty after refactoring" =
   let fragments = [
-    { Lua_link.name = "array"; provides = ["array"]; requires = [];
+    { Lua_link.name = "array"; provides = ["caml_array_make"]; requires = [];
       code = "" }
   ] in
   let used_primitives = StringSet.of_list ["caml_array_make"; "caml_unknown_primitive"] in
   let wrappers = Lua_link.generate_wrappers used_primitives fragments in
-  (* Should only generate wrapper for caml_array_make *)
-  let lines = String.split_on_char ~sep:'\n' wrappers in
-  let function_count = List.length (List.filter ~f:(fun l -> String.starts_with ~prefix:"function " l) lines) in
-  print_endline ("functions generated: " ^ string_of_int function_count);
-  print_endline wrappers;
-  [%expect {|
-    functions generated: 0
-    -- Global Primitive Wrappers
-    |}]
+  print_endline (if String.equal wrappers "" then "empty" else "not empty");
+  [%expect {| empty |}]
 
-let%expect_test "generate_wrappers with empty set" =
+let%expect_test "generate_wrappers with empty set also returns empty" =
   let fragments = [
-    { Lua_link.name = "array"; provides = ["array"]; requires = [];
+    { Lua_link.name = "array"; provides = ["caml_array_make"]; requires = [];
       code = "" }
   ] in
   let used_primitives = StringSet.empty in
   let wrappers = Lua_link.generate_wrappers used_primitives fragments in
-  print_endline wrappers;
-  [%expect {|
-    -- Global Primitive Wrappers
-    |}]
+  print_endline (if String.equal wrappers "" then "empty" else "not empty");
+  [%expect {| empty |}]
 
 (* ========================================================================= *)
 (* Task 3.1: Compare Primitives Tests                                       *)
@@ -4435,29 +4432,29 @@ let%expect_test "weak module - naming convention for create/set/get" =
     caml_weak_get: NOT FOUND
     |}]
 
-let%expect_test "ref/sys/weak - wrapper generation" =
+let%expect_test "ref/sys/weak - wrapper generation returns empty" =
   let core_fragment = {
     Lua_link.name = "core";
-    provides = [];
+    provides = ["caml_ref_set"];
     requires = [];
 
-    code = "local M = {}\nfunction M.ref_set(ref, val) end\nreturn M"
+    code = "function caml_ref_set(ref, val) end"
   } in
 
   let sys_fragment = {
     Lua_link.name = "sys";
-    provides = [];
+    provides = ["caml_sys_open"; "caml_sys_close"];
     requires = [];
 
-    code = "local M = {}\nfunction M.sys_open(p, f) end\nfunction M.sys_close(fd) end\nreturn M"
+    code = "function caml_sys_open(p, f) end\nfunction caml_sys_close(fd) end"
   } in
 
   let weak_fragment = {
     Lua_link.name = "weak";
-    provides = [];
+    provides = ["caml_weak_create"; "caml_weak_set"];
     requires = [];
 
-    code = "local M = {}\nfunction M.create(n) end\nfunction M.set(a, i, v) end\nreturn M"
+    code = "function caml_weak_create(n) end\nfunction caml_weak_set(a, i, v) end"
   } in
 
   let used_primitives = StringSet.of_list [
@@ -4468,5 +4465,5 @@ let%expect_test "ref/sys/weak - wrapper generation" =
   ] in
 
   let wrappers = Lua_link.generate_wrappers used_primitives [core_fragment; sys_fragment; weak_fragment] in
-  print_endline wrappers;
-  [%expect {| -- Global Primitive Wrappers |}]
+  print_endline (if String.equal wrappers "" then "empty" else "not empty");
+  [%expect {| empty |}]

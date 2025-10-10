@@ -77,19 +77,17 @@ val embed_runtime_module : fragment -> string
     comment. The code is embedded verbatim without any module wrapping or variable creation.
     Functions are already global with caml_* prefix, no transformation needed. *)
 
-(** Generate wrapper function for a specific primitive *)
+(** DEPRECATED: Generate wrapper function for a specific primitive *)
 val generate_wrapper_for_primitive : string -> fragment -> string -> string
-(** [generate_wrapper_for_primitive prim_name frag func_name] generates a global wrapper
-    function that calls a module function. For example:
-    generate_wrapper_for_primitive "caml_array_make" array_frag "make"
-    produces: "function caml_array_make(...) return Array.make(...) end" *)
+(** [generate_wrapper_for_primitive prim_name frag func_name] is deprecated and returns
+    empty string. After refactoring, runtime fragments contain direct caml_* functions,
+    so no wrappers are needed. Kept for API compatibility. *)
 
-(** Generate all wrappers for used primitives *)
+(** No wrappers needed - primitives are already global *)
 val generate_wrappers : StringSet.t -> fragment list -> string
-(** [generate_wrappers used_primitives fragments] generates wrapper functions for all
-    primitives in the used_primitives set. Uses find_primitive_implementation to resolve
-    each primitive to its module and function, then generates a global wrapper. Silently
-    skips primitives that cannot be resolved (e.g., inlined functions). *)
+(** [generate_wrappers used_primitives fragments] returns empty string. After refactoring,
+    all runtime functions are direct caml_* global functions with no module wrapping.
+    The linker simply includes the right fragment files. Kept for API compatibility. *)
 
 (** Parse complete fragment header from code string *)
 val parse_fragment_header : name:string -> string -> fragment

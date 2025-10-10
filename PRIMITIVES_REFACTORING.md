@@ -6,7 +6,7 @@
 - [x] Task 1.1: Update linker to parse `--Provides:` comments (1 hour)
 - [x] Task 1.2: Remove `--// Export:` and `core.register()` parsing (30 min)
 - [x] Task 1.3: Update `embed_runtime_module` to handle direct functions (1 hour)
-- [ ] Task 1.4: Update wrapper generation for new structure (1 hour)
+- [x] Task 1.4: Update wrapper generation for new structure (1 hour)
 - [ ] Task 1.5: Write tests for new linker infrastructure (30 min)
 
 ### Phase 2: Refactor Core Modules (Est: 6 hours)

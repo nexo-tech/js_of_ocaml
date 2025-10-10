@@ -47,7 +47,7 @@ let rec stat_types = function
 let%expect_test "generate produces statements" =
   let result = Lua_generate.generate ~debug:false dummy_program in
   Printf.printf "Generated %d statements\n" (List.length result);
-  [%expect {| Generated 16 statements |}]
+  [%expect {| Generated 15 statements |}]
 
 let%expect_test "generate produces main function" =
   let result = Lua_generate.generate ~debug:false dummy_program in
@@ -67,7 +67,6 @@ let%expect_test "generate produces main function" =
     Statement type: comment
     Statement type: comment
     Statement type: comment
-    Statement type: comment
     Statement type: function_decl
     Statement type: call_stat
     |}]
@@ -78,7 +77,7 @@ let%expect_test "generate with debug produces same structure" =
   let types = stat_types result in
   List.iter ~f:(Printf.printf "Statement type: %s\n") types;
   [%expect {|
-    Generated 16 statements (debug mode)
+    Generated 15 statements (debug mode)
     Statement type: comment
     Statement type: comment
     Statement type: local
@@ -88,7 +87,6 @@ let%expect_test "generate with debug produces same structure" =
     Statement type: comment
     Statement type: comment
     Statement type: function_decl
-    Statement type: comment
     Statement type: comment
     Statement type: comment
     Statement type: comment
@@ -145,9 +143,6 @@ let%expect_test "generate_to_string full output" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -180,9 +175,6 @@ let%expect_test "generate_to_string with debug" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -213,7 +205,7 @@ let%expect_test "basic code generation produces valid output" =
   | _ ->
       Printf.printf "Unexpected structure\n");
   [%expect {|
-    Statement count: 16
+    Statement count: 15
     Unexpected structure
     |}]
 
@@ -253,8 +245,8 @@ let%expect_test "empty program generation" =
   in
   Printf.printf "Contains main function: %b\n" contains_main;
   [%expect {|
-    Empty program generates 16 statements
-    Generated Lua length: 662
+    Empty program generates 15 statements
+    Generated Lua length: 628
     Contains main function: false
     |}]
 

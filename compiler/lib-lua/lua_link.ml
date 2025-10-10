@@ -559,38 +559,24 @@ let embed_runtime_module (frag : fragment) : string =
   Buffer.add_char buf '\n';
   Buffer.contents buf
 
-(* Generate global wrapper function for a specific primitive *)
+(* DEPRECATED: No wrappers needed after refactoring to direct caml_* functions *)
 let generate_wrapper_for_primitive
-    (prim_name : string)
-    (frag : fragment)
-    (func_name : string)
+    (_prim_name : string)
+    (_frag : fragment)
+    (_func_name : string)
     : string
   =
-  let buf = Buffer.create 128 in
-  let module_var = String.capitalize_ascii frag.name in
-  Printf.bprintf buf "function %s(...)\n" prim_name;
-  Printf.bprintf buf "  return %s.%s(...)\n" module_var func_name;
-  Buffer.add_string buf "end\n";
-  Buffer.contents buf
+  (* After refactoring, runtime fragments contain direct caml_* functions.
+     No module wrapping means no wrappers needed. Kept for compatibility. *)
+  ""
 
-(* Generate all wrappers for primitives used in program *)
-let generate_wrappers (used_primitives : StringSet.t) (fragments : fragment list)
+(* No wrappers needed - primitives are already global functions with caml_* prefix *)
+let generate_wrappers (_used_primitives : StringSet.t) (_fragments : fragment list)
     : string
   =
-  let buf = Buffer.create 512 in
-  Buffer.add_string buf "-- Global Primitive Wrappers\n";
-  StringSet.iter
-    (fun prim_name ->
-      match find_primitive_implementation prim_name fragments with
-      | Some (frag, func_name) ->
-          let wrapper = generate_wrapper_for_primitive prim_name frag func_name in
-          Buffer.add_string buf wrapper
-      | None ->
-          (* Primitive not found - might be inlined (like caml_register_global) *)
-          ())
-    used_primitives;
-  Buffer.add_char buf '\n';
-  Buffer.contents buf
+  (* After refactoring, all runtime functions are direct caml_* global functions.
+     No module wrapping, so no wrappers needed. Linker just includes the right fragments. *)
+  ""
 
 (* Select fragments based on linkall flag and required symbols *)
 let select_fragments state ~linkall required =

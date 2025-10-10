@@ -63,9 +63,6 @@ let%expect_test "generate standalone - empty program" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -118,9 +115,6 @@ let%expect_test "generate standalone - simple computation" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -179,9 +173,6 @@ let%expect_test "generate standalone - with function" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
@@ -354,9 +345,6 @@ let%expect_test "generate standalone - conditional program" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code

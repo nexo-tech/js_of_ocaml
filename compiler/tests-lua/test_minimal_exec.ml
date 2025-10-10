@@ -135,13 +135,13 @@ let%expect_test "minimal program with single print generates execution code" =
     --
     -- === End Runtime ===
     --
-    -- -- Global Primitive Wrappers
-
-
     --
     function __caml_init__()
       -- Module initialization code
       -- Hoisted variables (187 total, using table due to Lua's 200 local limit)
       local _V = {}
       ::block_0::
+      _V.Out_of_memory = {tag = 248, "Out_of_memory", -1}
+      _V.Sys_error = {tag = 248, "Sys_error", -2}
+      _V.Failure = {tag = 248, "Failure", -3}
     |}]

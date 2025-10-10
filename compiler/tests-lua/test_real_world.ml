@@ -83,7 +83,7 @@ let%expect_test "realistic_large_program_uses_table" =
     Uses table storage: true
     Has _V table: true
     Uses _V.vN access: true
-    Generated lines: 334
+    Generated lines: 331
     Table storage bypasses 200 limit: true
     |}]
 
