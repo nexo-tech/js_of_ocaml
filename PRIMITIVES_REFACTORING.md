@@ -379,7 +379,29 @@
     - Hex conversion: all zeros, all 0xFF, mixed bytes
   - **IMPLEMENTATION**: Pure Lua 5.1, no external dependencies, manual bitwise arithmetic
   - **COMPATIBILITY**: Verified against Node.js crypto.createHash('md5') for all test vectors
-- [ ] Task 6.5: Refactor `bigarray.lua` - bigarray primitives (1 hour + tests)
+- [x] Task 6.5: Refactor `bigarray.lua` - bigarray primitives (1 hour + tests) ✓
+  - **DELIVERABLES**: 528 lines in `bigarray.lua`, 467 lines tests in `test_bigarray.lua`
+    - Removed module structure (local M = {}, return {...}), all functions now global with --Provides/--Requires
+    - Inlined constants: BA_CUSTOM_NAME="_bigarr02", KIND enums (0-13), LAYOUT enums (0-1)
+    - Converted helper functions to global: caml_ba_get_size_per_element, caml_ba_clamp_value, caml_ba_create_buffer, caml_ba_calculate_offset
+    - All bigarray operations: create/create_unsafe, properties (kind/layout/num_dims/dim/dim_1/2/3)
+    - Layout operations: caml_ba_change_layout (reverses dimensions)
+    - Array access: generic (get/set), 1D/2D/3D (safe and unsafe variants)
+    - Bounds checking for safe access, clamping for integer types
+    - Sub-arrays, filling, blitting, reshaping
+    - INT64/COMPLEX32/COMPLEX64 stored as 2-element arrays
+  - **TESTS**: 467 lines, 31 tests in `test_bigarray.lua` - all passing ✓
+    - Initialization and size calculation tests
+    - Creation tests (unsafe and safe variants)
+    - Property accessor tests (kind, layout, dims)
+    - Layout change tests (C ↔ Fortran)
+    - 1D/2D/3D array access tests
+    - Bounds checking tests
+    - Type clamping tests (INT8_SIGNED/UNSIGNED, INT16_SIGNED/UNSIGNED)
+    - Fill, blit, sub-array, reshape tests
+    - Error handling tests (dimension/kind mismatches)
+  - **IMPLEMENTATION**: Pure Lua 5.1, no bitwise operators, manual array indexing
+  - **COMPATIBILITY**: Supports all OCaml Bigarray element types and layouts
 
 ### Phase 7: Verification & Integration (Est: 3 hours)
 - [ ] Task 7.1: Run all unit tests and fix failures (1 hour)
