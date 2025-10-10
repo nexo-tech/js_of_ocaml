@@ -18,15 +18,14 @@
 -- FIFO Queue implementation
 -- Efficient first-in-first-out queue operations
 
-local M = {}
-
 -- Queue object
 local Queue = {}
 Queue.__index = Queue
 
 -- Create a new empty queue
 -- Returns: queue object
-function M.caml_queue_create()
+--Provides: caml_queue_create
+function caml_queue_create()
   local queue = {
     -- Array of elements
     elements = {},
@@ -45,7 +44,8 @@ end
 -- Add an element to the end of the queue (enqueue)
 -- queue: queue object
 -- value: element to add
-function M.caml_queue_add(queue, value)
+--Provides: caml_queue_add
+function caml_queue_add(queue, value)
   queue.elements[queue.tail] = value
   queue.tail = queue.tail + 1
   queue.length = queue.length + 1
@@ -55,7 +55,8 @@ end
 -- queue: queue object
 -- Returns: first element
 -- Raises: error if queue is empty
-function M.caml_queue_take(queue)
+--Provides: caml_queue_take
+function caml_queue_take(queue)
   if queue.length == 0 then
     error("Queue.Empty")
   end
@@ -78,7 +79,8 @@ end
 -- queue: queue object
 -- Returns: first element
 -- Raises: error if queue is empty
-function M.caml_queue_peek(queue)
+--Provides: caml_queue_peek
+function caml_queue_peek(queue)
   if queue.length == 0 then
     error("Queue.Empty")
   end
@@ -89,20 +91,23 @@ end
 -- Check if queue is empty
 -- queue: queue object
 -- Returns: true if empty, false otherwise
-function M.caml_queue_is_empty(queue)
+--Provides: caml_queue_is_empty
+function caml_queue_is_empty(queue)
   return queue.length == 0
 end
 
 -- Get the number of elements in the queue
 -- queue: queue object
 -- Returns: number of elements
-function M.caml_queue_length(queue)
+--Provides: caml_queue_length
+function caml_queue_length(queue)
   return queue.length
 end
 
 -- Remove all elements from the queue
 -- queue: queue object
-function M.caml_queue_clear(queue)
+--Provides: caml_queue_clear
+function caml_queue_clear(queue)
   queue.elements = {}
   queue.head = 1
   queue.tail = 1
@@ -112,7 +117,8 @@ end
 -- Iterator for queue elements (from front to back)
 -- queue: queue object
 -- Returns: iterator function
-function M.caml_queue_iter(queue)
+--Provides: caml_queue_iter
+function caml_queue_iter(queue)
   local index = queue.head
   return function()
     if index < queue.tail then
@@ -127,12 +133,11 @@ end
 -- Convert queue to array (for debugging/testing)
 -- queue: queue object
 -- Returns: array of elements in order
-function M.caml_queue_to_array(queue)
+--Provides: caml_queue_to_array
+function caml_queue_to_array(queue)
   local result = {}
   for i = queue.head, queue.tail - 1 do
     table.insert(result, queue.elements[i])
   end
   return result
 end
-
-return M
