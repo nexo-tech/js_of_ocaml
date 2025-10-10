@@ -306,6 +306,157 @@ function caml_marshal_read_block(str, offset, read_value_fn)
   }
 end
 
+-- Double/float marshaling functions
+
+--Provides: caml_marshal_write_double
+--Requires: caml_marshal_buffer_write8u, caml_marshal_buffer_write_bytes
+function caml_marshal_write_double(buf, value)
+  -- Encode double with IEEE 754 little-endian format
+  -- CODE_DOUBLE_LITTLE (0x0C): 1 byte code + 8 bytes IEEE 754 little-endian
+  -- Requires: string.pack (Lua 5.3+)
+
+  if not string.pack then
+    error("caml_marshal_write_double: string.pack not available (requires Lua 5.3+)")
+  end
+
+  -- CODE_DOUBLE_LITTLE (0x0C)
+  caml_marshal_buffer_write8u(buf, 0x0C)
+
+  -- Pack double as IEEE 754 little-endian (8 bytes)
+  local packed = string.pack("<d", value)
+  caml_marshal_buffer_write_bytes(buf, packed)
+end
+
+--Provides: caml_marshal_read_double
+--Requires: caml_marshal_read8u, caml_marshal_read_bytes
+function caml_marshal_read_double(str, offset)
+  -- Decode double and return {value, bytes_read}
+  -- CODE_DOUBLE_LITTLE (0x0C): 1 byte code + 8 bytes IEEE 754 little-endian
+  -- Requires: string.unpack (Lua 5.3+)
+
+  if not string.unpack then
+    error("caml_marshal_read_double: string.unpack not available (requires Lua 5.3+)")
+  end
+
+  -- Read code byte
+  local code = caml_marshal_read8u(str, offset)
+
+  -- CODE_DOUBLE_LITTLE (0x0C)
+  if code == 0x0C then
+    -- Validate sufficient data (8 bytes for double)
+    if #str < offset + 1 + 8 then
+      error("caml_marshal_read_double: insufficient data for double (need 8 bytes)")
+    end
+
+    -- Read 8 bytes and unpack as little-endian double
+    local packed = caml_marshal_read_bytes(str, offset + 1, 8)
+    local value = string.unpack("<d", packed)
+
+    return {
+      value = value,
+      bytes_read = 9  -- 1 code + 8 data
+    }
+  end
+
+  error(string.format("caml_marshal_read_double: unknown code 0x%02X at offset %d", code, offset))
+end
+
+--Provides: caml_marshal_write_float_array
+--Requires: caml_marshal_buffer_write8u, caml_marshal_buffer_write32u, caml_marshal_buffer_write_bytes
+function caml_marshal_write_float_array(buf, arr)
+  -- Encode float array (OCaml block with tag 254)
+  -- Float array format in OCaml Marshal:
+  -- DOUBLE_ARRAY8_LITTLE (0x0E): code + length byte + doubles (if length < 256)
+  -- DOUBLE_ARRAY32_LITTLE (0x07): code + length (4 bytes) + doubles (if length >= 256)
+  -- Array should be Lua table: {[1] = v1, [2] = v2, ...} with length in arr.size or #arr
+  -- Requires: string.pack (Lua 5.3+)
+
+  if not string.pack then
+    error("caml_marshal_write_float_array: string.pack not available (requires Lua 5.3+)")
+  end
+
+  -- Get array length
+  local len = arr.size or #arr
+
+  -- Check for DOUBLE_ARRAY8_LITTLE range (length < 256)
+  if len < 256 then
+    -- DOUBLE_ARRAY8_LITTLE (0x0E) + length byte + doubles
+    caml_marshal_buffer_write8u(buf, 0x0E)
+    caml_marshal_buffer_write8u(buf, len)
+  else
+    -- DOUBLE_ARRAY32_LITTLE (0x07) + length (4 bytes) + doubles
+    caml_marshal_buffer_write8u(buf, 0x07)
+    caml_marshal_buffer_write32u(buf, len)
+  end
+
+  -- Write each double in little-endian format
+  for i = 1, len do
+    local value = arr[i]
+    if type(value) ~= "number" then
+      error(string.format("caml_marshal_write_float_array: array element %d is not a number", i))
+    end
+    local packed = string.pack("<d", value)
+    caml_marshal_buffer_write_bytes(buf, packed)
+  end
+end
+
+--Provides: caml_marshal_read_float_array
+--Requires: caml_marshal_read8u, caml_marshal_read32u, caml_marshal_read_bytes
+function caml_marshal_read_float_array(str, offset)
+  -- Decode float array and return {value, bytes_read}
+  -- Float array value is Lua table: {size = N, [1] = v1, [2] = v2, ...}
+  -- Requires: string.unpack (Lua 5.3+)
+
+  if not string.unpack then
+    error("caml_marshal_read_float_array: string.unpack not available (requires Lua 5.3+)")
+  end
+
+  -- Read code byte
+  local code = caml_marshal_read8u(str, offset)
+  local bytes_consumed = 1
+  local len
+
+  -- DOUBLE_ARRAY8_LITTLE (0x0E): read length byte
+  if code == 0x0E then
+    len = caml_marshal_read8u(str, offset + 1)
+    bytes_consumed = bytes_consumed + 1
+
+  -- DOUBLE_ARRAY32_LITTLE (0x07): read 4-byte length
+  elseif code == 0x07 then
+    len = caml_marshal_read32u(str, offset + 1)
+    bytes_consumed = bytes_consumed + 4
+
+  else
+    error(string.format("caml_marshal_read_float_array: unknown code 0x%02X at offset %d", code, offset))
+  end
+
+  -- Validate sufficient data (8 bytes per double)
+  local data_size = len * 8
+  if #str < offset + bytes_consumed + data_size then
+    error(string.format("caml_marshal_read_float_array: insufficient data (need %d bytes for %d doubles)", data_size, len))
+  end
+
+  -- Create array table with size
+  local arr = {
+    size = len
+  }
+
+  -- Read each double
+  local data_offset = offset + bytes_consumed
+  for i = 1, len do
+    local packed = caml_marshal_read_bytes(str, data_offset, 8)
+    local value = string.unpack("<d", packed)
+    arr[i] = value
+    data_offset = data_offset + 8
+    bytes_consumed = bytes_consumed + 8
+  end
+
+  return {
+    value = arr,
+    bytes_read = bytes_consumed
+  }
+end
+
 -- Public API (stubs to be implemented in later tasks)
 
 --Provides: caml_marshal_to_string

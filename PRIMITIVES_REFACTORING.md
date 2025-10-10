@@ -205,20 +205,36 @@
   - **IMPLEMENTATION**: Lua 5.1 compatible arithmetic (no bitwise ops), recursive field handling
   - **KEY FIX**: Changed return from {block=..., bytes_read=...} to {value=..., bytes_read=...} for consistency
 
-- [ ] Task 6.1.4: Implement double/float marshaling in `marshal.lua` (45 min + tests)
+- [x] Task 6.1.4: Implement double/float marshaling in `marshal.lua` (45 min + tests) ✓
   - **PREREQUISITES**: Task 6.1.3
-  - **DELIVERABLES**: ~200 lines
-    - `caml_marshal_write_double(buf, value)` - encode double
-      - CODE_DOUBLE_LITTLE (0x0C): 1 byte code + 8 bytes IEEE 754 little-endian
-      - Requires: string.pack (Lua 5.3+) - use if available, else error
+  - **DELIVERABLES**: 150 lines implemented in `marshal.lua`
+    - `caml_marshal_write_double(buf, value)` - encode double with IEEE 754 little-endian
+      - CODE_DOUBLE_LITTLE (0x0C): 1 byte code + 8 bytes
+      - Uses string.pack("<d", value) for IEEE 754 encoding
+      - Errors if string.pack unavailable (Lua < 5.3)
     - `caml_marshal_read_double(str, offset)` - decode double, return {value, bytes_read}
-    - `caml_marshal_write_float_array(buf, arr)` - encode float array (tag 254)
-      - DOUBLE_ARRAY8_LITTLE (0x0E): code + length byte + doubles (if length < 256)
-      - DOUBLE_ARRAY32_LITTLE (0x07): code + length (4 bytes) + doubles (if length >= 256)
-    - `caml_marshal_read_float_array(str, offset)` - decode float array, return {array, bytes_read}
-  - **TESTS**: Add double/float tests to test_marshal.lua (skip if string.pack unavailable)
-  - **NO**: Local functions, local constants
-  - **YES**: Inline format codes, check string.pack availability
+      - Uses string.unpack("<d", packed) for IEEE 754 decoding
+      - Returns 9 bytes read (1 code + 8 data)
+      - Validates sufficient data before reading
+    - `caml_marshal_write_float_array(buf, arr)` - encode float array (OCaml tag 254)
+      - DOUBLE_ARRAY8_LITTLE (0x0E): length < 256 → code + 1 byte length + doubles
+      - DOUBLE_ARRAY32_LITTLE (0x07): length >= 256 → code + 4 byte length + doubles
+      - Accepts arr.size or #arr for length
+      - Validates all elements are numbers
+    - `caml_marshal_read_float_array(str, offset)` - decode float array
+      - Returns {value = {size = N, [1] = v1, ...}, bytes_read = M}
+      - Supports both DOUBLE_ARRAY8 and DOUBLE_ARRAY32 formats
+      - Validates sufficient data for all doubles
+  - **TESTS**: 493 lines, 40 tests in `test_marshal_double.lua` - all passing ✓
+    - Double write/read (0.0, ±1.0, π, large/small, ±∞)
+    - Double roundtrip (15 values including special values)
+    - Float array write/read (empty, 1, 5, 255, 256, 300 elements)
+    - Float array roundtrip (boundary values 0-255, 256-300)
+    - Format selection (DOUBLE_ARRAY8 < 256, DOUBLE_ARRAY32 >= 256)
+    - Error handling (invalid codes, insufficient data, non-number elements)
+    - Tests automatically skip if string.pack/unpack unavailable (Lua < 5.3)
+  - **IMPLEMENTATION**: Uses Lua 5.3+ string.pack/unpack for IEEE 754 encoding, graceful error if unavailable
+  - **FLOAT ARRAYS**: Stored as {size=N, [1]=v1, [2]=v2, ...} for compatibility with OCaml Marshal format
 
 - [ ] Task 6.1.5: Implement core value marshaling in `marshal.lua` (1 hour + tests)
   - **PREREQUISITES**: Task 6.1.4
