@@ -24,9 +24,7 @@
 -- - File system operations
 -- - System configuration
 
-local core = require("core")
-
-local M = {}
+dofile("core.lua")
 
 -- OS type detection
 local os_type
@@ -69,11 +67,13 @@ end
 -- @param key string Environment variable name
 -- @param value string Environment variable value
 -- @return number 0 (unit)
-function M.caml_set_static_env(key, value)
+--Provides: caml_set_static_env
+--Requires: caml_unit
+function caml_set_static_env(key, value)
   local key_str = key
   local val_str = value
   static_env[key_str] = val_str
-  return core.unit
+  return caml_unit
 end
 
 --- Get environment variable (internal helper)
@@ -98,14 +98,14 @@ end
 -- Raises Not_found exception if variable doesn't exist
 -- @param name string|table OCaml string (environment variable name)
 -- @return string|table OCaml string (environment variable value)
-function M.caml_sys_getenv(name)
+--Provides: caml_sys_getenv
+--Requires: caml_raise_not_found
+function caml_sys_getenv(name)
   local name_str = name
   local value = jsoo_sys_getenv(name_str)
 
   if value == nil then
-    -- Lazy load fail module to avoid circular dependency
-    local fail = require("fail")
-    fail.caml_raise_not_found()
+    caml_raise_not_found()
   end
 
   return value
@@ -114,12 +114,13 @@ end
 --- Get environment variable (optional version for OCaml 5.4+)
 -- @param name string|table OCaml string (environment variable name)
 -- @return number|table 0 (None) or [0, value] (Some value)
-function M.caml_sys_getenv_opt(name)
+--Provides: caml_sys_getenv_opt
+function caml_sys_getenv_opt(name)
   local name_str = name
   local value = jsoo_sys_getenv(name_str)
 
   if value == nil then
-    return core.unit -- None (represented as 0)
+    return 0 -- None (represented as 0)
   else
     -- Some value: {tag = 0, [1] = value}
     return {tag = 0, [1] = value}
@@ -129,14 +130,17 @@ end
 --- Unsafe get environment variable (same as caml_sys_getenv)
 -- @param name string|table OCaml string
 -- @return string|table OCaml string
-function M.caml_sys_unsafe_getenv(name)
-  return M.caml_sys_getenv(name)
+--Provides: caml_sys_unsafe_getenv
+--Requires: caml_sys_getenv
+function caml_sys_unsafe_getenv(name)
+  return caml_sys_getenv(name)
 end
 
 --- Get program arguments
 -- @param _unit number Unit value (ignored)
 -- @return table OCaml array of strings
-function M.caml_sys_argv(_unit)
+--Provides: caml_sys_argv
+function caml_sys_argv(_unit)
   init_argv()
   return caml_argv
 end
@@ -145,7 +149,8 @@ end
 -- Returns [0, program_name, argv_array]
 -- @param _unit number Unit value (ignored)
 -- @return table Tuple of [0, name, array]
-function M.caml_sys_get_argv(_unit)
+--Provides: caml_sys_get_argv
+function caml_sys_get_argv(_unit)
   init_argv()
   return {tag = 0, [1] = caml_argv[1], [2] = caml_argv}
 end
@@ -153,15 +158,18 @@ end
 --- Modify program arguments
 -- @param arg table New argv array
 -- @return number 0 (unit)
-function M.caml_sys_modify_argv(arg)
+--Provides: caml_sys_modify_argv
+--Requires: caml_unit
+function caml_sys_modify_argv(arg)
   caml_argv = arg
-  return core.unit
+  return caml_unit
 end
 
 --- Get executable name
 -- @param _unit number Unit value (ignored)
 -- @return string|table OCaml string
-function M.caml_sys_executable_name(_unit)
+--Provides: caml_sys_executable_name
+function caml_sys_executable_name(_unit)
   init_argv()
   return caml_argv[1]
 end
@@ -170,7 +178,8 @@ end
 -- Returns [0, os_type, word_size, big_endian]
 -- @param _unit number Unit value (ignored)
 -- @return table Configuration tuple
-function M.caml_sys_get_config(_unit)
+--Provides: caml_sys_get_config
+function caml_sys_get_config(_unit)
   return {
     tag = 0,
     [1] = os_type,
@@ -182,7 +191,8 @@ end
 --- Get elapsed time since program start (in seconds)
 -- @param _unit number Unit value (ignored)
 -- @return number Elapsed time in seconds
-function M.caml_sys_time(_unit)
+--Provides: caml_sys_time
+function caml_sys_time(_unit)
   local now = os.time()
   return now - initial_time
 end
@@ -191,28 +201,34 @@ end
 -- Note: In Lua, there's no notion of child processes, so this is the same as caml_sys_time
 -- @param _b number Ignored
 -- @return number Elapsed time in seconds
-function M.caml_sys_time_include_children(_b)
-  return M.caml_sys_time(core.unit)
+--Provides: caml_sys_time_include_children
+--Requires: caml_sys_time
+function caml_sys_time_include_children(_b)
+  return caml_sys_time(0)
 end
 
 --- Check if file exists
 -- @param name string|table OCaml string (file path)
 -- @return number 0 (false) or 1 (true)
-function M.caml_sys_file_exists(name)
+--Provides: caml_sys_file_exists
+--Requires: caml_true_val, caml_false_val
+function caml_sys_file_exists(name)
   local path = name
   local file = io.open(path, "r")
   if file then
     file:close()
-    return core.true_val
+    return caml_true_val
   else
-    return core.false_val
+    return caml_false_val
   end
 end
 
 --- Check if path is a directory
 -- @param name string|table OCaml string (directory path)
 -- @return number 0 (false) or 1 (true)
-function M.caml_sys_is_directory(name)
+--Provides: caml_sys_is_directory
+--Requires: caml_true_val, caml_false_val
+function caml_sys_is_directory(name)
   local path = name
 
   -- Try to open as directory using lfs if available
@@ -220,25 +236,27 @@ function M.caml_sys_is_directory(name)
   if has_lfs then
     local attr = lfs.attributes(path)
     if attr and attr.mode == "directory" then
-      return core.true_val
+      return caml_true_val
     else
-      return core.false_val
+      return caml_false_val
     end
   end
 
   -- Fallback: try to list directory (Unix-specific)
   local ok, _, code = os.execute('test -d "' .. path:gsub('"', '\\"') .. '"')
   if ok == true or code == 0 then
-    return core.true_val
+    return caml_true_val
   else
-    return core.false_val
+    return caml_false_val
   end
 end
 
 --- Check if path is a regular file (OCaml 5.1+)
 -- @param name string|table OCaml string (file path)
 -- @return number 0 (false) or 1 (true)
-function M.caml_sys_is_regular_file(name)
+--Provides: caml_sys_is_regular_file
+--Requires: caml_sys_is_directory, caml_true_val, caml_false_val
+function caml_sys_is_regular_file(name)
   local path = name
 
   -- Try using lfs if available
@@ -246,9 +264,9 @@ function M.caml_sys_is_regular_file(name)
   if has_lfs then
     local attr = lfs.attributes(path)
     if attr and attr.mode == "file" then
-      return core.true_val
+      return caml_true_val
     else
-      return core.false_val
+      return caml_false_val
     end
   end
 
@@ -257,47 +275,51 @@ function M.caml_sys_is_regular_file(name)
   if file then
     file:close()
     -- Additional check: not a directory
-    if M.caml_sys_is_directory(name) == core.true_val then
-      return core.false_val
+    if caml_sys_is_directory(name) == caml_true_val then
+      return caml_false_val
     end
-    return core.true_val
+    return caml_true_val
   else
-    return core.false_val
+    return caml_false_val
   end
 end
 
 --- Remove (delete) a file
 -- @param name string|table OCaml string (file path)
 -- @return number 0 (unit)
-function M.caml_sys_remove(name)
+--Provides: caml_sys_remove
+--Requires: caml_raise_sys_error, caml_unit
+function caml_sys_remove(name)
   local path = name
   local ok, err = os.remove(path)
   if not ok then
-    local fail = require("fail")
-    fail.caml_raise_sys_error("remove: " .. (err or "unknown error"))
+    caml_raise_sys_error("remove: " .. (err or "unknown error"))
   end
-  return core.unit
+  return caml_unit
 end
 
 --- Rename a file
 -- @param oldname string|table OCaml string (old path)
 -- @param newname string|table OCaml string (new path)
 -- @return number 0 (unit)
-function M.caml_sys_rename(oldname, newname)
+--Provides: caml_sys_rename
+--Requires: caml_raise_sys_error, caml_unit
+function caml_sys_rename(oldname, newname)
   local old_path = oldname
   local new_path = newname
   local ok, err = os.rename(old_path, new_path)
   if not ok then
-    local fail = require("fail")
-    fail.caml_raise_sys_error("rename: " .. (err or "unknown error"))
+    caml_raise_sys_error("rename: " .. (err or "unknown error"))
   end
-  return core.unit
+  return caml_unit
 end
 
 --- Change current directory
 -- @param dirname string|table OCaml string (directory path)
 -- @return number 0 (unit)
-function M.caml_sys_chdir(dirname)
+--Provides: caml_sys_chdir
+--Requires: caml_raise_sys_error, caml_unit
+function caml_sys_chdir(dirname)
   local path = dirname
 
   -- Try using lfs if available
@@ -305,21 +327,21 @@ function M.caml_sys_chdir(dirname)
   if has_lfs then
     local ok, err = lfs.chdir(path)
     if not ok then
-      local fail = require("fail")
-      fail.caml_raise_sys_error("chdir: " .. (err or "unknown error"))
+      caml_raise_sys_error("chdir: " .. (err or "unknown error"))
     end
-    return core.unit
+    return caml_unit
   end
 
   -- Fallback: not supported without lfs
-  local fail = require("runtime.lua.fail")
-  fail.caml_raise_sys_error("chdir: not supported (install LuaFileSystem)")
+  caml_raise_sys_error("chdir: not supported (install LuaFileSystem)")
 end
 
 --- Get current working directory
 -- @param _unit number Unit value (ignored)
 -- @return string|table OCaml string (current directory)
-function M.caml_sys_getcwd(_unit)
+--Provides: caml_sys_getcwd
+--Requires: caml_raise_sys_error
+function caml_sys_getcwd(_unit)
   -- Try using lfs if available
   local has_lfs, lfs = pcall(require, "lfs")
   if has_lfs then
@@ -338,14 +360,15 @@ function M.caml_sys_getcwd(_unit)
   end
 
   -- Last resort: raise error
-  local fail = require("fail")
-  fail.caml_raise_sys_error("getcwd: not supported (install LuaFileSystem)")
+  caml_raise_sys_error("getcwd: not supported (install LuaFileSystem)")
 end
 
 --- Read directory contents
 -- @param dirname string|table OCaml string (directory path)
 -- @return table OCaml array of strings (filenames)
-function M.caml_sys_readdir(dirname)
+--Provides: caml_sys_readdir
+--Requires: caml_raise_sys_error
+function caml_sys_readdir(dirname)
   local path = dirname
 
   -- Try using lfs if available
@@ -363,14 +386,14 @@ function M.caml_sys_readdir(dirname)
   end
 
   -- Fallback: not supported without lfs
-  local fail = require("fail")
-  fail.caml_raise_sys_error("readdir: not supported (install LuaFileSystem)")
+  caml_raise_sys_error("readdir: not supported (install LuaFileSystem)")
 end
 
 --- Execute system command
 -- @param cmd string|table OCaml string (command to execute)
 -- @return number Exit code
-function M.caml_sys_system_command(cmd)
+--Provides: caml_sys_system_command
+function caml_sys_system_command(cmd)
   local cmd_str = cmd
   local ok, exit_type, code = os.execute(cmd_str)
 
@@ -387,7 +410,8 @@ end
 
 --- Exit program
 -- @param code number Exit code
-function M.caml_sys_exit(code)
+--Provides: caml_sys_exit
+function caml_sys_exit(code)
   os.exit(code)
 end
 
@@ -395,14 +419,16 @@ end
 -- @param path string|table File path
 -- @param flags number Open flags
 -- @return number File descriptor (stub)
-function M.sys_open(path, flags)
+--Provides: sys_open
+function sys_open(path, flags)
   error("caml_sys_open: not yet implemented in lua_of_ocaml")
 end
 
 --- Close file (stub - not yet implemented)
 -- @param fd number File descriptor
 -- @return number 0 (unit)
-function M.sys_close(fd)
+--Provides: sys_close
+function sys_close(fd)
   error("caml_sys_close: not yet implemented in lua_of_ocaml")
 end
 
@@ -410,7 +436,8 @@ end
 -- Returns array of random integers for seeding Random module
 -- @param _unit number Unit value (ignored)
 -- @return table OCaml array [0, x1, x2, x3, x4]
-function M.caml_sys_random_seed(_unit)
+--Provides: caml_sys_random_seed
+function caml_sys_random_seed(_unit)
   -- Try to get good random seed
   math.randomseed(os.time() + os.clock() * 1000000)
 
@@ -425,67 +452,85 @@ end
 
 --- System constants
 
-function M.caml_sys_const_big_endian(_unit)
+--Provides: caml_sys_const_big_endian
+function caml_sys_const_big_endian(_unit)
   return 0  -- Little endian
 end
 
-function M.caml_sys_const_word_size(_unit)
+--Provides: caml_sys_const_word_size
+function caml_sys_const_word_size(_unit)
   return 32  -- 32-bit word size (js_of_ocaml compatibility)
 end
 
-function M.caml_sys_const_int_size(_unit)
+--Provides: caml_sys_const_int_size
+function caml_sys_const_int_size(_unit)
   return 32  -- 32-bit int size
 end
 
-function M.caml_sys_const_max_wosize(_unit)
+--Provides: caml_sys_const_max_wosize
+function caml_sys_const_max_wosize(_unit)
   return math.floor(0x7fffffff / 4)  -- max_int / 4
 end
 
-function M.caml_sys_const_ostype_unix(_unit)
-  return os_type == "Unix" and core.true_val or core.false_val
+--Provides: caml_sys_const_ostype_unix
+--Requires: caml_true_val, caml_false_val
+function caml_sys_const_ostype_unix(_unit)
+  return os_type == "Unix" and caml_true_val or caml_false_val
 end
 
-function M.caml_sys_const_ostype_win32(_unit)
-  return os_type == "Win32" and core.true_val or core.false_val
+--Provides: caml_sys_const_ostype_win32
+--Requires: caml_true_val, caml_false_val
+function caml_sys_const_ostype_win32(_unit)
+  return os_type == "Win32" and caml_true_val or caml_false_val
 end
 
-function M.caml_sys_const_ostype_cygwin(_unit)
-  return core.false_val  -- We don't detect Cygwin specifically
+--Provides: caml_sys_const_ostype_cygwin
+--Requires: caml_false_val
+function caml_sys_const_ostype_cygwin(_unit)
+  return caml_false_val  -- We don't detect Cygwin specifically
 end
 
-function M.caml_sys_const_backend_type(_unit)
+--Provides: caml_sys_const_backend_type
+function caml_sys_const_backend_type(_unit)
   return {tag = 0, [1] = "lua_of_ocaml"}
 end
 
-function M.caml_sys_const_naked_pointers_checked(_unit)
+--Provides: caml_sys_const_naked_pointers_checked
+function caml_sys_const_naked_pointers_checked(_unit)
   return 0
 end
 
 --- Check if channel is a TTY
 -- @param _chan number Channel id
 -- @return number 0 (false, channels are not TTYs in Lua)
-function M.caml_sys_isatty(_chan)
-  return core.false_val
+--Provides: caml_sys_isatty
+--Requires: caml_false_val
+function caml_sys_isatty(_chan)
+  return caml_false_val
 end
 
 --- Get runtime variant
 -- @param _unit number Unit value (ignored)
 -- @return string|table OCaml string (empty)
-function M.caml_runtime_variant(_unit)
+--Provides: caml_runtime_variant
+function caml_runtime_variant(_unit)
   return ""
 end
 
 --- Get runtime parameters
 -- @param _unit number Unit value (ignored)
 -- @return string|table OCaml string (empty)
-function M.caml_runtime_parameters(_unit)
+--Provides: caml_runtime_parameters
+function caml_runtime_parameters(_unit)
   return ""
 end
 
 --- Install signal handler (no-op in Lua)
 -- @return number 0
-function M.caml_install_signal_handler(_sig, _action)
-  return core.unit
+--Provides: caml_install_signal_handler
+--Requires: caml_unit
+function caml_install_signal_handler(_sig, _action)
+  return caml_unit
 end
 
 --- Runtime warnings flag
@@ -494,29 +539,34 @@ local runtime_warnings = 0
 --- Enable/disable runtime warnings
 -- @param bool number 0 (false) or 1 (true)
 -- @return number 0 (unit)
-function M.caml_ml_enable_runtime_warnings(bool)
+--Provides: caml_ml_enable_runtime_warnings
+--Requires: caml_unit
+function caml_ml_enable_runtime_warnings(bool)
   runtime_warnings = bool
-  return core.unit
+  return caml_unit
 end
 
 --- Check if runtime warnings are enabled
 -- @param _unit number Unit value (ignored)
 -- @return number 0 (false) or 1 (true)
-function M.caml_ml_runtime_warnings_enabled(_unit)
+--Provides: caml_ml_runtime_warnings_enabled
+function caml_ml_runtime_warnings_enabled(_unit)
   return runtime_warnings
 end
 
 --- Get I/O buffer size (OCaml 5.4+)
 -- @param _unit number Unit value (ignored)
 -- @return number Buffer size (65536)
-function M.caml_sys_io_buffer_size(_unit)
+--Provides: caml_sys_io_buffer_size
+function caml_sys_io_buffer_size(_unit)
   return 65536
 end
 
 --- Get temp directory name (OCaml 5.4+)
 -- @param _unit number Unit value (ignored)
 -- @return string|table OCaml string (temp directory or empty)
-function M.caml_sys_temp_dir_name(_unit)
+--Provides: caml_sys_temp_dir_name
+function caml_sys_temp_dir_name(_unit)
   if os_type == "Win32" then
     local tmp = os.getenv("TEMP") or os.getenv("TMP") or ""
     return tmp
@@ -529,66 +579,24 @@ end
 --- XDG defaults (OCaml 5.2+)
 -- @param _unit number Unit value (ignored)
 -- @return number 0 (empty list)
-function M.caml_xdg_defaults(_unit)
-  return core.unit  -- Empty list
+--Provides: caml_xdg_defaults
+function caml_xdg_defaults(_unit)
+  return 0  -- Empty list
 end
 
 --- Convert signal number (OCaml 5.4+)
 -- @param signo number Signal number
 -- @return number Same signal number
-function M.caml_sys_convert_signal_number(signo)
+--Provides: caml_sys_convert_signal_number
+function caml_sys_convert_signal_number(signo)
   return signo
 end
 
 --- Reverse convert signal number (OCaml 5.4+)
 -- @param signo number Signal number
 -- @return number Same signal number
-function M.caml_sys_rev_convert_signal_number(signo)
+--Provides: caml_sys_rev_convert_signal_number
+function caml_sys_rev_convert_signal_number(signo)
   return signo
 end
 
--- Register all primitives
-core.register("caml_set_static_env", M.caml_set_static_env)
-core.register("caml_sys_getenv", M.caml_sys_getenv)
-core.register("caml_sys_getenv_opt", M.caml_sys_getenv_opt)
-core.register("caml_sys_unsafe_getenv", M.caml_sys_unsafe_getenv)
-core.register("caml_sys_argv", M.caml_sys_argv)
-core.register("caml_sys_get_argv", M.caml_sys_get_argv)
-core.register("caml_sys_modify_argv", M.caml_sys_modify_argv)
-core.register("caml_sys_executable_name", M.caml_sys_executable_name)
-core.register("caml_sys_get_config", M.caml_sys_get_config)
-core.register("caml_sys_time", M.caml_sys_time)
-core.register("caml_sys_time_include_children", M.caml_sys_time_include_children)
-core.register("caml_sys_file_exists", M.caml_sys_file_exists)
-core.register("caml_sys_is_directory", M.caml_sys_is_directory)
-core.register("caml_sys_is_regular_file", M.caml_sys_is_regular_file)
-core.register("caml_sys_remove", M.caml_sys_remove)
-core.register("caml_sys_rename", M.caml_sys_rename)
-core.register("caml_sys_chdir", M.caml_sys_chdir)
-core.register("caml_sys_getcwd", M.caml_sys_getcwd)
-core.register("caml_sys_readdir", M.caml_sys_readdir)
-core.register("caml_sys_system_command", M.caml_sys_system_command)
-core.register("caml_sys_exit", M.caml_sys_exit)
-core.register("caml_sys_random_seed", M.caml_sys_random_seed)
-core.register("caml_sys_const_big_endian", M.caml_sys_const_big_endian)
-core.register("caml_sys_const_word_size", M.caml_sys_const_word_size)
-core.register("caml_sys_const_int_size", M.caml_sys_const_int_size)
-core.register("caml_sys_const_max_wosize", M.caml_sys_const_max_wosize)
-core.register("caml_sys_const_ostype_unix", M.caml_sys_const_ostype_unix)
-core.register("caml_sys_const_ostype_win32", M.caml_sys_const_ostype_win32)
-core.register("caml_sys_const_ostype_cygwin", M.caml_sys_const_ostype_cygwin)
-core.register("caml_sys_const_backend_type", M.caml_sys_const_backend_type)
-core.register("caml_sys_const_naked_pointers_checked", M.caml_sys_const_naked_pointers_checked)
-core.register("caml_sys_isatty", M.caml_sys_isatty)
-core.register("caml_runtime_variant", M.caml_runtime_variant)
-core.register("caml_runtime_parameters", M.caml_runtime_parameters)
-core.register("caml_install_signal_handler", M.caml_install_signal_handler)
-core.register("caml_ml_enable_runtime_warnings", M.caml_ml_enable_runtime_warnings)
-core.register("caml_ml_runtime_warnings_enabled", M.caml_ml_runtime_warnings_enabled)
-core.register("caml_sys_io_buffer_size", M.caml_sys_io_buffer_size)
-core.register("caml_sys_temp_dir_name", M.caml_sys_temp_dir_name)
-core.register("caml_xdg_defaults", M.caml_xdg_defaults)
-core.register("caml_sys_convert_signal_number", M.caml_sys_convert_signal_number)
-core.register("caml_sys_rev_convert_signal_number", M.caml_sys_rev_convert_signal_number)
-
-return M
