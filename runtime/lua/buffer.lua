@@ -18,8 +18,6 @@
 -- Extensible string buffer implementation
 -- Provides efficient accumulation of strings with automatic growth
 
-local M = {}
-
 -- Default initial size for buffers
 local DEFAULT_INITIAL_SIZE = 16
 
@@ -27,10 +25,8 @@ local DEFAULT_INITIAL_SIZE = 16
 local Buffer = {}
 Buffer.__index = Buffer
 
--- Create a new buffer
--- initial_size: optional initial capacity (default 16)
--- Returns: buffer object
-function M.caml_buffer_create(initial_size)
+--Provides: caml_buffer_create
+function caml_buffer_create(initial_size)
   initial_size = initial_size or DEFAULT_INITIAL_SIZE
 
   local buffer = {
@@ -46,10 +42,8 @@ function M.caml_buffer_create(initial_size)
   return buffer
 end
 
--- Add a single character to buffer
--- buffer: buffer object
--- c: character code (number) or single-char string
-function M.caml_buffer_add_char(buffer, c)
+--Provides: caml_buffer_add_char
+function caml_buffer_add_char(buffer, c)
   local char
   if type(c) == "number" then
     char = string.char(c)
@@ -79,10 +73,8 @@ local function ocaml_string_to_lua(s)
   return table.concat(chars)
 end
 
--- Add a string to buffer
--- buffer: buffer object
--- s: string (Lua string or OCaml byte array)
-function M.caml_buffer_add_string(buffer, s)
+--Provides: caml_buffer_add_string
+function caml_buffer_add_string(buffer, s)
   local str = ocaml_string_to_lua(s)
 
   if #str > 0 then
@@ -91,12 +83,8 @@ function M.caml_buffer_add_string(buffer, s)
   end
 end
 
--- Add a substring to buffer
--- buffer: buffer object
--- s: string (Lua string or OCaml byte array)
--- offset: start offset (0-based for OCaml compatibility)
--- len: length of substring
-function M.caml_buffer_add_substring(buffer, s, offset, len)
+--Provides: caml_buffer_add_substring
+function caml_buffer_add_substring(buffer, s, offset, len)
   local str = ocaml_string_to_lua(s)
 
   -- Convert 0-based offset to 1-based
@@ -115,10 +103,8 @@ function M.caml_buffer_add_substring(buffer, s, offset, len)
   end
 end
 
--- Get the contents of buffer as a string
--- buffer: buffer object
--- Returns: OCaml string (byte array)
-function M.caml_buffer_contents(buffer)
+--Provides: caml_buffer_contents
+function caml_buffer_contents(buffer)
   -- Concatenate all chunks
   local result_str = table.concat(buffer.chunks)
 
@@ -131,31 +117,24 @@ function M.caml_buffer_contents(buffer)
   return result
 end
 
--- Get the current length of buffer
--- buffer: buffer object
--- Returns: length as number
-function M.caml_buffer_length(buffer)
+--Provides: caml_buffer_length
+function caml_buffer_length(buffer)
   return buffer.length
 end
 
--- Reset buffer to empty state (keep allocated capacity)
--- buffer: buffer object
-function M.caml_buffer_reset(buffer)
+--Provides: caml_buffer_reset
+function caml_buffer_reset(buffer)
   buffer.chunks = {}
   buffer.length = 0
 end
 
--- Clear buffer (alias for reset)
--- buffer: buffer object
-function M.caml_buffer_clear(buffer)
-  M.caml_buffer_reset(buffer)
+--Provides: caml_buffer_clear
+function caml_buffer_clear(buffer)
+  caml_buffer_reset(buffer)
 end
 
--- Add formatted output to buffer (similar to Printf.bprintf)
--- buffer: buffer object
--- fmt: format string
--- ...: values to format
-function M.caml_buffer_add_printf(buffer, fmt, ...)
+--Provides: caml_buffer_add_printf
+function caml_buffer_add_printf(buffer, fmt, ...)
   -- This requires format module, load lazily
   local format = package.loaded.format or require("format")
 
@@ -226,7 +205,5 @@ function M.caml_buffer_add_printf(buffer, fmt, ...)
 
   -- Add result to buffer
   local output = table.concat(result_parts)
-  M.caml_buffer_add_string(buffer, output)
+  caml_buffer_add_string(buffer, output)
 end
-
-return M

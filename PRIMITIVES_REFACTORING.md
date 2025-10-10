@@ -18,7 +18,7 @@
 - [x] Task 2.6: Refactor `float.lua` - float primitives (1 hour + tests)
 
 ### Phase 3: Refactor Standard Library Modules (Est: 8 hours)
-- [ ] Task 3.1: Refactor `buffer.lua` - buffer primitives (45 min + tests)
+- [x] Task 3.1: Refactor `buffer.lua` - buffer primitives (45 min + tests)
 - [ ] Task 3.2: Refactor `format.lua` - format primitives (45 min + tests)
 - [ ] Task 3.3: Refactor `hash.lua` - hashing primitives (45 min + tests)
 - [ ] Task 3.4: Refactor `hashtbl.lua` - hashtable primitives (45 min + tests)
