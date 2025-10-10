@@ -145,6 +145,43 @@ The repository contains multiple related packages:
 - **Tested**: All new code must have corresponding tests
 - **Documented**: Complex logic should have explanatory comments (but no TODO comments)
 
+### Lua Runtime Implementation Guidelines
+
+**CRITICAL**: The Lua runtime (`runtime/lua/`) has strict requirements for linker compatibility. Follow these rules exactly:
+
+#### Function Structure
+- **ONLY global functions with `caml_` prefix**: Every runtime function must be named `caml_*` and be global
+- **Provides comment required**: Each function MUST have `--Provides: function_name` comment
+- **Requires comment optional**: Add `--Requires: dep1, dep2` if function depends on other `caml_` functions
+- **No documentation comments**: Only `--Provides:` and `--Requires:` comments allowed
+
+```lua
+--Provides: caml_example_function
+--Requires: caml_helper_function
+function caml_example_function(arg1, arg2)
+  local result = caml_helper_function(arg1)
+  return result + arg2
+end
+```
+
+#### Restrictions
+- **NO global variables**: Cannot have `GLOBAL_VAR = 42` or similar
+- **NO global tables**: Cannot have `MyTable = {}` or class definitions
+- **NO local helper functions**: Linker cannot inline local functions - all helpers must be `caml_` functions with `--Provides:`
+- **NO module wrappers**: No `local M = {}` or `return M` patterns
+
+#### Testing
+- **Tests use dofile()**: Test files load runtime with `dofile("filename.lua")`, NOT `require()`
+- **Tests call caml_ functions directly**: Access functions by name, not through module tables
+
+#### Rationale
+The OCaml-to-Lua linker parses `--Provides:` comments to extract only needed functions from the runtime. It cannot:
+- Extract local functions (they're not visible)
+- Handle global variables/tables (compilation model doesn't support them)
+- Process module patterns (needs flat namespace)
+
+This matches the js_of_ocaml JavaScript runtime structure where all primitives are registered functions.
+
 ## Testing Infrastructure
 
 ### Test Categories

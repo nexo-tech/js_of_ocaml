@@ -396,54 +396,7 @@ function caml_input_value(chanid)
     error("caml_input_value: channel is closed")
   end
 
-  -- Standard header is 20 bytes
-  local header_size = 20
-  local header_buf = {}
-
-  -- Read header (20 bytes)
-  local header_read = caml_ml_input(chanid, header_buf, 0, header_size)
-
-  -- Check for EOF
-  if header_read == 0 then
-    fail.raise_end_of_file()
-  end
-
-  -- Check for truncated header
-  if header_read < header_size then
-    error("input_value: truncated object (incomplete header)")
-  end
-
-  -- Convert header buffer to string for parsing
-  local header_chars = {}
-  for i = 1, header_size do
-    table.insert(header_chars, string.char(header_buf[i]))
-  end
-  local header_str = table.concat(header_chars)
-
-  -- Parse header to get data length
-  local data_len = caml_marshal_data_size(header_str, 0)
-
-  -- Read data
-  local data_buf = {}
-  local data_read = caml_ml_input(chanid, data_buf, 0, data_len)
-
-  -- Check for truncated data
-  if data_read < data_len then
-    error(string.format("input_value: truncated object (expected %d bytes, got %d)", data_len, data_read))
-  end
-
-  -- Convert data buffer to string
-  local data_chars = {}
-  for i = 1, data_len do
-    table.insert(data_chars, string.char(data_buf[i]))
-  end
-  local data_str = table.concat(data_chars)
-
-  -- Combine header + data and unmarshal
-  local complete_str = header_str .. data_str
-  local result = caml_marshal_from_bytes(complete_str, 0)
-
-  return result
+  error("caml_input_value: marshal functions not yet reimplemented")
 end
 
 --Provides: caml_input_value_to_outside_heap
@@ -596,20 +549,7 @@ function caml_output_value(chanid, v, flags)
     error("caml_output_value: channel is not an output channel")
   end
 
-  -- Marshal value (produces header + data)
-  local marshalled = caml_marshal_to_string(v, flags)
-
-  -- Write marshalled data to channel
-  caml_ml_output(chanid, marshalled, 0, #marshalled)
-
-  -- Flush to ensure data is written
-  -- (caml_ml_output may auto-flush based on buffering mode, but be explicit)
-  if chan.buffered ~= 1 then
-    -- For unbuffered (0) and line-buffered (2), caml_ml_output already flushed
-    -- For fully-buffered (1), only flush if needed (done by caml_ml_output when buffer full)
-  end
-
-  return 0
+  error("caml_output_value: marshal functions not yet reimplemented")
 end
 
 --

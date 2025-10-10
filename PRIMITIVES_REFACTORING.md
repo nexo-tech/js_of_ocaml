@@ -50,8 +50,14 @@
 
 ### Phase 6: Refactor Advanced Modules (Est: 3 hours)
 - [ ] Task 6.1: Refactor `marshal.lua` - marshaling primitives (1 hour + tests)
+  - **NOTE**: Previous implementation VIOLATED runtime guidelines (global tables, local functions)
+  - **STATUS**: Placeholder stubs created, needs complete rewrite
 - [ ] Task 6.2: Refactor `marshal_header.lua` - marshal headers (30 min + tests)
+  - **NOTE**: Previous implementation VIOLATED runtime guidelines
+  - **STATUS**: Placeholder stub created, needs complete rewrite
 - [ ] Task 6.3: Refactor `marshal_io.lua` - marshal I/O (45 min + tests)
+  - **NOTE**: Previous implementation VIOLATED runtime guidelines (Reader/Writer classes)
+  - **STATUS**: Placeholder stub created, needs complete rewrite
 - [ ] Task 6.4: Refactor `digest.lua` - digest primitives (45 min + tests)
 - [ ] Task 6.5: Refactor `bigarray.lua` - bigarray primitives (1 hour + tests)
 
