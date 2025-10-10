@@ -19,8 +19,6 @@
 -- Based on MurmurHash3 mixing functions
 -- Compatible with OCaml's polymorphic hash
 
-local M = {}
-
 -- Bit manipulation helpers for 32-bit operations
 local function bit_and(a, b)
   return a & b
@@ -57,9 +55,8 @@ local function mul32(a, b)
   return to_int32(result)
 end
 
--- Mix a 32-bit integer into the hash
--- Uses MurmurHash3 mixing
-function M.caml_hash_mix_int(h, d)
+--Provides: caml_hash_mix_int
+function caml_hash_mix_int(h, d)
   d = mul32(d, 0xcc9e2d51)
   d = bit_or(bit_lshift(d, 15), bit_rshift(d, 17))  -- ROTL32(d, 15)
   d = mul32(d, 0x1b873593)
@@ -70,8 +67,8 @@ function M.caml_hash_mix_int(h, d)
   return h
 end
 
--- Final mixing step
-function M.caml_hash_mix_final(h)
+--Provides: caml_hash_mix_final
+function caml_hash_mix_final(h)
   h = bit_xor(h, bit_rshift(h, 16))
   h = mul32(h, 0x85ebca6b)
   h = bit_xor(h, bit_rshift(h, 13))
@@ -80,8 +77,8 @@ function M.caml_hash_mix_final(h)
   return h
 end
 
--- Mix a float into the hash
-function M.caml_hash_mix_float(hash, v)
+--Provides: caml_hash_mix_float
+function caml_hash_mix_float(hash, v)
   -- Convert float to byte representation
   local bytes = string.pack("d", v)
 
@@ -103,13 +100,13 @@ function M.caml_hash_mix_float(hash, v)
     hi = 0
   end
 
-  hash = M.caml_hash_mix_int(hash, to_int32(lo))
-  hash = M.caml_hash_mix_int(hash, to_int32(hi))
+  hash = caml_hash_mix_int(hash, to_int32(lo))
+  hash = caml_hash_mix_int(hash, to_int32(hi))
   return hash
 end
 
--- Mix a string (OCaml byte array) into the hash
-function M.caml_hash_mix_string(h, s)
+--Provides: caml_hash_mix_string
+function caml_hash_mix_string(h, s)
   local len = #s
   local i = 1
   local w
@@ -120,7 +117,7 @@ function M.caml_hash_mix_string(h, s)
       bit_or(s[i], bit_lshift(s[i + 1], 8)),
       bit_or(bit_lshift(s[i + 2], 16), bit_lshift(s[i + 3], 24))
     )
-    h = M.caml_hash_mix_int(h, to_int32(w))
+    h = caml_hash_mix_int(h, to_int32(w))
     i = i + 4
   end
 
@@ -131,13 +128,13 @@ function M.caml_hash_mix_string(h, s)
     w = bit_lshift(s[i + 2], 16)
     w = bit_or(w, bit_lshift(s[i + 1], 8))
     w = bit_or(w, s[i])
-    h = M.caml_hash_mix_int(h, to_int32(w))
+    h = caml_hash_mix_int(h, to_int32(w))
   elseif remaining == 2 then
     w = bit_or(bit_lshift(s[i + 1], 8), s[i])
-    h = M.caml_hash_mix_int(h, to_int32(w))
+    h = caml_hash_mix_int(h, to_int32(w))
   elseif remaining == 1 then
     w = s[i]
-    h = M.caml_hash_mix_int(h, to_int32(w))
+    h = caml_hash_mix_int(h, to_int32(w))
   end
 
   h = bit_xor(h, len)
@@ -168,12 +165,8 @@ local function is_ocaml_block(v)
   return v.tag ~= nil
 end
 
--- Polymorphic hash function
--- count: maximum number of meaningful nodes to process
--- limit: maximum queue size
--- seed: initial hash seed
--- obj: value to hash
-function M.caml_hash(count, limit, seed, obj)
+--Provides: caml_hash
+function caml_hash(count, limit, seed, obj)
   local sz = limit
   if sz < 0 or sz > 256 then
     sz = 256
@@ -193,26 +186,26 @@ function M.caml_hash(count, limit, seed, obj)
       -- Check if it's an integer or float
       if math.type(v) == "integer" or (v == math.floor(v) and v >= -0x40000000 and v < 0x40000000) then
         -- Integer: hash as (v + v + 1)
-        h = M.caml_hash_mix_int(h, to_int32(v + v + 1))
+        h = caml_hash_mix_int(h, to_int32(v + v + 1))
         num = num - 1
       else
         -- Float
-        h = M.caml_hash_mix_float(h, v)
+        h = caml_hash_mix_float(h, v)
         num = num - 1
       end
     elseif type(v) == "string" then
       -- Lua string
       local bytes = {string.byte(v, 1, -1)}
-      h = M.caml_hash_mix_string(h, bytes)
+      h = caml_hash_mix_string(h, bytes)
       num = num - 1
     elseif is_ocaml_string(v) then
       -- OCaml string (byte array)
-      h = M.caml_hash_mix_string(h, v)
+      h = caml_hash_mix_string(h, v)
       num = num - 1
     elseif is_ocaml_block(v) then
       -- OCaml block with tag
       local tag_value = bit_or(bit_lshift(#v, 10), v.tag)
-      h = M.caml_hash_mix_int(h, to_int32(tag_value))
+      h = caml_hash_mix_int(h, to_int32(tag_value))
       -- Note: Don't decrement num for blocks, only for atoms
 
       -- Add block fields to queue (up to size limit)
@@ -226,7 +219,7 @@ function M.caml_hash(count, limit, seed, obj)
     elseif type(v) == "table" then
       -- Generic table - hash as array
       -- Mix in the table size
-      h = M.caml_hash_mix_int(h, to_int32(#v))
+      h = caml_hash_mix_int(h, to_int32(#v))
       -- Note: Don't decrement num for tables, only for atoms
 
       -- Add array elements to queue
@@ -240,14 +233,11 @@ function M.caml_hash(count, limit, seed, obj)
     end
   end
 
-  h = M.caml_hash_mix_final(h)
+  h = caml_hash_mix_final(h)
   return bit_and(h, 0x3fffffff)
 end
 
--- Convenience function: hash with default parameters
--- Equivalent to Hashtbl.hash in OCaml
-function M.caml_hash_default(obj)
-  return M.caml_hash(10, 100, 0, obj)
+--Provides: caml_hash_default
+function caml_hash_default(obj)
+  return caml_hash(10, 100, 0, obj)
 end
-
-return M
