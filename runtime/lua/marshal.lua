@@ -16,9 +16,124 @@
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 -- Marshal: OCaml Marshal format
---
--- TODO: Complete rewrite following runtime implementation guidelines
--- Current implementation violates guidelines (global tables, local functions, etc.)
+-- Implements OCaml binary serialization format
+
+-- Integer marshaling functions
+
+--Provides: caml_marshal_write_int
+--Requires: caml_marshal_buffer_write8u, caml_marshal_buffer_write16u, caml_marshal_buffer_write32u
+function caml_marshal_write_int(buf, value)
+  -- Encode integer with optimal format
+  -- Small int (0-63): single byte 0x40-0x7F
+  -- INT8 (-128 to 127 excluding 0-63): 0x00 + signed byte
+  -- INT16 (-32768 to 32767 excluding INT8): 0x01 + signed 16-bit big-endian
+  -- INT32 (else): 0x02 + signed 32-bit big-endian
+
+  -- Check for small int (0-63)
+  if value >= 0 and value <= 63 then
+    -- Small int: 0x40 + value (0x40-0x7F)
+    caml_marshal_buffer_write8u(buf, 0x40 + value)
+    return
+  end
+
+  -- Check for INT8 range (-128 to 127)
+  if value >= -128 and value <= 127 then
+    -- CODE_INT8 (0x00) + signed byte
+    caml_marshal_buffer_write8u(buf, 0x00)
+    -- Convert signed to unsigned byte
+    local byte_val = value
+    if byte_val < 0 then
+      byte_val = byte_val + 256
+    end
+    caml_marshal_buffer_write8u(buf, byte_val)
+    return
+  end
+
+  -- Check for INT16 range (-32768 to 32767)
+  if value >= -32768 and value <= 32767 then
+    -- CODE_INT16 (0x01) + signed 16-bit big-endian
+    caml_marshal_buffer_write8u(buf, 0x01)
+    -- Convert signed to unsigned 16-bit
+    local word_val = value
+    if word_val < 0 then
+      word_val = word_val + 65536
+    end
+    caml_marshal_buffer_write16u(buf, word_val)
+    return
+  end
+
+  -- INT32: CODE_INT32 (0x02) + signed 32-bit big-endian
+  caml_marshal_buffer_write8u(buf, 0x02)
+  -- Convert signed to unsigned 32-bit
+  local int_val = value
+  if int_val < 0 then
+    int_val = int_val + 4294967296
+  end
+  caml_marshal_buffer_write32u(buf, int_val)
+end
+
+--Provides: caml_marshal_read_int
+--Requires: caml_marshal_read8u, caml_marshal_read16u, caml_marshal_read32u
+function caml_marshal_read_int(str, offset)
+  -- Decode integer and return {value, bytes_read}
+
+  -- Read code byte
+  local code = caml_marshal_read8u(str, offset)
+
+  -- Small int (0x40-0x7F): value = code - 0x40
+  if code >= 0x40 and code <= 0x7F then
+    return {
+      value = code - 0x40,
+      bytes_read = 1
+    }
+  end
+
+  -- CODE_INT8 (0x00): read signed byte
+  if code == 0x00 then
+    local byte_val = caml_marshal_read8u(str, offset + 1)
+    -- Convert unsigned to signed byte
+    local value = byte_val
+    if value >= 128 then
+      value = value - 256
+    end
+    return {
+      value = value,
+      bytes_read = 2
+    }
+  end
+
+  -- CODE_INT16 (0x01): read signed 16-bit big-endian
+  if code == 0x01 then
+    local word_val = caml_marshal_read16u(str, offset + 1)
+    -- Convert unsigned to signed 16-bit
+    local value = word_val
+    if value >= 32768 then
+      value = value - 65536
+    end
+    return {
+      value = value,
+      bytes_read = 3
+    }
+  end
+
+  -- CODE_INT32 (0x02): read signed 32-bit big-endian
+  if code == 0x02 then
+    local int_val = caml_marshal_read32u(str, offset + 1)
+    -- Convert unsigned to signed 32-bit
+    local value = int_val
+    if value >= 2147483648 then
+      value = value - 4294967296
+    end
+    return {
+      value = value,
+      bytes_read = 5
+    }
+  end
+
+  error(string.format("caml_marshal_read_int: unknown code 0x%02X at offset %d", code, offset))
+end
+
+-- Public API (stubs to be implemented in later tasks)
 
 --Provides: caml_marshal_to_string
 function caml_marshal_to_string(value, flags)

@@ -156,18 +156,19 @@
     - ✓ Error handling for insufficient data and invalid magic
     - ✓ 24 tests passed (100% coverage)
 
-- [ ] Task 6.1.1: Implement integer marshaling in `marshal.lua` (30 min + tests)
-  - **PREREQUISITES**: Tasks 6.3, 6.2
-  - **DELIVERABLES**: ~150 lines
-    - `caml_marshal_write_int(buf, value)` - encode integer with optimal format
-      - Small int (0-63): single byte 0x40-0x7F
-      - INT8 (-128 to 127 excluding 0-63): 0x00 + signed byte
-      - INT16 (-32768 to 32767 excluding INT8): 0x01 + signed 16-bit big-endian
-      - INT32 (else): 0x02 + signed 32-bit big-endian
-    - `caml_marshal_read_int(str, offset)` - decode integer, return {value, bytes_read}
-  - **TESTS**: Add integer marshaling tests to test_marshal.lua
-  - **NO**: Local functions, local constants
-  - **YES**: Inline format codes (0x40, 0x00, 0x01, 0x02) with comments
+- [x] Task 6.1.1: Implement integer marshaling in `marshal.lua` (30 min + tests)
+  - **PREREQUISITES**: Tasks 6.3 ✓, 6.2 ✓
+  - **COMPLETED**: 117 lines in marshal.lua + 424 lines (test_marshal_int.lua) = 541 lines total
+  - **IMPLEMENTED**:
+    - ✓ `caml_marshal_write_int(buf, value)` - encode integer with optimal format
+      - Small int (0-63): single byte 0x40-0x7F ✓
+      - INT8 (-128 to 127 excluding 0-63): 0x00 + signed byte ✓
+      - INT16 (-32768 to 32767 excluding INT8): 0x01 + signed 16-bit big-endian ✓
+      - INT32 (else): 0x02 + signed 32-bit big-endian ✓
+    - ✓ `caml_marshal_read_int(str, offset)` - decode integer, return {value, bytes_read}
+    - ✓ Handles signed to unsigned conversion for all formats
+    - ✓ Error handling for invalid codes and insufficient data
+    - ✓ 41 tests passed (100% coverage)
 
 - [ ] Task 6.1.2: Implement string marshaling in `marshal.lua` (30 min + tests)
   - **PREREQUISITES**: Task 6.1.1
