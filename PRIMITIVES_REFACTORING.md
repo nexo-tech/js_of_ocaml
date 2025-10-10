@@ -301,6 +301,52 @@
   - **IMPLEMENTATION**: Lua 5.1 compatible, complete working Marshal module
   - **NO SHARING**: num_objects/size_32/size_64 set to 0 (object sharing not implemented)
 
+- [ ] Task 6.1.7: Implement cycle detection in `marshal.lua` (30 min + tests)
+  - **PREREQUISITES**: Task 6.1.6
+  - **DELIVERABLES**: ~50 lines
+    - Add `seen` parameter to `caml_marshal_write_value(buf, value, seen)`
+      - Track visited tables in `seen` table (table → true mapping)
+      - Check if table already in `seen` before marshaling
+      - Error with clear message: "cyclic data structure detected"
+      - Pass `seen` recursively to nested marshal calls
+    - Update `caml_marshal_write_block` to accept and pass `seen` parameter
+    - Update all callers to pass `seen` table
+  - **TESTS**: Add cycle detection tests
+    - Direct cycle: `local x = {}; x[1] = x`
+    - Indirect cycle: `local a = {}; local b = {a}; a[1] = b`
+    - Deep cycle: 10-level nesting then back reference
+    - No false positives: shared but acyclic (DAG without cycles should error saying sharing not supported)
+  - **CRITICAL**: Prevents stack overflow on cyclic data
+  - **NO**: Full object sharing (that's Task 6.1.8)
+  - **YES**: Clear error message, prevents infinite loops
+
+- [ ] Task 6.1.8: Implement object sharing in `marshal.lua` (1.5 hours + tests)
+  - **PREREQUISITES**: Task 6.1.7
+  - **DELIVERABLES**: ~200 lines
+    - Add object tracking during marshal:
+      - `object_table` maps table → object_id (number)
+      - `next_id` counter starts at 1
+      - First occurrence: assign ID, marshal normally
+      - Subsequent occurrences: write CODE_SHARED (0x04) + object_id
+    - Add object reconstruction during unmarshal:
+      - `objects_by_id` maps object_id → table
+      - First read: store in `objects_by_id`
+      - CODE_SHARED read: lookup in `objects_by_id`, return reference
+    - Update `caml_marshal_write_value` signature: `(buf, value, object_table, next_id)`
+    - Update `caml_marshal_read_value` signature: `(str, offset, objects_by_id)`
+    - Update header write: set `num_objects` to actual count
+    - Update public API to create/pass object tables
+  - **TESTS**: Add object sharing tests
+    - Simple sharing: `local x = {1,2,3}; marshal({x, x, x})`
+    - Verify size: with sharing < without sharing (compare to no-sharing version)
+    - Verify identity: after unmarshal, `result[1] == result[2]` (same table)
+    - DAG (directed acyclic graph): complex sharing without cycles
+    - Cycles with sharing: works correctly now
+    - Mixed: some shared, some not shared
+  - **SEMANTIC CHANGE**: Preserves reference equality (`==`) after roundtrip
+  - **SIZE BENEFIT**: Reduces marshaled size for shared data structures
+  - **COMPATIBILITY**: Can still read data marshaled without sharing (num_objects=0)
+
 - [ ] Task 6.4: Refactor `digest.lua` - digest primitives (45 min + tests)
 - [ ] Task 6.5: Refactor `bigarray.lua` - bigarray primitives (1 hour + tests)
 
