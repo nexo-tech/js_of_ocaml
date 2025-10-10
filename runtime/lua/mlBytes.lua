@@ -15,16 +15,13 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
---- String and Bytes Operations Primitives
-
-local bit = require("compat_bit")
 
 --Provides: caml_bytes_of_string
 function caml_bytes_of_string(s)
   local len = #s
   local bytes = { length = len }
   for i = 1, len do
-    bytes[i - 1] = string.byte(s, i)  -- 0-indexed
+    bytes[i - 1] = string.byte(s, i)
   end
   return bytes
 end
@@ -66,14 +63,14 @@ end
 --Provides: caml_bytes_unsafe_set
 function caml_bytes_unsafe_set(b, i, c)
   if type(b) == "table" then
-    b[i] = bit.band(c, 0xFF)  -- Mask to 0-255
+    b[i] = c & 0xFF
   else
     error("Cannot set byte in immutable string")
   end
 end
 
 --Provides: caml_bytes_get
---Requires: caml_bytes_unsafe_get caml_ml_bytes_length
+--Requires: caml_bytes_unsafe_get, caml_ml_bytes_length
 function caml_bytes_get(b, i)
   local len = caml_ml_bytes_length(b)
   if i < 0 or i >= len then
@@ -135,14 +132,14 @@ function caml_fill_bytes(b, off, len, c)
   if type(b) ~= "table" then
     error("Cannot fill immutable string")
   end
-  c = bit.band(c, 0xFF)
+  c = c & 0xFF
   for i = 0, len - 1 do
     b[off + i] = c
   end
 end
 
 --Provides: caml_bytes_sub
---Requires: caml_create_bytes caml_bytes_unsafe_get
+--Requires: caml_create_bytes, caml_bytes_unsafe_get
 function caml_bytes_sub(b, off, len)
   local result = caml_create_bytes(len)
   for i = 0, len - 1 do
@@ -152,7 +149,7 @@ function caml_bytes_sub(b, off, len)
 end
 
 --Provides: caml_bytes_compare
---Requires: caml_ml_bytes_length caml_bytes_unsafe_get
+--Requires: caml_ml_bytes_length, caml_bytes_unsafe_get
 function caml_bytes_compare(s1, s2)
   local len1 = caml_ml_bytes_length(s1)
   local len2 = caml_ml_bytes_length(s2)
@@ -194,7 +191,7 @@ function caml_string_equal(s1, s2)
 end
 
 --Provides: caml_bytes_concat
---Requires: caml_ml_bytes_length caml_create_bytes caml_blit_bytes
+--Requires: caml_ml_bytes_length, caml_create_bytes, caml_blit_bytes
 function caml_bytes_concat(sep, list)
   if #list == 0 then
     return caml_create_bytes(0)
@@ -203,7 +200,6 @@ function caml_bytes_concat(sep, list)
   local sep_len = caml_ml_bytes_length(sep)
   local total_len = 0
 
-  -- Calculate total length
   for i, item in ipairs(list) do
     total_len = total_len + caml_ml_bytes_length(item)
     if i < #list then
@@ -211,7 +207,6 @@ function caml_bytes_concat(sep, list)
     end
   end
 
-  -- Build result
   local result = caml_create_bytes(total_len)
   local pos = 0
 
@@ -230,14 +225,13 @@ function caml_bytes_concat(sep, list)
 end
 
 --Provides: caml_bytes_uppercase
---Requires: caml_ml_bytes_length caml_create_bytes caml_bytes_unsafe_get
+--Requires: caml_ml_bytes_length, caml_create_bytes, caml_bytes_unsafe_get
 function caml_bytes_uppercase(b)
   local len = caml_ml_bytes_length(b)
   local result = caml_create_bytes(len)
 
   for i = 0, len - 1 do
     local c = caml_bytes_unsafe_get(b, i)
-    -- Convert a-z to A-Z
     if c >= 97 and c <= 122 then
       c = c - 32
     end
@@ -248,14 +242,13 @@ function caml_bytes_uppercase(b)
 end
 
 --Provides: caml_bytes_lowercase
---Requires: caml_ml_bytes_length caml_create_bytes caml_bytes_unsafe_get
+--Requires: caml_ml_bytes_length, caml_create_bytes, caml_bytes_unsafe_get
 function caml_bytes_lowercase(b)
   local len = caml_ml_bytes_length(b)
   local result = caml_create_bytes(len)
 
   for i = 0, len - 1 do
     local c = caml_bytes_unsafe_get(b, i)
-    -- Convert A-Z to a-z
     if c >= 65 and c <= 90 then
       c = c + 32
     end
@@ -266,7 +259,7 @@ function caml_bytes_lowercase(b)
 end
 
 --Provides: caml_bytes_index
---Requires: caml_ml_bytes_length caml_bytes_unsafe_get
+--Requires: caml_ml_bytes_length, caml_bytes_unsafe_get
 function caml_bytes_index(haystack, needle)
   local hay_len = caml_ml_bytes_length(haystack)
   local needle_len = caml_ml_bytes_length(needle)
@@ -299,7 +292,7 @@ end
 function caml_bytes_get16(b, i)
   local b1 = caml_bytes_unsafe_get(b, i)
   local b2 = caml_bytes_unsafe_get(b, i + 1)
-  return bit.bor(b1, bit.lshift(b2, 8))
+  return b1 | (b2 << 8)
 end
 
 --Provides: caml_string_get16
@@ -314,7 +307,7 @@ function caml_bytes_get32(b, i)
   local b2 = caml_bytes_unsafe_get(b, i + 1)
   local b3 = caml_bytes_unsafe_get(b, i + 2)
   local b4 = caml_bytes_unsafe_get(b, i + 3)
-  return bit.bor(bit.bor(bit.bor(b1, bit.lshift(b2, 8)), bit.lshift(b3, 16)), bit.lshift(b4, 24))
+  return b1 | (b2 << 8) | (b3 << 16) | (b4 << 24)
 end
 
 --Provides: caml_string_get32
@@ -325,15 +318,15 @@ end
 --Provides: caml_bytes_set16
 --Requires: caml_bytes_unsafe_set
 function caml_bytes_set16(b, i, v)
-  caml_bytes_unsafe_set(b, i, bit.band(v, 0xFF))
-  caml_bytes_unsafe_set(b, i + 1, bit.band(bit.rshift(v, 8), 0xFF))
+  caml_bytes_unsafe_set(b, i, v & 0xFF)
+  caml_bytes_unsafe_set(b, i + 1, (v >> 8) & 0xFF)
 end
 
 --Provides: caml_bytes_set32
 --Requires: caml_bytes_unsafe_set
 function caml_bytes_set32(b, i, v)
-  caml_bytes_unsafe_set(b, i, bit.band(v, 0xFF))
-  caml_bytes_unsafe_set(b, i + 1, bit.band(bit.rshift(v, 8), 0xFF))
-  caml_bytes_unsafe_set(b, i + 2, bit.band(bit.rshift(v, 16), 0xFF))
-  caml_bytes_unsafe_set(b, i + 3, bit.band(bit.rshift(v, 24), 0xFF))
+  caml_bytes_unsafe_set(b, i, v & 0xFF)
+  caml_bytes_unsafe_set(b, i + 1, (v >> 8) & 0xFF)
+  caml_bytes_unsafe_set(b, i + 2, (v >> 16) & 0xFF)
+  caml_bytes_unsafe_set(b, i + 3, (v >> 24) & 0xFF)
 end

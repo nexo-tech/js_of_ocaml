@@ -15,9 +15,10 @@
 - [x] Task 2.2: Refactor `compare.lua` - comparison primitives (1 hour + tests)
   - **FIXED**: Converted 5 local helper functions to caml_* functions with --Provides
   - **VERIFIED**: All 73 tests pass, no syntax errors
-- [ ] Task 2.3: Refactor `mlBytes.lua` - bytes primitives (1 hour + tests)
-  - **VIOLATION**: Has `local bit = require("compat_bit")`
-  - **STATUS**: Needs review and potential rewrite
+- [x] Task 2.3: Refactor `mlBytes.lua` - bytes primitives (1 hour + tests)
+  - **FIXED**: Removed `local bit = require("compat_bit")` and documentation comment
+  - **FIXED**: Replaced all bit.* operations with native Lua 5.3+ bitwise operators
+  - **VERIFIED**: All 36 tests pass, no syntax errors
 - [x] Task 2.4: Refactor `array.lua` - array primitives (1 hour + tests)
   - **VERIFIED**: Clean (documentation comments removed)
 - [ ] Task 2.5: Refactor `ints.lua` - integer primitives (1 hour + tests)
