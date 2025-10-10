@@ -12,9 +12,9 @@
 ### Phase 2: Refactor Core Modules (Est: 6 hours)
 - [x] Task 2.1: Refactor `core.lua` - base primitives (1 hour + tests)
   - **FIXED**: Removed all global variables, documentation comments
-- [ ] Task 2.2: Refactor `compare.lua` - comparison primitives (1 hour + tests)
-  - **VIOLATION**: Has 5 local helper functions (linker cannot inline!)
-  - **STATUS**: Needs rewrite - convert local functions to caml_ functions with --Provides
+- [x] Task 2.2: Refactor `compare.lua` - comparison primitives (1 hour + tests)
+  - **FIXED**: Converted 5 local helper functions to caml_* functions with --Provides
+  - **VERIFIED**: All 73 tests pass, no syntax errors
 - [ ] Task 2.3: Refactor `mlBytes.lua` - bytes primitives (1 hour + tests)
   - **VIOLATION**: Has `local bit = require("compat_bit")`
   - **STATUS**: Needs review and potential rewrite
@@ -27,20 +27,48 @@
   - **VERIFIED**: Clean after documentation comment removal
 
 ### Phase 3: Refactor Standard Library Modules (Est: 8 hours)
-- [x] Task 3.1: Refactor `buffer.lua` - buffer primitives (45 min + tests)
-- [x] Task 3.2: Refactor `format.lua` - format primitives (45 min + tests)
-- [x] Task 3.3: Refactor `hash.lua` - hashing primitives (45 min + tests)
-- [x] Task 3.4: Refactor `hashtbl.lua` - hashtable primitives (45 min + tests)
-- [x] Task 3.5: Refactor `lazy.lua` - lazy evaluation primitives (45 min + tests)
-- [x] Task 3.6: Refactor `lexing.lua` - lexer primitives (45 min + tests)
+
+**VERIFICATION COMPLETE**: See `runtime/lua/PHASE3_VIOLATIONS.md` for detailed violations
+
+- [ ] Task 3.1: Refactor `buffer.lua` - buffer primitives (45 min + tests)
+  - **VIOLATIONS**: Local constant, local table, local helper function
+  - **STATUS**: Needs rewrite - inline constant, remove metatable, convert helper to caml_*
+- [ ] Task 3.2: Refactor `format.lua` - format primitives (45 min + tests)
+  - **VIOLATIONS**: 4 local helper functions (linker cannot inline!)
+  - **STATUS**: Needs rewrite - convert helpers to caml_* functions with --Provides
+- [ ] Task 3.3: Refactor `hash.lua` - hashing primitives (45 min + tests)
+  - **VIOLATIONS**: 9 local helper functions (bit operations)
+  - **STATUS**: Needs rewrite - convert all bit helpers to caml_* functions
+- [ ] Task 3.4: Refactor `hashtbl.lua` - hashtable primitives (45 min + tests)
+  - **VIOLATIONS**: Local constants, local table, 3 local helper functions
+  - **STATUS**: Needs rewrite - inline constants, remove metatable, convert helpers
+- [ ] Task 3.5: Refactor `lazy.lua` - lazy evaluation primitives (45 min + tests)
+  - **VIOLATIONS**: 3 local constants (LAZY_TAG, FORCING_TAG, FORWARD_TAG)
+  - **STATUS**: Needs rewrite - inline tag constants into function bodies
+- [ ] Task 3.6: Refactor `lexing.lua` - lexer primitives (45 min + tests)
+  - **VIOLATIONS**: 17 local constants, local function in closure
+  - **STATUS**: Needs rewrite - inline constants, restructure lexbuf creation
 - [x] Task 3.7: Refactor `list.lua` - list primitives (45 min + tests)
-- [x] Task 3.8: Refactor `map.lua` - map primitives (45 min + tests)
+  - **VERIFIED**: Clean (documentation comments removed)
+- [ ] Task 3.8: Refactor `map.lua` - map primitives (45 min + tests)
+  - **VIOLATIONS**: 19 local helper functions (AVL tree operations)
+  - **STATUS**: Needs rewrite - convert all AVL helpers to caml_map_* functions
 - [x] Task 3.9: Refactor `option.lua` - option primitives (30 min + tests)
-- [x] Task 3.10: Refactor `parsing.lua` - parser primitives (45 min + tests)
-- [x] Task 3.11: Refactor `queue.lua` - queue primitives (30 min + tests)
+  - **VERIFIED**: Clean (documentation comments removed)
+- [ ] Task 3.10: Refactor `parsing.lua` - parser primitives (45 min + tests)
+  - **VIOLATIONS**: 33 local constants, 1 local variable (caml_parser_trace)
+  - **STATUS**: Needs rewrite - inline constants, convert trace to global with accessor
+- [ ] Task 3.11: Refactor `queue.lua` - queue primitives (30 min + tests)
+  - **VIOLATIONS**: Local table with metatable
+  - **STATUS**: Needs rewrite - remove metatable pattern, redesign with flat functions
 - [x] Task 3.12: Refactor `result.lua` - result primitives (30 min + tests)
-- [x] Task 3.13: Refactor `set.lua` - set primitives (45 min + tests)
-- [x] Task 3.14: Refactor `stack.lua` - stack primitives (30 min + tests)
+  - **VERIFIED**: Clean (documentation comments removed)
+- [ ] Task 3.13: Refactor `set.lua` - set primitives (45 min + tests)
+  - **VIOLATIONS**: dofile() statement, 22 local helper functions (AVL tree)
+  - **STATUS**: Needs rewrite - remove dofile(), convert AVL helpers to caml_set_*
+- [ ] Task 3.14: Refactor `stack.lua` - stack primitives (30 min + tests)
+  - **VIOLATIONS**: Local table with metatable
+  - **STATUS**: Needs rewrite - remove metatable pattern, redesign with flat functions
 
 ### Phase 4: Refactor System & I/O Modules (Est: 4 hours)
 - [x] Task 4.1: Refactor `sys.lua` - system primitives (1 hour + tests)
