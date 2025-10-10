@@ -22,7 +22,7 @@
 - [x] Task 3.2: Refactor `format.lua` - format primitives (45 min + tests)
 - [x] Task 3.3: Refactor `hash.lua` - hashing primitives (45 min + tests)
 - [x] Task 3.4: Refactor `hashtbl.lua` - hashtable primitives (45 min + tests)
-- [ ] Task 3.5: Refactor `lazy.lua` - lazy evaluation primitives (45 min + tests)
+- [x] Task 3.5: Refactor `lazy.lua` - lazy evaluation primitives (45 min + tests)
 - [ ] Task 3.6: Refactor `lexing.lua` - lexer primitives (45 min + tests)
 - [ ] Task 3.7: Refactor `list.lua` - list primitives (45 min + tests)
 - [ ] Task 3.8: Refactor `map.lua` - map primitives (45 min + tests)

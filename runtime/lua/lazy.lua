@@ -17,16 +17,19 @@ local FORWARD_TAG = 250   -- Already evaluated
 --
 
 -- Create a lazy value from a thunk function
+--Provides: caml_lazy_from_fun
 function caml_lazy_from_fun(f)
   return {LAZY_TAG, f}
 end
 
 -- Create an already-evaluated lazy value
+--Provides: caml_lazy_make_forward
 function caml_lazy_make_forward(v)
   return {FORWARD_TAG, v}
 end
 
 -- Create a lazy value from a normal value (wraps it as evaluated)
+--Provides: caml_lazy_from_val
 function caml_lazy_from_val(v)
   return {FORWARD_TAG, v}
 end
@@ -36,6 +39,7 @@ end
 --
 
 -- Try to update lazy value to forcing state (returns 0 on success, 1 on failure)
+--Provides: caml_lazy_update_to_forcing
 function caml_lazy_update_to_forcing(lazy_val)
   if lazy_val[1] == LAZY_TAG then
     lazy_val[1] = FORCING_TAG
@@ -46,6 +50,7 @@ function caml_lazy_update_to_forcing(lazy_val)
 end
 
 -- Update forcing value to forward state with result
+--Provides: caml_lazy_update_to_forward
 function caml_lazy_update_to_forward(lazy_val)
   if lazy_val[1] == FORCING_TAG then
     lazy_val[1] = FORWARD_TAG
@@ -54,6 +59,7 @@ function caml_lazy_update_to_forward(lazy_val)
 end
 
 -- Reset forcing value back to lazy (used on exception)
+--Provides: caml_lazy_reset_to_lazy
 function caml_lazy_reset_to_lazy(lazy_val)
   if lazy_val[1] == FORCING_TAG then
     lazy_val[1] = LAZY_TAG
@@ -62,6 +68,7 @@ function caml_lazy_reset_to_lazy(lazy_val)
 end
 
 -- Read the result from a lazy value (only call after forcing)
+--Provides: caml_lazy_read_result
 function caml_lazy_read_result(lazy_val)
   if lazy_val[1] == FORWARD_TAG then
     return lazy_val[2]
@@ -75,6 +82,7 @@ end
 --
 
 -- Force evaluation of a lazy value
+--Provides: caml_lazy_force
 function caml_lazy_force(lazy_val)
   local tag = lazy_val[1]
 
@@ -122,6 +130,8 @@ function caml_lazy_force(lazy_val)
 end
 
 -- Force and return the value (alias for caml_lazy_force)
+--Provides: caml_lazy_force_val
+--Requires: caml_lazy_force
 function caml_lazy_force_val(lazy_val)
   return caml_lazy_force(lazy_val)
 end
@@ -131,16 +141,19 @@ end
 --
 
 -- Check if lazy value has been forced
+--Provides: caml_lazy_is_val
 function caml_lazy_is_val(lazy_val)
   return lazy_val[1] == FORWARD_TAG
 end
 
 -- Check if lazy value is currently being forced
+--Provides: caml_lazy_is_forcing
 function caml_lazy_is_forcing(lazy_val)
   return lazy_val[1] == FORCING_TAG
 end
 
 -- Check if lazy value is lazy (not yet evaluated)
+--Provides: caml_lazy_is_lazy
 function caml_lazy_is_lazy(lazy_val)
   return lazy_val[1] == LAZY_TAG
 end
@@ -150,6 +163,8 @@ end
 --
 
 -- Map over a lazy value (returns a new lazy value)
+--Provides: caml_lazy_map
+--Requires: caml_lazy_force, caml_lazy_from_fun
 function caml_lazy_map(f, lazy_val)
   -- Create a new lazy thunk that forces the original and applies f
   local thunk = function()
@@ -160,6 +175,8 @@ function caml_lazy_map(f, lazy_val)
 end
 
 -- Map over two lazy values
+--Provides: caml_lazy_map2
+--Requires: caml_lazy_force, caml_lazy_from_fun
 function caml_lazy_map2(f, lazy_val1, lazy_val2)
   local thunk = function()
     local value1 = caml_lazy_force(lazy_val1)
@@ -174,11 +191,14 @@ end
 --
 
 -- Get the tag of a lazy value
+--Provides: caml_lazy_tag
 function caml_lazy_tag(lazy_val)
   return lazy_val[1]
 end
 
 -- Create a lazy value that raises an exception when forced
+--Provides: caml_lazy_from_exception
+--Requires: caml_lazy_from_fun
 function caml_lazy_from_exception(exn)
   local thunk = function()
     error(exn)
@@ -187,28 +207,9 @@ function caml_lazy_from_exception(exn)
 end
 
 -- Force a lazy value and ignore the result (for side effects)
+--Provides: caml_lazy_force_unit
+--Requires: caml_lazy_force
 function caml_lazy_force_unit(lazy_val)
   caml_lazy_force(lazy_val)
   return 0  -- unit
 end
-
--- Export all functions as a module
-return {
-  caml_lazy_from_fun = caml_lazy_from_fun,
-  caml_lazy_make_forward = caml_lazy_make_forward,
-  caml_lazy_from_val = caml_lazy_from_val,
-  caml_lazy_update_to_forcing = caml_lazy_update_to_forcing,
-  caml_lazy_update_to_forward = caml_lazy_update_to_forward,
-  caml_lazy_reset_to_lazy = caml_lazy_reset_to_lazy,
-  caml_lazy_read_result = caml_lazy_read_result,
-  caml_lazy_force = caml_lazy_force,
-  caml_lazy_force_val = caml_lazy_force_val,
-  caml_lazy_is_val = caml_lazy_is_val,
-  caml_lazy_is_forcing = caml_lazy_is_forcing,
-  caml_lazy_is_lazy = caml_lazy_is_lazy,
-  caml_lazy_map = caml_lazy_map,
-  caml_lazy_map2 = caml_lazy_map2,
-  caml_lazy_tag = caml_lazy_tag,
-  caml_lazy_from_exception = caml_lazy_from_exception,
-  caml_lazy_force_unit = caml_lazy_force_unit,
-}
