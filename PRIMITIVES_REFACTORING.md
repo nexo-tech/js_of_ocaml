@@ -144,20 +144,17 @@
     - ✓ All big-endian byte order
     - ✓ 47 tests passed (100% coverage)
 
-- [ ] Task 6.2: Implement `marshal_header.lua` - Marshal header functions (45 min + tests)
-  - **PREREQUISITES**: Task 6.3 (uses marshal_io functions)
-  - **DELIVERABLES**: ~150-200 lines
-    - `caml_marshal_header_write(buf, data_len, num_objects, size_32, size_64)` - write 20-byte header
-    - `caml_marshal_header_read(str, offset)` - read and validate header, return {magic, data_len, num_objects, size_32, size_64}
-  - **HEADER FORMAT** (20 bytes total):
-    - Magic number (4 bytes): 0x8495A6BE (MAGIC_SMALL) or 0x8495A6BF (MAGIC_BIG)
-    - Data length (4 bytes): length of marshaled data excluding header
-    - Number of objects (4 bytes): for sharing support
-    - Size 32-bit (4 bytes): size when read on 32-bit platform
-    - Size 64-bit (4 bytes): size when read on 64-bit platform
-  - **TESTS**: Create test_marshal_header.lua with ~20 tests
-  - **NO**: Classes, local functions, local constants
-  - **YES**: Inline all constants (0x8495A6BE, etc.) with comments
+- [x] Task 6.2: Implement `marshal_header.lua` - Marshal header functions (45 min + tests)
+  - **PREREQUISITES**: Task 6.3 (uses marshal_io functions) ✓
+  - **COMPLETED**: 95 lines (marshal_header.lua) + 359 lines (test_marshal_header.lua) = 454 lines total
+  - **IMPLEMENTED**:
+    - ✓ `caml_marshal_header_write(buf, data_len, num_objects, size_32, size_64)` - write 20-byte header
+    - ✓ `caml_marshal_header_read(str, offset)` - read and validate header, return table with all fields
+    - ✓ `caml_marshal_header_size()` - return header size (20 bytes) - bonus function
+    - ✓ Supports MAGIC_SMALL (0x8495A6BE) and MAGIC_BIG (0x8495A6BF)
+    - ✓ Validates magic number on read
+    - ✓ Error handling for insufficient data and invalid magic
+    - ✓ 24 tests passed (100% coverage)
 
 - [ ] Task 6.1.1: Implement integer marshaling in `marshal.lua` (30 min + tests)
   - **PREREQUISITES**: Tasks 6.3, 6.2

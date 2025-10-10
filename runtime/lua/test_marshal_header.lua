@@ -1,20 +1,20 @@
 #!/usr/bin/env lua
--- Test suite for marshal_header.lua (Task 1.2)
+-- Test suite for marshal_header.lua
 
+dofile("marshal_io.lua")
 dofile("marshal_header.lua")
 
--- Test framework
-local tests_run = 0
 local tests_passed = 0
+local tests_failed = 0
 
 local function test(name, fn)
-  tests_run = tests_run + 1
-  io.write("Testing " .. name .. " ... ")
+  io.write("Test: " .. name .. " ... ")
   local success, err = pcall(fn)
   if success then
     tests_passed = tests_passed + 1
     print("✓")
   else
+    tests_failed = tests_failed + 1
     print("✗")
     print("  Error: " .. tostring(err))
   end
@@ -28,345 +28,326 @@ end
 
 local function assert_true(value, msg)
   if not value then
-    error(msg or "Expected true")
+    error(msg or "Expected true, got false")
   end
 end
 
 print("====================================================================")
-print("Marshal Header Tests (marshal_header.lua - Task 1.2)")
+print("Marshal Header Tests")
 print("====================================================================")
-print("")
+print()
 
---
--- VLQ Tests
---
-
-print("VLQ Encoding Tests:")
+print("Header Size Tests:")
 print("--------------------------------------------------------------------")
 
-test("VLQ encode small values", function()
-  local writer = Writer:new()
-  marshal_header_write_vlq(writer, 0)
-  marshal_header_write_vlq(writer, 1)
-  marshal_header_write_vlq(writer, 127)
-
-  local str = writer:to_string()
-  assert_eq(#str, 3, "Should write 3 bytes")
-  assert_eq(string.byte(str, 1), 0, "VLQ(0) = 0")
-  assert_eq(string.byte(str, 2), 1, "VLQ(1) = 1")
-  assert_eq(string.byte(str, 3), 127, "VLQ(127) = 127")
+test("header_size: returns 20 bytes", function()
+  local size = caml_marshal_header_size()
+  assert_eq(size, 20)
 end)
 
-test("VLQ encode medium values", function()
-  local writer = Writer:new()
-  marshal_header_write_vlq(writer, 128)    -- 0x81 0x00
-  marshal_header_write_vlq(writer, 255)    -- 0x81 0x7F
-  marshal_header_write_vlq(writer, 16383)  -- 0xFF 0x7F
-
-  local str = writer:to_string()
-  assert_eq(string.byte(str, 1), 0x81, "VLQ(128) byte 1")
-  assert_eq(string.byte(str, 2), 0x00, "VLQ(128) byte 2")
-  assert_eq(string.byte(str, 3), 0x81, "VLQ(255) byte 1")
-  assert_eq(string.byte(str, 4), 0x7F, "VLQ(255) byte 2")
-end)
-
-test("VLQ encode large values", function()
-  local writer = Writer:new()
-  marshal_header_write_vlq(writer, 16384)    -- 0x81 0x80 0x00
-  marshal_header_write_vlq(writer, 2097151)  -- 0xFF 0xFF 0x7F
-
-  local str = writer:to_string()
-  assert_eq(string.byte(str, 1), 0x81, "VLQ(16384) byte 1")
-  assert_eq(string.byte(str, 2), 0x80, "VLQ(16384) byte 2")
-  assert_eq(string.byte(str, 3), 0x00, "VLQ(16384) byte 3")
-end)
-
-test("VLQ roundtrip small values", function()
-  local values = {0, 1, 42, 63, 64, 127}
-  for _, v in ipairs(values) do
-    local writer = Writer:new()
-    marshal_header_write_vlq(writer, v)
-
-    local reader = Reader:new(writer:to_string())
-    local decoded, overflow = marshal_header_read_vlq(reader)
-
-    assert_eq(decoded, v, "VLQ roundtrip " .. v)
-    assert_true(not overflow, "No overflow for " .. v)
-  end
-end)
-
-test("VLQ roundtrip medium values", function()
-  local values = {128, 255, 256, 1000, 16383, 16384, 100000}
-  for _, v in ipairs(values) do
-    local writer = Writer:new()
-    marshal_header_write_vlq(writer, v)
-
-    local reader = Reader:new(writer:to_string())
-    local decoded, overflow = marshal_header_read_vlq(reader)
-
-    assert_eq(decoded, v, "VLQ roundtrip " .. v)
-    assert_true(not overflow, "No overflow for " .. v)
-  end
-end)
-
-test("VLQ roundtrip large values", function()
-  local values = {1000000, 16777215, 2097151, 268435455}
-  for _, v in ipairs(values) do
-    local writer = Writer:new()
-    marshal_header_write_vlq(writer, v)
-
-    local reader = Reader:new(writer:to_string())
-    local decoded, overflow = marshal_header_read_vlq(reader)
-
-    assert_eq(decoded, v, "VLQ roundtrip " .. v)
-    assert_true(not overflow, "No overflow for " .. v)
-  end
-end)
-
---
--- Standard Header Tests
---
-
-print("")
-print("Standard Header Tests:")
+print()
+print("Header Write Tests:")
 print("--------------------------------------------------------------------")
 
-test("Write standard header", function()
-  local header_str = marshal_header_write_header(100, 5, 0, 0)
-
-  assert_eq(#header_str, 20, "Header should be 20 bytes")
-
-  -- Check magic number
-  local b1, b2, b3, b4 = string.byte(header_str, 1, 4)
-  local magic = ((b1 * 256 + b2) * 256 + b3) * 256 + b4
-  assert_eq(magic, 0x8495A6BE, "Magic number should be MAGIC_SMALL")
+test("header_write: basic header", function()
+  local buf = caml_marshal_buffer_create()
+  caml_marshal_header_write(buf, 100, 0, 100, 100)
+  assert_eq(buf.length, 20)
 end)
 
-test("Read standard header", function()
-  local header_str = marshal_header_write_header(200, 10, 0, 0)
-  local header = marshal_header_read_header(header_str)
+test("header_write: magic number", function()
+  local buf = caml_marshal_buffer_create()
+  caml_marshal_header_write(buf, 10, 0, 10, 10)
+  local str = caml_marshal_buffer_to_string(buf)
 
-  assert_eq(header.magic, 0x8495A6BE, "Magic number")
-  assert_eq(header.header_len, 20, "Header length")
-  assert_eq(header.data_len, 200, "Data length")
-  assert_eq(header.uncompressed_data_len, 200, "Uncompressed data length")
-  assert_eq(header.num_objects, 10, "Number of objects")
-  assert_eq(header.size_32, 0, "Size 32")
-  assert_eq(header.size_64, 0, "Size 64")
-  assert_true(not header.compressed, "Not compressed")
+  -- Check magic number is 0x8495A6BE (MAGIC_SMALL)
+  local magic = caml_marshal_read32u(str, 0)
+  assert_eq(magic, 0x8495A6BE)
 end)
 
-test("Roundtrip standard header - zero objects", function()
-  local header_str = marshal_header_write_header(0, 0, 0, 0)
-  local header = marshal_header_read_header(header_str)
+test("header_write: data length", function()
+  local buf = caml_marshal_buffer_create()
+  caml_marshal_header_write(buf, 12345, 0, 0, 0)
+  local str = caml_marshal_buffer_to_string(buf)
 
-  assert_eq(header.data_len, 0, "Data length")
-  assert_eq(header.num_objects, 0, "Number of objects")
+  -- Check data length field
+  local data_len = caml_marshal_read32u(str, 4)
+  assert_eq(data_len, 12345)
 end)
 
-test("Roundtrip standard header - large values", function()
-  local header_str = marshal_header_write_header(1000000, 5000, 123, 456)
-  local header = marshal_header_read_header(header_str)
+test("header_write: num objects", function()
+  local buf = caml_marshal_buffer_create()
+  caml_marshal_header_write(buf, 100, 42, 100, 100)
+  local str = caml_marshal_buffer_to_string(buf)
 
-  assert_eq(header.data_len, 1000000, "Data length")
-  assert_eq(header.num_objects, 5000, "Number of objects")
-  assert_eq(header.size_32, 123, "Size 32")
-  assert_eq(header.size_64, 456, "Size 64")
+  -- Check num_objects field
+  local num_objects = caml_marshal_read32u(str, 8)
+  assert_eq(num_objects, 42)
 end)
 
---
--- Compressed Header Tests
---
+test("header_write: size 32", function()
+  local buf = caml_marshal_buffer_create()
+  caml_marshal_header_write(buf, 100, 0, 999, 100)
+  local str = caml_marshal_buffer_to_string(buf)
 
-print("")
-print("Compressed Header Tests:")
+  -- Check size_32 field
+  local size_32 = caml_marshal_read32u(str, 12)
+  assert_eq(size_32, 999)
+end)
+
+test("header_write: size 64", function()
+  local buf = caml_marshal_buffer_create()
+  caml_marshal_header_write(buf, 100, 0, 100, 888)
+  local str = caml_marshal_buffer_to_string(buf)
+
+  -- Check size_64 field
+  local size_64 = caml_marshal_read32u(str, 16)
+  assert_eq(size_64, 888)
+end)
+
+test("header_write: all fields", function()
+  local buf = caml_marshal_buffer_create()
+  caml_marshal_header_write(buf, 1000, 50, 2000, 3000)
+  local str = caml_marshal_buffer_to_string(buf)
+
+  assert_eq(caml_marshal_read32u(str, 0), 0x8495A6BE)  -- magic
+  assert_eq(caml_marshal_read32u(str, 4), 1000)        -- data_len
+  assert_eq(caml_marshal_read32u(str, 8), 50)          -- num_objects
+  assert_eq(caml_marshal_read32u(str, 12), 2000)       -- size_32
+  assert_eq(caml_marshal_read32u(str, 16), 3000)       -- size_64
+end)
+
+print()
+print("Header Read Tests:")
 print("--------------------------------------------------------------------")
 
-test("Write compressed header", function()
-  local header_str = marshal_header_write_compressed_header(100, 150, 5, 0, 0)
+test("header_read: basic header", function()
+  local buf = caml_marshal_buffer_create()
+  caml_marshal_header_write(buf, 100, 0, 100, 100)
+  local str = caml_marshal_buffer_to_string(buf)
 
-  -- Header should be at least 4 bytes (magic) + 1 byte (len) + VLQs
-  assert_true(#header_str >= 5, "Header should be at least 5 bytes")
-
-  -- Check magic number
-  local b1, b2, b3, b4 = string.byte(header_str, 1, 4)
-  local magic = ((b1 * 256 + b2) * 256 + b3) * 256 + b4
-  assert_eq(magic, 0x8495A6BD, "Magic number should be MAGIC_COMPRESSED")
+  local header = caml_marshal_header_read(str, 0)
+  assert_true(header ~= nil)
 end)
 
-test("Read compressed header", function()
-  local header_str = marshal_header_write_compressed_header(200, 300, 10, 0, 0)
-  local header = marshal_header_read_header(header_str)
+test("header_read: magic number", function()
+  local buf = caml_marshal_buffer_create()
+  caml_marshal_header_write(buf, 10, 0, 10, 10)
+  local str = caml_marshal_buffer_to_string(buf)
 
-  assert_eq(header.magic, 0x8495A6BD, "Magic number")
-  assert_eq(header.data_len, 200, "Data length")
-  assert_eq(header.uncompressed_data_len, 300, "Uncompressed data length")
-  assert_eq(header.num_objects, 10, "Number of objects")
-  assert_eq(header.size_32, 0, "Size 32")
-  assert_eq(header.size_64, 0, "Size 64")
-  assert_true(header.compressed, "Is compressed")
+  local header = caml_marshal_header_read(str, 0)
+  assert_eq(header.magic, 0x8495A6BE)
 end)
 
-test("Roundtrip compressed header - small values", function()
-  local header_str = marshal_header_write_compressed_header(10, 20, 1, 0, 0)
-  local header = marshal_header_read_header(header_str)
+test("header_read: data length", function()
+  local buf = caml_marshal_buffer_create()
+  caml_marshal_header_write(buf, 12345, 0, 0, 0)
+  local str = caml_marshal_buffer_to_string(buf)
 
-  assert_eq(header.data_len, 10, "Data length")
-  assert_eq(header.uncompressed_data_len, 20, "Uncompressed data length")
-  assert_eq(header.num_objects, 1, "Number of objects")
+  local header = caml_marshal_header_read(str, 0)
+  assert_eq(header.data_len, 12345)
 end)
 
-test("Roundtrip compressed header - large values", function()
-  local header_str = marshal_header_write_compressed_header(1000000, 2000000, 50000, 100, 200)
-  local header = marshal_header_read_header(header_str)
+test("header_read: num objects", function()
+  local buf = caml_marshal_buffer_create()
+  caml_marshal_header_write(buf, 100, 42, 100, 100)
+  local str = caml_marshal_buffer_to_string(buf)
 
-  assert_eq(header.data_len, 1000000, "Data length")
-  assert_eq(header.uncompressed_data_len, 2000000, "Uncompressed data length")
-  assert_eq(header.num_objects, 50000, "Number of objects")
-  assert_eq(header.size_32, 100, "Size 32")
-  assert_eq(header.size_64, 200, "Size 64")
+  local header = caml_marshal_header_read(str, 0)
+  assert_eq(header.num_objects, 42)
 end)
 
-test("Compressed header is smaller than standard", function()
-  local standard = marshal_header_write_header(100, 5, 0, 0)
-  local compressed = marshal_header_write_compressed_header(100, 100, 5, 0, 0)
+test("header_read: size 32", function()
+  local buf = caml_marshal_buffer_create()
+  caml_marshal_header_write(buf, 100, 0, 999, 100)
+  local str = caml_marshal_buffer_to_string(buf)
 
-  assert_true(#compressed < #standard, "Compressed should be smaller for small values")
+  local header = caml_marshal_header_read(str, 0)
+  assert_eq(header.size_32, 999)
 end)
 
---
--- Size Functions Tests
---
+test("header_read: size 64", function()
+  local buf = caml_marshal_buffer_create()
+  caml_marshal_header_write(buf, 100, 0, 100, 888)
+  local str = caml_marshal_buffer_to_string(buf)
 
-print("")
-print("Size Functions Tests:")
+  local header = caml_marshal_header_read(str, 0)
+  assert_eq(header.size_64, 888)
+end)
+
+test("header_read: all fields", function()
+  local buf = caml_marshal_buffer_create()
+  caml_marshal_header_write(buf, 1000, 50, 2000, 3000)
+  local str = caml_marshal_buffer_to_string(buf)
+
+  local header = caml_marshal_header_read(str, 0)
+  assert_eq(header.magic, 0x8495A6BE)
+  assert_eq(header.data_len, 1000)
+  assert_eq(header.num_objects, 50)
+  assert_eq(header.size_32, 2000)
+  assert_eq(header.size_64, 3000)
+end)
+
+test("header_read: at offset", function()
+  local buf = caml_marshal_buffer_create()
+  -- Write some padding
+  caml_marshal_buffer_write8u(buf, 0xFF)
+  caml_marshal_buffer_write8u(buf, 0xFF)
+  caml_marshal_buffer_write8u(buf, 0xFF)
+  caml_marshal_buffer_write8u(buf, 0xFF)
+  -- Write header at offset 4
+  caml_marshal_header_write(buf, 555, 10, 666, 777)
+  local str = caml_marshal_buffer_to_string(buf)
+
+  local header = caml_marshal_header_read(str, 4)
+  assert_eq(header.data_len, 555)
+  assert_eq(header.num_objects, 10)
+  assert_eq(header.size_32, 666)
+  assert_eq(header.size_64, 777)
+end)
+
+print()
+print("Error Handling Tests:")
 print("--------------------------------------------------------------------")
 
-test("total_size standard header", function()
-  local header_str = marshal_header_write_header(100, 5, 0, 0)
-  local total = marshal_header_total_size(header_str)
-
-  assert_eq(total, 120, "Total size should be header (20) + data (100)")
+test("header_read: insufficient data", function()
+  local str = "short"
+  local success = pcall(function()
+    caml_marshal_header_read(str, 0)
+  end)
+  assert_true(not success, "Should error on short data")
 end)
 
-test("data_size standard header", function()
-  local header_str = marshal_header_write_header(250, 10, 0, 0)
-  local data = marshal_header_data_size(header_str)
-
-  assert_eq(data, 250, "Data size should be 250")
-end)
-
-test("total_size compressed header", function()
-  local header_str = marshal_header_write_compressed_header(80, 120, 3, 0, 0)
-  local total = marshal_header_total_size(header_str)
-  local header_len = #header_str
-
-  assert_eq(total, header_len + 80, "Total size should be header + data")
-end)
-
-test("data_size compressed header", function()
-  local header_str = marshal_header_write_compressed_header(150, 200, 5, 0, 0)
-  local data = marshal_header_data_size(header_str)
-
-  assert_eq(data, 150, "Data size should be 150")
-end)
-
---
--- Error Handling Tests
---
-
-print("")
-print("Error Handling:")
-print("--------------------------------------------------------------------")
-
-test("Invalid magic number", function()
-  local writer = Writer:new()
-  writer:write32u(0x12345678)  -- Invalid magic
-  writer:write32u(0)
-  writer:write32u(0)
-  writer:write32u(0)
-  writer:write32u(0)
+test("header_read: invalid magic number", function()
+  local buf = caml_marshal_buffer_create()
+  caml_marshal_buffer_write32u(buf, 0xDEADBEEF)  -- Invalid magic
+  caml_marshal_buffer_write32u(buf, 0)
+  caml_marshal_buffer_write32u(buf, 0)
+  caml_marshal_buffer_write32u(buf, 0)
+  caml_marshal_buffer_write32u(buf, 0)
+  local str = caml_marshal_buffer_to_string(buf)
 
   local success = pcall(function()
-    marshal_header_read_header(writer:to_string())
+    caml_marshal_header_read(str, 0)
   end)
   assert_true(not success, "Should error on invalid magic")
 end)
 
-test("MAGIC_BIG error", function()
-  local writer = Writer:new()
-  writer:write32u(0x8495A6BF)  -- MAGIC_BIG
+test("header_read: MAGIC_BIG accepted", function()
+  -- Manually create header with MAGIC_BIG (0x8495A6BF)
+  local buf = caml_marshal_buffer_create()
+  caml_marshal_buffer_write32u(buf, 0x8495A6BF)  -- MAGIC_BIG
+  caml_marshal_buffer_write32u(buf, 100)
+  caml_marshal_buffer_write32u(buf, 0)
+  caml_marshal_buffer_write32u(buf, 100)
+  caml_marshal_buffer_write32u(buf, 100)
+  local str = caml_marshal_buffer_to_string(buf)
 
-  local success = pcall(function()
-    marshal_header_read_header(writer:to_string())
-  end)
-  assert_true(not success, "Should error on MAGIC_BIG")
+  local header = caml_marshal_header_read(str, 0)
+  assert_eq(header.magic, 0x8495A6BF)
+  assert_eq(header.data_len, 100)
 end)
 
-test("Truncated standard header", function()
-  local header_str = marshal_header_write_header(100, 5, 0, 0)
-  local truncated = string.sub(header_str, 1, 15)  -- Only 15 bytes
-
-  local success = pcall(function()
-    marshal_header_read_header(truncated)
-  end)
-  assert_true(not success, "Should error on truncated header")
-end)
-
-test("VLQ negative value error", function()
-  local writer = Writer:new()
-
-  local success = pcall(function()
-    marshal_header_write_vlq(writer, -1)
-  end)
-  assert_true(not success, "Should error on negative VLQ")
-end)
-
---
--- Edge Cases
---
-
-print("")
-print("Edge Cases:")
+print()
+print("Roundtrip Tests:")
 print("--------------------------------------------------------------------")
 
-test("Header with offset", function()
-  local prefix = "XXXX"
-  local header_str = marshal_header_write_header(50, 2, 0, 0)
-  local full_str = prefix .. header_str
+test("roundtrip: zero values", function()
+  local buf = caml_marshal_buffer_create()
+  caml_marshal_header_write(buf, 0, 0, 0, 0)
+  local str = caml_marshal_buffer_to_string(buf)
 
-  local header = marshal_header_read_header(full_str, 4)
-
-  assert_eq(header.data_len, 50, "Should read header at offset")
-  assert_eq(header.num_objects, 2, "Should read correct values")
+  local header = caml_marshal_header_read(str, 0)
+  assert_eq(header.data_len, 0)
+  assert_eq(header.num_objects, 0)
+  assert_eq(header.size_32, 0)
+  assert_eq(header.size_64, 0)
 end)
 
-test("Zero data length", function()
-  local header_str = marshal_header_write_header(0, 0, 0, 0)
-  local header = marshal_header_read_header(header_str)
+test("roundtrip: max values", function()
+  local buf = caml_marshal_buffer_create()
+  local max32 = 0xFFFFFFFF
+  caml_marshal_header_write(buf, max32, max32, max32, max32)
+  local str = caml_marshal_buffer_to_string(buf)
 
-  assert_eq(header.data_len, 0, "Zero data length")
-  assert_eq(header.num_objects, 0, "Zero objects")
+  local header = caml_marshal_header_read(str, 0)
+  assert_eq(header.data_len, max32)
+  assert_eq(header.num_objects, max32)
+  assert_eq(header.size_32, max32)
+  assert_eq(header.size_64, max32)
 end)
 
-test("Maximum standard header values", function()
-  -- Use large but valid 32-bit values
-  local max_val = 2147483647  -- Max positive 32-bit signed int
-  local header_str = marshal_header_write_header(max_val, 1000, 100, 200)
-  local header = marshal_header_read_header(header_str)
+test("roundtrip: various values", function()
+  local test_cases = {
+    {data_len = 1, num_objects = 0, size_32 = 1, size_64 = 1},
+    {data_len = 100, num_objects = 5, size_32 = 100, size_64 = 100},
+    {data_len = 12345, num_objects = 100, size_32 = 20000, size_64 = 30000},
+    {data_len = 1000000, num_objects = 500, size_32 = 999999, size_64 = 1111111},
+  }
 
-  assert_eq(header.data_len, max_val, "Large data length")
-  assert_eq(header.num_objects, 1000, "Objects")
+  for _, tc in ipairs(test_cases) do
+    local buf = caml_marshal_buffer_create()
+    caml_marshal_header_write(buf, tc.data_len, tc.num_objects, tc.size_32, tc.size_64)
+    local str = caml_marshal_buffer_to_string(buf)
+
+    local header = caml_marshal_header_read(str, 0)
+    assert_eq(header.data_len, tc.data_len)
+    assert_eq(header.num_objects, tc.num_objects)
+    assert_eq(header.size_32, tc.size_32)
+    assert_eq(header.size_64, tc.size_64)
+  end
 end)
 
---
--- Summary
---
+print()
+print("Integration Tests:")
+print("--------------------------------------------------------------------")
 
-print("")
+test("header with data: write and read", function()
+  local buf = caml_marshal_buffer_create()
+
+  -- Write header
+  caml_marshal_header_write(buf, 5, 0, 5, 5)
+
+  -- Write some data
+  caml_marshal_buffer_write_bytes(buf, "Hello")
+
+  local str = caml_marshal_buffer_to_string(buf)
+  assert_eq(#str, 25)  -- 20 bytes header + 5 bytes data
+
+  -- Read header
+  local header = caml_marshal_header_read(str, 0)
+  assert_eq(header.data_len, 5)
+
+  -- Read data
+  local data = caml_marshal_read_bytes(str, 20, 5)
+  assert_eq(data, "Hello")
+end)
+
+test("multiple headers: sequential", function()
+  local buf1 = caml_marshal_buffer_create()
+  caml_marshal_header_write(buf1, 100, 0, 100, 100)
+  local str1 = caml_marshal_buffer_to_string(buf1)
+
+  local buf2 = caml_marshal_buffer_create()
+  caml_marshal_header_write(buf2, 200, 5, 200, 200)
+  local str2 = caml_marshal_buffer_to_string(buf2)
+
+  -- Concatenate
+  local combined = str1 .. str2
+
+  -- Read both headers
+  local header1 = caml_marshal_header_read(combined, 0)
+  local header2 = caml_marshal_header_read(combined, 20)
+
+  assert_eq(header1.data_len, 100)
+  assert_eq(header2.data_len, 200)
+  assert_eq(header2.num_objects, 5)
+end)
+
+print()
 print("====================================================================")
-print("Tests passed: " .. tests_passed .. " / " .. tests_run)
-if tests_passed == tests_run then
+print("Tests passed: " .. tests_passed .. " / " .. (tests_passed + tests_failed))
+if tests_failed == 0 then
   print("All tests passed! ✓")
   print("====================================================================")
   os.exit(0)
