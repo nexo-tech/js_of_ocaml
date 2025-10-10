@@ -132,24 +132,17 @@
 
 **IMPORTANT**: Marshal implementation order must be: 6.3 → 6.2 → 6.1.x (due to dependencies)
 
-- [ ] Task 6.3: Implement `marshal_io.lua` - Binary I/O helper functions (1 hour + tests)
+- [x] Task 6.3: Implement `marshal_io.lua` - Binary I/O helper functions (1 hour + tests)
   - **PREREQUISITES**: None (foundation module)
-  - **DELIVERABLES**: ~200-250 lines
-    - `caml_marshal_buffer_create()` - create string buffer state
-    - `caml_marshal_buffer_write8u(buf, byte)` - write unsigned 8-bit
-    - `caml_marshal_buffer_write16u(buf, value)` - write unsigned 16-bit big-endian
-    - `caml_marshal_buffer_write32u(buf, value)` - write unsigned 32-bit big-endian
-    - `caml_marshal_buffer_write_bytes(buf, str)` - write byte sequence
-    - `caml_marshal_buffer_to_string(buf)` - convert buffer to string
-    - `caml_marshal_read8u(str, offset)` - read unsigned 8-bit
-    - `caml_marshal_read16u(str, offset)` - read unsigned 16-bit big-endian
-    - `caml_marshal_read32u(str, offset)` - read unsigned 32-bit big-endian
-    - `caml_marshal_read_bytes(str, offset, len)` - read byte sequence
-    - `caml_marshal_write_double_little(buf, value)` - write 64-bit float little-endian (if string.pack available)
-    - `caml_marshal_read_double_little(str, offset)` - read 64-bit float little-endian (if string.pack available)
-  - **TESTS**: Create test_marshal_io.lua with ~30 tests
-  - **NO**: Classes, metatables, local functions, local constants
-  - **YES**: Pure functions, Lua 5.1 compatible, inline constants with comments
+  - **COMPLETED**: 186 lines (marshal_io.lua) + 460 lines (test_marshal_io.lua) = 646 lines total
+  - **IMPLEMENTED**:
+    - ✓ Buffer functions: `caml_marshal_buffer_create()`, `caml_marshal_buffer_to_string()`
+    - ✓ Write functions: `caml_marshal_buffer_write8u()`, `caml_marshal_buffer_write16u()`, `caml_marshal_buffer_write32u()`, `caml_marshal_buffer_write_bytes()`
+    - ✓ Read unsigned: `caml_marshal_read8u()`, `caml_marshal_read16u()`, `caml_marshal_read32u()`, `caml_marshal_read_bytes()`
+    - ✓ Read signed: `caml_marshal_read16s()`, `caml_marshal_read32s()` (bonus functions for signed integers)
+    - ✓ Double support: `caml_marshal_write_double_little()`, `caml_marshal_read_double_little()` (Lua 5.3+ only)
+    - ✓ All big-endian byte order
+    - ✓ 47 tests passed (100% coverage)
 
 - [ ] Task 6.2: Implement `marshal_header.lua` - Marshal header functions (45 min + tests)
   - **PREREQUISITES**: Task 6.3 (uses marshal_io functions)
