@@ -1,20 +1,9 @@
 #!/usr/bin/env lua
 -- Test suite for double/float marshaling (Task 6.1.4)
+-- Works on Lua 5.1+ (uses manual IEEE 754 encoding fallback)
 
 dofile("marshal_io.lua")
 dofile("marshal.lua")
-
--- Check if Lua 5.3+ features are available
-if not string.pack or not string.unpack then
-  print("====================================================================")
-  print("Double/Float Marshaling Tests (Task 6.1.4)")
-  print("====================================================================")
-  print()
-  print("SKIPPED: string.pack/unpack not available (requires Lua 5.3+)")
-  print("Current Lua version: " .. _VERSION)
-  print("====================================================================")
-  os.exit(0)
-end
 
 local tests_passed = 0
 local tests_failed = 0

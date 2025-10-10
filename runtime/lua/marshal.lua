@@ -309,34 +309,25 @@ end
 -- Double/float marshaling functions
 
 --Provides: caml_marshal_write_double
---Requires: caml_marshal_buffer_write8u, caml_marshal_buffer_write_bytes
+--Requires: caml_marshal_buffer_write8u, caml_marshal_write_double_little
 function caml_marshal_write_double(buf, value)
   -- Encode double with IEEE 754 little-endian format
   -- CODE_DOUBLE_LITTLE (0x0C): 1 byte code + 8 bytes IEEE 754 little-endian
-  -- Requires: string.pack (Lua 5.3+)
-
-  if not string.pack then
-    error("caml_marshal_write_double: string.pack not available (requires Lua 5.3+)")
-  end
+  -- Uses caml_marshal_write_double_little (Lua 5.1 compatible)
 
   -- CODE_DOUBLE_LITTLE (0x0C)
   caml_marshal_buffer_write8u(buf, 0x0C)
 
-  -- Pack double as IEEE 754 little-endian (8 bytes)
-  local packed = string.pack("<d", value)
-  caml_marshal_buffer_write_bytes(buf, packed)
+  -- Write double using marshal_io function (handles Lua 5.1 fallback)
+  caml_marshal_write_double_little(buf, value)
 end
 
 --Provides: caml_marshal_read_double
---Requires: caml_marshal_read8u, caml_marshal_read_bytes
+--Requires: caml_marshal_read8u, caml_marshal_read_double_little
 function caml_marshal_read_double(str, offset)
   -- Decode double and return {value, bytes_read}
   -- CODE_DOUBLE_LITTLE (0x0C): 1 byte code + 8 bytes IEEE 754 little-endian
-  -- Requires: string.unpack (Lua 5.3+)
-
-  if not string.unpack then
-    error("caml_marshal_read_double: string.unpack not available (requires Lua 5.3+)")
-  end
+  -- Uses caml_marshal_read_double_little (Lua 5.1 compatible)
 
   -- Read code byte
   local code = caml_marshal_read8u(str, offset)
@@ -348,9 +339,8 @@ function caml_marshal_read_double(str, offset)
       error("caml_marshal_read_double: insufficient data for double (need 8 bytes)")
     end
 
-    -- Read 8 bytes and unpack as little-endian double
-    local packed = caml_marshal_read_bytes(str, offset + 1, 8)
-    local value = string.unpack("<d", packed)
+    -- Read double using marshal_io function (handles Lua 5.1 fallback)
+    local value = caml_marshal_read_double_little(str, offset + 1)
 
     return {
       value = value,
@@ -362,18 +352,14 @@ function caml_marshal_read_double(str, offset)
 end
 
 --Provides: caml_marshal_write_float_array
---Requires: caml_marshal_buffer_write8u, caml_marshal_buffer_write32u, caml_marshal_buffer_write_bytes
+--Requires: caml_marshal_buffer_write8u, caml_marshal_buffer_write32u, caml_marshal_write_double_little
 function caml_marshal_write_float_array(buf, arr)
   -- Encode float array (OCaml block with tag 254)
   -- Float array format in OCaml Marshal:
   -- DOUBLE_ARRAY8_LITTLE (0x0E): code + length byte + doubles (if length < 256)
   -- DOUBLE_ARRAY32_LITTLE (0x07): code + length (4 bytes) + doubles (if length >= 256)
   -- Array should be Lua table: {[1] = v1, [2] = v2, ...} with length in arr.size or #arr
-  -- Requires: string.pack (Lua 5.3+)
-
-  if not string.pack then
-    error("caml_marshal_write_float_array: string.pack not available (requires Lua 5.3+)")
-  end
+  -- Uses caml_marshal_write_double_little (Lua 5.1 compatible)
 
   -- Get array length
   local len = arr.size or #arr
@@ -389,27 +375,22 @@ function caml_marshal_write_float_array(buf, arr)
     caml_marshal_buffer_write32u(buf, len)
   end
 
-  -- Write each double in little-endian format
+  -- Write each double in little-endian format using marshal_io function
   for i = 1, len do
     local value = arr[i]
     if type(value) ~= "number" then
       error(string.format("caml_marshal_write_float_array: array element %d is not a number", i))
     end
-    local packed = string.pack("<d", value)
-    caml_marshal_buffer_write_bytes(buf, packed)
+    caml_marshal_write_double_little(buf, value)
   end
 end
 
 --Provides: caml_marshal_read_float_array
---Requires: caml_marshal_read8u, caml_marshal_read32u, caml_marshal_read_bytes
+--Requires: caml_marshal_read8u, caml_marshal_read32u, caml_marshal_read_double_little
 function caml_marshal_read_float_array(str, offset)
   -- Decode float array and return {value, bytes_read}
   -- Float array value is Lua table: {size = N, [1] = v1, [2] = v2, ...}
-  -- Requires: string.unpack (Lua 5.3+)
-
-  if not string.unpack then
-    error("caml_marshal_read_float_array: string.unpack not available (requires Lua 5.3+)")
-  end
+  -- Uses caml_marshal_read_double_little (Lua 5.1 compatible)
 
   -- Read code byte
   local code = caml_marshal_read8u(str, offset)
@@ -441,11 +422,10 @@ function caml_marshal_read_float_array(str, offset)
     size = len
   }
 
-  -- Read each double
+  -- Read each double using marshal_io function
   local data_offset = offset + bytes_consumed
   for i = 1, len do
-    local packed = caml_marshal_read_bytes(str, data_offset, 8)
-    local value = string.unpack("<d", packed)
+    local value = caml_marshal_read_double_little(str, data_offset)
     arr[i] = value
     data_offset = data_offset + 8
     bytes_consumed = bytes_consumed + 8
