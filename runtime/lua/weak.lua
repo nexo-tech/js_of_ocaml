@@ -1,4 +1,20 @@
--- Lua_of_ocaml runtime support
+-- Js_of_ocaml runtime support
+-- http://www.ocsigen.org/js_of_ocaml/
+--
+-- This program is free software; you can redistribute it and/or modify
+-- it under the terms of the GNU Lesser General Public License as published by
+-- the Free Software Foundation, with linking exception;
+-- either version 2.1 of the License, or (at your option) any later version.
+--
+-- This program is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU Lesser General Public License for more details.
+--
+-- You should have received a copy of the GNU Lesser General Public License
+-- along with this program; if not, write to the Free Software
+-- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
 -- Weak references and Ephemerons
 --
 -- OCaml weak arrays and ephemerons are implemented using Lua weak tables
@@ -17,6 +33,7 @@ local EPHE_NONE = {caml_ephe_none = true}
 -- Weak Array Creation
 --
 
+--Provides: caml_weak_create
 -- Create a weak array
 function caml_weak_create(n)
   local alen = EPHE_KEY_OFFSET + n
@@ -31,6 +48,8 @@ function caml_weak_create(n)
   return x
 end
 
+--Provides: caml_ephe_create
+--Requires: caml_weak_create
 -- Create an ephemeron (same as weak array)
 function caml_ephe_create(n)
   return caml_weak_create(n)
@@ -40,6 +59,8 @@ end
 -- Key Management
 --
 
+--Provides: caml_ephe_set_key
+--Requires: caml_ephe_get_data, caml_ephe_set_data_opt
 -- Set a key in ephemeron with weak reference
 function caml_ephe_set_key(x, i, v)
   local old = caml_ephe_get_data(x)
@@ -58,6 +79,8 @@ function caml_ephe_set_key(x, i, v)
   return 0
 end
 
+--Provides: caml_ephe_unset_key
+--Requires: caml_ephe_get_data, caml_ephe_set_data_opt
 -- Unset a key in ephemeron
 function caml_ephe_unset_key(x, i)
   local old = caml_ephe_get_data(x)
@@ -66,6 +89,7 @@ function caml_ephe_unset_key(x, i)
   return 0
 end
 
+--Provides: caml_ephe_get_key
 -- Get a key from ephemeron
 function caml_ephe_get_key(x, i)
   local weak = x[EPHE_KEY_OFFSET + i]
@@ -90,6 +114,8 @@ function caml_ephe_get_key(x, i)
   return {tag = 0, weak}
 end
 
+--Provides: caml_ephe_get_key_copy
+--Requires: caml_ephe_get_key
 -- Get a copy of a key from ephemeron
 function caml_ephe_get_key_copy(x, i)
   local y = caml_ephe_get_key(x, i)
@@ -110,6 +136,7 @@ function caml_ephe_get_key_copy(x, i)
   return y
 end
 
+--Provides: caml_ephe_check_key
 -- Check if a key is still alive
 function caml_ephe_check_key(x, i)
   local weak = x[EPHE_KEY_OFFSET + i]
@@ -132,6 +159,8 @@ function caml_ephe_check_key(x, i)
   return 1
 end
 
+--Provides: caml_ephe_blit_key
+--Requires: caml_ephe_get_data, caml_ephe_set_data_opt
 -- Blit keys from one ephemeron to another
 function caml_ephe_blit_key(a1, i1, a2, i2, len)
   local old = caml_ephe_get_data(a1)
@@ -144,6 +173,8 @@ function caml_ephe_blit_key(a1, i1, a2, i2, len)
   return 0
 end
 
+--Provides: caml_ephe_blit_data
+--Requires: caml_ephe_get_data, caml_ephe_set_data_opt
 -- Blit data from one ephemeron to another
 function caml_ephe_blit_data(src, dst)
   local old = caml_ephe_get_data(src)
@@ -155,6 +186,7 @@ end
 -- Data Management
 --
 
+--Provides: caml_ephe_get_data
 -- Get data from ephemeron
 function caml_ephe_get_data(x)
   local data = x[EPHE_DATA_OFFSET]
@@ -180,6 +212,8 @@ function caml_ephe_get_data(x)
   return {tag = 0, data}
 end
 
+--Provides: caml_ephe_get_data_copy
+--Requires: caml_ephe_get_data
 -- Get a copy of data from ephemeron
 function caml_ephe_get_data_copy(x)
   local r = caml_ephe_get_data(x)
@@ -199,6 +233,7 @@ function caml_ephe_get_data_copy(x)
   return r
 end
 
+--Provides: caml_ephe_set_data
 -- Set data in ephemeron
 function caml_ephe_set_data(x, data)
   -- Check if all keys are still alive
@@ -217,6 +252,8 @@ function caml_ephe_set_data(x, data)
   return 0
 end
 
+--Provides: caml_ephe_set_data_opt
+--Requires: caml_ephe_unset_data, caml_ephe_set_data
 -- Set data optionally
 function caml_ephe_set_data_opt(x, data_opt)
   if data_opt == 0 then
@@ -227,12 +264,15 @@ function caml_ephe_set_data_opt(x, data_opt)
   return 0
 end
 
+--Provides: caml_ephe_unset_data
 -- Unset data in ephemeron
 function caml_ephe_unset_data(x)
   x[EPHE_DATA_OFFSET] = EPHE_NONE
   return 0
 end
 
+--Provides: caml_ephe_check_data
+--Requires: caml_ephe_get_data
 -- Check if data is set
 function caml_ephe_check_data(x)
   local data = caml_ephe_get_data(x)
@@ -247,6 +287,8 @@ end
 -- Weak Array API (simplified interface)
 --
 
+--Provides: caml_weak_set
+--Requires: caml_ephe_unset_key, caml_ephe_set_key
 -- Set value in weak array
 function caml_weak_set(x, i, v)
   if v == 0 then
@@ -257,45 +299,22 @@ function caml_weak_set(x, i, v)
   return 0
 end
 
+--Provides: caml_weak_get
+--Requires: caml_ephe_get_key
 -- Get value from weak array (alias for caml_ephe_get_key)
 caml_weak_get = caml_ephe_get_key
 
+--Provides: caml_weak_get_copy
+--Requires: caml_ephe_get_key_copy
 -- Get copy from weak array (alias for caml_ephe_get_key_copy)
 caml_weak_get_copy = caml_ephe_get_key_copy
 
+--Provides: caml_weak_check
+--Requires: caml_ephe_check_key
 -- Check weak array value (alias for caml_ephe_check_key)
 caml_weak_check = caml_ephe_check_key
 
+--Provides: caml_weak_blit
+--Requires: caml_ephe_blit_key
 -- Blit weak array (alias for caml_ephe_blit_key)
 caml_weak_blit = caml_ephe_blit_key
-
--- Export all functions as a module
-local M = {
-  caml_weak_create = caml_weak_create,
-  caml_weak_set = caml_weak_set,
-  caml_weak_get = caml_weak_get,
-  caml_weak_get_copy = caml_weak_get_copy,
-  caml_weak_check = caml_weak_check,
-  caml_weak_blit = caml_weak_blit,
-  caml_ephe_create = caml_ephe_create,
-  caml_ephe_set_key = caml_ephe_set_key,
-  caml_ephe_unset_key = caml_ephe_unset_key,
-  caml_ephe_get_key = caml_ephe_get_key,
-  caml_ephe_get_key_copy = caml_ephe_get_key_copy,
-  caml_ephe_check_key = caml_ephe_check_key,
-  caml_ephe_blit_key = caml_ephe_blit_key,
-  caml_ephe_blit_data = caml_ephe_blit_data,
-  caml_ephe_get_data = caml_ephe_get_data,
-  caml_ephe_get_data_copy = caml_ephe_get_data_copy,
-  caml_ephe_set_data = caml_ephe_set_data,
-  caml_ephe_set_data_opt = caml_ephe_set_data_opt,
-  caml_ephe_unset_data = caml_ephe_unset_data,
-  caml_ephe_check_data = caml_ephe_check_data,
-}
-
--- Add M.* aliases for naming convention
-M.create = caml_weak_create
-M.set = caml_weak_set
-M.get = caml_weak_get
-
-return M
