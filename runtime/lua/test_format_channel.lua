@@ -8,7 +8,8 @@ package.loaded.io = nil
 local io_module = dofile("./io.lua")
 package.loaded.io = io_module
 
-local format = require("format")
+-- Load format.lua directly (it defines global caml_* functions)
+dofile("format.lua")
 
 local tests_passed = 0
 local tests_failed = 0
@@ -88,7 +89,7 @@ test("fprintf: write integer to file", function()
   local chanid = io_module.caml_ml_open_descriptor_out(fd)
 
   -- Write using fprintf
-  format.caml_fprintf(chanid, "Number: %d\n", 42)
+  caml_fprintf(chanid, "Number: %d\n", 42)
 
   -- Close
   io_module.caml_ml_close_channel(chanid)
@@ -107,7 +108,7 @@ test("fprintf: write multiple values", function()
   local fd = io_module.caml_sys_open(temp_file, make_ocaml_list({1, 6}), 438)
   local chanid = io_module.caml_ml_open_descriptor_out(fd)
 
-  format.caml_fprintf(chanid, "x=%d, y=%d\n", 10, 20)
+  caml_fprintf(chanid, "x=%d, y=%d\n", 10, 20)
 
   io_module.caml_ml_close_channel(chanid)
   io_module.caml_sys_close(fd)
@@ -124,7 +125,7 @@ test("fprintf: write float", function()
   local fd = io_module.caml_sys_open(temp_file, make_ocaml_list({1, 6}), 438)
   local chanid = io_module.caml_ml_open_descriptor_out(fd)
 
-  format.caml_fprintf(chanid, "PI=%.2f\n", 3.14159)
+  caml_fprintf(chanid, "PI=%.2f\n", 3.14159)
 
   io_module.caml_ml_close_channel(chanid)
   io_module.caml_sys_close(fd)
@@ -141,7 +142,7 @@ test("fprintf: write string", function()
   local fd = io_module.caml_sys_open(temp_file, make_ocaml_list({1, 6}), 438)
   local chanid = io_module.caml_ml_open_descriptor_out(fd)
 
-  format.caml_fprintf(chanid, "Hello, %s!\n", "world")
+  caml_fprintf(chanid, "Hello, %s!\n", "world")
 
   io_module.caml_ml_close_channel(chanid)
   io_module.caml_sys_close(fd)
@@ -158,7 +159,7 @@ test("fprintf: mixed types", function()
   local fd = io_module.caml_sys_open(temp_file, make_ocaml_list({1, 6}), 438)
   local chanid = io_module.caml_ml_open_descriptor_out(fd)
 
-  format.caml_fprintf(chanid, "%s: %d items at $%.2f each\n", "Order", 5, 12.99)
+  caml_fprintf(chanid, "%s: %d items at $%.2f each\n", "Order", 5, 12.99)
 
   io_module.caml_ml_close_channel(chanid)
   io_module.caml_sys_close(fd)
@@ -175,7 +176,7 @@ test("fprintf: hexadecimal", function()
   local fd = io_module.caml_sys_open(temp_file, make_ocaml_list({1, 6}), 438)
   local chanid = io_module.caml_ml_open_descriptor_out(fd)
 
-  format.caml_fprintf(chanid, "0x%x\n", 255)
+  caml_fprintf(chanid, "0x%x\n", 255)
 
   io_module.caml_ml_close_channel(chanid)
   io_module.caml_sys_close(fd)
@@ -192,7 +193,7 @@ test("fprintf: formatted output", function()
   local fd = io_module.caml_sys_open(temp_file, make_ocaml_list({1, 6}), 438)
   local chanid = io_module.caml_ml_open_descriptor_out(fd)
 
-  format.caml_fprintf(chanid, "%+08d\n", 42)
+  caml_fprintf(chanid, "%+08d\n", 42)
 
   io_module.caml_ml_close_channel(chanid)
   io_module.caml_sys_close(fd)
@@ -221,7 +222,7 @@ test("fscanf: read integer from file", function()
   local chanid = io_module.caml_ml_open_descriptor_in(fd)
 
   -- Read using fscanf
-  local result = format.caml_fscanf(chanid, "%d")
+  local result = caml_fscanf(chanid, "%d")
   assert_eq(#result, 1)
   assert_eq(result[1], 42)
 
@@ -241,7 +242,7 @@ test("fscanf: read multiple integers", function()
   local fd = io_module.caml_sys_open(temp_file, make_ocaml_list({0}), 438)
   local chanid = io_module.caml_ml_open_descriptor_in(fd)
 
-  local result = format.caml_fscanf(chanid, "%d %d %d")
+  local result = caml_fscanf(chanid, "%d %d %d")
   assert_eq(#result, 3)
   assert_eq(result[1], 10)
   assert_eq(result[2], 20)
@@ -263,7 +264,7 @@ test("fscanf: read float", function()
   local fd = io_module.caml_sys_open(temp_file, make_ocaml_list({0}), 438)
   local chanid = io_module.caml_ml_open_descriptor_in(fd)
 
-  local result = format.caml_fscanf(chanid, "%f")
+  local result = caml_fscanf(chanid, "%f")
   assert_eq(#result, 1)
   assert_eq(result[1], 3.14159)
 
@@ -283,7 +284,7 @@ test("fscanf: read string", function()
   local fd = io_module.caml_sys_open(temp_file, make_ocaml_list({0}), 438)
   local chanid = io_module.caml_ml_open_descriptor_in(fd)
 
-  local result = format.caml_fscanf(chanid, "%s")
+  local result = caml_fscanf(chanid, "%s")
   assert_eq(#result, 1)
   assert_eq(result[1], "hello")
 
@@ -303,7 +304,7 @@ test("fscanf: mixed types", function()
   local fd = io_module.caml_sys_open(temp_file, make_ocaml_list({0}), 438)
   local chanid = io_module.caml_ml_open_descriptor_in(fd)
 
-  local result = format.caml_fscanf(chanid, "%d %s %f")
+  local result = caml_fscanf(chanid, "%d %s %f")
   assert_eq(#result, 3)
   assert_eq(result[1], 42)
   assert_eq(result[2], "hello")
@@ -325,7 +326,7 @@ test("fscanf: with format literals", function()
   local fd = io_module.caml_sys_open(temp_file, make_ocaml_list({0}), 438)
   local chanid = io_module.caml_ml_open_descriptor_in(fd)
 
-  local result = format.caml_fscanf(chanid, "x=%d, y=%d")
+  local result = caml_fscanf(chanid, "x=%d, y=%d")
   assert_eq(#result, 2)
   assert_eq(result[1], 10)
   assert_eq(result[2], 20)
@@ -346,14 +347,14 @@ test("Round-trip: integer", function()
   -- Write
   local fd_w = io_module.caml_sys_open(temp_file, make_ocaml_list({1, 6}), 438)
   local chan_w = io_module.caml_ml_open_descriptor_out(fd_w)
-  format.caml_fprintf(chan_w, "%d\n", 12345)
+  caml_fprintf(chan_w, "%d\n", 12345)
   io_module.caml_ml_close_channel(chan_w)
   io_module.caml_sys_close(fd_w)
 
   -- Read
   local fd_r = io_module.caml_sys_open(temp_file, make_ocaml_list({0}), 438)
   local chan_r = io_module.caml_ml_open_descriptor_in(fd_r)
-  local result = format.caml_fscanf(chan_r, "%d")
+  local result = caml_fscanf(chan_r, "%d")
   assert_eq(result[1], 12345)
   io_module.caml_ml_close_channel(chan_r)
   io_module.caml_sys_close(fd_r)
@@ -367,14 +368,14 @@ test("Round-trip: multiple values", function()
   -- Write
   local fd_w = io_module.caml_sys_open(temp_file, make_ocaml_list({1, 6}), 438)
   local chan_w = io_module.caml_ml_open_descriptor_out(fd_w)
-  format.caml_fprintf(chan_w, "%d %s %.2f\n", 100, "test", 2.5)
+  caml_fprintf(chan_w, "%d %s %.2f\n", 100, "test", 2.5)
   io_module.caml_ml_close_channel(chan_w)
   io_module.caml_sys_close(fd_w)
 
   -- Read
   local fd_r = io_module.caml_sys_open(temp_file, make_ocaml_list({0}), 438)
   local chan_r = io_module.caml_ml_open_descriptor_in(fd_r)
-  local result = format.caml_fscanf(chan_r, "%d %s %f")
+  local result = caml_fscanf(chan_r, "%d %s %f")
   assert_eq(result[1], 100)
   assert_eq(result[2], "test")
   assert_eq(result[3], 2.5)
@@ -390,14 +391,14 @@ test("Round-trip: formatted data", function()
   -- Write
   local fd_w = io_module.caml_sys_open(temp_file, make_ocaml_list({1, 6}), 438)
   local chan_w = io_module.caml_ml_open_descriptor_out(fd_w)
-  format.caml_fprintf(chan_w, "data: %d,%d,%d\n", 1, 2, 3)
+  caml_fprintf(chan_w, "data: %d,%d,%d\n", 1, 2, 3)
   io_module.caml_ml_close_channel(chan_w)
   io_module.caml_sys_close(fd_w)
 
   -- Read
   local fd_r = io_module.caml_sys_open(temp_file, make_ocaml_list({0}), 438)
   local chan_r = io_module.caml_ml_open_descriptor_in(fd_r)
-  local result = format.caml_fscanf(chan_r, "data: %d,%d,%d")
+  local result = caml_fscanf(chan_r, "data: %d,%d,%d")
   assert_eq(result[1], 1)
   assert_eq(result[2], 2)
   assert_eq(result[3], 3)
