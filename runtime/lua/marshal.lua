@@ -441,10 +441,14 @@ end
 
 --Provides: caml_marshal_write_value
 --Requires: caml_marshal_write_int, caml_marshal_write_double, caml_marshal_write_string, caml_marshal_write_block, caml_marshal_write_float_array
-function caml_marshal_write_value(buf, value)
-  -- Main marshaling dispatch function
+function caml_marshal_write_value(buf, value, seen)
+  -- Main marshaling dispatch function with cycle detection
   -- Dispatch based on Lua type: number → int/double, string → string, table → block/float_array
   -- Recursive marshaling for block fields
+  -- seen: table tracking visited tables to detect cycles (optional, created if nil)
+
+  -- Initialize seen table on first call
+  seen = seen or {}
 
   local value_type = type(value)
 
@@ -462,6 +466,14 @@ function caml_marshal_write_value(buf, value)
     caml_marshal_write_string(buf, value)
 
   elseif value_type == "table" then
+    -- Cycle detection: check if this table was already visited
+    if seen[value] then
+      error("caml_marshal_write_value: cyclic data structure detected (object sharing not implemented)")
+    end
+
+    -- Mark table as visited
+    seen[value] = true
+
     -- Table: could be block or float array
     -- Check if it's a float array (tag 254 in OCaml)
     -- Float arrays have numeric indices and all number elements
@@ -469,8 +481,10 @@ function caml_marshal_write_value(buf, value)
 
     if value.tag ~= nil then
       -- Block: has tag field
-      -- Use recursive write_value for fields
-      caml_marshal_write_block(buf, value, caml_marshal_write_value)
+      -- Use recursive write_value for fields, passing seen table
+      caml_marshal_write_block(buf, value, function(b, v)
+        caml_marshal_write_value(b, v, seen)
+      end)
 
     else
       -- Check if it's a float array (all elements are numbers)
@@ -498,9 +512,16 @@ function caml_marshal_write_value(buf, value)
         for i = 1, len do
           block[i] = value[i]
         end
-        caml_marshal_write_block(buf, block, caml_marshal_write_value)
+        caml_marshal_write_block(buf, block, function(b, v)
+          caml_marshal_write_value(b, v, seen)
+        end)
       end
     end
+
+    -- Unmark table after marshaling (allows sibling references in DAG)
+    -- Note: This still detects cycles but allows DAG structure
+    -- For true object sharing, we need Task 6.1.8
+    seen[value] = nil
 
   elseif value_type == "boolean" then
     -- Boolean: encode as integer 0 (false) or 1 (true)
