@@ -15,30 +15,29 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
--- Extensible string buffer implementation
--- Provides efficient accumulation of strings with automatic growth
 
--- Default initial size for buffers
-local DEFAULT_INITIAL_SIZE = 16
-
--- Buffer object
-local Buffer = {}
-Buffer.__index = Buffer
+--Provides: caml_ocaml_string_to_lua
+function caml_ocaml_string_to_lua(s)
+  if type(s) == "string" then
+    return s
+  end
+  local chars = {}
+  for i = 1, #s do
+    table.insert(chars, string.char(s[i]))
+  end
+  return table.concat(chars)
+end
 
 --Provides: caml_buffer_create
 function caml_buffer_create(initial_size)
-  initial_size = initial_size or DEFAULT_INITIAL_SIZE
+  initial_size = initial_size or 16
 
   local buffer = {
-    -- Array of string chunks
     chunks = {},
-    -- Total length of all chunks
     length = 0,
-    -- Initial capacity hint
     capacity = initial_size
   }
 
-  setmetatable(buffer, Buffer)
   return buffer
 end
 
@@ -50,7 +49,6 @@ function caml_buffer_add_char(buffer, c)
   elseif type(c) == "string" then
     char = c:sub(1, 1)
   elseif type(c) == "table" and #c == 1 then
-    -- OCaml string with single char
     char = string.char(c[1])
   else
     error("Invalid character type")
@@ -60,22 +58,10 @@ function caml_buffer_add_char(buffer, c)
   buffer.length = buffer.length + 1
 end
 
--- Helper: Convert OCaml string to Lua string
-local function ocaml_string_to_lua(s)
-  if type(s) == "string" then
-    return s
-  end
-  -- OCaml string is a byte array
-  local chars = {}
-  for i = 1, #s do
-    table.insert(chars, string.char(s[i]))
-  end
-  return table.concat(chars)
-end
-
 --Provides: caml_buffer_add_string
+--Requires: caml_ocaml_string_to_lua
 function caml_buffer_add_string(buffer, s)
-  local str = ocaml_string_to_lua(s)
+  local str = caml_ocaml_string_to_lua(s)
 
   if #str > 0 then
     table.insert(buffer.chunks, str)
@@ -84,10 +70,10 @@ function caml_buffer_add_string(buffer, s)
 end
 
 --Provides: caml_buffer_add_substring
+--Requires: caml_ocaml_string_to_lua
 function caml_buffer_add_substring(buffer, s, offset, len)
-  local str = ocaml_string_to_lua(s)
+  local str = caml_ocaml_string_to_lua(s)
 
-  -- Convert 0-based offset to 1-based
   local start = offset + 1
   local finish = offset + len
 
@@ -105,10 +91,8 @@ end
 
 --Provides: caml_buffer_contents
 function caml_buffer_contents(buffer)
-  -- Concatenate all chunks
   local result_str = table.concat(buffer.chunks)
 
-  -- Convert to OCaml string (byte array)
   local result = {}
   for i = 1, #result_str do
     result[i] = result_str:byte(i)
@@ -129,16 +113,17 @@ function caml_buffer_reset(buffer)
 end
 
 --Provides: caml_buffer_clear
+--Requires: caml_buffer_reset
 function caml_buffer_clear(buffer)
   caml_buffer_reset(buffer)
 end
 
 --Provides: caml_buffer_add_printf
+--Requires: caml_ocaml_string_to_lua, caml_buffer_add_string
 function caml_buffer_add_printf(buffer, fmt, ...)
-  -- This requires format module, load lazily
   local format = package.loaded.format or require("format")
 
-  local fmt_str = ocaml_string_to_lua(fmt)
+  local fmt_str = caml_ocaml_string_to_lua(fmt)
   local args = {...}
   local arg_idx = 1
   local result_parts = {}
@@ -153,16 +138,13 @@ function caml_buffer_add_printf(buffer, fmt, ...)
         break
       end
 
-      -- Parse format specifier
       local spec = ""
 
-      -- Collect flags, width, precision, and conversion
       while i <= #fmt_str do
         local ch = fmt_str:sub(i, i)
         spec = spec .. ch
         i = i + 1
 
-        -- Check if we hit a conversion character
         if ch:match("[diouxXeEfFgGaAcspn%%]") then
           break
         end
@@ -175,25 +157,25 @@ function caml_buffer_add_printf(buffer, fmt, ...)
       elseif conv == "d" or conv == "i" or conv == "u" or conv == "x" or conv == "X" or conv == "o" then
         if arg_idx <= #args then
           local formatted = format.caml_format_int("%" .. spec, args[arg_idx])
-          table.insert(result_parts, ocaml_string_to_lua(formatted))
+          table.insert(result_parts, caml_ocaml_string_to_lua(formatted))
           arg_idx = arg_idx + 1
         end
       elseif conv == "f" or conv == "F" or conv == "e" or conv == "E" or conv == "g" or conv == "G" then
         if arg_idx <= #args then
           local formatted = format.caml_format_float("%" .. spec, args[arg_idx])
-          table.insert(result_parts, ocaml_string_to_lua(formatted))
+          table.insert(result_parts, caml_ocaml_string_to_lua(formatted))
           arg_idx = arg_idx + 1
         end
       elseif conv == "s" then
         if arg_idx <= #args then
           local formatted = format.caml_format_string("%" .. spec, args[arg_idx])
-          table.insert(result_parts, ocaml_string_to_lua(formatted))
+          table.insert(result_parts, caml_ocaml_string_to_lua(formatted))
           arg_idx = arg_idx + 1
         end
       elseif conv == "c" then
         if arg_idx <= #args then
           local formatted = format.caml_format_char("%" .. spec, args[arg_idx])
-          table.insert(result_parts, ocaml_string_to_lua(formatted))
+          table.insert(result_parts, caml_ocaml_string_to_lua(formatted))
           arg_idx = arg_idx + 1
         end
       end
@@ -203,7 +185,6 @@ function caml_buffer_add_printf(buffer, fmt, ...)
     end
   end
 
-  -- Add result to buffer
   local output = table.concat(result_parts)
   caml_buffer_add_string(buffer, output)
 end

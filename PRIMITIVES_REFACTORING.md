@@ -35,9 +35,11 @@
 
 **VERIFICATION COMPLETE**: See `runtime/lua/PHASE3_VIOLATIONS.md` for detailed violations
 
-- [ ] Task 3.1: Refactor `buffer.lua` - buffer primitives (45 min + tests)
-  - **VIOLATIONS**: Local constant, local table, local helper function
-  - **STATUS**: Needs rewrite - inline constant, remove metatable, convert helper to caml_*
+- [x] Task 3.1: Refactor `buffer.lua` - buffer primitives (45 min + tests)
+  - **FIXED**: Removed local constant DEFAULT_INITIAL_SIZE (inlined to 16)
+  - **FIXED**: Removed local Buffer metatable and setmetatable call
+  - **FIXED**: Converted local function ocaml_string_to_lua to caml_ocaml_string_to_lua with --Provides
+  - **VERIFIED**: 24/28 tests pass (4 printf tests depend on format.lua Task 3.2), Lua 5.1 compatible
 - [ ] Task 3.2: Refactor `format.lua` - format primitives (45 min + tests)
   - **VIOLATIONS**: 4 local helper functions (linker cannot inline!)
   - **STATUS**: Needs rewrite - convert helpers to caml_* functions with --Provides
