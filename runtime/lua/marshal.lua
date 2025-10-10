@@ -133,6 +133,94 @@ function caml_marshal_read_int(str, offset)
   error(string.format("caml_marshal_read_int: unknown code 0x%02X at offset %d", code, offset))
 end
 
+-- String marshaling functions
+
+--Provides: caml_marshal_write_string
+--Requires: caml_marshal_buffer_write8u, caml_marshal_buffer_write32u, caml_marshal_buffer_write_bytes
+function caml_marshal_write_string(buf, str)
+  -- Encode string with optimal format
+  -- Small string (0-31 bytes): single byte 0x20-0x3F (0x20 + length) + bytes
+  -- STRING8 (32-255 bytes): 0x09 + length byte + bytes
+  -- STRING32 (256+ bytes): 0x0A + length (4 bytes big-endian) + bytes
+
+  local len = #str
+
+  -- Check for small string (0-31 bytes)
+  if len <= 31 then
+    -- Small string: 0x20 + length (0x20-0x3F)
+    caml_marshal_buffer_write8u(buf, 0x20 + len)
+    caml_marshal_buffer_write_bytes(buf, str)
+    return
+  end
+
+  -- Check for STRING8 range (32-255 bytes)
+  if len <= 255 then
+    -- CODE_STRING8 (0x09) + length byte + bytes
+    caml_marshal_buffer_write8u(buf, 0x09)
+    caml_marshal_buffer_write8u(buf, len)
+    caml_marshal_buffer_write_bytes(buf, str)
+    return
+  end
+
+  -- STRING32: CODE_STRING32 (0x0A) + length (4 bytes big-endian) + bytes
+  caml_marshal_buffer_write8u(buf, 0x0A)
+  caml_marshal_buffer_write32u(buf, len)
+  caml_marshal_buffer_write_bytes(buf, str)
+end
+
+--Provides: caml_marshal_read_string
+--Requires: caml_marshal_read8u, caml_marshal_read32u, caml_marshal_read_bytes
+function caml_marshal_read_string(str, offset)
+  -- Decode string and return {value, bytes_read}
+
+  -- Read code byte
+  local code = caml_marshal_read8u(str, offset)
+
+  -- Small string (0x20-0x3F): length = code - 0x20
+  if code >= 0x20 and code <= 0x3F then
+    local len = code - 0x20
+    -- Validate sufficient data
+    if #str < offset + 1 + len then
+      error("caml_marshal_read_string: insufficient data for small string")
+    end
+    local value = caml_marshal_read_bytes(str, offset + 1, len)
+    return {
+      value = value,
+      bytes_read = 1 + len
+    }
+  end
+
+  -- CODE_STRING8 (0x09): read length byte + bytes
+  if code == 0x09 then
+    local len = caml_marshal_read8u(str, offset + 1)
+    -- Validate sufficient data
+    if #str < offset + 2 + len then
+      error("caml_marshal_read_string: insufficient data for STRING8")
+    end
+    local value = caml_marshal_read_bytes(str, offset + 2, len)
+    return {
+      value = value,
+      bytes_read = 2 + len
+    }
+  end
+
+  -- CODE_STRING32 (0x0A): read 4-byte length + bytes
+  if code == 0x0A then
+    local len = caml_marshal_read32u(str, offset + 1)
+    -- Validate sufficient data
+    if #str < offset + 5 + len then
+      error("caml_marshal_read_string: insufficient data for STRING32")
+    end
+    local value = caml_marshal_read_bytes(str, offset + 5, len)
+    return {
+      value = value,
+      bytes_read = 5 + len
+    }
+  end
+
+  error(string.format("caml_marshal_read_string: unknown code 0x%02X at offset %d", code, offset))
+end
+
 -- Public API (stubs to be implemented in later tasks)
 
 --Provides: caml_marshal_to_string

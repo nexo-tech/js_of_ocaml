@@ -170,17 +170,19 @@
     - ✓ Error handling for invalid codes and insufficient data
     - ✓ 41 tests passed (100% coverage)
 
-- [ ] Task 6.1.2: Implement string marshaling in `marshal.lua` (30 min + tests)
-  - **PREREQUISITES**: Task 6.1.1
-  - **DELIVERABLES**: ~150 lines
-    - `caml_marshal_write_string(buf, str)` - encode string with optimal format
-      - Small string (0-31 bytes): single byte 0x20-0x3F (0x20 + length) + bytes
-      - STRING8 (32-255 bytes): 0x09 + length byte + bytes
-      - STRING32 (256+ bytes): 0x0A + length (4 bytes big-endian) + bytes
-    - `caml_marshal_read_string(str, offset)` - decode string, return {value, bytes_read}
-  - **TESTS**: Add string marshaling tests to test_marshal.lua
-  - **NO**: Local functions, local constants
-  - **YES**: Inline format codes (0x20-0x3F, 0x09, 0x0A) with comments
+- [x] Task 6.1.2: Implement string marshaling in `marshal.lua` (30 min + tests)
+  - **PREREQUISITES**: Task 6.1.1 ✓
+  - **COMPLETED**: 87 lines in marshal.lua + 425 lines (test_marshal_string.lua) = 512 lines total
+  - **IMPLEMENTED**:
+    - ✓ `caml_marshal_write_string(buf, str)` - encode string with optimal format
+      - Small string (0-31 bytes): single byte 0x20-0x3F (0x20 + length) + bytes ✓
+      - STRING8 (32-255 bytes): 0x09 + length byte + bytes ✓
+      - STRING32 (256+ bytes): 0x0A + length (4 bytes big-endian) + bytes ✓
+    - ✓ `caml_marshal_read_string(str, offset)` - decode string, return {value, bytes_read}
+    - ✓ Data validation for all formats (checks sufficient data before reading)
+    - ✓ Error handling for invalid codes and insufficient data
+    - ✓ Supports binary data (null bytes, special characters, UTF-8)
+    - ✓ 38 tests passed (100% coverage)
 
 - [ ] Task 6.1.3: Implement block marshaling in `marshal.lua` (45 min + tests)
   - **PREREQUISITES**: Task 6.1.2
