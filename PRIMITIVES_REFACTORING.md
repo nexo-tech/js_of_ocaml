@@ -84,9 +84,15 @@
   - **VERIFIED**: All 33 map tests pass, AVL balancing working correctly
 - [x] Task 3.9: Refactor `option.lua` - option primitives (30 min + tests)
   - **VERIFIED**: Clean (documentation comments removed)
-- [ ] Task 3.10: Refactor `parsing.lua` - parser primitives (45 min + tests)
-  - **VIOLATIONS**: 33 local constants, 1 local variable (caml_parser_trace)
-  - **STATUS**: Needs rewrite - inline constants, convert trace to global with accessor
+- [x] Task 3.10: Refactor `parsing.lua` - parser primitives (45 min + tests)
+  - **FIXED**: Removed 33 local constants and inlined them into function bodies
+  - **FIXED**: Command codes (READ_TOKEN=0, RAISE_PARSE_ERROR=1, GROW_STACKS_1=2, GROW_STACKS_2=3, COMPUTE_SEMANTIC_ACTION=4, CALL_ERROR_FUNCTION=5)
+  - **FIXED**: State codes (LOOP=6, TESTSHIFT=7, SHIFT=8, SHIFT_RECOVER=9, REDUCE=10)
+  - **FIXED**: 16 ENV_* constants (S_STACK=1 through ERRFLAG=16) inlined in all functions
+  - **FIXED**: 16 TBL_* constants (ACTIONS=1 through NAMES_BLOCK=16) inlined in caml_parse_engine
+  - **FIXED**: ERRCODE=256 inlined in error handling code
+  - **FIXED**: Converted local variable caml_parser_trace to global caml_parser_trace_flag
+  - **VERIFIED**: All 24 parsing tests pass, parser state machine working correctly
 - [ ] Task 3.11: Refactor `queue.lua` - queue primitives (30 min + tests)
   - **VIOLATIONS**: Local table with metatable
   - **STATUS**: Needs rewrite - remove metatable pattern, redesign with flat functions
