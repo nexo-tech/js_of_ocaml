@@ -56,14 +56,20 @@ nix-env -iA nixpkgs.lua5_1
 lua -v  # Should show: Lua 5.1.x
 ```
 
-**Note**:
-- Lua 5.1 compatibility is REQUIRED (LuaJIT is based on Lua 5.1)
-- Do NOT use Lua 5.2+ features (bitwise operators, goto, etc.)
+**IMPORTANT - Lua 5.1 Baseline Requirement**:
+- Lua 5.1 compatibility is **REQUIRED** and is the baseline for all runtime code
+- LuaJIT is based on Lua 5.1, so all code must work on Lua 5.1
+- Do NOT use Lua 5.2+ features (bitwise operators, goto, `\z`, etc.)
+- Do NOT use Lua 5.3+ features (string.pack/unpack, `//`, bitwise `&|~`, etc.)
+- All runtime tests must pass on Lua 5.1 - **verify with Lua 5.1 before committing**
+- Use `lua -v` to confirm you're testing with Lua 5.1.x
+- If implementing features that benefit from Lua 5.3+ (like string.pack), provide Lua 5.1 fallback
 - Runtime code must work on both standard Lua 5.1 and LuaJIT
-- Lua is required for:
+
+**Lua is required for**:
   - Running generated `.lua` files
   - Verifying lua_of_ocaml output
-  - Testing runtime behavior
+  - Testing runtime behavior (ALL tests must pass on Lua 5.1)
   - Validating hello_lua example
 
 ## Build Commands

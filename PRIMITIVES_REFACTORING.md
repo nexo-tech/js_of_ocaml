@@ -236,20 +236,38 @@
   - **IMPLEMENTATION**: Uses Lua 5.3+ string.pack/unpack for IEEE 754 encoding, graceful error if unavailable
   - **FLOAT ARRAYS**: Stored as {size=N, [1]=v1, [2]=v2, ...} for compatibility with OCaml Marshal format
 
-- [ ] Task 6.1.5: Implement core value marshaling in `marshal.lua` (1 hour + tests)
+- [x] Task 6.1.5: Implement core value marshaling in `marshal.lua` (1 hour + tests) ✓
   - **PREREQUISITES**: Task 6.1.4
-  - **DELIVERABLES**: ~250 lines
-    - `caml_marshal_write_value(buf, value)` - main marshaling function
-      - Dispatch based on Lua type: number → int/double, string → string, table → block/float_array
-      - Handle tag 254 specially (float array)
-      - Recursive marshaling for block fields
-    - `caml_marshal_read_value(str, offset)` - main unmarshaling function
-      - Read code byte and dispatch to appropriate reader
-      - Recursive unmarshaling for block fields
-      - Return {value, bytes_read}
-  - **TESTS**: Add comprehensive value marshaling tests to test_marshal.lua
-  - **NO**: Local functions, local constants, sharing (Task 6.1.6)
-  - **YES**: Complete roundtrip for all types
+  - **DELIVERABLES**: 141 lines implemented in `marshal.lua`
+    - `caml_marshal_write_value(buf, value)` - main marshaling dispatch function
+      - Dispatches by Lua type: number → int (if in range) or double
+      - Strings → caml_marshal_write_string
+      - Tables with .tag field → caml_marshal_write_block (recursive)
+      - Tables without .tag, all numbers → caml_marshal_write_float_array
+      - Tables without .tag, mixed types → block with tag 0 (recursive)
+      - Boolean → int (0 or 1), nil → int (0)
+      - Errors on unsupported types (function, userdata, thread)
+    - `caml_marshal_read_value(str, offset)` - main unmarshaling dispatch
+      - Reads code byte and dispatches to appropriate reader
+      - Handles all codes: 0x00-0x02 (int), 0x07 (float array 32), 0x08 (block 32),
+        0x09-0x0A (string), 0x0C (double), 0x0E (float array 8),
+        0x20-0x3F (small string), 0x40-0x7F (small int), 0x80-0xFF (small block)
+      - Recursive unmarshaling for blocks and nested structures
+      - Returns {value, bytes_read}
+  - **TESTS**: 516 lines, 32 tests in `test_marshal_value.lua` - all passing ✓
+    - Integer marshaling (0, 42, -100, 1000000)
+    - Double marshaling (3.14, 0.5, large, ±∞)
+    - String marshaling (empty, short, long 300 chars)
+    - Boolean/nil marshaling (encoded as integers)
+    - Block marshaling (empty, integers, strings, mixed types)
+    - Nested blocks (2-level, 4-level deep)
+    - Float arrays (explicit with .size, inferred from all-numbers)
+    - Arrays without .tag (treated as blocks)
+    - Complex nested structures (blocks containing float arrays, mixed types)
+    - Roundtrip tests (all integer ranges, doubles, strings, blocks)
+    - Error handling (unsupported types, invalid codes)
+  - **IMPLEMENTATION**: Lua 5.1 compatible, no object sharing (values may duplicate)
+  - **KEY DECISIONS**: Tables without .tag infer type (all numbers = float array, else block tag 0)
 
 - [ ] Task 6.1.6: Implement public API in `marshal.lua` (45 min + tests)
   - **PREREQUISITES**: Task 6.1.5

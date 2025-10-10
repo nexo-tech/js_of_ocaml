@@ -437,6 +437,148 @@ function caml_marshal_read_float_array(str, offset)
   }
 end
 
+-- Core value marshaling functions
+
+--Provides: caml_marshal_write_value
+--Requires: caml_marshal_write_int, caml_marshal_write_double, caml_marshal_write_string, caml_marshal_write_block, caml_marshal_write_float_array
+function caml_marshal_write_value(buf, value)
+  -- Main marshaling dispatch function
+  -- Dispatch based on Lua type: number → int/double, string → string, table → block/float_array
+  -- Recursive marshaling for block fields
+
+  local value_type = type(value)
+
+  if value_type == "number" then
+    -- Number: try integer first, fall back to double
+    -- Integer if in int32 range and no fractional part
+    if value >= -2147483648 and value <= 2147483647 and value == math.floor(value) then
+      caml_marshal_write_int(buf, value)
+    else
+      caml_marshal_write_double(buf, value)
+    end
+
+  elseif value_type == "string" then
+    -- String
+    caml_marshal_write_string(buf, value)
+
+  elseif value_type == "table" then
+    -- Table: could be block or float array
+    -- Check if it's a float array (tag 254 in OCaml)
+    -- Float arrays have numeric indices and all number elements
+    -- For simplicity: if table has .tag field, treat as block; else check if float array
+
+    if value.tag ~= nil then
+      -- Block: has tag field
+      -- Use recursive write_value for fields
+      caml_marshal_write_block(buf, value, caml_marshal_write_value)
+
+    else
+      -- Check if it's a float array (all elements are numbers)
+      local is_float_array = true
+      local len = value.size or #value
+
+      if len > 0 then
+        for i = 1, len do
+          if type(value[i]) ~= "number" then
+            is_float_array = false
+            break
+          end
+        end
+      end
+
+      if is_float_array and len > 0 then
+        -- Float array
+        caml_marshal_write_float_array(buf, value)
+      else
+        -- Treat as block with tag 0
+        local block = {
+          tag = 0,
+          size = len
+        }
+        for i = 1, len do
+          block[i] = value[i]
+        end
+        caml_marshal_write_block(buf, block, caml_marshal_write_value)
+      end
+    end
+
+  elseif value_type == "boolean" then
+    -- Boolean: encode as integer 0 (false) or 1 (true)
+    caml_marshal_write_int(buf, value and 1 or 0)
+
+  elseif value_type == "nil" then
+    -- Nil: encode as integer 0 (unit value in OCaml)
+    caml_marshal_write_int(buf, 0)
+
+  else
+    error(string.format("caml_marshal_write_value: unsupported type %s", value_type))
+  end
+end
+
+--Provides: caml_marshal_read_value
+--Requires: caml_marshal_read8u, caml_marshal_read_int, caml_marshal_read_double, caml_marshal_read_string, caml_marshal_read_block, caml_marshal_read_float_array
+function caml_marshal_read_value(str, offset)
+  -- Main unmarshaling dispatch function
+  -- Read code byte and dispatch to appropriate reader
+  -- Recursive unmarshaling for block fields
+  -- Return {value, bytes_read}
+
+  -- Read code byte to determine type
+  local code = caml_marshal_read8u(str, offset)
+
+  -- Small int (0x40-0x7F): 0-63
+  if code >= 0x40 and code <= 0x7F then
+    return caml_marshal_read_int(str, offset)
+
+  -- CODE_INT8 (0x00): signed byte
+  elseif code == 0x00 then
+    return caml_marshal_read_int(str, offset)
+
+  -- CODE_INT16 (0x01): signed 16-bit
+  elseif code == 0x01 then
+    return caml_marshal_read_int(str, offset)
+
+  -- CODE_INT32 (0x02): signed 32-bit
+  elseif code == 0x02 then
+    return caml_marshal_read_int(str, offset)
+
+  -- Small string (0x20-0x3F): 0-31 bytes
+  elseif code >= 0x20 and code <= 0x3F then
+    return caml_marshal_read_string(str, offset)
+
+  -- CODE_STRING8 (0x09): 32-255 bytes
+  elseif code == 0x09 then
+    return caml_marshal_read_string(str, offset)
+
+  -- CODE_STRING32 (0x0A): 256+ bytes
+  elseif code == 0x0A then
+    return caml_marshal_read_string(str, offset)
+
+  -- CODE_DOUBLE_LITTLE (0x0C): IEEE 754 double
+  elseif code == 0x0C then
+    return caml_marshal_read_double(str, offset)
+
+  -- CODE_DOUBLE_ARRAY8_LITTLE (0x0E): float array with 8-bit length
+  elseif code == 0x0E then
+    return caml_marshal_read_float_array(str, offset)
+
+  -- CODE_DOUBLE_ARRAY32_LITTLE (0x07): float array with 32-bit length
+  elseif code == 0x07 then
+    return caml_marshal_read_float_array(str, offset)
+
+  -- Small block (0x80-0xFF): tag 0-15, size 0-7
+  elseif code >= 0x80 and code <= 0xFF then
+    return caml_marshal_read_block(str, offset, caml_marshal_read_value)
+
+  -- CODE_BLOCK32 (0x08): large block
+  elseif code == 0x08 then
+    return caml_marshal_read_block(str, offset, caml_marshal_read_value)
+
+  else
+    error(string.format("caml_marshal_read_value: unknown code 0x%02X at offset %d", code, offset))
+  end
+end
+
 -- Public API (stubs to be implemented in later tasks)
 
 --Provides: caml_marshal_to_string
