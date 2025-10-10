@@ -1,9 +1,9 @@
 #!/usr/bin/env lua
 -- Test suite for marshal_header.lua (Task 1.2)
 
-local marshal_header = require("marshal_header")
-local marshal_io = require("marshal_io")
-local Writer = marshal_io.Writer
+dofile("marshal_header.lua")
+local Reader = get_Reader_class()
+local Writer = get_Writer_class()
 
 -- Test framework
 local tests_run = 0
@@ -48,9 +48,9 @@ print("--------------------------------------------------------------------")
 
 test("VLQ encode small values", function()
   local writer = Writer:new()
-  marshal_header.write_vlq(writer, 0)
-  marshal_header.write_vlq(writer, 1)
-  marshal_header.write_vlq(writer, 127)
+  marshal_header_write_vlq(writer, 0)
+  marshal_header_write_vlq(writer, 1)
+  marshal_header_write_vlq(writer, 127)
 
   local str = writer:to_string()
   assert_eq(#str, 3, "Should write 3 bytes")
@@ -61,9 +61,9 @@ end)
 
 test("VLQ encode medium values", function()
   local writer = Writer:new()
-  marshal_header.write_vlq(writer, 128)    -- 0x81 0x00
-  marshal_header.write_vlq(writer, 255)    -- 0x81 0x7F
-  marshal_header.write_vlq(writer, 16383)  -- 0xFF 0x7F
+  marshal_header_write_vlq(writer, 128)    -- 0x81 0x00
+  marshal_header_write_vlq(writer, 255)    -- 0x81 0x7F
+  marshal_header_write_vlq(writer, 16383)  -- 0xFF 0x7F
 
   local str = writer:to_string()
   assert_eq(string.byte(str, 1), 0x81, "VLQ(128) byte 1")
@@ -74,8 +74,8 @@ end)
 
 test("VLQ encode large values", function()
   local writer = Writer:new()
-  marshal_header.write_vlq(writer, 16384)    -- 0x81 0x80 0x00
-  marshal_header.write_vlq(writer, 2097151)  -- 0xFF 0xFF 0x7F
+  marshal_header_write_vlq(writer, 16384)    -- 0x81 0x80 0x00
+  marshal_header_write_vlq(writer, 2097151)  -- 0xFF 0xFF 0x7F
 
   local str = writer:to_string()
   assert_eq(string.byte(str, 1), 0x81, "VLQ(16384) byte 1")
@@ -87,10 +87,10 @@ test("VLQ roundtrip small values", function()
   local values = {0, 1, 42, 63, 64, 127}
   for _, v in ipairs(values) do
     local writer = Writer:new()
-    marshal_header.write_vlq(writer, v)
+    marshal_header_write_vlq(writer, v)
 
-    local reader = marshal_io.Reader:new(writer:to_string())
-    local decoded, overflow = marshal_header.read_vlq(reader)
+    local reader = Reader:new(writer:to_string())
+    local decoded, overflow = marshal_header_read_vlq(reader)
 
     assert_eq(decoded, v, "VLQ roundtrip " .. v)
     assert_true(not overflow, "No overflow for " .. v)
@@ -101,10 +101,10 @@ test("VLQ roundtrip medium values", function()
   local values = {128, 255, 256, 1000, 16383, 16384, 100000}
   for _, v in ipairs(values) do
     local writer = Writer:new()
-    marshal_header.write_vlq(writer, v)
+    marshal_header_write_vlq(writer, v)
 
-    local reader = marshal_io.Reader:new(writer:to_string())
-    local decoded, overflow = marshal_header.read_vlq(reader)
+    local reader = Reader:new(writer:to_string())
+    local decoded, overflow = marshal_header_read_vlq(reader)
 
     assert_eq(decoded, v, "VLQ roundtrip " .. v)
     assert_true(not overflow, "No overflow for " .. v)
@@ -115,10 +115,10 @@ test("VLQ roundtrip large values", function()
   local values = {1000000, 16777215, 2097151, 268435455}
   for _, v in ipairs(values) do
     local writer = Writer:new()
-    marshal_header.write_vlq(writer, v)
+    marshal_header_write_vlq(writer, v)
 
-    local reader = marshal_io.Reader:new(writer:to_string())
-    local decoded, overflow = marshal_header.read_vlq(reader)
+    local reader = Reader:new(writer:to_string())
+    local decoded, overflow = marshal_header_read_vlq(reader)
 
     assert_eq(decoded, v, "VLQ roundtrip " .. v)
     assert_true(not overflow, "No overflow for " .. v)
@@ -134,7 +134,7 @@ print("Standard Header Tests:")
 print("--------------------------------------------------------------------")
 
 test("Write standard header", function()
-  local header_str = marshal_header.write_header(100, 5, 0, 0)
+  local header_str = marshal_header_write_header(100, 5, 0, 0)
 
   assert_eq(#header_str, 20, "Header should be 20 bytes")
 
@@ -145,8 +145,8 @@ test("Write standard header", function()
 end)
 
 test("Read standard header", function()
-  local header_str = marshal_header.write_header(200, 10, 0, 0)
-  local header = marshal_header.read_header(header_str)
+  local header_str = marshal_header_write_header(200, 10, 0, 0)
+  local header = marshal_header_read_header(header_str)
 
   assert_eq(header.magic, 0x8495A6BE, "Magic number")
   assert_eq(header.header_len, 20, "Header length")
@@ -159,16 +159,16 @@ test("Read standard header", function()
 end)
 
 test("Roundtrip standard header - zero objects", function()
-  local header_str = marshal_header.write_header(0, 0, 0, 0)
-  local header = marshal_header.read_header(header_str)
+  local header_str = marshal_header_write_header(0, 0, 0, 0)
+  local header = marshal_header_read_header(header_str)
 
   assert_eq(header.data_len, 0, "Data length")
   assert_eq(header.num_objects, 0, "Number of objects")
 end)
 
 test("Roundtrip standard header - large values", function()
-  local header_str = marshal_header.write_header(1000000, 5000, 123, 456)
-  local header = marshal_header.read_header(header_str)
+  local header_str = marshal_header_write_header(1000000, 5000, 123, 456)
+  local header = marshal_header_read_header(header_str)
 
   assert_eq(header.data_len, 1000000, "Data length")
   assert_eq(header.num_objects, 5000, "Number of objects")
@@ -185,7 +185,7 @@ print("Compressed Header Tests:")
 print("--------------------------------------------------------------------")
 
 test("Write compressed header", function()
-  local header_str = marshal_header.write_compressed_header(100, 150, 5, 0, 0)
+  local header_str = marshal_header_write_compressed_header(100, 150, 5, 0, 0)
 
   -- Header should be at least 4 bytes (magic) + 1 byte (len) + VLQs
   assert_true(#header_str >= 5, "Header should be at least 5 bytes")
@@ -197,8 +197,8 @@ test("Write compressed header", function()
 end)
 
 test("Read compressed header", function()
-  local header_str = marshal_header.write_compressed_header(200, 300, 10, 0, 0)
-  local header = marshal_header.read_header(header_str)
+  local header_str = marshal_header_write_compressed_header(200, 300, 10, 0, 0)
+  local header = marshal_header_read_header(header_str)
 
   assert_eq(header.magic, 0x8495A6BD, "Magic number")
   assert_eq(header.data_len, 200, "Data length")
@@ -210,8 +210,8 @@ test("Read compressed header", function()
 end)
 
 test("Roundtrip compressed header - small values", function()
-  local header_str = marshal_header.write_compressed_header(10, 20, 1, 0, 0)
-  local header = marshal_header.read_header(header_str)
+  local header_str = marshal_header_write_compressed_header(10, 20, 1, 0, 0)
+  local header = marshal_header_read_header(header_str)
 
   assert_eq(header.data_len, 10, "Data length")
   assert_eq(header.uncompressed_data_len, 20, "Uncompressed data length")
@@ -219,8 +219,8 @@ test("Roundtrip compressed header - small values", function()
 end)
 
 test("Roundtrip compressed header - large values", function()
-  local header_str = marshal_header.write_compressed_header(1000000, 2000000, 50000, 100, 200)
-  local header = marshal_header.read_header(header_str)
+  local header_str = marshal_header_write_compressed_header(1000000, 2000000, 50000, 100, 200)
+  local header = marshal_header_read_header(header_str)
 
   assert_eq(header.data_len, 1000000, "Data length")
   assert_eq(header.uncompressed_data_len, 2000000, "Uncompressed data length")
@@ -230,8 +230,8 @@ test("Roundtrip compressed header - large values", function()
 end)
 
 test("Compressed header is smaller than standard", function()
-  local standard = marshal_header.write_header(100, 5, 0, 0)
-  local compressed = marshal_header.write_compressed_header(100, 100, 5, 0, 0)
+  local standard = marshal_header_write_header(100, 5, 0, 0)
+  local compressed = marshal_header_write_compressed_header(100, 100, 5, 0, 0)
 
   assert_true(#compressed < #standard, "Compressed should be smaller for small values")
 end)
@@ -245,30 +245,30 @@ print("Size Functions Tests:")
 print("--------------------------------------------------------------------")
 
 test("total_size standard header", function()
-  local header_str = marshal_header.write_header(100, 5, 0, 0)
-  local total = marshal_header.total_size(header_str)
+  local header_str = marshal_header_write_header(100, 5, 0, 0)
+  local total = marshal_header_total_size(header_str)
 
   assert_eq(total, 120, "Total size should be header (20) + data (100)")
 end)
 
 test("data_size standard header", function()
-  local header_str = marshal_header.write_header(250, 10, 0, 0)
-  local data = marshal_header.data_size(header_str)
+  local header_str = marshal_header_write_header(250, 10, 0, 0)
+  local data = marshal_header_data_size(header_str)
 
   assert_eq(data, 250, "Data size should be 250")
 end)
 
 test("total_size compressed header", function()
-  local header_str = marshal_header.write_compressed_header(80, 120, 3, 0, 0)
-  local total = marshal_header.total_size(header_str)
+  local header_str = marshal_header_write_compressed_header(80, 120, 3, 0, 0)
+  local total = marshal_header_total_size(header_str)
   local header_len = #header_str
 
   assert_eq(total, header_len + 80, "Total size should be header + data")
 end)
 
 test("data_size compressed header", function()
-  local header_str = marshal_header.write_compressed_header(150, 200, 5, 0, 0)
-  local data = marshal_header.data_size(header_str)
+  local header_str = marshal_header_write_compressed_header(150, 200, 5, 0, 0)
+  local data = marshal_header_data_size(header_str)
 
   assert_eq(data, 150, "Data size should be 150")
 end)
@@ -290,7 +290,7 @@ test("Invalid magic number", function()
   writer:write32u(0)
 
   local success = pcall(function()
-    marshal_header.read_header(writer:to_string())
+    marshal_header_read_header(writer:to_string())
   end)
   assert_true(not success, "Should error on invalid magic")
 end)
@@ -300,17 +300,17 @@ test("MAGIC_BIG error", function()
   writer:write32u(0x8495A6BF)  -- MAGIC_BIG
 
   local success = pcall(function()
-    marshal_header.read_header(writer:to_string())
+    marshal_header_read_header(writer:to_string())
   end)
   assert_true(not success, "Should error on MAGIC_BIG")
 end)
 
 test("Truncated standard header", function()
-  local header_str = marshal_header.write_header(100, 5, 0, 0)
+  local header_str = marshal_header_write_header(100, 5, 0, 0)
   local truncated = string.sub(header_str, 1, 15)  -- Only 15 bytes
 
   local success = pcall(function()
-    marshal_header.read_header(truncated)
+    marshal_header_read_header(truncated)
   end)
   assert_true(not success, "Should error on truncated header")
 end)
@@ -319,7 +319,7 @@ test("VLQ negative value error", function()
   local writer = Writer:new()
 
   local success = pcall(function()
-    marshal_header.write_vlq(writer, -1)
+    marshal_header_write_vlq(writer, -1)
   end)
   assert_true(not success, "Should error on negative VLQ")
 end)
@@ -334,18 +334,18 @@ print("--------------------------------------------------------------------")
 
 test("Header with offset", function()
   local prefix = "XXXX"
-  local header_str = marshal_header.write_header(50, 2, 0, 0)
+  local header_str = marshal_header_write_header(50, 2, 0, 0)
   local full_str = prefix .. header_str
 
-  local header = marshal_header.read_header(full_str, 4)
+  local header = marshal_header_read_header(full_str, 4)
 
   assert_eq(header.data_len, 50, "Should read header at offset")
   assert_eq(header.num_objects, 2, "Should read correct values")
 end)
 
 test("Zero data length", function()
-  local header_str = marshal_header.write_header(0, 0, 0, 0)
-  local header = marshal_header.read_header(header_str)
+  local header_str = marshal_header_write_header(0, 0, 0, 0)
+  local header = marshal_header_read_header(header_str)
 
   assert_eq(header.data_len, 0, "Zero data length")
   assert_eq(header.num_objects, 0, "Zero objects")
@@ -354,8 +354,8 @@ end)
 test("Maximum standard header values", function()
   -- Use large but valid 32-bit values
   local max_val = 2147483647  -- Max positive 32-bit signed int
-  local header_str = marshal_header.write_header(max_val, 1000, 100, 200)
-  local header = marshal_header.read_header(header_str)
+  local header_str = marshal_header_write_header(max_val, 1000, 100, 200)
+  local header = marshal_header_read_header(header_str)
 
   assert_eq(header.data_len, max_val, "Large data length")
   assert_eq(header.num_objects, 1000, "Objects")

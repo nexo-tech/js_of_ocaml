@@ -31,8 +31,8 @@ end
 -- Helper: roundtrip marshal/unmarshal
 local function roundtrip(value, flags)
   flags = flags or {tag = 0}
-  local marshalled = marshal.to_string(value, flags)
-  return marshal.from_bytes(marshalled, 0)
+  local marshalled = caml_marshal_to_string(value, flags)
+  return caml_marshal_from_bytes(marshalled, 0)
 end
 
 -- Helper: deep equality for complex structures

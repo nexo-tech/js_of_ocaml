@@ -39,7 +39,7 @@ local function unmarshal_file(filename)
   if not content then
     error(err)
   end
-  return marshal.from_bytes(content, 0)
+  return caml_marshal_from_bytes(content, 0)
 end
 
 -- Helper: deep equality check

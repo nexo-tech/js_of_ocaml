@@ -18,9 +18,8 @@
 -- I/O operations for OCaml channels and file descriptors
 
 -- Load dependencies
-local marshal = require("marshal")
-local marshal_header = require("marshal_header")
-local fail = require("fail")
+dofile("marshal.lua")
+dofile("fail.lua")
 
 -- File descriptor table (similar to caml_sys_fds in JS runtime)
 local caml_sys_fds = {}
@@ -422,7 +421,7 @@ function caml_input_value(chanid)
   local header_str = table.concat(header_chars)
 
   -- Parse header to get data length
-  local data_len = marshal.data_size(header_str, 0)
+  local data_len = caml_marshal_data_size(header_str, 0)
 
   -- Read data
   local data_buf = {}
@@ -442,7 +441,7 @@ function caml_input_value(chanid)
 
   -- Combine header + data and unmarshal
   local complete_str = header_str .. data_str
-  local result = marshal.from_bytes(complete_str, 0)
+  local result = caml_marshal_from_bytes(complete_str, 0)
 
   return result
 end
@@ -598,7 +597,7 @@ function caml_output_value(chanid, v, flags)
   end
 
   -- Marshal value (produces header + data)
-  local marshalled = marshal.to_string(v, flags)
+  local marshalled = caml_marshal_to_string(v, flags)
 
   -- Write marshalled data to channel
   caml_ml_output(chanid, marshalled, 0, #marshalled)

@@ -1,4 +1,20 @@
--- Lua_of_ocaml runtime support
+-- Js_of_ocaml runtime support
+-- http://www.ocsigen.org/js_of_ocaml/
+--
+-- This program is free software; you can redistribute it and/or modify
+-- it under the terms of the GNU Lesser General Public License as published by
+-- the Free Software Foundation, with linking exception;
+-- either version 2.1 of the License, or (at your option) any later version.
+--
+-- This program is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU Lesser General Public License for more details.
+--
+-- You should have received a copy of the GNU Lesser General Public License
+-- along with this program; if not, write to the Free Software
+-- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
 -- Marshal: Value Marshalling/Unmarshalling
 --
 -- Implements OCaml Marshal module for binary serialization/deserialization.
@@ -197,12 +213,8 @@
 --
 -- ============================================================================
 
-local marshal_io = require("marshal_io")
-local marshal_header = require("marshal_header")
-local Reader = marshal_io.Reader
-local Writer = marshal_io.Writer
-
-local M = {}
+dofile("marshal_io.lua")
+dofile("marshal_header.lua")
 
 -- Object ID counter (for tag 248 object blocks)
 local oo_last_id = 0
@@ -223,60 +235,60 @@ local function set_oo_id(block)
   return block
 end
 
--- Value type codes
-M.PREFIX_SMALL_BLOCK = 0x80
-M.PREFIX_SMALL_INT = 0x40
-M.PREFIX_SMALL_STRING = 0x20
-M.CODE_INT8 = 0x00
-M.CODE_INT16 = 0x01
-M.CODE_INT32 = 0x02
-M.CODE_INT64 = 0x03
-M.CODE_SHARED8 = 0x04
-M.CODE_SHARED16 = 0x05
-M.CODE_SHARED32 = 0x06
-M.CODE_DOUBLE_ARRAY32_LITTLE = 0x07
-M.CODE_BLOCK32 = 0x08
-M.CODE_STRING8 = 0x09
-M.CODE_STRING32 = 0x0A
-M.CODE_DOUBLE_BIG = 0x0B
-M.CODE_DOUBLE_LITTLE = 0x0C
-M.CODE_DOUBLE_ARRAY8_BIG = 0x0D
-M.CODE_DOUBLE_ARRAY8_LITTLE = 0x0E
-M.CODE_DOUBLE_ARRAY32_BIG = 0x0F
-M.CODE_CODEPOINTER = 0x10
-M.CODE_INFIXPOINTER = 0x11
-M.CODE_CUSTOM = 0x12
-M.CODE_BLOCK64 = 0x13
-M.CODE_CUSTOM_LEN = 0x18
-M.CODE_CUSTOM_FIXED = 0x19
+-- Value type codes (global for use throughout marshal module)
+MARSHAL_PREFIX_SMALL_BLOCK = 0x80
+MARSHAL_PREFIX_SMALL_INT = 0x40
+MARSHAL_PREFIX_SMALL_STRING = 0x20
+MARSHAL_CODE_INT8 = 0x00
+MARSHAL_CODE_INT16 = 0x01
+MARSHAL_CODE_INT32 = 0x02
+MARSHAL_CODE_INT64 = 0x03
+MARSHAL_CODE_SHARED8 = 0x04
+MARSHAL_CODE_SHARED16 = 0x05
+MARSHAL_CODE_SHARED32 = 0x06
+MARSHAL_CODE_DOUBLE_ARRAY32_LITTLE = 0x07
+MARSHAL_CODE_BLOCK32 = 0x08
+MARSHAL_CODE_STRING8 = 0x09
+MARSHAL_CODE_STRING32 = 0x0A
+MARSHAL_CODE_DOUBLE_BIG = 0x0B
+MARSHAL_CODE_DOUBLE_LITTLE = 0x0C
+MARSHAL_CODE_DOUBLE_ARRAY8_BIG = 0x0D
+MARSHAL_CODE_DOUBLE_ARRAY8_LITTLE = 0x0E
+MARSHAL_CODE_DOUBLE_ARRAY32_BIG = 0x0F
+MARSHAL_CODE_CODEPOINTER = 0x10
+MARSHAL_CODE_INFIXPOINTER = 0x11
+MARSHAL_CODE_CUSTOM = 0x12
+MARSHAL_CODE_BLOCK64 = 0x13
+MARSHAL_CODE_CUSTOM_LEN = 0x18
+MARSHAL_CODE_CUSTOM_FIXED = 0x19
 
--- Special block tags
-M.TAG_OBJECT = 248        -- Object blocks (need oo_id)
-M.TAG_LAZY = 249          -- Lazy values
-M.TAG_FORWARD = 250       -- Forward blocks
-M.TAG_ABSTRACT = 251      -- Abstract tags
-M.TAG_CLOSURE = 252       -- Closures (not supported)
-M.TAG_INFIX = 253         -- Infix pointers
-M.TAG_FLOAT_ARRAY = 254   -- Float arrays
-M.TAG_CUSTOM = 255        -- Custom blocks
+-- Special block tags (global)
+MARSHAL_TAG_OBJECT = 248        -- Object blocks (need oo_id)
+MARSHAL_TAG_LAZY = 249          -- Lazy values
+MARSHAL_TAG_FORWARD = 250       -- Forward blocks
+MARSHAL_TAG_ABSTRACT = 251      -- Abstract tags
+MARSHAL_TAG_CLOSURE = 252       -- Closures (not supported)
+MARSHAL_TAG_INFIX = 253         -- Infix pointers
+MARSHAL_TAG_FLOAT_ARRAY = 254   -- Float arrays
+MARSHAL_TAG_CUSTOM = 255        -- Custom blocks
 
--- Marshal flags (extern_flags)
-M.No_sharing = 0  -- Disable sharing of heap values
-M.Closures = 1    -- Not supported, will error
-M.Compat_32 = 2   -- Force 32-bit integer compatibility (redundant in Lua)
+-- Marshal flags (extern_flags) (global)
+MARSHAL_NO_SHARING = 0  -- Disable sharing of heap values
+MARSHAL_CLOSURES = 1    -- Not supported, will error
+MARSHAL_COMPAT_32 = 2   -- Force 32-bit integer compatibility (redundant in Lua)
 
 --
 -- Custom Block Operations
 --
 
--- Custom operations table
+-- Custom operations table (global for use by custom block handlers)
 -- Each entry maps a custom identifier to operations:
 --   deserialize(reader, size_array): Unmarshal custom block
 --   serialize(writer, value, sizes_array): Marshal custom block
 --   compare(v1, v2): Compare two custom values
 --   hash(v): Hash custom value
 --   fixed_length: Size in bytes (if fixed), or nil for variable
-M.custom_ops = {}
+marshal_custom_ops = {}
 
 -- Helper: Int64 unmarshal (8 bytes big-endian)
 local function int64_unmarshal(reader, size_array)
@@ -354,7 +366,7 @@ local function nativeint_marshal(writer, value, sizes_array)
 end
 
 -- Register custom operations
-M.custom_ops["_j"] = {
+marshal_custom_ops["_j"] = {
   deserialize = int64_unmarshal,
   serialize = int64_marshal,
   fixed_length = 8,
@@ -362,7 +374,7 @@ M.custom_ops["_j"] = {
   hash = nil      -- Not needed for marshalling
 }
 
-M.custom_ops["_i"] = {
+marshal_custom_ops["_i"] = {
   deserialize = int32_unmarshal,
   serialize = int32_marshal,
   fixed_length = 4,
@@ -370,7 +382,7 @@ M.custom_ops["_i"] = {
   hash = nil
 }
 
-M.custom_ops["_n"] = {
+marshal_custom_ops["_n"] = {
   deserialize = nativeint_unmarshal,
   serialize = nativeint_marshal,
   fixed_length = 4,
@@ -384,16 +396,16 @@ M.custom_ops["_n"] = {
 -- Compression Support
 --
 
--- Decompression stub
+-- Decompression stub (global)
 -- To enable compression support, set this to a function that takes:
 --   compressed_data (string): the compressed data bytes
 --   uncompressed_len (number): expected uncompressed length
 -- Returns: uncompressed data as string
-M.decompress_input = nil
+marshal_decompress_input = nil
 
 -- Example integration with lua-zlib:
 -- local zlib = require("zlib")
--- M.decompress_input = function(compressed_data, uncompressed_len)
+-- marshal_decompress_input = function(compressed_data, uncompressed_len)
 --   local stream = zlib.inflate()
 --   local result, eof, bytes_in, bytes_out = stream(compressed_data)
 --   if not result then
@@ -473,11 +485,11 @@ local function parse_flags(flags)
   -- Handle both array-style and table-style flags
   if type(flags) == "table" then
     for _, flag in ipairs(flags) do
-      if flag == M.No_sharing then
+      if flag == MARSHAL_NO_SHARING then
         result.no_sharing = true
-      elseif flag == M.Closures then
+      elseif flag == MARSHAL_CLOSURES then
         result.closures = true
-      elseif flag == M.Compat_32 then
+      elseif flag == MARSHAL_COMPAT_32 then
         result.compat_32 = true
       end
     end
@@ -494,6 +506,7 @@ local MarshalWriter = {}
 MarshalWriter.__index = MarshalWriter
 
 function MarshalWriter:new(no_sharing)
+  local Writer = get_Writer_class()
   local obj = {
     writer = Writer:new(),
     size_32 = 0,
@@ -540,15 +553,15 @@ end
 function MarshalWriter:write_shared(offset)
   if offset < 256 then
     -- SHARED8
-    self.writer:write8u(M.CODE_SHARED8)
+    self.writer:write8u(MARSHAL_CODE_SHARED8)
     self.writer:write8u(offset)
   elseif offset < 65536 then
     -- SHARED16
-    self.writer:write8u(M.CODE_SHARED16)
+    self.writer:write8u(MARSHAL_CODE_SHARED16)
     self.writer:write16u(offset)
   else
     -- SHARED32
-    self.writer:write8u(M.CODE_SHARED32)
+    self.writer:write8u(MARSHAL_CODE_SHARED32)
     self.writer:write32u(offset)
   end
 end
@@ -558,7 +571,7 @@ function MarshalWriter:write_small_int(n)
   if n < 0 or n >= 64 then
     error("Marshal: small int out of range (0-63)")
   end
-  self.writer:write8u(M.PREFIX_SMALL_INT + n)
+  self.writer:write8u(MARSHAL_PREFIX_SMALL_INT + n)
 end
 
 -- Marshal INT8 (-128 to 127)
@@ -566,7 +579,7 @@ function MarshalWriter:write_int8(n)
   if n < -128 or n > 127 then
     error("Marshal: INT8 out of range")
   end
-  self.writer:write8u(M.CODE_INT8)
+  self.writer:write8u(MARSHAL_CODE_INT8)
   self.writer:write8u(n < 0 and (n + 256) or n)
 end
 
@@ -575,7 +588,7 @@ function MarshalWriter:write_int16(n)
   if n < -32768 or n > 32767 then
     error("Marshal: INT16 out of range")
   end
-  self.writer:write8u(M.CODE_INT16)
+  self.writer:write8u(MARSHAL_CODE_INT16)
   local u = n < 0 and (n + 65536) or n
   self.writer:write16u(u)
 end
@@ -585,7 +598,7 @@ function MarshalWriter:write_int32(n)
   if n < -2147483648 or n > 2147483647 then
     error("Marshal: INT32 out of range")
   end
-  self.writer:write8u(M.CODE_INT32)
+  self.writer:write8u(MARSHAL_CODE_INT32)
   local u = n < 0 and (n + 4294967296) or n
   self.writer:write32u(u)
 end
@@ -622,7 +635,7 @@ function MarshalWriter:write_small_string(str)
   if len < 0 or len >= 32 then
     error("Marshal: small string out of range (0-31)")
   end
-  self.writer:write8u(M.PREFIX_SMALL_STRING + len)
+  self.writer:write8u(MARSHAL_PREFIX_SMALL_STRING + len)
   self.writer:writestr(str)
 
   -- Update size fields
@@ -638,7 +651,7 @@ function MarshalWriter:write_string8(str)
   if len < 0 or len >= 256 then
     error("Marshal: STRING8 out of range (0-255)")
   end
-  self.writer:write8u(M.CODE_STRING8)
+  self.writer:write8u(MARSHAL_CODE_STRING8)
   self.writer:write8u(len)
   self.writer:writestr(str)
 
@@ -652,7 +665,7 @@ function MarshalWriter:write_string32(str)
   if self:memo(str) then return end  -- Check for sharing
 
   local len = #str
-  self.writer:write8u(M.CODE_STRING32)
+  self.writer:write8u(MARSHAL_CODE_STRING32)
   self.writer:write32u(len)
   self.writer:writestr(str)
 
@@ -685,7 +698,7 @@ function MarshalWriter:write_small_block(tag, size)
   if size < 0 or size >= 8 then
     error("Marshal: small block size out of range (0-7)")
   end
-  local code = M.PREFIX_SMALL_BLOCK + tag + (size * 16)
+  local code = MARSHAL_PREFIX_SMALL_BLOCK + tag + (size * 16)
   self.writer:write8u(code)
 
   -- Update size fields
@@ -703,7 +716,7 @@ function MarshalWriter:write_block32(tag, size)
   end
 
   -- Write CODE_BLOCK32
-  self.writer:write8u(M.CODE_BLOCK32)
+  self.writer:write8u(MARSHAL_CODE_BLOCK32)
 
   -- Write header: (size << 10) | tag
   local header = (size * 1024) + tag  -- size << 10 | tag
@@ -735,7 +748,7 @@ function MarshalWriter:write_double(value)
 
   if self:memo(value) then return end  -- Check for sharing
 
-  self.writer:write8u(M.CODE_DOUBLE_LITTLE)
+  self.writer:write8u(MARSHAL_CODE_DOUBLE_LITTLE)
   self.writer:write_double_little(value)
 
   -- Update size fields
@@ -749,7 +762,7 @@ function MarshalWriter:write_double_big(value)
     error("Marshal: expected number for double")
   end
 
-  self.writer:write8u(M.CODE_DOUBLE_BIG)
+  self.writer:write8u(MARSHAL_CODE_DOUBLE_BIG)
   self.writer:write_double_big(value)
 
   -- Update size fields
@@ -771,7 +784,7 @@ function MarshalWriter:write_double_array8(values)
     error("Marshal: DOUBLE_ARRAY8 length out of range (0-255)")
   end
 
-  self.writer:write8u(M.CODE_DOUBLE_ARRAY8_LITTLE)
+  self.writer:write8u(MARSHAL_CODE_DOUBLE_ARRAY8_LITTLE)
   self.writer:write8u(len)
 
   for i = 1, len do
@@ -796,7 +809,7 @@ function MarshalWriter:write_double_array32(values)
 
   local len = #values
 
-  self.writer:write8u(M.CODE_DOUBLE_ARRAY32_LITTLE)
+  self.writer:write8u(MARSHAL_CODE_DOUBLE_ARRAY32_LITTLE)
   self.writer:write32u(len)
 
   for i = 1, len do
@@ -834,7 +847,7 @@ function MarshalWriter:write_custom(value)
   if self:memo(value) then return end
 
   local name = value.caml_custom
-  local ops = M.custom_ops[name]
+  local ops = marshal_custom_ops[name]
 
   if not ops then
     error("Marshal: unknown custom block identifier: " .. name)
@@ -848,7 +861,7 @@ function MarshalWriter:write_custom(value)
 
   if ops.fixed_length then
     -- CUSTOM_FIXED (0x19) - fixed-length custom block
-    self.writer:write8u(M.CODE_CUSTOM_FIXED)
+    self.writer:write8u(MARSHAL_CODE_CUSTOM_FIXED)
 
     -- Write null-terminated identifier
     for i = 1, #name do
@@ -871,7 +884,7 @@ function MarshalWriter:write_custom(value)
 
   else
     -- CUSTOM_LEN (0x18) - variable-length custom block
-    self.writer:write8u(M.CODE_CUSTOM_LEN)
+    self.writer:write8u(MARSHAL_CODE_CUSTOM_LEN)
 
     -- Write null-terminated identifier
     for i = 1, #name do
@@ -915,6 +928,7 @@ function MarshalReader:new(str, offset, num_objects, compressed)
   offset = offset or 0
   num_objects = num_objects or 0
   compressed = compressed or false
+  local Reader = get_Reader_class()
   local obj = {
     reader = Reader:new(str, offset),
     obj_counter = 0,
@@ -1015,7 +1029,7 @@ function MarshalReader:read_small_block(code)
   local size = math.floor((code / 16)) % 8  -- (code >> 4) & 0x07
 
   -- Check for unsupported special tags
-  if tag == M.TAG_CLOSURE then
+  if tag == MARSHAL_TAG_CLOSURE then
     error("Marshal: closure blocks are not supported")
   end
 
@@ -1024,7 +1038,7 @@ function MarshalReader:read_small_block(code)
   -- For non-empty blocks, store in intern table and track objects (tag 248)
   if size > 0 then
     self:intern_store(v)
-    if tag == M.TAG_OBJECT then
+    if tag == MARSHAL_TAG_OBJECT then
       -- Track object blocks for oo_id assignment
       table.insert(self.objects, v)
     end
@@ -1040,7 +1054,7 @@ function MarshalReader:read_block32()
   local size = math.floor(header / 1024)  -- header >> 10
 
   -- Check for unsupported special tags
-  if tag == M.TAG_CLOSURE then
+  if tag == MARSHAL_TAG_CLOSURE then
     error("Marshal: closure blocks are not supported")
   end
 
@@ -1049,7 +1063,7 @@ function MarshalReader:read_block32()
   -- For non-empty blocks, store in intern table and track objects (tag 248)
   if size > 0 then
     self:intern_store(v)
-    if tag == M.TAG_OBJECT then
+    if tag == MARSHAL_TAG_OBJECT then
       -- Track object blocks for oo_id assignment
       table.insert(self.objects, v)
     end
@@ -1182,15 +1196,15 @@ function MarshalReader:read_value_core()
   local code = self.reader:read8u()
 
   -- Check for PREFIX_SMALL_INT (0x40-0x7F)
-  if code >= M.PREFIX_SMALL_INT then
-    if code >= M.PREFIX_SMALL_BLOCK then
+  if code >= MARSHAL_PREFIX_SMALL_INT then
+    if code >= MARSHAL_PREFIX_SMALL_BLOCK then
       -- Small block (0x80-0xFF)
       local tag = code % 16
-      local size = math.floor((code - M.PREFIX_SMALL_BLOCK) / 16)
+      local size = math.floor((code - MARSHAL_PREFIX_SMALL_BLOCK) / 16)
       local v = {tag = tag, size = size}
       if size > 0 then
         self:intern_store(v)
-        if tag == M.TAG_OBJECT then
+        if tag == MARSHAL_TAG_OBJECT then
           table.insert(self.objects, v)
         end
         return v, true  -- Needs field population
@@ -1203,58 +1217,58 @@ function MarshalReader:read_value_core()
   end
 
   -- Check for PREFIX_SMALL_STRING (0x20-0x3F)
-  if code >= M.PREFIX_SMALL_STRING then
+  if code >= MARSHAL_PREFIX_SMALL_STRING then
     return self:read_small_string(code), false
   end
 
   -- Extended codes (0x00-0x1F)
-  if code == M.CODE_INT8 then
+  if code == MARSHAL_CODE_INT8 then
     return self:read_int8(), false
-  elseif code == M.CODE_INT16 then
+  elseif code == MARSHAL_CODE_INT16 then
     return self:read_int16(), false
-  elseif code == M.CODE_INT32 then
+  elseif code == MARSHAL_CODE_INT32 then
     return self:read_int32(), false
-  elseif code == M.CODE_INT64 then
+  elseif code == MARSHAL_CODE_INT64 then
     error("Marshal: INT64 not yet implemented")
-  elseif code == M.CODE_SHARED8 then
+  elseif code == MARSHAL_CODE_SHARED8 then
     local offset = self.reader:read8u()
     return self:intern_recall(offset), false
-  elseif code == M.CODE_SHARED16 then
+  elseif code == MARSHAL_CODE_SHARED16 then
     local offset = self.reader:read16u()
     return self:intern_recall(offset), false
-  elseif code == M.CODE_SHARED32 then
+  elseif code == MARSHAL_CODE_SHARED32 then
     local offset = self.reader:read32u()
     return self:intern_recall(offset), false
-  elseif code == M.CODE_BLOCK32 then
+  elseif code == MARSHAL_CODE_BLOCK32 then
     local v = self:read_block32()
     return v, v.size > 0  -- Needs fields if size > 0
-  elseif code == M.CODE_STRING8 then
+  elseif code == MARSHAL_CODE_STRING8 then
     return self:read_string8(), false
-  elseif code == M.CODE_STRING32 then
+  elseif code == MARSHAL_CODE_STRING32 then
     return self:read_string32(), false
-  elseif code == M.CODE_DOUBLE_LITTLE then
+  elseif code == MARSHAL_CODE_DOUBLE_LITTLE then
     return self:read_double_little(), false
-  elseif code == M.CODE_DOUBLE_BIG then
+  elseif code == MARSHAL_CODE_DOUBLE_BIG then
     return self:read_double_big(), false
-  elseif code == M.CODE_DOUBLE_ARRAY8_LITTLE then
+  elseif code == MARSHAL_CODE_DOUBLE_ARRAY8_LITTLE then
     return self:read_double_array8_little(), false
-  elseif code == M.CODE_DOUBLE_ARRAY8_BIG then
+  elseif code == MARSHAL_CODE_DOUBLE_ARRAY8_BIG then
     return self:read_double_array8_big(), false
-  elseif code == M.CODE_DOUBLE_ARRAY32_LITTLE then
+  elseif code == MARSHAL_CODE_DOUBLE_ARRAY32_LITTLE then
     return self:read_double_array32_little(), false
-  elseif code == M.CODE_DOUBLE_ARRAY32_BIG then
+  elseif code == MARSHAL_CODE_DOUBLE_ARRAY32_BIG then
     return self:read_double_array32_big(), false
-  elseif code == M.CODE_CUSTOM then
+  elseif code == MARSHAL_CODE_CUSTOM then
     return self:read_custom(code), false
-  elseif code == M.CODE_CUSTOM_FIXED then
+  elseif code == MARSHAL_CODE_CUSTOM_FIXED then
     return self:read_custom(code), false
-  elseif code == M.CODE_CUSTOM_LEN then
+  elseif code == MARSHAL_CODE_CUSTOM_LEN then
     return self:read_custom(code), false
-  elseif code == M.CODE_BLOCK64 then
+  elseif code == MARSHAL_CODE_BLOCK64 then
     error("Marshal: data block too large (64-bit blocks not supported)")
-  elseif code == M.CODE_CODEPOINTER then
+  elseif code == MARSHAL_CODE_CODEPOINTER then
     error("Marshal: code pointer (not supported in runtime)")
-  elseif code == M.CODE_INFIXPOINTER then
+  elseif code == MARSHAL_CODE_INFIXPOINTER then
     error("Marshal: infix pointer (not supported in runtime)")
   else
     error(string.format("Marshal: unsupported code 0x%02X", code))
@@ -1359,7 +1373,8 @@ local function marshal_value_core(writer, value, stack)
   end
 end
 
-function M.marshal_value(value)
+-- Internal helper: marshal value without header (for testing)
+local function marshal_value_internal(value)
   local writer = MarshalWriter:new()
 
   -- Stack for iterative marshalling of block fields
@@ -1392,17 +1407,19 @@ function M.marshal_value(value)
   return writer:to_string()
 end
 
--- Unmarshal a value from bytes (without header for now)
-function M.unmarshal_value(str, offset)
+-- Internal helper: unmarshal value without header (for testing)
+local function unmarshal_value_internal(str, offset)
   local reader = MarshalReader:new(str, offset)
   return reader:read_value()
 end
 
+--Provides: caml_marshal_to_string
+--Requires: get_Writer_class
 -- Marshal value with flags (high-level API)
 -- Produces complete marshal format with header
--- flags: array of flag constants (M.No_sharing, M.Closures, M.Compat_32)
+-- flags: array of flag constants (MARSHAL_NO_SHARING, MARSHAL_CLOSURES, MARSHAL_COMPAT_32)
 -- Returns: complete marshalled data as string (header + data)
-function M.to_string(value, flags)
+function caml_marshal_to_string(value, flags)
   -- Input validation
   if value == nil then
     error("Marshal.to_string: cannot marshal nil value")
@@ -1458,18 +1475,24 @@ function M.to_string(value, flags)
   local data_len = #data
 
   -- Write header
-  local header = marshal_header.write_header(data_len, writer.obj_counter, writer.size_32, writer.size_64)
+  local header = marshal_header_write_header(data_len, writer.obj_counter, writer.size_32, writer.size_64)
 
   -- Return header + data
   return header .. data
 end
 
+--Provides: caml_marshal_to_bytes
+--Requires: caml_marshal_to_string
 -- Alias for to_string
-M.to_bytes = M.to_string
+function caml_marshal_to_bytes(value, flags)
+  return caml_marshal_to_string(value, flags)
+end
 
+--Provides: caml_marshal_from_bytes
+--Requires: get_Reader_class
 -- Unmarshal from full marshal format (with header)
 -- This is the main entry point for unmarshalling complete marshal data
-function M.from_bytes(str, offset)
+function caml_marshal_from_bytes(str, offset)
   offset = offset or 0
 
   -- Input validation
@@ -1487,7 +1510,7 @@ function M.from_bytes(str, offset)
   end
 
   -- Parse header (protected call to catch header errors)
-  local ok, header = pcall(marshal_header.read_header, str, offset)
+  local ok, header = pcall(marshal_header_read_header, str, offset)
   if not ok then
     error("Marshal.from_bytes: invalid header - " .. tostring(header))
   end
@@ -1503,9 +1526,9 @@ function M.from_bytes(str, offset)
 
   -- Check if data is compressed
   if header.compressed then
-    if not M.decompress_input then
+    if not marshal_decompress_input then
       error("Marshal: compressed data encountered but no decompression function available.\n" ..
-            "To enable compression support, set M.decompress_input to a decompression function.\n" ..
+            "To enable compression support, set marshal_decompress_input to a decompression function.\n" ..
             "See marshal.lua comments for example integration with lua-zlib.")
     end
 
@@ -1513,7 +1536,7 @@ function M.from_bytes(str, offset)
     local compressed_data = string.sub(str, data_offset + 1, data_offset + header.data_len)
 
     -- Decompress
-    local uncompressed_data = M.decompress_input(compressed_data, header.uncompressed_data_len)
+    local uncompressed_data = marshal_decompress_input(compressed_data, header.uncompressed_data_len)
 
     if #uncompressed_data ~= header.uncompressed_data_len then
       error(string.format("Marshal: decompression returned %d bytes but expected %d",
@@ -1553,51 +1576,28 @@ function M.from_bytes(str, offset)
   end
 end
 
+--Provides: caml_marshal_from_string
+--Requires: caml_marshal_from_bytes
 -- Alias for compatibility
-M.from_string = M.from_bytes
-
--- Get total size of marshalled data (header + data)
-function M.total_size(str, offset)
-  return marshal_header.total_size(str, offset)
+function caml_marshal_from_string(str, offset)
+  return caml_marshal_from_bytes(str, offset)
 end
 
+--Provides: caml_marshal_total_size
+-- Get total size of marshalled data (header + data)
+function caml_marshal_total_size(str, offset)
+  return marshal_header_total_size(str, offset)
+end
+
+--Provides: caml_marshal_data_size
 -- Get data size only (excluding header)
-function M.data_size(str, offset)
-  return marshal_header.data_size(str, offset)
+function caml_marshal_data_size(str, offset)
+  return marshal_header_data_size(str, offset)
 end
 
 --
 -- Channel I/O API (high-level)
 --
-
--- Write marshalled value to output channel
--- @param chanid: channel ID (from io module)
--- @param v: value to marshal
--- @param flags: optional array of marshal flags
-function M.to_channel(chanid, v, flags)
-  -- Load io module lazily to avoid circular dependencies
-  local io_module = require("io")
-
-  -- Call low-level channel output function
-  io_module.caml_output_value(chanid, v, flags)
-end
-
--- Read marshalled value from input channel
--- @param chanid: channel ID (from io module)
--- @return: unmarshalled value
-function M.from_channel(chanid)
-  -- Load io module lazily to avoid circular dependencies
-  local io_module = require("io")
-
-  -- Call low-level channel input function
-  return io_module.caml_input_value(chanid)
-end
-
---
--- Module Exports
---
-
-M.MarshalWriter = MarshalWriter
-M.MarshalReader = MarshalReader
-
-return M
+-- Note: Channel I/O functions (caml_output_value, caml_input_value) are implemented
+-- in io.lua to avoid circular dependencies. They call caml_marshal_to_string and
+-- caml_marshal_from_bytes directly.

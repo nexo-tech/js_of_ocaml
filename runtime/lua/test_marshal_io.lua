@@ -1,9 +1,9 @@
 #!/usr/bin/env lua
 -- Test suite for marshal_io.lua (Binary Reader/Writer - Task 1.1)
 
-local marshal_io = require("marshal_io")
-local Reader = marshal_io.Reader
-local Writer = marshal_io.Writer
+dofile("marshal_io.lua")
+local Reader = get_Reader_class()
+local Writer = get_Writer_class()
 
 -- Test framework
 local tests_run = 0

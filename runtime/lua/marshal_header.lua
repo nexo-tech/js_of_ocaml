@@ -1,19 +1,31 @@
--- Lua_of_ocaml runtime support
--- Marshal: Header Parsing (Task 1.2)
+-- Js_of_ocaml runtime support
+-- http://www.ocsigen.org/js_of_ocaml/
+--
+-- This program is free software; you can redistribute it and/or modify
+-- it under the terms of the GNU Lesser General Public License as published by
+-- the Free Software Foundation, with linking exception;
+-- either version 2.1 of the License, or (at your option) any later version.
+--
+-- This program is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU Lesser General Public License for more details.
+--
+-- You should have received a copy of the GNU Lesser General Public License
+-- along with this program; if not, write to the Free Software
+-- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+-- Marshal: Header Parsing
 --
 -- Handles magic number validation and header parsing for marshal format.
 -- Supports both standard (20-byte) and compressed (VLQ) headers.
 
-local marshal_io = require("marshal_io")
-local Reader = marshal_io.Reader
-local Writer = marshal_io.Writer
+dofile("marshal_io.lua")
 
-local M = {}
-
--- Magic numbers
-M.MAGIC_SMALL = 0x8495A6BE       -- Standard 32-bit format
-M.MAGIC_COMPRESSED = 0x8495A6BD  -- Compressed format with VLQ
-M.MAGIC_BIG = 0x8495A6BF         -- 64-bit format (error on 32-bit)
+-- Magic numbers (global for use by marshal.lua)
+MARSHAL_MAGIC_SMALL = 0x8495A6BE       -- Standard 32-bit format
+MARSHAL_MAGIC_COMPRESSED = 0x8495A6BD  -- Compressed format with VLQ
+MARSHAL_MAGIC_BIG = 0x8495A6BF         -- 64-bit format (error on 32-bit)
 
 --
 -- VLQ (Variable-Length Quantity) Encoding
@@ -21,7 +33,8 @@ M.MAGIC_BIG = 0x8495A6BF         -- 64-bit format (error on 32-bit)
 
 -- Read VLQ from reader
 -- Returns: value, overflow_detected
-function M.read_vlq(reader)
+-- Helper function for marshal_header
+function marshal_header_read_vlq(reader)
   local c = reader:read8u()
   local n = c % 128  -- c & 0x7F
 
@@ -43,7 +56,8 @@ function M.read_vlq(reader)
 end
 
 -- Write VLQ to writer
-function M.write_vlq(writer, n)
+-- Helper function for marshal_header
+function marshal_header_write_vlq(writer, n)
   if n < 0 then
     error("Marshal: VLQ cannot encode negative values")
   end
@@ -83,8 +97,11 @@ end
 
 -- Read header from byte string
 -- Returns header table or throws error
-function M.read_header(str, offset)
+-- Helper function for marshal
+--Requires: get_Reader_class
+function marshal_header_read_header(str, offset)
   offset = offset or 0
+  local Reader = get_Reader_class()
   local reader = Reader:new(str, offset)
 
   local old_pos = reader:position()
@@ -95,7 +112,7 @@ function M.read_header(str, offset)
     compressed = false
   }
 
-  if magic == M.MAGIC_SMALL then
+  if magic == MARSHAL_MAGIC_SMALL then
     -- Standard 20-byte header
     header.header_len = 20
     header.compressed = false
@@ -105,18 +122,18 @@ function M.read_header(str, offset)
     header.size_32 = reader:read32u()
     header.size_64 = reader:read32u()
 
-  elseif magic == M.MAGIC_COMPRESSED then
+  elseif magic == MARSHAL_MAGIC_COMPRESSED then
     -- Compressed header with VLQ encoding
     local len_byte = reader:read8u()
     header.header_len = len_byte % 64  -- len_byte & 0x3F
     header.compressed = true
 
     local overflow = false
-    local data_len, ovf1 = M.read_vlq(reader)
-    local uncompressed_data_len, ovf2 = M.read_vlq(reader)
-    local num_objects, ovf3 = M.read_vlq(reader)
-    local size_32, ovf4 = M.read_vlq(reader)
-    local size_64, ovf5 = M.read_vlq(reader)
+    local data_len, ovf1 = marshal_header_read_vlq(reader)
+    local uncompressed_data_len, ovf2 = marshal_header_read_vlq(reader)
+    local num_objects, ovf3 = marshal_header_read_vlq(reader)
+    local size_32, ovf4 = marshal_header_read_vlq(reader)
+    local size_64, ovf5 = marshal_header_read_vlq(reader)
 
     overflow = ovf1 or ovf2 or ovf3 or ovf4 or ovf5
 
@@ -130,7 +147,7 @@ function M.read_header(str, offset)
     header.size_32 = size_32
     header.size_64 = size_64
 
-  elseif magic == M.MAGIC_BIG then
+  elseif magic == MARSHAL_MAGIC_BIG then
     error("Marshal: object too large to be read back on a 32-bit platform")
 
   else
@@ -152,15 +169,18 @@ end
 -- num_objects: number of objects in intern table
 -- size_32, size_64: size fields (usually 0)
 -- Returns: byte string
-function M.write_header(data_len, num_objects, size_32, size_64)
+-- Helper function for marshal
+--Requires: get_Writer_class
+function marshal_header_write_header(data_len, num_objects, size_32, size_64)
   num_objects = num_objects or 0
   size_32 = size_32 or 0
   size_64 = size_64 or 0
 
+  local Writer = get_Writer_class()
   local writer = Writer:new()
 
   -- Write magic number
-  writer:write32u(M.MAGIC_SMALL)
+  writer:write32u(MARSHAL_MAGIC_SMALL)
 
   -- Write header fields
   writer:write32u(data_len)
@@ -173,26 +193,29 @@ end
 
 -- Write compressed header (VLQ format)
 -- Note: This is for future compression support
-function M.write_compressed_header(data_len, uncompressed_data_len, num_objects, size_32, size_64)
+-- Helper function for marshal
+--Requires: get_Writer_class
+function marshal_header_write_compressed_header(data_len, uncompressed_data_len, num_objects, size_32, size_64)
   num_objects = num_objects or 0
   size_32 = size_32 or 0
   size_64 = size_64 or 0
 
+  local Writer = get_Writer_class()
   local writer = Writer:new()
 
   -- Write magic number
-  writer:write32u(M.MAGIC_COMPRESSED)
+  writer:write32u(MARSHAL_MAGIC_COMPRESSED)
 
   -- Temporarily write header length byte (will update later)
   local len_pos = writer:position()
   writer:write8u(0)
 
   -- Write VLQ fields
-  M.write_vlq(writer, data_len)
-  M.write_vlq(writer, uncompressed_data_len)
-  M.write_vlq(writer, num_objects)
-  M.write_vlq(writer, size_32)
-  M.write_vlq(writer, size_64)
+  marshal_header_write_vlq(writer, data_len)
+  marshal_header_write_vlq(writer, uncompressed_data_len)
+  marshal_header_write_vlq(writer, num_objects)
+  marshal_header_write_vlq(writer, size_32)
+  marshal_header_write_vlq(writer, size_64)
 
   -- Update header length
   local header_len = writer:position()
@@ -204,20 +227,16 @@ end
 -- Parse total size from marshal data (without full parsing)
 -- This reads just the header to determine total size
 -- Returns: header_len + data_len
-function M.total_size(str, offset)
-  local header = M.read_header(str, offset)
+-- Helper function for marshal
+function marshal_header_total_size(str, offset)
+  local header = marshal_header_read_header(str, offset)
   return header.header_len + header.data_len
 end
 
 -- Parse data size from marshal data (data length only)
 -- Returns: data_len
-function M.data_size(str, offset)
-  local header = M.read_header(str, offset)
+-- Helper function for marshal
+function marshal_header_data_size(str, offset)
+  local header = marshal_header_read_header(str, offset)
   return header.data_len
 end
-
---
--- Module Exports
---
-
-return M
