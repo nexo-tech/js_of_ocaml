@@ -20,11 +20,6 @@
 -- Provides balanced binary search tree (AVL tree) implementation
 -- for ordered maps with polymorphic comparison.
 
-local core = require("core")
-local compare = require("compare")
-
-local M = {}
-
 -- AVL tree node structure:
 -- {
 --   key = <key value>,
@@ -395,7 +390,8 @@ end
 --- Create empty map
 -- @param _unit number Unit value
 -- @return nil Empty map (represented as nil)
-function M.caml_map_empty(_unit)
+--Provides: caml_map_empty
+function caml_map_empty(_unit)
   return nil
 end
 
@@ -405,7 +401,8 @@ end
 -- @param value any Value
 -- @param map table|nil Map
 -- @return table Updated map
-function M.caml_map_add(cmp, key, value, map)
+--Provides: caml_map_add
+function caml_map_add(cmp, key, value, map)
   return add(cmp, key, value, map)
 end
 
@@ -414,11 +411,12 @@ end
 -- @param key any Key
 -- @param map table|nil Map
 -- @return any Value (raises Not_found if not present)
-function M.caml_map_find(cmp, key, map)
+--Provides: caml_map_find
+--Requires: caml_raise_not_found
+function caml_map_find(cmp, key, map)
   local result = find(cmp, key, map)
   if result == nil then
-    local fail = require("fail")
-    fail.caml_raise_not_found()
+    caml_raise_not_found()
   end
   return result
 end
@@ -428,10 +426,11 @@ end
 -- @param key any Key
 -- @param map table|nil Map
 -- @return number|table None (0) or Some value
-function M.caml_map_find_opt(cmp, key, map)
+--Provides: caml_map_find_opt
+function caml_map_find_opt(cmp, key, map)
   local result = find(cmp, key, map)
   if result == nil then
-    return core.unit  -- None
+    return 0  -- None
   else
     return {tag = 0, [1] = result}  -- Some value
   end
@@ -442,7 +441,8 @@ end
 -- @param key any Key
 -- @param map table|nil Map
 -- @return table|nil Updated map
-function M.caml_map_remove(cmp, key, map)
+--Provides: caml_map_remove
+function caml_map_remove(cmp, key, map)
   return remove(cmp, key, map)
 end
 
@@ -451,11 +451,12 @@ end
 -- @param key any Key
 -- @param map table|nil Map
 -- @return number 1 (true) or 0 (false)
-function M.caml_map_mem(cmp, key, map)
+--Provides: caml_map_mem
+function caml_map_mem(cmp, key, map)
   if mem(cmp, key, map) then
-    return core.true_val
+    return 1
   else
-    return core.false_val
+    return 0
   end
 end
 
@@ -463,9 +464,10 @@ end
 -- @param f function Function (key, value) -> unit
 -- @param map table|nil Map
 -- @return number Unit value
-function M.caml_map_iter(f, map)
+--Provides: caml_map_iter
+function caml_map_iter(f, map)
   iter(f, map)
-  return core.unit
+  return 0
 end
 
 --- Fold function over map bindings
@@ -473,7 +475,8 @@ end
 -- @param map table|nil Map
 -- @param init any Initial accumulator
 -- @return any Final accumulator
-function M.caml_map_fold(f, map, init)
+--Provides: caml_map_fold
+function caml_map_fold(f, map, init)
   return fold(f, map, init)
 end
 
@@ -481,11 +484,12 @@ end
 -- @param p function Predicate (key, value) -> bool
 -- @param map table|nil Map
 -- @return number 1 (true) or 0 (false)
-function M.caml_map_for_all(p, map)
+--Provides: caml_map_for_all
+function caml_map_for_all(p, map)
   if for_all(p, map) then
-    return core.true_val
+    return 1
   else
-    return core.false_val
+    return 0
   end
 end
 
@@ -493,29 +497,32 @@ end
 -- @param p function Predicate (key, value) -> bool
 -- @param map table|nil Map
 -- @return number 1 (true) or 0 (false)
-function M.caml_map_exists(p, map)
+--Provides: caml_map_exists
+function caml_map_exists(p, map)
   if exists(p, map) then
-    return core.true_val
+    return 1
   else
-    return core.false_val
+    return 0
   end
 end
 
 --- Get number of bindings in map
 -- @param map table|nil Map
 -- @return number Number of bindings
-function M.caml_map_cardinal(map)
+--Provides: caml_map_cardinal
+function caml_map_cardinal(map)
   return cardinal(map)
 end
 
 --- Check if map is empty
 -- @param map table|nil Map
 -- @return number 1 (true) or 0 (false)
-function M.caml_map_is_empty(map)
+--Provides: caml_map_is_empty
+function caml_map_is_empty(map)
   if map == nil then
-    return core.true_val
+    return 1
   else
-    return core.false_val
+    return 0
   end
 end
 
@@ -523,7 +530,8 @@ end
 -- @param f function Mapping function (value) -> new_value
 -- @param map table|nil Map
 -- @return table|nil Mapped map
-function M.caml_map_map(f, map)
+--Provides: caml_map_map
+function caml_map_map(f, map)
   return map_values(f, map)
 end
 
@@ -531,7 +539,8 @@ end
 -- @param f function Mapping function (key, value) -> new_value
 -- @param map table|nil Map
 -- @return table|nil Mapped map
-function M.caml_map_mapi(f, map)
+--Provides: caml_map_mapi
+function caml_map_mapi(f, map)
   return mapi(f, map)
 end
 
@@ -540,25 +549,7 @@ end
 -- @param p function Predicate (key, value) -> bool
 -- @param map table|nil Map
 -- @return table|nil Filtered map
-function M.caml_map_filter(cmp, p, map)
+--Provides: caml_map_filter
+function caml_map_filter(cmp, p, map)
   return filter(cmp, p, map)
 end
-
--- Register primitives
-core.register("caml_map_empty", M.caml_map_empty)
-core.register("caml_map_add", M.caml_map_add)
-core.register("caml_map_find", M.caml_map_find)
-core.register("caml_map_find_opt", M.caml_map_find_opt)
-core.register("caml_map_remove", M.caml_map_remove)
-core.register("caml_map_mem", M.caml_map_mem)
-core.register("caml_map_iter", M.caml_map_iter)
-core.register("caml_map_fold", M.caml_map_fold)
-core.register("caml_map_for_all", M.caml_map_for_all)
-core.register("caml_map_exists", M.caml_map_exists)
-core.register("caml_map_cardinal", M.caml_map_cardinal)
-core.register("caml_map_is_empty", M.caml_map_is_empty)
-core.register("caml_map_map", M.caml_map_map)
-core.register("caml_map_mapi", M.caml_map_mapi)
-core.register("caml_map_filter", M.caml_map_filter)
-
-return M
