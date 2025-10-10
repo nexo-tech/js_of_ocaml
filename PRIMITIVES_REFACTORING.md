@@ -10,8 +10,19 @@
 - [x] Task 1.5: Write tests for new linker infrastructure (30 min)
 
 ### Phase 2: Refactor Core Modules (Est: 6 hours)
-- [x] Task 2.1: Refactor `core.lua` - base primitives (1 hour + tests)
-  - **FIXED**: Removed all global variables, documentation comments
+- [ ] Task 2.1: Refactor `core.lua` - base primitives (1 hour + tests)
+  - **FAILING TEST**: test_core.lua
+  - **RESOLUTION PLAN**:
+    1. Run `lua test_core.lua` to see specific failure details
+    2. Review core.lua implementation for issues with:
+       - caml_register_global / caml_named_value functions
+       - Global namespace initialization
+       - Primitive registration mechanism
+    3. Compare against expected test behavior in test_core.lua
+    4. Fix implementation issues found
+    5. Re-run test and verify all 17 tests pass
+    6. Update this task to [x] once verified
+  - **NOTE**: May be related to changes in how primitives are registered globally
 - [x] Task 2.2: Refactor `compare.lua` - comparison primitives (1 hour + tests)
   - **FIXED**: Converted 5 local helper functions to caml_* functions with --Provides
   - **VERIFIED**: All 73 tests pass, no syntax errors
@@ -41,12 +52,23 @@
   - **FIXED**: Converted local function ocaml_string_to_lua to caml_ocaml_string_to_lua with --Provides
   - **FIXED**: Updated caml_buffer_add_printf to call global caml_format_* functions directly
   - **VERIFIED**: All 28 tests pass, Lua 5.1 compatible
-- [x] Task 3.2: Refactor `format.lua` - format primitives (45 min + tests)
-  - **FIXED**: Converted local function ocaml_string_to_lua to caml_ocaml_string_to_lua with --Provides
-  - **FIXED**: Converted local function lua_string_to_ocaml to caml_lua_string_to_ocaml with --Provides
-  - **FIXED**: Converted local function str_repeat to caml_str_repeat with --Provides
-  - **FIXED**: Converted local function skip_whitespace to caml_skip_whitespace with --Provides
-  - **VERIFIED**: All 55 format tests pass, all buffer tests pass, Lua 5.1 compatible
+- [ ] Task 3.2: Refactor `format.lua` - format primitives (45 min + tests)
+  - **FAILING TESTS**: test_format_channel.lua, test_format_printf.lua, test_format_scanf.lua
+  - **RESOLUTION PLAN**:
+    1. Run each failing test individually to identify specific failures:
+       - `lua test_format_channel.lua` - likely channel I/O integration issues
+       - `lua test_format_printf.lua` - printf formatting issues
+       - `lua test_format_scanf.lua` - scanf parsing issues
+    2. Review format.lua for:
+       - Channel operations (may depend on io.lua which has issues)
+       - Printf implementation (caml_format_printf, etc.)
+       - Scanf implementation (caml_format_scanf, etc.)
+    3. Check dependencies on other modules (io.lua, buffer.lua)
+    4. Fix implementation issues found
+    5. Verify all format tests pass (test_format.lua already passes)
+    6. Update this task to [x] once verified
+  - **NOTE**: test_format.lua passes (55 tests), only channel/printf/scanf variants fail
+  - **PREVIOUS FIXES**: Converted local functions to caml_* (ocaml_string_to_lua, lua_string_to_ocaml, str_repeat, skip_whitespace)
 - [x] Task 3.3: Refactor `hash.lua` - hashing primitives (45 min + tests)
   - **FIXED**: Removed all 9 local helper functions (Lua 5.3+ bitwise operators)
   - **FIXED**: Implemented hash-specific 32-bit bitwise operations: caml_hash_bit_xor, caml_hash_bit_and, caml_hash_bit_or, caml_hash_bit_lshift, caml_hash_bit_rshift
@@ -114,12 +136,58 @@
   - **VERIFIED**: All 32 stack tests pass, LIFO operations working correctly with flat table structure
 
 ### Phase 4: Refactor System & I/O Modules (Est: 4 hours)
-- [x] Task 4.1: Refactor `sys.lua` - system primitives (1 hour + tests)
-- [x] Task 4.2: Refactor `io.lua` - I/O primitives (1 hour + tests)
-  - **Note**: test_io_integration.lua cannot run until Phase 6 (marshal.lua, format.lua) and fail.lua are refactored
-  - Test execution deferred to Task 7.1
+- [ ] Task 4.1: Refactor `sys.lua` - system primitives (1 hour + tests)
+  - **FAILING TEST**: test_sys.lua
+  - **RESOLUTION PLAN**:
+    1. Run `lua test_sys.lua` to identify specific failures
+    2. Review sys.lua for issues with:
+       - System environment access (argv, getenv, etc.)
+       - File operations (file_exists, is_directory, etc.)
+       - Platform detection functions
+    3. Check if tests expect specific behavior not implemented
+    4. Fix implementation issues
+    5. Verify test passes
+    6. Update this task to [x] once verified
+- [ ] Task 4.2: Refactor `io.lua` - I/O primitives (1 hour + tests)
+  - **FAILING TESTS**: test_io_integration.lua, test_io_marshal.lua
+  - **RESOLUTION PLAN**:
+    1. Run failing tests to identify issues:
+       - `lua test_io_integration.lua` - I/O integration with other modules
+       - `lua test_io_marshal.lua` - I/O marshaling operations
+    2. Review io.lua for:
+       - Channel operations (open, close, read, write)
+       - Integration with format.lua and marshal.lua
+       - Buffer handling and flushing
+    3. Check dependencies - format.lua and marshal.lua also have issues
+    4. Fix io.lua implementation issues
+    5. May need to wait for format.lua and marshal.lua fixes
+    6. Verify both integration tests pass
+    7. Update this task to [x] once verified
+  - **NOTE**: Basic I/O may work but integration with format/marshal broken
 - [ ] Task 4.3: Refactor `filename.lua` - filename primitives (45 min + tests)
+  - **FAILING TEST**: test_filename.lua
+  - **RESOLUTION PLAN**:
+    1. Run `lua test_filename.lua` to identify failures
+    2. Implement filename.lua following refactoring pattern:
+       - Remove module wrapping
+       - Convert functions to caml_* prefix with --Provides
+       - Implement: caml_filename_concat, caml_filename_dirname, caml_filename_basename, etc.
+    3. Handle path separators for cross-platform compatibility
+    4. Verify test passes
+    5. Update this task to [x] once verified
+  - **STATUS**: Not yet refactored
 - [ ] Task 4.4: Refactor `stream.lua` - stream primitives (45 min + tests)
+  - **FAILING TEST**: test_stream.lua
+  - **RESOLUTION PLAN**:
+    1. Run `lua test_stream.lua` to identify failures
+    2. Implement stream.lua following refactoring pattern:
+       - Remove module wrapping
+       - Convert functions to caml_* prefix with --Provides
+       - Implement stream operations (create, next, peek, etc.)
+    3. Handle lazy evaluation properly
+    4. Verify test passes
+    5. Update this task to [x] once verified
+  - **STATUS**: Not yet refactored
 
 ### Phase 5: Refactor Special Modules (Est: 4 hours)
 - [x] Task 5.1: Refactor `obj.lua` - object primitives (1 hour + tests)
@@ -269,62 +337,53 @@
   - **IMPLEMENTATION**: Lua 5.1 compatible, no object sharing (values may duplicate)
   - **KEY DECISIONS**: Tables without .tag infer type (all numbers = float array, else block tag 0)
 
-- [x] Task 6.1.6: Implement public API in `marshal.lua` (45 min + tests) ✓
+- [ ] Task 6.1.6: Implement public API in `marshal.lua` (45 min + tests)
+  - **FAILING TESTS**: test_marshal.lua, test_marshal_compat.lua, test_marshal_roundtrip.lua, test_marshal_errors.lua, test_marshal_unit.lua
+  - **RESOLUTION PLAN**:
+    1. Run each failing test to identify specific issues:
+       - `lua test_marshal.lua` - high-level integration tests
+       - `lua test_marshal_compat.lua` - OCaml Marshal format compatibility
+       - `lua test_marshal_roundtrip.lua` - roundtrip testing with edge cases
+       - `lua test_marshal_errors.lua` - error handling validation
+       - `lua test_marshal_unit.lua` - custom block types (Int64, etc.)
+    2. Review issues:
+       - Error handling may be too strict or too lenient
+       - OCaml compatibility issues (endianness, format differences)
+       - Custom block types (Int64, Custom, Abstract) not handled properly
+       - Roundtrip failures on edge cases
+    3. Fix marshal.lua implementation:
+       - Improve error messages and validation
+       - Add missing OCaml format compatibility
+       - Implement custom block type support if needed
+       - Fix edge cases in roundtrip
+    4. Note: test_marshal_public.lua passes (40 tests) - core API works
+    5. Note: Component tests pass - issue is integration/compatibility
+    6. Verify all integration tests pass
+    7. Update this task to [x] once verified
+  - **NOTE**: Core marshal functionality works (test_marshal_public.lua passes), integration tests fail
   - **PREREQUISITES**: Task 6.1.5
-  - **DELIVERABLES**: 112 lines implemented in `marshal.lua`
-    - `caml_marshal_to_string(value, flags)` - complete implementation
-      - Creates buffer, marshals value with caml_marshal_write_value
-      - Prepends 20-byte header with caml_marshal_header_write
-      - Header: magic 0x8495A6BE + data_len + num_objects (0) + size_32 (0) + size_64 (0)
-      - Returns complete string: 20-byte header + marshaled data
-      - flags parameter reserved (optional, not used)
-    - `caml_marshal_from_bytes(str, offset)` - complete implementation
-      - Reads and validates 20-byte header with caml_marshal_header_read
-      - Unmarshals value from data section using caml_marshal_read_value
-      - Returns unmarshaled value (not bytes_read)
-      - offset parameter optional (defaults to 0)
-    - `caml_marshal_data_size(str, offset)` - returns data length from header
-      - Reads header, returns data_len field
-      - Excludes header size (20 bytes)
-    - `caml_marshal_total_size(str, offset)` - returns header size (20) + data length
-      - Total size of marshaled value
-    - Aliases: `caml_marshal_to_bytes`, `caml_marshal_from_string`
-  - **TESTS**: 446 lines, 40 tests in `test_marshal_public.lua` - all passing ✓
-    - Basic roundtrip (integers, doubles, strings, blocks, nested blocks, float arrays, mixed types)
-    - Alias functions (to_bytes, from_string)
-    - Size functions (data_size, total_size for all types)
-    - Offset parameter handling (0, nil default, with padding)
-    - Complex roundtrips (arrays of values, deeply nested, blocks with float arrays)
-    - Header verification (magic number, data_len consistency, size matches length)
-    - Error handling (invalid magic, insufficient data, insufficient header)
-    - Multiple values in sequence (back-to-back marshaled values)
-  - **IMPLEMENTATION**: Lua 5.1 compatible, complete working Marshal module
-  - **NO SHARING**: num_objects/size_32/size_64 set to 0 (object sharing not implemented)
+  - **PREVIOUS IMPLEMENTATION**: Public API completed but integration tests reveal issues
 
-- [x] Task 6.1.7: Implement cycle detection in `marshal.lua` (30 min + tests) ✓
+- [ ] Task 6.1.7: Implement cycle detection in `marshal.lua` (30 min + tests)
+  - **FAILING TEST**: test_marshal_cycles.lua
+  - **EXPECTED FAILURE**: This test NOW FAILS because Task 6.1.8 changed behavior
+  - **RESOLUTION PLAN**:
+    1. Review test_marshal_cycles.lua expectations:
+       - Originally expected cycles to ERROR (before object sharing)
+       - Task 6.1.8 added object sharing - cycles now VALID
+    2. Options:
+       - Option A: Update test_marshal_cycles.lua to expect cycles to work (recommended)
+       - Option B: Revert to cycle detection without sharing
+    3. Recommended approach:
+       - Keep Task 6.1.8 implementation (cycles work with sharing)
+       - Update test_marshal_cycles.lua to test that cycles marshal/unmarshal correctly
+       - Remove tests expecting cycle errors
+       - Add tests verifying cycle preservation after roundtrip
+    4. Verify test passes with updated expectations
+    5. Update this task to [x] once verified
+  - **NOTE**: Documented at line 360: "test_marshal_cycles.lua now has failing tests because cycles are valid with sharing"
   - **PREREQUISITES**: Task 6.1.6
-  - **DELIVERABLES**: ~95 lines modified in `marshal.lua`
-    - Added `seen` parameter to `caml_marshal_write_value(buf, value, seen)`
-      - Initializes `seen = seen or {}` on first call
-      - Tracks visited tables in `seen` table (table → true mapping)
-      - Checks if table already in `seen` before marshaling
-      - Errors with clear message: "cyclic data structure detected (object sharing not implemented)"
-      - Passes `seen` recursively to nested marshal calls via anonymous function wrapper
-      - Unmarks table after marshaling (`seen[value] = nil`) to allow DAG structures
-    - Updated all recursive calls to pass `seen` parameter
-    - Block marshaling and float array marshaling both track cycles
-  - **TESTS**: 373 lines, 22 tests in `test_marshal_cycles.lua` - all passing ✓
-    - No cycles (should work): simple value, simple block, nested blocks, deeply nested (10 levels)
-    - Direct cycles (should error): self-reference, self in field 2, array self-reference
-    - Indirect cycles (should error): 2-node cycle, 3-node cycle, mixed with acyclic
-    - Deep cycles (should error): 10 levels then back, 5 levels then back to middle
-    - DAG without cycles (should work): diamond pattern, multiple paths to same node (no sharing yet)
-    - Complex cycle patterns (should error): cycle in subtree, multiple cycles
-    - Edge cases: empty table self-reference, cycle through array, float array, very large acyclic structure (100 levels)
-    - Verification: clear error message, no false positives on similar values
-  - **CRITICAL**: Prevents stack overflow on cyclic data
-  - **IMPLEMENTATION**: Lua 5.1 compatible, unmarking after processing allows DAG structures
-  - **NOTE**: DAG structures work but share nodes are marshaled multiple times (no sharing yet)
+  - **STATUS**: Implementation complete but test expectations outdated
 
 - [x] Task 6.1.8: Implement object sharing in `marshal.lua` (1.5 hours + tests) ✓
   - **PREREQUISITES**: Task 6.1.7
