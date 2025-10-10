@@ -15,16 +15,13 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
--- Polymorphic comparison implementation
--- Compatible with OCaml's polymorphic comparison
--- Supports deep structural comparison with cycle detection
+--- Polymorphic Comparison Primitives
 --
---// Export: int_compare as caml_int_compare
---// Export: int_compare as caml_int32_compare
---// Export: int_compare as caml_nativeint_compare
---// Export: float_compare as caml_float_compare
-
-local M = {}
+-- Provides OCaml-compatible polymorphic comparison with:
+-- - Deep structural comparison with cycle detection
+-- - Total order semantics
+-- - NaN handling
+-- - OCaml value representation support
 
 -- Check if a value is an OCaml string (byte array)
 local function is_ocaml_string(v)
@@ -135,12 +132,8 @@ local function compare_numbers(a, b)
   end
 end
 
--- Polymorphic comparison implementation
--- a, b: values to compare
--- total: if true, always return -1, 0, or 1 (total order)
---        if false, may raise error for incomparable values
--- Returns: -1 if a < b, 0 if a = b, 1 if a > b
-function M.caml_compare_val(a, b, total)
+--Provides: caml_compare_val
+function caml_compare_val(a, b, total)
   -- Stack for iterative traversal (avoids stack overflow)
   -- Each entry: {a_val, b_val, index}
   local stack = {}
@@ -291,25 +284,14 @@ function M.caml_compare_val(a, b, total)
   end
 end
 
--- Total order comparison (always returns -1, 0, or 1)
--- Raises error for incomparable values (functions, etc.)
-function M.caml_compare(a, b)
-  return M.caml_compare_val(a, b, true)
+--Provides: caml_compare
+--Requires: caml_compare_val
+function caml_compare(a, b)
+  return caml_compare_val(a, b, true)
 end
 
--- Integer comparison
-function M.caml_int_compare(a, b)
-  if a < b then
-    return -1
-  elseif a == b then
-    return 0
-  else
-    return 1
-  end
-end
-
--- Simpler int_compare alias (used by Export directives)
-function M.int_compare(a, b)
+--Provides: caml_int_compare
+function caml_int_compare(a, b)
   if a < b then
     return -1
   elseif a > b then
@@ -319,8 +301,30 @@ function M.int_compare(a, b)
   end
 end
 
--- Float comparison with NaN handling
-function M.float_compare(a, b)
+--Provides: caml_int32_compare
+function caml_int32_compare(a, b)
+  if a < b then
+    return -1
+  elseif a > b then
+    return 1
+  else
+    return 0
+  end
+end
+
+--Provides: caml_nativeint_compare
+function caml_nativeint_compare(a, b)
+  if a < b then
+    return -1
+  elseif a > b then
+    return 1
+  else
+    return 0
+  end
+end
+
+--Provides: caml_float_compare
+function caml_float_compare(a, b)
   -- Handle NaN: NaN != NaN in OCaml
   if a ~= a then
     -- a is NaN
@@ -344,11 +348,11 @@ function M.float_compare(a, b)
   end
 end
 
--- Equality check
--- Returns 1 if equal, 0 if not equal
-function M.caml_equal(x, y)
+--Provides: caml_equal
+--Requires: caml_compare_val
+function caml_equal(x, y)
   local success, result = pcall(function()
-    return M.caml_compare_val(x, y, false) == 0
+    return caml_compare_val(x, y, false) == 0
   end)
 
   if success then
@@ -359,11 +363,11 @@ function M.caml_equal(x, y)
   end
 end
 
--- Inequality check
--- Returns 1 if not equal, 0 if equal
-function M.caml_notequal(x, y)
+--Provides: caml_notequal
+--Requires: caml_compare_val
+function caml_notequal(x, y)
   local success, result = pcall(function()
-    return M.caml_compare_val(x, y, false) ~= 0
+    return caml_compare_val(x, y, false) ~= 0
   end)
 
   if success then
@@ -374,11 +378,11 @@ function M.caml_notequal(x, y)
   end
 end
 
--- Less than
--- Returns 1 if x < y, 0 otherwise
-function M.caml_lessthan(x, y)
+--Provides: caml_lessthan
+--Requires: caml_compare_val
+function caml_lessthan(x, y)
   local success, result = pcall(function()
-    return M.caml_compare_val(x, y, false) < 0
+    return caml_compare_val(x, y, false) < 0
   end)
 
   if success then
@@ -388,11 +392,11 @@ function M.caml_lessthan(x, y)
   end
 end
 
--- Less than or equal
--- Returns 1 if x <= y, 0 otherwise
-function M.caml_lessequal(x, y)
+--Provides: caml_lessequal
+--Requires: caml_compare_val
+function caml_lessequal(x, y)
   local success, result = pcall(function()
-    return M.caml_compare_val(x, y, false) <= 0
+    return caml_compare_val(x, y, false) <= 0
   end)
 
   if success then
@@ -402,11 +406,11 @@ function M.caml_lessequal(x, y)
   end
 end
 
--- Greater than
--- Returns 1 if x > y, 0 otherwise
-function M.caml_greaterthan(x, y)
+--Provides: caml_greaterthan
+--Requires: caml_compare_val
+function caml_greaterthan(x, y)
   local success, result = pcall(function()
-    return M.caml_compare_val(x, y, false) > 0
+    return caml_compare_val(x, y, false) > 0
   end)
 
   if success then
@@ -416,11 +420,11 @@ function M.caml_greaterthan(x, y)
   end
 end
 
--- Greater than or equal
--- Returns 1 if x >= y, 0 otherwise
-function M.caml_greaterequal(x, y)
+--Provides: caml_greaterequal
+--Requires: caml_compare_val
+function caml_greaterequal(x, y)
   local success, result = pcall(function()
-    return M.caml_compare_val(x, y, false) >= 0
+    return caml_compare_val(x, y, false) >= 0
   end)
 
   if success then
@@ -430,22 +434,22 @@ function M.caml_greaterequal(x, y)
   end
 end
 
--- Min function
-function M.caml_min(x, y)
-  if M.caml_compare(x, y) <= 0 then
+--Provides: caml_min
+--Requires: caml_compare
+function caml_min(x, y)
+  if caml_compare(x, y) <= 0 then
     return x
   else
     return y
   end
 end
 
--- Max function
-function M.caml_max(x, y)
-  if M.caml_compare(x, y) >= 0 then
+--Provides: caml_max
+--Requires: caml_compare
+function caml_max(x, y)
+  if caml_compare(x, y) >= 0 then
     return x
   else
     return y
   end
 end
-
-return M
