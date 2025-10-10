@@ -1,8 +1,9 @@
 #!/usr/bin/env lua
 -- Test Hash primitives
 
--- Load hash.lua directly (it defines global caml_* functions)
+-- Load hash.lua and hashtbl.lua directly (they define global caml_* functions)
 dofile("hash.lua")
+dofile("hashtbl.lua")
 
 local tests_passed = 0
 local tests_failed = 0
@@ -518,34 +519,30 @@ print("Hashtbl Integration Tests:")
 print("--------------------------------------------------------------------")
 
 test("hashtbl: can use as hash function", function()
-  -- Load hashtbl module
-  local hashtbl = require("hashtbl")
-
   -- Create hash table
-  local tbl = hashtbl.caml_hash_create(16)
+  local tbl = caml_hash_create(16)
 
   -- Add some values
-  hashtbl.caml_hash_add(tbl, 42, "value1")
-  hashtbl.caml_hash_add(tbl, "key", "value2")
-  hashtbl.caml_hash_add(tbl, {tag = 0, 1, 2}, "value3")
+  caml_hash_add(tbl, 42, "value1")
+  caml_hash_add(tbl, "key", "value2")
+  caml_hash_add(tbl, {tag = 0, 1, 2}, "value3")
 
   -- Should be able to find them
-  assert_eq(hashtbl.caml_hash_find(tbl, 42), "value1")
-  assert_eq(hashtbl.caml_hash_find(tbl, "key"), "value2")
-  assert_eq(hashtbl.caml_hash_find(tbl, {tag = 0, 1, 2}), "value3")
+  assert_eq(caml_hash_find(tbl, 42), "value1")
+  assert_eq(caml_hash_find(tbl, "key"), "value2")
+  assert_eq(caml_hash_find(tbl, {tag = 0, 1, 2}), "value3")
 end)
 
 test("hashtbl: structural equality for keys", function()
-  local hashtbl = require("hashtbl")
-  local tbl = hashtbl.caml_hash_create(16)
+  local tbl = caml_hash_create(16)
 
   local key1 = {tag = 0, 1, 2, 3}
   local key2 = {tag = 0, 1, 2, 3}  -- Different table, same structure
 
-  hashtbl.caml_hash_add(tbl, key1, "value")
+  caml_hash_add(tbl, key1, "value")
 
   -- Should find with structurally equal key
-  assert_eq(hashtbl.caml_hash_find(tbl, key2), "value")
+  assert_eq(caml_hash_find(tbl, key2), "value")
 end)
 
 print()
