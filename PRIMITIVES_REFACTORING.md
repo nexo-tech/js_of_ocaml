@@ -359,7 +359,26 @@
   - **IMPLEMENTATION**: Lua 5.1 compatible, placeholder pattern for cycle support
   - **NOTE**: test_marshal_cycles.lua now has failing tests because cycles are valid with sharing
 
-- [ ] Task 6.4: Refactor `digest.lua` - digest primitives (45 min + tests)
+- [x] Task 6.4: Refactor `digest.lua` - digest primitives (45 min + tests) ✓
+  - **DELIVERABLES**: 433 lines in `digest.lua`, 262 lines tests in `test_digest.lua`
+    - Converted all Lua 5.3+ bitwise operators to Lua 5.1 arithmetic functions
+    - Removed module structure, all functions now global with --Provides/--Requires
+    - Inlined all constants (INIT_A/B/C/D, S11-S44 shift amounts)
+    - Implemented bitwise operations: caml_digest_bit_{and,or,xor,not,lshift,rshift}
+    - MD5 auxiliary functions: caml_digest_md5_{F,G,H,I}, caml_digest_md5_step
+    - MD5 transform: caml_digest_md5_transform (processes 64-byte blocks)
+    - MD5 context API: caml_md5_{init,update,final}
+    - High-level API: caml_md5_string, caml_md5_chan
+    - Utility: caml_digest_to_hex (digest to hex string conversion)
+  - **TESTS**: 262 lines, 30 tests in `test_digest.lua` - all passing ✓
+    - MD5 known test vectors (RFC 1321): empty, 'a', 'abc', 'message digest', alphabet, alphanumeric, 80 repeated digits
+    - Substring tests: first/last/middle portions
+    - Multi-block tests: 64, 128, 100, 1000 bytes
+    - Context tests: single/multiple/spanning/empty updates
+    - Bitwise operations: AND, OR, XOR, NOT, LSHIFT, RSHIFT, ADD32, ROTL32
+    - Hex conversion: all zeros, all 0xFF, mixed bytes
+  - **IMPLEMENTATION**: Pure Lua 5.1, no external dependencies, manual bitwise arithmetic
+  - **COMPATIBILITY**: Verified against Node.js crypto.createHash('md5') for all test vectors
 - [ ] Task 6.5: Refactor `bigarray.lua` - bigarray primitives (1 hour + tests)
 
 ### Phase 7: Verification & Integration (Est: 3 hours)
