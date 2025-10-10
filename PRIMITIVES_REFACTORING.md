@@ -681,7 +681,127 @@
 
 **Total Estimated Time for Phase 8: 12 hours**
 
-**Total Project Time: 32 + 12 = 44 hours**
+### Phase 9: Advanced Features & Integration (Est: 8 hours)
+
+**SCOPE**: Advanced runtime features, compatibility layers, and integration tests
+
+#### Marshal Advanced Features (Est: 3 hours)
+
+- [ ] Task 9.1: Implement cyclic structure marshaling (1.5 hours)
+  - **CURRENT TEST**: test_marshal_cycles.lua (expected failure)
+  - **ISSUE**: Cyclic references not supported, causes infinite loops
+  - **IMPLEMENTATION**:
+    - Add visited table tracking during marshaling
+    - Implement sharing table for back-references
+    - Add PREFIX_SHARED code for referencing already-seen values
+    - Update read/write to handle cyclic graphs
+  - **FUNCTIONS TO UPDATE**:
+    - caml_marshal_write_value: detect and record shared values
+    - caml_marshal_read_value: resolve back-references
+  - **TEST**: Verify circular lists, trees, and graphs marshal correctly
+
+- [ ] Task 9.2: Complete marshal error handling (1 hour)
+  - **CURRENT TEST**: test_marshal_errors.lua
+  - **IMPLEMENTATION**:
+    - Proper exception raising for all error cases
+    - Validate buffer bounds before reads
+    - Handle malformed data gracefully
+    - Add error recovery mechanisms
+  - **ERROR CASES**: Invalid codes, truncated data, type mismatches, version incompatibility
+
+- [ ] Task 9.3: Implement marshal compatibility layer (30 min)
+  - **CURRENT TEST**: test_marshal_compat.lua
+  - **IMPLEMENTATION**:
+    - Support older marshal format versions
+    - Handle backward compatibility flags
+    - Version detection and migration
+  - **NOTE**: May be low priority depending on use case
+
+#### High-Level API Wrappers (Est: 2 hours)
+
+- [ ] Task 9.4: Implement high-level marshal API (1 hour)
+  - **CURRENT TEST**: test_marshal.lua
+  - **CURRENT STATE**: Module pattern wrapper around lower-level functions
+  - **IMPLEMENTATION**:
+    - Refactor to global functions with --Provides
+    - Wrapper functions for common use cases
+    - Simplified API: marshal.to_string, marshal.from_string
+  - **DEPENDENCIES**: All marshal_* modules (already refactored)
+
+- [ ] Task 9.5: Implement unit value marshaling optimization (30 min)
+  - **CURRENT TEST**: test_marshal_unit.lua
+  - **IMPLEMENTATION**:
+    - Special case for unit type ()
+    - Minimal representation (single byte)
+    - Fast path for unit values
+  - **OPTIMIZATION**: Unit is common in OCaml, optimize for size/speed
+
+- [ ] Task 9.6: Implement marshal roundtrip verification (30 min)
+  - **CURRENT TEST**: test_marshal_roundtrip.lua
+  - **IMPLEMENTATION**:
+    - Test marshal → unmarshal → marshal consistency
+    - Verify value equality after roundtrip
+    - Test with complex nested structures
+  - **PURPOSE**: Integration testing, catch serialization bugs
+
+#### Memory & Channel Extensions (Est: 1.5 hours)
+
+- [ ] Task 9.7: Implement memory channels (1.5 hours)
+  - **CURRENT TEST**: test_memory_channels.lua
+  - **IMPLEMENTATION**:
+    - In-memory buffer-based channels
+    - Read/write to Lua strings/tables
+    - No file system I/O required
+  - **FUNCTIONS**:
+    - caml_ml_open_mem_channel (create from string)
+    - caml_ml_mem_channel_contents (get current contents)
+    - Support all standard channel operations (read/write/seek)
+  - **USE CASE**: Testing, embedded systems, string I/O
+
+#### Parsing Primitives (Est: 1.5 hours)
+
+- [ ] Task 9.8: Refactor parsing primitives (1.5 hours)
+  - **CURRENT TEST**: test_parsing.lua
+  - **CURRENT STATE**: Uses module pattern
+  - **FUNCTIONS TO REFACTOR**:
+    - caml_parser_env (parser environment)
+    - caml_parser_peek, caml_parser_shift
+    - Error recovery and position tracking
+  - **DEPENDENCIES**: lexing.lua (already refactored)
+  - **IMPLEMENTATION**: Follow refactoring pattern (global functions)
+
+#### Compatibility & Optimization Suites (Out of Scope - Optional)
+
+These tests validate compatibility and performance but don't require refactoring:
+
+- [ ] Task 9.9: Lua 5.1 full compatibility suite (Optional - 2 hours)
+  - **CURRENT TEST**: test_lua51_full.lua
+  - **PURPOSE**: Verify all Lua 5.1 features work correctly
+  - **SCOPE**: Comprehensive language feature testing
+  - **STATUS**: Low priority - basic compat already verified
+
+- [ ] Task 9.10: LuaJIT full compatibility suite (Optional - 2 hours)
+  - **CURRENT TEST**: test_luajit_full.lua
+  - **PURPOSE**: Verify LuaJIT-specific features
+  - **SCOPE**: JIT compilation, FFI, specialized optimizations
+  - **STATUS**: Low priority - runtime works on standard Lua 5.1
+
+- [ ] Task 9.11: LuaJIT optimization testing (Optional - 1 hour)
+  - **CURRENT TEST**: test_luajit_optimizations.lua
+  - **PURPOSE**: Benchmark JIT optimization effectiveness
+  - **SCOPE**: Performance profiling, trace compilation
+  - **STATUS**: Low priority - optimization is bonus, not requirement
+
+- [ ] Task 9.12: Custom backend support (Optional - 2 hours)
+  - **CURRENT TEST**: test_custom_backends.lua
+  - **PURPOSE**: Pluggable backend system for alternative Lua implementations
+  - **SCOPE**: Backend abstraction layer
+  - **STATUS**: Advanced feature, not needed for basic runtime
+
+**Total Estimated Time for Phase 9: 8 hours (required) + 7 hours (optional) = 15 hours max**
+
+**Total Project Time: 32 + 12 + 8 = 52 hours (required work)**
+**Total with Optional: 52 + 7 = 59 hours (complete feature set)**
 
 ---
 
@@ -715,19 +835,21 @@
 - test_set.lua (Task 8.11)
 - test_gc.lua (Task 8.12)
 
-**OUT OF SCOPE / SPECIAL CASES (11 files)**:
-- test_custom_backends.lua (custom backend support)
-- test_lua51_full.lua (Lua 5.1 compatibility suite)
-- test_luajit_full.lua (LuaJIT compatibility suite)
-- test_luajit_optimizations.lua (LuaJIT optimizations)
-- test_marshal.lua (high-level marshal API wrapper)
-- test_marshal_compat.lua (backward compatibility)
-- test_marshal_cycles.lua (cyclic structure support - expected failure)
-- test_marshal_errors.lua (error handling integration)
-- test_marshal_roundtrip.lua (roundtrip integration tests)
-- test_marshal_unit.lua (unit value marshaling)
-- test_memory_channels.lua (in-memory channel support)
-- test_parsing.lua (parser primitives)
+**NEEDS ADVANCED FEATURES - PHASE 9 (8 files)**:
+- test_marshal_cycles.lua (Task 9.1 - cyclic structure marshaling)
+- test_marshal_errors.lua (Task 9.2 - error handling)
+- test_marshal_compat.lua (Task 9.3 - compatibility layer)
+- test_marshal.lua (Task 9.4 - high-level API)
+- test_marshal_unit.lua (Task 9.5 - unit optimization)
+- test_marshal_roundtrip.lua (Task 9.6 - roundtrip verification)
+- test_memory_channels.lua (Task 9.7 - memory channels)
+- test_parsing.lua (Task 9.8 - parsing primitives)
+
+**OPTIONAL / COMPATIBILITY SUITES (4 files)**:
+- test_lua51_full.lua (Task 9.9 - Lua 5.1 full suite)
+- test_luajit_full.lua (Task 9.10 - LuaJIT full suite)
+- test_luajit_optimizations.lua (Task 9.11 - LuaJIT optimizations)
+- test_custom_backends.lua (Task 9.12 - custom backend support)
 
 **CORE RUNTIME TESTS (passing)**:
 - test_core.lua ✓ (runtime initialization)
