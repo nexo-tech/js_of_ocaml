@@ -15,157 +15,209 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
--- Polymorphic hashing implementation
--- Based on MurmurHash3 mixing functions
--- Compatible with OCaml's polymorphic hash
 
--- Bit manipulation helpers for 32-bit operations
-local function bit_and(a, b)
-  return a & b
+--Provides: caml_hash_bit_xor
+function caml_hash_bit_xor(a, b)
+  a = a % 0x100000000
+  b = b % 0x100000000
+  local result = 0
+  local bit_val = 1
+  for i = 0, 31 do
+    local a_bit = a % 2
+    local b_bit = b % 2
+    if a_bit ~= b_bit then
+      result = result + bit_val
+    end
+    a = math.floor(a / 2)
+    b = math.floor(b / 2)
+    bit_val = bit_val * 2
+  end
+  return result % 0x100000000
 end
 
-local function bit_or(a, b)
-  return a | b
+--Provides: caml_hash_bit_lshift
+function caml_hash_bit_lshift(a, n)
+  a = a % 0x100000000
+  n = n % 32
+  local result = a * (2 ^ n)
+  return math.floor(result % 0x100000000)
 end
 
-local function bit_xor(a, b)
-  return a ~ b
+--Provides: caml_hash_bit_rshift
+function caml_hash_bit_rshift(a, n)
+  a = a % 0x100000000
+  n = n % 32
+  local result = a / (2 ^ n)
+  return math.floor(result % 0x100000000)
 end
 
-local function bit_lshift(a, n)
-  return (a << n) & 0xFFFFFFFF
+--Provides: caml_hash_bit_and
+function caml_hash_bit_and(a, b)
+  a = a % 0x100000000
+  b = b % 0x100000000
+  local result = 0
+  local bit_val = 1
+  for i = 0, 31 do
+    if a % 2 == 1 and b % 2 == 1 then
+      result = result + bit_val
+    end
+    a = math.floor(a / 2)
+    b = math.floor(b / 2)
+    bit_val = bit_val * 2
+  end
+  return result % 0x100000000
 end
 
-local function bit_rshift(a, n)
-  return (a >> n) & 0xFFFFFFFF
+--Provides: caml_hash_bit_or
+function caml_hash_bit_or(a, b)
+  a = a % 0x100000000
+  b = b % 0x100000000
+  local result = 0
+  local bit_val = 1
+  for i = 0, 31 do
+    if a % 2 == 1 or b % 2 == 1 then
+      result = result + bit_val
+    end
+    a = math.floor(a / 2)
+    b = math.floor(b / 2)
+    bit_val = bit_val * 2
+  end
+  return result % 0x100000000
 end
 
-local function to_int32(n)
-  -- Convert to signed 32-bit integer
-  n = n & 0xFFFFFFFF
+--Provides: caml_hash_mul32
+function caml_hash_mul32(a, b)
+  a = a % 0x100000000
+  b = b % 0x100000000
+  local result = a * b
+  return math.floor(result % 0x100000000)
+end
+
+--Provides: caml_hash_to_int32
+function caml_hash_to_int32(n)
+  n = math.floor(n % 0x100000000)
   if n >= 0x80000000 then
     return n - 0x100000000
   end
   return n
 end
 
-local function mul32(a, b)
-  -- 32-bit multiplication
-  local result = (a * b) & 0xFFFFFFFF
-  return to_int32(result)
-end
-
 --Provides: caml_hash_mix_int
+--Requires: caml_hash_mul32, caml_hash_bit_or, caml_hash_bit_lshift, caml_hash_bit_rshift, caml_hash_bit_xor, caml_hash_to_int32
 function caml_hash_mix_int(h, d)
-  d = mul32(d, 0xcc9e2d51)
-  d = bit_or(bit_lshift(d, 15), bit_rshift(d, 17))  -- ROTL32(d, 15)
-  d = mul32(d, 0x1b873593)
-  h = bit_xor(h, d)
-  h = bit_or(bit_lshift(h, 13), bit_rshift(h, 19))  -- ROTL32(h, 13)
-  -- h = ((h + (h << 2)) | 0) + 0xe6546b64
-  h = to_int32(to_int32(h + bit_lshift(h, 2)) + 0xe6546b64)
+  d = caml_hash_mul32(d, 0xcc9e2d51)
+  d = caml_hash_bit_or(caml_hash_bit_lshift(d, 15), caml_hash_bit_rshift(d, 17))  -- ROTL32(d, 15)
+  d = caml_hash_mul32(d, 0x1b873593)
+  h = caml_hash_bit_xor(h, d)
+  h = caml_hash_bit_or(caml_hash_bit_lshift(h, 13), caml_hash_bit_rshift(h, 19))  -- ROTL32(h, 13)
+  h = caml_hash_to_int32(caml_hash_to_int32(h + caml_hash_bit_lshift(h, 2)) + 0xe6546b64)
   return h
 end
 
 --Provides: caml_hash_mix_final
+--Requires: caml_hash_bit_xor, caml_hash_bit_rshift, caml_hash_mul32
 function caml_hash_mix_final(h)
-  h = bit_xor(h, bit_rshift(h, 16))
-  h = mul32(h, 0x85ebca6b)
-  h = bit_xor(h, bit_rshift(h, 13))
-  h = mul32(h, 0xc2b2ae35)
-  h = bit_xor(h, bit_rshift(h, 16))
+  h = caml_hash_bit_xor(h, caml_hash_bit_rshift(h, 16))
+  h = caml_hash_mul32(h, 0x85ebca6b)
+  h = caml_hash_bit_xor(h, caml_hash_bit_rshift(h, 13))
+  h = caml_hash_mul32(h, 0xc2b2ae35)
+  h = caml_hash_bit_xor(h, caml_hash_bit_rshift(h, 16))
   return h
 end
 
 --Provides: caml_hash_mix_float
+--Requires: caml_hash_bit_and, caml_hash_bit_rshift, caml_hash_bit_lshift, caml_hash_bit_or, caml_hash_mix_int, caml_hash_to_int32
 function caml_hash_mix_float(hash, v)
-  -- Convert float to byte representation
-  local bytes = string.pack("d", v)
+  local lo, hi
 
-  -- Extract low and high 32-bit words
-  local lo = string.unpack("<I4", bytes, 1)
-  local hi = string.unpack("<I4", bytes, 5)
+  if v == 0 then
+    if 1/v == -math.huge then
+      lo, hi = 0, 0x80000000
+    else
+      lo, hi = 0, 0
+    end
+  elseif v ~= v then
+    lo, hi = 0x00000001, 0x7ff00000
+  elseif v == math.huge then
+    lo, hi = 0, 0x7ff00000
+  elseif v == -math.huge then
+    lo, hi = 0, 0xfff00000
+  else
+    local sign = v < 0 and 1 or 0
+    v = math.abs(v)
 
-  -- Normalize NaNs: all NaNs hash to the same value
-  local exp = bit_and(bit_rshift(hi, 20), 0x7ff)
+    local exp = math.floor(math.log(v) / math.log(2))
+    local frac = v / (2 ^ exp) - 1
+
+    exp = exp + 1023
+    if exp <= 0 then
+      exp = 0
+      frac = v / (2 ^ -1022)
+    elseif exp >= 0x7ff then
+      exp = 0x7ff
+      frac = 0
+    end
+
+    local frac_hi = math.floor(frac * (2 ^ 20))
+    local frac_lo = math.floor((frac * (2 ^ 52)) % (2 ^ 32))
+
+    hi = caml_hash_bit_or(caml_hash_bit_lshift(sign, 31), caml_hash_bit_or(caml_hash_bit_lshift(exp, 20), frac_hi))
+    lo = frac_lo
+  end
+
+  local exp = caml_hash_bit_and(caml_hash_bit_rshift(hi, 20), 0x7ff)
   if exp == 0x7ff then
-    local frac_hi = bit_and(hi, 0xfffff)
+    local frac_hi = caml_hash_bit_and(hi, 0xfffff)
     if frac_hi ~= 0 or lo ~= 0 then
-      -- This is a NaN
       hi = 0x7ff00000
       lo = 0x00000001
     end
   elseif hi == 0x80000000 and lo == 0 then
-    -- Normalize -0.0 to +0.0
     hi = 0
   end
 
-  hash = caml_hash_mix_int(hash, to_int32(lo))
-  hash = caml_hash_mix_int(hash, to_int32(hi))
+  hash = caml_hash_mix_int(hash, caml_hash_to_int32(lo))
+  hash = caml_hash_mix_int(hash, caml_hash_to_int32(hi))
   return hash
 end
 
 --Provides: caml_hash_mix_string
+--Requires: caml_hash_bit_or, caml_hash_bit_lshift, caml_hash_mix_int, caml_hash_to_int32, caml_hash_bit_xor
 function caml_hash_mix_string(h, s)
   local len = #s
   local i = 1
   local w
 
-  -- Process 4 bytes at a time
   while i + 3 <= len do
-    w = bit_or(
-      bit_or(s[i], bit_lshift(s[i + 1], 8)),
-      bit_or(bit_lshift(s[i + 2], 16), bit_lshift(s[i + 3], 24))
+    w = caml_hash_bit_or(
+      caml_hash_bit_or(s[i], caml_hash_bit_lshift(s[i + 1], 8)),
+      caml_hash_bit_or(caml_hash_bit_lshift(s[i + 2], 16), caml_hash_bit_lshift(s[i + 3], 24))
     )
-    h = caml_hash_mix_int(h, to_int32(w))
+    h = caml_hash_mix_int(h, caml_hash_to_int32(w))
     i = i + 4
   end
 
-  -- Process remaining bytes
   w = 0
   local remaining = len - i + 1
   if remaining == 3 then
-    w = bit_lshift(s[i + 2], 16)
-    w = bit_or(w, bit_lshift(s[i + 1], 8))
-    w = bit_or(w, s[i])
-    h = caml_hash_mix_int(h, to_int32(w))
+    w = caml_hash_bit_lshift(s[i + 2], 16)
+    w = caml_hash_bit_or(w, caml_hash_bit_lshift(s[i + 1], 8))
+    w = caml_hash_bit_or(w, s[i])
+    h = caml_hash_mix_int(h, caml_hash_to_int32(w))
   elseif remaining == 2 then
-    w = bit_or(bit_lshift(s[i + 1], 8), s[i])
-    h = caml_hash_mix_int(h, to_int32(w))
+    w = caml_hash_bit_or(caml_hash_bit_lshift(s[i + 1], 8), s[i])
+    h = caml_hash_mix_int(h, caml_hash_to_int32(w))
   elseif remaining == 1 then
     w = s[i]
-    h = caml_hash_mix_int(h, to_int32(w))
+    h = caml_hash_mix_int(h, caml_hash_to_int32(w))
   end
 
-  h = bit_xor(h, len)
+  h = caml_hash_bit_xor(h, len)
   return h
 end
 
--- Check if a value is an OCaml string (byte array)
-local function is_ocaml_string(v)
-  if type(v) ~= "table" then
-    return false
-  end
-  -- OCaml strings are tables with numeric indices
-  -- Check if it has numeric keys only
-  for k, val in pairs(v) do
-    if type(k) ~= "number" or type(val) ~= "number" then
-      return false
-    end
-  end
-  return #v > 0
-end
-
--- Check if a value is an OCaml block (tagged array)
-local function is_ocaml_block(v)
-  if type(v) ~= "table" then
-    return false
-  end
-  -- OCaml blocks have a tag field
-  return v.tag ~= nil
-end
-
 --Provides: caml_hash
+--Requires: caml_hash_mix_int, caml_hash_mix_float, caml_hash_mix_string, caml_hash_mix_final, caml_is_ocaml_string, caml_is_ocaml_block, caml_hash_bit_or, caml_hash_bit_lshift, caml_hash_to_int32, caml_hash_bit_and
 function caml_hash(count, limit, seed, obj)
   local sz = limit
   if sz < 0 or sz > 256 then
@@ -183,32 +235,24 @@ function caml_hash(count, limit, seed, obj)
     rd = rd + 1
 
     if type(v) == "number" then
-      -- Check if it's an integer or float
       if math.type(v) == "integer" or (v == math.floor(v) and v >= -0x40000000 and v < 0x40000000) then
-        -- Integer: hash as (v + v + 1)
-        h = caml_hash_mix_int(h, to_int32(v + v + 1))
+        h = caml_hash_mix_int(h, caml_hash_to_int32(v + v + 1))
         num = num - 1
       else
-        -- Float
         h = caml_hash_mix_float(h, v)
         num = num - 1
       end
     elseif type(v) == "string" then
-      -- Lua string
       local bytes = {string.byte(v, 1, -1)}
       h = caml_hash_mix_string(h, bytes)
       num = num - 1
-    elseif is_ocaml_string(v) then
-      -- OCaml string (byte array)
+    elseif caml_is_ocaml_string(v) then
       h = caml_hash_mix_string(h, v)
       num = num - 1
-    elseif is_ocaml_block(v) then
-      -- OCaml block with tag
-      local tag_value = bit_or(bit_lshift(#v, 10), v.tag)
-      h = caml_hash_mix_int(h, to_int32(tag_value))
-      -- Note: Don't decrement num for blocks, only for atoms
+    elseif caml_is_ocaml_block(v) then
+      local tag_value = caml_hash_bit_or(caml_hash_bit_lshift(#v, 10), v.tag)
+      h = caml_hash_mix_int(h, caml_hash_to_int32(tag_value))
 
-      -- Add block fields to queue (up to size limit)
       for i = 1, #v do
         if wr >= sz then
           break
@@ -217,12 +261,8 @@ function caml_hash(count, limit, seed, obj)
         wr = wr + 1
       end
     elseif type(v) == "table" then
-      -- Generic table - hash as array
-      -- Mix in the table size
-      h = caml_hash_mix_int(h, to_int32(#v))
-      -- Note: Don't decrement num for tables, only for atoms
+      h = caml_hash_mix_int(h, caml_hash_to_int32(#v))
 
-      -- Add array elements to queue
       for i = 1, #v do
         if wr >= sz then
           break
@@ -234,10 +274,11 @@ function caml_hash(count, limit, seed, obj)
   end
 
   h = caml_hash_mix_final(h)
-  return bit_and(h, 0x3fffffff)
+  return caml_hash_bit_and(h, 0x3fffffff)
 end
 
 --Provides: caml_hash_default
+--Requires: caml_hash
 function caml_hash_default(obj)
   return caml_hash(10, 100, 0, obj)
 end

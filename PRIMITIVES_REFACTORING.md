@@ -47,9 +47,14 @@
   - **FIXED**: Converted local function str_repeat to caml_str_repeat with --Provides
   - **FIXED**: Converted local function skip_whitespace to caml_skip_whitespace with --Provides
   - **VERIFIED**: All 55 format tests pass, all buffer tests pass, Lua 5.1 compatible
-- [ ] Task 3.3: Refactor `hash.lua` - hashing primitives (45 min + tests)
-  - **VIOLATIONS**: 9 local helper functions (bit operations)
-  - **STATUS**: Needs rewrite - convert all bit helpers to caml_* functions
+- [x] Task 3.3: Refactor `hash.lua` - hashing primitives (45 min + tests)
+  - **FIXED**: Removed all 9 local helper functions (Lua 5.3+ bitwise operators)
+  - **FIXED**: Implemented hash-specific 32-bit bitwise operations: caml_hash_bit_xor, caml_hash_bit_and, caml_hash_bit_or, caml_hash_bit_lshift, caml_hash_bit_rshift
+  - **FIXED**: Implemented caml_hash_mul32 for 32-bit unsigned multiplication with proper overflow handling
+  - **FIXED**: Implemented caml_hash_to_int32 for unsigned to signed conversion
+  - **FIXED**: Replaced Lua 5.3+ string.pack/unpack with Lua 5.1 compatible float decomposition
+  - **FIXED**: Used existing caml_is_ocaml_string and caml_is_ocaml_block from compare.lua
+  - **VERIFIED**: All 64 hash tests pass, Lua 5.1 compatible, no Lua 5.3+ features
 - [ ] Task 3.4: Refactor `hashtbl.lua` - hashtable primitives (45 min + tests)
   - **VIOLATIONS**: Local constants, local table, 3 local helper functions
   - **STATUS**: Needs rewrite - inline constants, remove metatable, convert helpers
