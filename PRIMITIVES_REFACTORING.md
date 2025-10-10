@@ -62,9 +62,11 @@
   - **FIXED**: Converted local function get_bucket_index to caml_hashtbl_get_bucket_index with --Provides
   - **FIXED**: Converted local function resize to caml_hashtbl_resize with --Provides
   - **VERIFIED**: All 54 hashtbl tests pass, Lua 5.1 compatible
-- [ ] Task 3.5: Refactor `lazy.lua` - lazy evaluation primitives (45 min + tests)
-  - **VIOLATIONS**: 3 local constants (LAZY_TAG, FORCING_TAG, FORWARD_TAG)
-  - **STATUS**: Needs rewrite - inline tag constants into function bodies
+- [x] Task 3.5: Refactor `lazy.lua` - lazy evaluation primitives (45 min + tests)
+  - **FIXED**: Removed local constant LAZY_TAG (246) - inlined into all function bodies
+  - **FIXED**: Removed local constant FORCING_TAG (244) - inlined into all function bodies
+  - **FIXED**: Removed local constant FORWARD_TAG (250) - inlined into all function bodies
+  - **VERIFIED**: All lazy tests pass, Lua 5.1 compatible
 - [ ] Task 3.6: Refactor `lexing.lua` - lexer primitives (45 min + tests)
   - **VIOLATIONS**: 17 local constants, local function in closure
   - **STATUS**: Needs rewrite - inline constants, restructure lexbuf creation
