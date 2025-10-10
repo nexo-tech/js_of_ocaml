@@ -1,4 +1,4 @@
--- Lua_of_ocaml runtime support
+-- Js_of_ocaml runtime support
 -- http://www.ocsigen.org/js_of_ocaml/
 --
 -- This program is free software; you can redistribute it and/or modify
@@ -15,7 +15,7 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
---- Function and Closure Support Module
+-- Function and Closure Support
 --
 -- This module provides OCaml function application and currying for Lua.
 --
@@ -33,21 +33,20 @@
 -- expected, the function is called with the first n arguments, and if
 -- the result is a function, it's called with the remaining arguments.
 
-local core = require("core")
-local M = {}
-
 --- Check if a value is an OCaml function (table with f and l fields)
-local function is_ocaml_fun(v)
+-- Helper function for testing
+function is_ocaml_fun(v)
   return type(v) == "table" and type(v.f) == "function" and type(v.l) == "number"
 end
 
+--Provides: caml_call_gen
 --- Generic function application with currying and partial application.
 -- This is the core function that handles OCaml's currying semantics.
 --
 -- @param func table OCaml function {f = lua_function, l = arity}
 -- @param args table Array of arguments
 -- @return any Result of function application (may be a partial closure)
-function M.caml_call_gen(func, args)
+function caml_call_gen(func, args)
   assert(is_ocaml_fun(func), "caml_call_gen expects an OCaml function")
 
   local n = func.l
@@ -72,7 +71,7 @@ function M.caml_call_gen(func, args)
       for i = n + 1, args_len do
         rest_args[#rest_args + 1] = args[i]
       end
-      return M.caml_call_gen(result, rest_args)
+      return caml_call_gen(result, rest_args)
     else
       -- Result is not a function, return it
       return result
@@ -128,43 +127,47 @@ function M.caml_call_gen(func, args)
           for i = 1, #extra_args do
             combined[args_len + i] = extra_args[i]
           end
-          return M.caml_call_gen(func, combined)
+          return caml_call_gen(func, combined)
         end
       }
     end
   end
 end
 
+--Provides: caml_apply
+--Requires: caml_call_gen
 --- Apply a function to arguments (runtime helper).
 -- This is a simpler version for when arity is known at compile time.
 --
 -- @param func table OCaml function
 -- @param ... any Arguments to pass
 -- @return any Result of function application
-function M.caml_apply(func, ...)
+function caml_apply(func, ...)
   local args = {...}
   if is_ocaml_fun(func) then
     -- Function has known arity, use general application
-    return M.caml_call_gen(func, args)
+    return caml_call_gen(func, args)
   else
     -- Shouldn't happen in well-typed code
     error("caml_apply expects an OCaml function")
   end
 end
 
+--Provides: caml_curry
 --- Create a curried function with known arity.
 -- This wraps a Lua function to give it OCaml currying semantics.
 --
 -- @param arity number Number of parameters the function expects
 -- @param lua_fn function The actual Lua function implementation
 -- @return table OCaml function {f, l}
-function M.caml_curry(arity, lua_fn)
+function caml_curry(arity, lua_fn)
   return {
     l = arity,
     f = lua_fn
   }
 end
 
+--Provides: caml_closure
 --- Create a closure with captured free variables.
 -- Generated code will use this to create closures that close over
 -- variables from enclosing scopes.
@@ -173,7 +176,7 @@ end
 -- @param lua_fn function Function implementation
 -- @param env table Optional environment table with free variables
 -- @return table OCaml function {f, l}
-function M.caml_closure(arity, lua_fn, env)
+function caml_closure(arity, lua_fn, env)
   if env then
     -- Closure with environment - wrap to inject env as first parameter
     return {
@@ -190,17 +193,3 @@ function M.caml_closure(arity, lua_fn, env)
     }
   end
 end
-
---- Export the is_ocaml_fun helper for use by other modules
-M.is_fun = is_ocaml_fun
-
--- Register primitives
-core.register("caml_call_gen", M.caml_call_gen)
-core.register("caml_apply", M.caml_apply)
-core.register("caml_curry", M.caml_curry)
-core.register("caml_closure", M.caml_closure)
-
--- Register module
-core.register_module("fun", M)
-
-return M

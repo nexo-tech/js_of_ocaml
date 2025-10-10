@@ -46,7 +46,7 @@
 - [x] Task 5.2: Refactor `gc.lua` - GC primitives (45 min + tests)
 - [x] Task 5.3: Refactor `weak.lua` - weak reference primitives (45 min + tests)
 - [x] Task 5.4: Refactor `effect.lua` - effect handler primitives (1 hour + tests)
-- [ ] Task 5.5: Refactor `fun.lua` - function primitives (30 min + tests)
+- [x] Task 5.5: Refactor `fun.lua` - function primitives (30 min + tests)
 
 ### Phase 6: Refactor Advanced Modules (Est: 3 hours)
 - [ ] Task 6.1: Refactor `marshal.lua` - marshaling primitives (1 hour + tests)
