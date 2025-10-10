@@ -148,7 +148,7 @@
     5. Verify test passes
     6. Update this task to [x] once verified
 - [x] Task 4.2: Refactor `io.lua` - I/O primitives (1 hour + tests) ✓
-  - **COMPLETED**: Refactored fail.lua as prerequisite dependency
+  - **COMPLETED**: Full implementation of marshal channel I/O with comprehensive testing
   - **REFACTORED fail.lua** (259 lines):
     - Removed `require("core")` and module wrapping (`local M = {}`, `return M`)
     - Converted all functions to global `caml_*` functions with `--Provides:`
@@ -157,39 +157,107 @@
     - 3 error boundary functions: caml_array/string/bytes_bound_error
     - Exception registry: `_G._OCAML.exceptions` for predefined exceptions
     - ✓ test_fail.lua: 31/31 tests pass
-  - **FIXED io.lua**:
-    - Removed `dofile()` dependency loading (linker handles dependencies via --Requires)
-    - io.lua now clean and ready for linker integration
-  - **TEST STATUS**:
+  - **IMPLEMENTED io.lua channel I/O**:
+    - ✓ `caml_output_value(chanid, value, flags)` - marshals OCaml values to output channels
+    - ✓ `caml_input_value(chanid)` - reads marshaled OCaml values from input channels
+    - ✓ Lua 5.1 compatibility fixes (replaced bitwise operators with math operations)
+    - ✓ Better error messages for truncated data ("truncated marshal header/data")
+  - **FIXED marshal.lua float arrays**:
+    - ✓ Handle `{tag=254, values={...}}` format for explicit float arrays
+    - ✓ Plain arrays without .tag treated as regular blocks (tag 0)
+    - ✓ Proper read/write symmetry for float array format
+  - **FIXED format.lua**:
+    - ✓ Replaced `io_module.caml_*` with direct `caml_*` global function calls
+    - ✓ fprintf, printf, eprintf now use refactored global functions
+  - **FIXED test files**:
+    - ✓ Replaced `\x` hex escapes with `string.char()` (Lua 5.1 doesn't support `\x`)
+    - ✓ Updated module-style calls (`marshal.to_channel`) to global calls (`caml_output_value`)
+  - **TEST RESULTS**:
     - ✓ test_fail.lua: 31/31 tests pass (exception handling)
-    - ⚠️ test_io_integration.lua: Integration tests need function updates (call non-existent `marshal.to_channel`)
-    - ⚠️ test_io_marshal.lua: Updated to load dependencies correctly
-  - **NOTE**: Integration tests require functions not yet implemented in marshal.lua (to_channel/from_channel)
-  - **IMPLEMENTATION**: fail.lua fully refactored, io.lua dependency-ready
-- [ ] Task 4.3: Refactor `filename.lua` - filename primitives (45 min + tests)
-  - **FAILING TEST**: test_filename.lua
-  - **RESOLUTION PLAN**:
-    1. Run `lua test_filename.lua` to identify failures
-    2. Implement filename.lua following refactoring pattern:
-       - Remove module wrapping
-       - Convert functions to caml_* prefix with --Provides
-       - Implement: caml_filename_concat, caml_filename_dirname, caml_filename_basename, etc.
-    3. Handle path separators for cross-platform compatibility
-    4. Verify test passes
-    5. Update this task to [x] once verified
-  - **STATUS**: Not yet refactored
-- [ ] Task 4.4: Refactor `stream.lua` - stream primitives (45 min + tests)
-  - **FAILING TEST**: test_stream.lua
-  - **RESOLUTION PLAN**:
-    1. Run `lua test_stream.lua` to identify failures
-    2. Implement stream.lua following refactoring pattern:
-       - Remove module wrapping
-       - Convert functions to caml_* prefix with --Provides
-       - Implement stream operations (create, next, peek, etc.)
-    3. Handle lazy evaluation properly
-    4. Verify test passes
-    5. Update this task to [x] once verified
-  - **STATUS**: Not yet refactored
+    - ✓ test_io_marshal.lua: **53/53 tests pass (100%)** - all marshal channel I/O tests
+    - ✓ test_io_integration.lua: **35/35 tests pass (100%)** - integration with fprintf
+  - **IMPLEMENTATION**: Complete marshal channel I/O implementation with full test coverage
+- [x] Task 4.3: Refactor `filename.lua` - filename primitives (45 min + tests) ✓
+  - **COMPLETED**: Full refactoring of filename.lua with comprehensive testing
+  - **REFACTORED filename.lua**:
+    - ✓ Removed module wrapping (`local M = {}`, `return M`)
+    - ✓ Removed `require("core")` and `core.register()` calls
+    - ✓ Converted all 17 functions to global `caml_*` pattern with `--Provides:` directives
+    - ✓ Converted helper variables (`os_type`, `dir_sep`, `is_dir_sep`) to global functions
+    - ✓ Updated all internal references to use function calls instead of local variables
+    - ✓ Fixed references to `core.true_val/false_val/unit` (replaced with 1/0/0)
+    - ✓ Fixed `require("fail")` calls to use global `caml_invalid_argument`
+    - ✓ Fixed `require("sys")` call in `caml_filename_temp_dir_name`
+  - **IMPLEMENTED FUNCTIONS** (17 total):
+    - ✓ `caml_filename_os_type()` - detects Unix vs Win32
+    - ✓ `caml_filename_dir_sep(unit)` - returns "/" or "\\"
+    - ✓ `caml_filename_is_dir_sep(c)` - checks if char is directory separator
+    - ✓ `caml_filename_concat(dir, file)` - joins paths with proper separator
+    - ✓ `caml_filename_basename(name)` - extracts last component
+    - ✓ `caml_filename_dirname(name)` - extracts directory part
+    - ✓ `caml_filename_check_suffix(name, suff)` - checks if name ends with suffix
+    - ✓ `caml_filename_chop_suffix(name, suff)` - removes suffix from name
+    - ✓ `caml_filename_chop_extension(name)` - removes extension (raises on error)
+    - ✓ `caml_filename_extension(name)` - returns extension (including dot)
+    - ✓ `caml_filename_remove_extension(name)` - removes extension (no error)
+    - ✓ `caml_filename_is_relative(name)` - checks if path is relative
+    - ✓ `caml_filename_is_implicit(name)` - checks if path is implicit
+    - ✓ `caml_filename_current_dir_name(unit)` - returns "."
+    - ✓ `caml_filename_parent_dir_name(unit)` - returns ".."
+    - ✓ `caml_filename_quote(name)` - quotes filename for shell
+    - ✓ `caml_filename_quote_command(cmd)` - quotes command for shell
+    - ✓ `caml_filename_temp_dir_name(unit)` - delegates to sys.lua
+    - ✓ `caml_filename_null(unit)` - returns "/dev/null" or "NUL"
+  - **UPDATED TEST FILE**:
+    - ✓ Changed from `require("filename")` to `dofile("filename.lua")`
+    - ✓ Added `dofile("sys.lua")` for dependency
+    - ✓ Replaced all `filename.caml_*` calls with `caml_*`
+    - ✓ Replaced `core.true_val/false_val/unit` with 1/0/0
+  - **TEST RESULTS**:
+    - ✓ test_filename.lua: **70/70 tests pass (100%)**
+    - ✓ Tests cover: concat, basename, dirname, extensions, suffixes, path types, quoting
+    - ✓ Platform-specific tests for Unix and Windows path handling
+    - ✓ Performance tests verify functions complete in < 1ms per call
+  - **IMPLEMENTATION**: Complete filename path manipulation with full cross-platform support
+- [x] Task 4.4: Refactor `stream.lua` - stream primitives (45 min + tests) ✓
+  - **COMPLETED**: Full refactoring of stream.lua with comprehensive lazy stream testing
+  - **REFACTORED stream.lua**:
+    - ✓ Removed module wrapping (`local M = {}`, `return M`)
+    - ✓ Removed `require("core")` and `core.register()` calls
+    - ✓ Converted all 14 functions + 2 helpers to global `caml_*` pattern with `--Provides:` directives
+    - ✓ Converted local helper functions (`raise_failure`, `force`) to global functions
+    - ✓ Updated all internal references to use global function calls
+    - ✓ Fixed references to `core.true_val/false_val/unit` (replaced with 1/0/0)
+    - ✓ Fixed `require("fail")` to use global `error()` directly
+    - ✓ Fixed `require("io")` to use global `caml_ml_input_char`
+  - **IMPLEMENTED FUNCTIONS** (16 total):
+    - ✓ `caml_stream_raise_failure()` - raises Stream.Failure exception
+    - ✓ `caml_stream_force(stream)` - forces evaluation of lazy thunks
+    - ✓ `caml_stream_empty(unit)` - creates empty stream
+    - ✓ `caml_stream_peek(stream)` - peeks at first element without consuming
+    - ✓ `caml_stream_next(stream)` - gets and removes first element
+    - ✓ `caml_stream_junk(stream)` - removes first element without returning
+    - ✓ `caml_stream_npeek(n, stream)` - peeks at N elements
+    - ✓ `caml_stream_is_empty(stream)` - checks if stream is empty
+    - ✓ `caml_stream_from(func)` - creates stream from generator function
+    - ✓ `caml_stream_of_list(list)` - creates stream from OCaml list
+    - ✓ `caml_stream_of_string(str)` - creates character stream from string
+    - ✓ `caml_stream_of_channel(chan)` - creates character stream from I/O channel
+    - ✓ `caml_stream_cons(head, tail)` - prepends element to stream
+    - ✓ `caml_stream_of_array(arr)` - creates stream from OCaml array
+    - ✓ `caml_stream_iter(f, stream)` - iterates over all elements
+    - ✓ `caml_stream_count(stream)` - counts elements (consumes stream)
+  - **UPDATED TEST FILE**:
+    - ✓ Changed from `require("stream")` to `dofile("stream.lua")`
+    - ✓ Replaced all `stream.caml_*` calls with `caml_*`
+    - ✓ Replaced `core.true_val/false_val/unit` with 1/0/0
+  - **TEST RESULTS**:
+    - ✓ test_stream.lua: **38/38 tests pass (100%)**
+    - ✓ Tests cover: empty streams, peek/next/junk, list/string/function/array sources
+    - ✓ Lazy evaluation and memoization verified
+    - ✓ Cons operations and stream iteration tested
+    - ✓ Performance tests with 1000-element streams
+  - **IMPLEMENTATION**: Complete lazy stream implementation with proper thunk evaluation and memoization
 
 ### Phase 5: Refactor Special Modules (Est: 4 hours)
 - [x] Task 5.1: Refactor `obj.lua` - object primitives (1 hour + tests)

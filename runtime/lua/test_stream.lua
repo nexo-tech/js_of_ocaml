@@ -2,8 +2,7 @@
 -- Test suite for stream.lua
 -- Comprehensive tests for lazy streams
 
-local stream = require("stream")
-local core = require("core")
+dofile("stream.lua")
 
 local test_count = 0
 local pass_count = 0
@@ -70,32 +69,32 @@ print("=== Stream Module Tests ===\n")
 
 -- Test 1-5: Empty stream
 test("empty stream", function()
-  local s = stream.caml_stream_empty(core.unit)
-  assert_equal(stream.caml_stream_is_empty(s), core.true_val, "should be empty")
+  local s = caml_stream_empty(0)
+  assert_equal(caml_stream_is_empty(s), 1, "should be empty")
 end)
 
 test("peek on empty stream", function()
-  local s = stream.caml_stream_empty(core.unit)
-  assert_equal(stream.caml_stream_peek(s), nil, "peek should return nil")
+  local s = caml_stream_empty(0)
+  assert_equal(caml_stream_peek(s), nil, "peek should return nil")
 end)
 
 test("next on empty stream raises Failure", function()
-  local s = stream.caml_stream_empty(core.unit)
+  local s = caml_stream_empty(0)
   assert_error(function()
-    stream.caml_stream_next(s)
+    caml_stream_next(s)
   end, "should raise Stream.Failure")
 end)
 
 test("junk on empty stream raises Failure", function()
-  local s = stream.caml_stream_empty(core.unit)
+  local s = caml_stream_empty(0)
   assert_error(function()
-    stream.caml_stream_junk(s)
+    caml_stream_junk(s)
   end, "should raise Stream.Failure")
 end)
 
 test("npeek on empty stream", function()
-  local s = stream.caml_stream_empty(core.unit)
-  local result = stream.caml_stream_npeek(5, s)
+  local s = caml_stream_empty(0)
+  local result = caml_stream_npeek(5, s)
   local tbl = list_to_table(result)
   assert_equal(#tbl, 0, "should return empty list")
 end)
@@ -103,36 +102,36 @@ end)
 -- Test 6-10: Stream from list
 test("stream from list", function()
   local list = make_list({1, 2, 3})
-  local s = stream.caml_stream_of_list(list)
-  assert_equal(stream.caml_stream_is_empty(s), core.false_val, "should not be empty")
+  local s = caml_stream_of_list(list)
+  assert_equal(caml_stream_is_empty(s), 0, "should not be empty")
 end)
 
 test("peek at first element", function()
   local list = make_list({1, 2, 3})
-  local s = stream.caml_stream_of_list(list)
-  assert_equal(stream.caml_stream_peek(s), 1, "should peek 1")
-  assert_equal(stream.caml_stream_peek(s), 1, "should still peek 1")
+  local s = caml_stream_of_list(list)
+  assert_equal(caml_stream_peek(s), 1, "should peek 1")
+  assert_equal(caml_stream_peek(s), 1, "should still peek 1")
 end)
 
 test("next consumes element", function()
   local list = make_list({1, 2, 3})
-  local s = stream.caml_stream_of_list(list)
-  assert_equal(stream.caml_stream_next(s), 1, "should get 1")
-  assert_equal(stream.caml_stream_next(s), 2, "should get 2")
-  assert_equal(stream.caml_stream_next(s), 3, "should get 3")
+  local s = caml_stream_of_list(list)
+  assert_equal(caml_stream_next(s), 1, "should get 1")
+  assert_equal(caml_stream_next(s), 2, "should get 2")
+  assert_equal(caml_stream_next(s), 3, "should get 3")
 end)
 
 test("junk removes element", function()
   local list = make_list({1, 2, 3})
-  local s = stream.caml_stream_of_list(list)
-  stream.caml_stream_junk(s)
-  assert_equal(stream.caml_stream_peek(s), 2, "should peek 2 after junk")
+  local s = caml_stream_of_list(list)
+  caml_stream_junk(s)
+  assert_equal(caml_stream_peek(s), 2, "should peek 2 after junk")
 end)
 
 test("npeek shows multiple elements", function()
   local list = make_list({1, 2, 3, 4, 5})
-  local s = stream.caml_stream_of_list(list)
-  local result = stream.caml_stream_npeek(3, s)
+  local s = caml_stream_of_list(list)
+  local result = caml_stream_npeek(3, s)
   local tbl = list_to_table(result)
   assert_equal(#tbl, 3, "should have 3 elements")
   assert_equal(tbl[1], 1)
@@ -142,33 +141,33 @@ end)
 
 -- Test 11-15: Stream from string
 test("stream from string", function()
-  local s = stream.caml_stream_of_string("hello")
-  assert_equal(stream.caml_stream_is_empty(s), core.false_val, "should not be empty")
+  local s = caml_stream_of_string("hello")
+  assert_equal(caml_stream_is_empty(s), 0, "should not be empty")
 end)
 
 test("peek at first character", function()
-  local s = stream.caml_stream_of_string("hello")
-  assert_equal(stream.caml_stream_peek(s), string.byte("h"), "should peek 'h'")
+  local s = caml_stream_of_string("hello")
+  assert_equal(caml_stream_peek(s), string.byte("h"), "should peek 'h'")
 end)
 
 test("consume all characters from string", function()
-  local s = stream.caml_stream_of_string("abc")
-  assert_equal(stream.caml_stream_next(s), string.byte("a"))
-  assert_equal(stream.caml_stream_next(s), string.byte("b"))
-  assert_equal(stream.caml_stream_next(s), string.byte("c"))
+  local s = caml_stream_of_string("abc")
+  assert_equal(caml_stream_next(s), string.byte("a"))
+  assert_equal(caml_stream_next(s), string.byte("b"))
+  assert_equal(caml_stream_next(s), string.byte("c"))
   assert_error(function()
-    stream.caml_stream_next(s)
+    caml_stream_next(s)
   end, "should raise Failure at end")
 end)
 
 test("stream from empty string", function()
-  local s = stream.caml_stream_of_string("")
-  assert_equal(stream.caml_stream_is_empty(s), core.true_val, "should be empty")
+  local s = caml_stream_of_string("")
+  assert_equal(caml_stream_is_empty(s), 1, "should be empty")
 end)
 
 test("npeek on string stream", function()
-  local s = stream.caml_stream_of_string("hello")
-  local result = stream.caml_stream_npeek(3, s)
+  local s = caml_stream_of_string("hello")
+  local result = caml_stream_npeek(3, s)
   local tbl = list_to_table(result)
   assert_equal(#tbl, 3)
   assert_equal(tbl[1], string.byte("h"))
@@ -188,10 +187,10 @@ test("stream from function", function()
     end
   end
 
-  local s = stream.caml_stream_from(gen)
-  assert_equal(stream.caml_stream_next(s), 1)
-  assert_equal(stream.caml_stream_next(s), 2)
-  assert_equal(stream.caml_stream_next(s), 3)
+  local s = caml_stream_from(gen)
+  assert_equal(caml_stream_next(s), 1)
+  assert_equal(caml_stream_next(s), 2)
+  assert_equal(caml_stream_next(s), 3)
 end)
 
 test("stream from function that returns nil", function()
@@ -199,8 +198,8 @@ test("stream from function that returns nil", function()
     return nil
   end
 
-  local s = stream.caml_stream_from(gen)
-  assert_equal(stream.caml_stream_is_empty(s), core.true_val)
+  local s = caml_stream_from(gen)
+  assert_equal(caml_stream_is_empty(s), 1)
 end)
 
 test("infinite stream from function", function()
@@ -210,10 +209,10 @@ test("infinite stream from function", function()
     return i
   end
 
-  local s = stream.caml_stream_from(gen)
-  assert_equal(stream.caml_stream_next(s), 1)
-  assert_equal(stream.caml_stream_next(s), 2)
-  assert_equal(stream.caml_stream_next(s), 3)
+  local s = caml_stream_from(gen)
+  assert_equal(caml_stream_next(s), 1)
+  assert_equal(caml_stream_next(s), 2)
+  assert_equal(caml_stream_next(s), 3)
   -- Can continue indefinitely
 end)
 
@@ -224,9 +223,9 @@ test("lazy evaluation of stream", function()
     return 42
   end
 
-  local s = stream.caml_stream_from(gen)
+  local s = caml_stream_from(gen)
   assert_equal(evaluated, false, "should not evaluate until needed")
-  stream.caml_stream_peek(s)
+  caml_stream_peek(s)
   assert_equal(evaluated, true, "should evaluate on peek")
 end)
 
@@ -241,9 +240,9 @@ test("stream memoization", function()
     end
   end
 
-  local s = stream.caml_stream_from(gen)
-  stream.caml_stream_peek(s)
-  stream.caml_stream_peek(s)
+  local s = caml_stream_from(gen)
+  caml_stream_peek(s)
+  caml_stream_peek(s)
   -- Peek should not call gen again
   assert_equal(call_count, 1, "should only call gen once for first element")
 end)
@@ -251,46 +250,46 @@ end)
 -- Test 21-25: Cons operation
 test("cons prepends element", function()
   local list = make_list({2, 3})
-  local s1 = stream.caml_stream_of_list(list)
-  local s2 = stream.caml_stream_cons(1, s1)
-  assert_equal(stream.caml_stream_next(s2), 1)
-  assert_equal(stream.caml_stream_next(s2), 2)
-  assert_equal(stream.caml_stream_next(s2), 3)
+  local s1 = caml_stream_of_list(list)
+  local s2 = caml_stream_cons(1, s1)
+  assert_equal(caml_stream_next(s2), 1)
+  assert_equal(caml_stream_next(s2), 2)
+  assert_equal(caml_stream_next(s2), 3)
 end)
 
 test("cons to empty stream", function()
-  local s1 = stream.caml_stream_empty(core.unit)
-  local s2 = stream.caml_stream_cons(42, s1)
-  assert_equal(stream.caml_stream_next(s2), 42)
-  assert_equal(stream.caml_stream_is_empty(s2), core.true_val)
+  local s1 = caml_stream_empty(0)
+  local s2 = caml_stream_cons(42, s1)
+  assert_equal(caml_stream_next(s2), 42)
+  assert_equal(caml_stream_is_empty(s2), 1)
 end)
 
 test("multiple cons operations", function()
-  local s = stream.caml_stream_empty(core.unit)
-  s = stream.caml_stream_cons(3, s)
-  s = stream.caml_stream_cons(2, s)
-  s = stream.caml_stream_cons(1, s)
-  assert_equal(stream.caml_stream_next(s), 1)
-  assert_equal(stream.caml_stream_next(s), 2)
-  assert_equal(stream.caml_stream_next(s), 3)
+  local s = caml_stream_empty(0)
+  s = caml_stream_cons(3, s)
+  s = caml_stream_cons(2, s)
+  s = caml_stream_cons(1, s)
+  assert_equal(caml_stream_next(s), 1)
+  assert_equal(caml_stream_next(s), 2)
+  assert_equal(caml_stream_next(s), 3)
 end)
 
 test("cons preserves tail", function()
   local list = make_list({2, 3, 4})
-  local s1 = stream.caml_stream_of_list(list)
-  local s2 = stream.caml_stream_cons(1, s1)
+  local s1 = caml_stream_of_list(list)
+  local s2 = caml_stream_cons(1, s1)
 
-  stream.caml_stream_next(s2)  -- consume 1 from s2
+  caml_stream_next(s2)  -- consume 1 from s2
   -- s1 should still have all its elements
-  assert_equal(stream.caml_stream_peek(s1), 2)
+  assert_equal(caml_stream_peek(s1), 2)
 end)
 
 test("npeek after cons", function()
   local list = make_list({2, 3})
-  local s1 = stream.caml_stream_of_list(list)
-  local s2 = stream.caml_stream_cons(1, s1)
+  local s1 = caml_stream_of_list(list)
+  local s2 = caml_stream_cons(1, s1)
 
-  local result = stream.caml_stream_npeek(3, s2)
+  local result = caml_stream_npeek(3, s2)
   local tbl = list_to_table(result)
   assert_equal(#tbl, 3)
   assert_equal(tbl[1], 1)
@@ -301,32 +300,32 @@ end)
 -- Test 26-30: Stream iteration and counting
 test("iter over stream elements", function()
   local list = make_list({1, 2, 3})
-  local s = stream.caml_stream_of_list(list)
+  local s = caml_stream_of_list(list)
 
   local sum = 0
-  stream.caml_stream_iter(function(x)
+  caml_stream_iter(function(x)
     sum = sum + x
   end, s)
 
   assert_equal(sum, 6, "sum should be 6")
-  assert_equal(stream.caml_stream_is_empty(s), core.true_val, "stream should be consumed")
+  assert_equal(caml_stream_is_empty(s), 1, "stream should be consumed")
 end)
 
 test("count stream elements", function()
   local list = make_list({1, 2, 3, 4, 5})
-  local s = stream.caml_stream_of_list(list)
-  assert_equal(stream.caml_stream_count(s), 5)
+  local s = caml_stream_of_list(list)
+  assert_equal(caml_stream_count(s), 5)
 end)
 
 test("count empty stream", function()
-  local s = stream.caml_stream_empty(core.unit)
-  assert_equal(stream.caml_stream_count(s), 0)
+  local s = caml_stream_empty(0)
+  assert_equal(caml_stream_count(s), 0)
 end)
 
 test("iter over empty stream", function()
-  local s = stream.caml_stream_empty(core.unit)
+  local s = caml_stream_empty(0)
   local called = false
-  stream.caml_stream_iter(function(x)
+  caml_stream_iter(function(x)
     called = true
   end, s)
   assert_equal(called, false, "should not call function")
@@ -334,57 +333,57 @@ end)
 
 test("stream from array", function()
   local arr = {tag = 0, [0] = 3, [1] = 10, [2] = 20, [3] = 30}
-  local s = stream.caml_stream_of_array(arr)
-  assert_equal(stream.caml_stream_next(s), 10)
-  assert_equal(stream.caml_stream_next(s), 20)
-  assert_equal(stream.caml_stream_next(s), 30)
+  local s = caml_stream_of_array(arr)
+  assert_equal(caml_stream_next(s), 10)
+  assert_equal(caml_stream_next(s), 20)
+  assert_equal(caml_stream_next(s), 30)
 end)
 
 -- Test 31-35: Edge cases
 test("npeek more than available", function()
   local list = make_list({1, 2})
-  local s = stream.caml_stream_of_list(list)
-  local result = stream.caml_stream_npeek(10, s)
+  local s = caml_stream_of_list(list)
+  local result = caml_stream_npeek(10, s)
   local tbl = list_to_table(result)
   assert_equal(#tbl, 2, "should return only available elements")
 end)
 
 test("npeek with 0", function()
   local list = make_list({1, 2, 3})
-  local s = stream.caml_stream_of_list(list)
-  local result = stream.caml_stream_npeek(0, s)
+  local s = caml_stream_of_list(list)
+  local result = caml_stream_npeek(0, s)
   local tbl = list_to_table(result)
   assert_equal(#tbl, 0)
 end)
 
 test("stream exhaustion", function()
   local list = make_list({1})
-  local s = stream.caml_stream_of_list(list)
-  stream.caml_stream_next(s)
-  assert_equal(stream.caml_stream_is_empty(s), core.true_val)
+  local s = caml_stream_of_list(list)
+  caml_stream_next(s)
+  assert_equal(caml_stream_is_empty(s), 1)
   assert_error(function()
-    stream.caml_stream_next(s)
+    caml_stream_next(s)
   end)
 end)
 
 test("peek after partial consumption", function()
   local list = make_list({1, 2, 3})
-  local s = stream.caml_stream_of_list(list)
-  stream.caml_stream_next(s)  -- consume 1
-  assert_equal(stream.caml_stream_peek(s), 2)
-  assert_equal(stream.caml_stream_peek(s), 2, "peek should be idempotent")
+  local s = caml_stream_of_list(list)
+  caml_stream_next(s)  -- consume 1
+  assert_equal(caml_stream_peek(s), 2)
+  assert_equal(caml_stream_peek(s), 2, "peek should be idempotent")
 end)
 
 test("mixed peek and next operations", function()
   local list = make_list({1, 2, 3, 4})
-  local s = stream.caml_stream_of_list(list)
+  local s = caml_stream_of_list(list)
 
-  assert_equal(stream.caml_stream_peek(s), 1)
-  assert_equal(stream.caml_stream_next(s), 1)
-  assert_equal(stream.caml_stream_peek(s), 2)
-  stream.caml_stream_junk(s)
-  assert_equal(stream.caml_stream_next(s), 3)
-  assert_equal(stream.caml_stream_peek(s), 4)
+  assert_equal(caml_stream_peek(s), 1)
+  assert_equal(caml_stream_next(s), 1)
+  assert_equal(caml_stream_peek(s), 2)
+  caml_stream_junk(s)
+  assert_equal(caml_stream_next(s), 3)
+  assert_equal(caml_stream_peek(s), 4)
 end)
 
 -- Test 36-38: Performance tests
@@ -394,11 +393,11 @@ test("large stream from list", function()
     tbl[i] = i
   end
   local list = make_list(tbl)
-  local s = stream.caml_stream_of_list(list)
+  local s = caml_stream_of_list(list)
 
   local count = 0
-  while stream.caml_stream_peek(s) ~= nil do
-    stream.caml_stream_junk(s)
+  while caml_stream_peek(s) ~= nil do
+    caml_stream_junk(s)
     count = count + 1
   end
   assert_equal(count, 1000)
@@ -406,8 +405,8 @@ end)
 
 test("large string stream", function()
   local str = string.rep("a", 1000)
-  local s = stream.caml_stream_of_string(str)
-  assert_equal(stream.caml_stream_count(s), 1000)
+  local s = caml_stream_of_string(str)
+  assert_equal(caml_stream_count(s), 1000)
 end)
 
 test("function generator performance", function()
@@ -421,8 +420,8 @@ test("function generator performance", function()
     end
   end
 
-  local s = stream.caml_stream_from(gen)
-  local count = stream.caml_stream_count(s)
+  local s = caml_stream_from(gen)
+  local count = caml_stream_count(s)
   assert_equal(count, 1000)
 end)
 

@@ -15,42 +15,18 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
---- Stream Module
---
--- Provides lazy stream operations for on-demand sequence processing.
--- Streams are lazy sequences where elements are computed only when needed.
-
-local core = require("core")
-
-local M = {}
-
--- Stream structure:
--- {
---   data = {
---     state = "empty" | "cons" | "thunk",
---     -- For "cons": head = <value>, tail = <stream>
---     -- For "thunk": func = <function>, args = <table>
---   }
--- }
-
---- Raise Stream.Failure exception
-local function raise_failure()
-  local fail = require("fail")
-  -- Stream.Failure is a standard OCaml exception
+--Provides: caml_stream_raise_failure
+function caml_stream_raise_failure()
   error("Stream.Failure")
 end
 
---- Force evaluation of a stream thunk
--- @param stream table Stream
--- @return string New state ("empty" or "cons")
-local function force(stream)
+--Provides: caml_stream_force
+function caml_stream_force(stream)
   local data = stream.data
   if data.state == "thunk" then
-    -- Evaluate the thunk
     local func = data.func
     local result = func()
 
-    -- Update stream with result
     if result == nil then
       data.state = "empty"
       data.func = nil
@@ -64,10 +40,8 @@ local function force(stream)
   return data.state
 end
 
---- Create empty stream
--- @param _unit number Unit value
--- @return table Empty stream
-function M.caml_stream_empty(_unit)
+--Provides: caml_stream_empty
+function caml_stream_empty(_unit)
   return {
     data = {
       state = "empty"
@@ -75,11 +49,10 @@ function M.caml_stream_empty(_unit)
   }
 end
 
---- Peek at first element without consuming
--- @param stream table Stream
--- @return any|nil First element or nil if empty
-function M.caml_stream_peek(stream)
-  local state = force(stream)
+--Provides: caml_stream_peek
+--Requires: caml_stream_force
+function caml_stream_peek(stream)
+  local state = caml_stream_force(stream)
   if state == "empty" then
     return nil
   else
@@ -87,19 +60,17 @@ function M.caml_stream_peek(stream)
   end
 end
 
---- Get and remove first element
--- @param stream table Stream
--- @return any First element (raises Failure if empty)
-function M.caml_stream_next(stream)
-  local state = force(stream)
+--Provides: caml_stream_next
+--Requires: caml_stream_force caml_stream_raise_failure
+function caml_stream_next(stream)
+  local state = caml_stream_force(stream)
   if state == "empty" then
-    raise_failure()
+    caml_stream_raise_failure()
   end
 
   local head = stream.data.head
   local tail = stream.data.tail
 
-  -- Update stream to point to tail
   if tail then
     stream.data = tail.data
   else
@@ -109,43 +80,38 @@ function M.caml_stream_next(stream)
   return head
 end
 
---- Remove first element without returning it
--- @param stream table Stream
--- @return number Unit value
-function M.caml_stream_junk(stream)
-  local state = force(stream)
+--Provides: caml_stream_junk
+--Requires: caml_stream_force caml_stream_raise_failure
+function caml_stream_junk(stream)
+  local state = caml_stream_force(stream)
   if state == "empty" then
-    raise_failure()
+    caml_stream_raise_failure()
   end
 
   local tail = stream.data.tail
 
-  -- Update stream to point to tail
   if tail then
     stream.data = tail.data
   else
     stream.data = { state = "empty" }
   end
 
-  return core.unit
+  return 0
 end
 
---- Peek at N elements without consuming
--- @param n number Number of elements to peek
--- @param stream table Stream
--- @return table OCaml list of peeked elements
-function M.caml_stream_npeek(n, stream)
-  local result = {tag = 0}  -- Empty list initially
+--Provides: caml_stream_npeek
+--Requires: caml_stream_force
+function caml_stream_npeek(n, stream)
+  local result = {tag = 0}
   local current = stream
   local count = 0
 
   while count < n do
-    local state = force(current)
+    local state = caml_stream_force(current)
     if state == "empty" then
       break
     end
 
-    -- Build list (in reverse order, then reverse at end)
     table.insert(result, current.data.head)
     count = count + 1
 
@@ -155,8 +121,7 @@ function M.caml_stream_npeek(n, stream)
     end
   end
 
-  -- Convert to OCaml list (reverse order)
-  local ocaml_list = {tag = 0}  -- Empty list: []
+  local ocaml_list = {tag = 0}
   for i = #result, 1, -1 do
     ocaml_list = {tag = 0, [1] = result[i], [2] = ocaml_list}
   end
@@ -164,22 +129,19 @@ function M.caml_stream_npeek(n, stream)
   return ocaml_list
 end
 
---- Check if stream is empty
--- @param stream table Stream
--- @return number 1 (true) or 0 (false)
-function M.caml_stream_is_empty(stream)
-  local state = force(stream)
+--Provides: caml_stream_is_empty
+--Requires: caml_stream_force
+function caml_stream_is_empty(stream)
+  local state = caml_stream_force(stream)
   if state == "empty" then
-    return core.true_val
+    return 1
   else
-    return core.false_val
+    return 0
   end
 end
 
---- Create stream from function
--- @param func function Generator function (returns value or nil)
--- @return table Stream
-function M.caml_stream_from(func)
+--Provides: caml_stream_from
+function caml_stream_from(func)
   local function thunk()
     local value = func()
     if value == nil then
@@ -187,7 +149,7 @@ function M.caml_stream_from(func)
     else
       return {
         head = value,
-        tail = M.caml_stream_from(func)
+        tail = caml_stream_from(func)
       }
     end
   end
@@ -200,13 +162,11 @@ function M.caml_stream_from(func)
   }
 end
 
---- Create stream from list
--- @param list table OCaml list
--- @return table Stream
-function M.caml_stream_of_list(list)
+--Provides: caml_stream_of_list
+--Requires: caml_stream_empty
+function caml_stream_of_list(list)
   if list.tag == 0 and not list[1] then
-    -- Empty list
-    return M.caml_stream_empty(core.unit)
+    return caml_stream_empty(0)
   end
 
   local function thunk()
@@ -215,7 +175,7 @@ function M.caml_stream_of_list(list)
     else
       return {
         head = list[1],
-        tail = M.caml_stream_of_list(list[2] or {tag = 0})
+        tail = caml_stream_of_list(list[2] or {tag = 0})
       }
     end
   end
@@ -228,10 +188,9 @@ function M.caml_stream_of_list(list)
   }
 end
 
---- Create stream from string
--- @param str string String to stream
--- @return table Stream of characters
-function M.caml_stream_of_string(str)
+--Provides: caml_stream_of_string
+--Requires: caml_stream_from
+function caml_stream_of_string(str)
   local pos = 1
   local len = #str
 
@@ -244,34 +203,26 @@ function M.caml_stream_of_string(str)
     return char
   end
 
-  return M.caml_stream_from(generator)
+  return caml_stream_from(generator)
 end
 
---- Create stream from channel
--- @param chan number Channel ID
--- @return table Stream of characters
-function M.caml_stream_of_channel(chan)
+--Provides: caml_stream_of_channel
+--Requires: caml_stream_from caml_ml_input_char
+function caml_stream_of_channel(chan)
   local function generator()
-    -- Lazy load io module to avoid circular dependency
-    local io = require("io")
-
-    -- Try to read one character
-    local ok, result = pcall(io.caml_ml_input_char, chan)
+    local ok, result = pcall(caml_ml_input_char, chan)
     if ok then
       return result
     else
-      return nil  -- EOF or error
+      return nil
     end
   end
 
-  return M.caml_stream_from(generator)
+  return caml_stream_from(generator)
 end
 
---- Cons: prepend element to stream
--- @param head any Element to prepend
--- @param tail table Stream tail
--- @return table New stream
-function M.caml_stream_cons(head, tail)
+--Provides: caml_stream_cons
+function caml_stream_cons(head, tail)
   return {
     data = {
       state = "cons",
@@ -281,12 +232,11 @@ function M.caml_stream_cons(head, tail)
   }
 end
 
---- Create stream from array
--- @param arr table OCaml array
--- @return table Stream
-function M.caml_stream_of_array(arr)
-  local len = arr[0]  -- Length is stored at index 0
-  local pos = 1  -- Start at Lua index 1 (OCaml index 0)
+--Provides: caml_stream_of_array
+--Requires: caml_stream_from
+function caml_stream_of_array(arr)
+  local len = arr[0]
+  local pos = 1
 
   local function generator()
     if pos > len then
@@ -297,16 +247,14 @@ function M.caml_stream_of_array(arr)
     return value
   end
 
-  return M.caml_stream_from(generator)
+  return caml_stream_from(generator)
 end
 
---- Iterate over stream elements
--- @param f function Function to call for each element
--- @param stream table Stream
--- @return number Unit value
-function M.caml_stream_iter(f, stream)
+--Provides: caml_stream_iter
+--Requires: caml_stream_force
+function caml_stream_iter(f, stream)
   while true do
-    local state = force(stream)
+    local state = caml_stream_force(stream)
     if state == "empty" then
       break
     end
@@ -321,16 +269,15 @@ function M.caml_stream_iter(f, stream)
     end
   end
 
-  return core.unit
+  return 0
 end
 
---- Count elements in stream (consumes stream)
--- @param stream table Stream
--- @return number Number of elements
-function M.caml_stream_count(stream)
+--Provides: caml_stream_count
+--Requires: caml_stream_force
+function caml_stream_count(stream)
   local count = 0
   while true do
-    local state = force(stream)
+    local state = caml_stream_force(stream)
     if state == "empty" then
       break
     end
@@ -345,21 +292,3 @@ function M.caml_stream_count(stream)
   end
   return count
 end
-
--- Register primitives
-core.register("caml_stream_empty", M.caml_stream_empty)
-core.register("caml_stream_peek", M.caml_stream_peek)
-core.register("caml_stream_next", M.caml_stream_next)
-core.register("caml_stream_junk", M.caml_stream_junk)
-core.register("caml_stream_npeek", M.caml_stream_npeek)
-core.register("caml_stream_is_empty", M.caml_stream_is_empty)
-core.register("caml_stream_from", M.caml_stream_from)
-core.register("caml_stream_of_list", M.caml_stream_of_list)
-core.register("caml_stream_of_string", M.caml_stream_of_string)
-core.register("caml_stream_of_channel", M.caml_stream_of_channel)
-core.register("caml_stream_cons", M.caml_stream_cons)
-core.register("caml_stream_of_array", M.caml_stream_of_array)
-core.register("caml_stream_iter", M.caml_stream_iter)
-core.register("caml_stream_count", M.caml_stream_count)
-
-return M
