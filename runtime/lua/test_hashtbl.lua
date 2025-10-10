@@ -1,9 +1,12 @@
 #!/usr/bin/env lua
 -- Test Hashtbl module
 
--- Load hash.lua and hashtbl.lua directly (they define global caml_* functions)
-dofile("hash.lua")
-dofile("hashtbl.lua")
+-- Load dependencies in correct order
+dofile("mlBytes.lua")  -- Provides caml_bit_and, caml_bit_or, caml_bit_lshift, caml_bit_rshift
+dofile("ints.lua")     -- Provides caml_to_int32
+dofile("compare.lua")  -- Provides caml_is_ocaml_string, caml_is_ocaml_block
+dofile("hash.lua")     -- Provides caml_hash_* functions
+dofile("hashtbl.lua")  -- Provides caml_hashtbl_* functions
 
 local tests_passed = 0
 local tests_failed = 0

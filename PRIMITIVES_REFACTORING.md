@@ -55,9 +55,13 @@
   - **FIXED**: Replaced Lua 5.3+ string.pack/unpack with Lua 5.1 compatible float decomposition
   - **FIXED**: Used existing caml_is_ocaml_string and caml_is_ocaml_block from compare.lua
   - **VERIFIED**: All 64 hash tests pass, Lua 5.1 compatible, no Lua 5.3+ features
-- [ ] Task 3.4: Refactor `hashtbl.lua` - hashtable primitives (45 min + tests)
-  - **VIOLATIONS**: Local constants, local table, 3 local helper functions
-  - **STATUS**: Needs rewrite - inline constants, remove metatable, convert helpers
+- [x] Task 3.4: Refactor `hashtbl.lua` - hashtable primitives (45 min + tests)
+  - **FIXED**: Removed local constants DEFAULT_INITIAL_SIZE (inlined to 16) and LOAD_FACTOR (inlined to 0.75)
+  - **FIXED**: Removed local Hashtbl metatable and setmetatable call
+  - **FIXED**: Converted local function equal to caml_hashtbl_equal with --Provides
+  - **FIXED**: Converted local function get_bucket_index to caml_hashtbl_get_bucket_index with --Provides
+  - **FIXED**: Converted local function resize to caml_hashtbl_resize with --Provides
+  - **VERIFIED**: All 54 hashtbl tests pass, Lua 5.1 compatible
 - [ ] Task 3.5: Refactor `lazy.lua` - lazy evaluation primitives (45 min + tests)
   - **VIOLATIONS**: 3 local constants (LAZY_TAG, FORCING_TAG, FORWARD_TAG)
   - **STATUS**: Needs rewrite - inline tag constants into function bodies

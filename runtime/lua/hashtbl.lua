@@ -15,25 +15,9 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
--- Mutable hash table implementation
--- Compatible with OCaml's Hashtbl module
--- Uses polymorphic hashing and structural equality
 
---Requires: caml_hash_default
-
--- Hashtbl object
-local Hashtbl = {}
-Hashtbl.__index = Hashtbl
-
--- Default initial size
-local DEFAULT_INITIAL_SIZE = 16
-
--- Load factor threshold for resize (0.75)
-local LOAD_FACTOR = 0.75
-
--- Structural equality check
--- Compares OCaml values recursively
-local function equal(a, b)
+--Provides: caml_hashtbl_equal
+function caml_hashtbl_equal(a, b)
   if a == b then
     return true
   end
@@ -49,8 +33,6 @@ local function equal(a, b)
     return false
   end
 
-  -- Compare tables recursively
-  -- Simple structural comparison (no cycle detection for hashtbl keys)
   local len_a = #a
   local len_b = #b
 
@@ -58,14 +40,12 @@ local function equal(a, b)
     return false
   end
 
-  -- Compare array elements
   for i = 1, len_a do
-    if not equal(a[i], b[i]) then
+    if not caml_hashtbl_equal(a[i], b[i]) then
       return false
     end
   end
 
-  -- Compare tag if present
   if a.tag ~= b.tag then
     return false
   end
@@ -73,97 +53,80 @@ local function equal(a, b)
   return true
 end
 
--- Create a new hash table
--- initial_size: initial capacity (optional, default 16)
--- Returns: hash table object
---Provides: caml_hash_create
-function caml_hash_create(initial_size)
-  local size = initial_size or DEFAULT_INITIAL_SIZE
-  if size < 1 then
-    size = DEFAULT_INITIAL_SIZE
-  end
-
-  local tbl = {
-    -- Array of buckets (each bucket is a list of {key, value} pairs)
-    buckets = {},
-    -- Current number of key-value pairs
-    size = 0,
-    -- Current capacity (number of buckets)
-    capacity = size,
-  }
-
-  -- Initialize empty buckets
-  for i = 1, size do
-    tbl.buckets[i] = {}
-  end
-
-  setmetatable(tbl, Hashtbl)
-  return tbl
-end
-
--- Get bucket index for a key
-local function get_bucket_index(tbl, key)
+--Provides: caml_hashtbl_get_bucket_index
+--Requires: caml_hash_default
+function caml_hashtbl_get_bucket_index(tbl, key)
   local hash = caml_hash_default(key)
-  -- Map hash to bucket index (1-based)
   return (hash % tbl.capacity) + 1
 end
 
--- Resize the hash table when load factor exceeds threshold
-local function resize(tbl)
+--Provides: caml_hashtbl_resize
+--Requires: caml_hashtbl_get_bucket_index, caml_hashtbl_equal
+function caml_hashtbl_resize(tbl)
   local new_capacity = tbl.capacity * 2
   local old_buckets = tbl.buckets
 
-  -- Create new buckets
   tbl.buckets = {}
   for i = 1, new_capacity do
     tbl.buckets[i] = {}
   end
 
   tbl.capacity = new_capacity
+  local old_size = tbl.size
   tbl.size = 0
 
-  -- Rehash all existing entries
   for _, bucket in ipairs(old_buckets) do
     for _, entry in ipairs(bucket) do
-      caml_hash_add(tbl, entry.key, entry.value)
+      local idx = caml_hashtbl_get_bucket_index(tbl, entry.key)
+      local new_bucket = tbl.buckets[idx]
+      table.insert(new_bucket, 1, {key = entry.key, value = entry.value})
+      tbl.size = tbl.size + 1
     end
   end
 end
 
--- Add a binding to the hash table
--- Multiple bindings for the same key are allowed
--- tbl: hash table
--- key: key to add
--- value: value to associate with key
---Provides: caml_hash_add
-function caml_hash_add(tbl, key, value)
-  -- Check load factor and resize if needed
-  if tbl.size >= tbl.capacity * LOAD_FACTOR then
-    resize(tbl)
+--Provides: caml_hash_create
+function caml_hash_create(initial_size)
+  local size = initial_size or 16
+  if size < 1 then
+    size = 16
   end
 
-  local idx = get_bucket_index(tbl, key)
+  local tbl = {
+    buckets = {},
+    size = 0,
+    capacity = size,
+  }
+
+  for i = 1, size do
+    tbl.buckets[i] = {}
+  end
+
+  return tbl
+end
+
+--Provides: caml_hash_add
+--Requires: caml_hashtbl_resize, caml_hashtbl_get_bucket_index
+function caml_hash_add(tbl, key, value)
+  if tbl.size >= tbl.capacity * 0.75 then
+    caml_hashtbl_resize(tbl)
+  end
+
+  local idx = caml_hashtbl_get_bucket_index(tbl, key)
   local bucket = tbl.buckets[idx]
 
-  -- Add new entry to bucket (prepend for O(1) insertion)
   table.insert(bucket, 1, {key = key, value = value})
   tbl.size = tbl.size + 1
 end
 
--- Find the value associated with a key
--- Returns the most recently added binding
--- tbl: hash table
--- key: key to find
--- Returns: value if found
--- Raises: error if not found
 --Provides: caml_hash_find
+--Requires: caml_hashtbl_get_bucket_index, caml_hashtbl_equal
 function caml_hash_find(tbl, key)
-  local idx = get_bucket_index(tbl, key)
+  local idx = caml_hashtbl_get_bucket_index(tbl, key)
   local bucket = tbl.buckets[idx]
 
-  -- Search bucket for matching key
   for _, entry in ipairs(bucket) do
-    if equal(entry.key, key) then
+    if caml_hashtbl_equal(entry.key, key) then
       return entry.value
     end
   end
@@ -171,17 +134,14 @@ function caml_hash_find(tbl, key)
   error("Not_found")
 end
 
--- Find the value associated with a key (option variant)
--- tbl: hash table
--- key: key to find
--- Returns: value if found, nil otherwise
 --Provides: caml_hash_find_opt
+--Requires: caml_hashtbl_get_bucket_index, caml_hashtbl_equal
 function caml_hash_find_opt(tbl, key)
-  local idx = get_bucket_index(tbl, key)
+  local idx = caml_hashtbl_get_bucket_index(tbl, key)
   local bucket = tbl.buckets[idx]
 
   for _, entry in ipairs(bucket) do
-    if equal(entry.key, key) then
+    if caml_hashtbl_equal(entry.key, key) then
       return entry.value
     end
   end
@@ -189,18 +149,14 @@ function caml_hash_find_opt(tbl, key)
   return nil
 end
 
--- Remove one binding for a key
--- Removes the most recently added binding
--- tbl: hash table
--- key: key to remove
 --Provides: caml_hash_remove
+--Requires: caml_hashtbl_get_bucket_index, caml_hashtbl_equal
 function caml_hash_remove(tbl, key)
-  local idx = get_bucket_index(tbl, key)
+  local idx = caml_hashtbl_get_bucket_index(tbl, key)
   local bucket = tbl.buckets[idx]
 
-  -- Find and remove first matching entry
   for i, entry in ipairs(bucket) do
-    if equal(entry.key, key) then
+    if caml_hashtbl_equal(entry.key, key) then
       table.remove(bucket, i)
       tbl.size = tbl.size - 1
       return
@@ -208,42 +164,33 @@ function caml_hash_remove(tbl, key)
   end
 end
 
--- Remove all bindings for a key, then add a single binding
--- tbl: hash table
--- key: key to replace
--- value: new value
 --Provides: caml_hash_replace
+--Requires: caml_hashtbl_get_bucket_index, caml_hashtbl_equal
 function caml_hash_replace(tbl, key, value)
-  local idx = get_bucket_index(tbl, key)
+  local idx = caml_hashtbl_get_bucket_index(tbl, key)
   local bucket = tbl.buckets[idx]
 
-  -- Remove all existing bindings for this key
   local removed_count = 0
   for i = #bucket, 1, -1 do
-    if equal(bucket[i].key, key) then
+    if caml_hashtbl_equal(bucket[i].key, key) then
       table.remove(bucket, i)
       removed_count = removed_count + 1
     end
   end
 
-  -- Add new binding
   table.insert(bucket, 1, {key = key, value = value})
 
-  -- Update size (removed N, added 1)
   tbl.size = tbl.size - removed_count + 1
 end
 
--- Check if a key exists in the hash table
--- tbl: hash table
--- key: key to check
--- Returns: true if key exists, false otherwise
 --Provides: caml_hash_mem
+--Requires: caml_hashtbl_get_bucket_index, caml_hashtbl_equal
 function caml_hash_mem(tbl, key)
-  local idx = get_bucket_index(tbl, key)
+  local idx = caml_hashtbl_get_bucket_index(tbl, key)
   local bucket = tbl.buckets[idx]
 
   for _, entry in ipairs(bucket) do
-    if equal(entry.key, key) then
+    if caml_hashtbl_equal(entry.key, key) then
       return true
     end
   end
@@ -251,16 +198,11 @@ function caml_hash_mem(tbl, key)
   return false
 end
 
--- Get the number of bindings in the hash table
--- tbl: hash table
--- Returns: number of bindings
 --Provides: caml_hash_length
 function caml_hash_length(tbl)
   return tbl.size
 end
 
--- Remove all bindings from the hash table
--- tbl: hash table
 --Provides: caml_hash_clear
 function caml_hash_clear(tbl)
   for i = 1, tbl.capacity do
@@ -269,9 +211,6 @@ function caml_hash_clear(tbl)
   tbl.size = 0
 end
 
--- Iterate over all bindings in the hash table
--- tbl: hash table
--- f: function(key, value) to call for each binding
 --Provides: caml_hash_iter
 function caml_hash_iter(tbl, f)
   for _, bucket in ipairs(tbl.buckets) do
@@ -281,11 +220,6 @@ function caml_hash_iter(tbl, f)
   end
 end
 
--- Fold over all bindings in the hash table
--- tbl: hash table
--- f: function(key, value, acc) to call for each binding
--- init: initial accumulator value
--- Returns: final accumulator value
 --Provides: caml_hash_fold
 function caml_hash_fold(tbl, f, init)
   local acc = init
@@ -297,8 +231,6 @@ function caml_hash_fold(tbl, f, init)
   return acc
 end
 
--- Iterator for use in for loops
--- Returns iterator that yields key, value pairs
 --Provides: caml_hash_entries
 function caml_hash_entries(tbl)
   local bucket_idx = 1
@@ -314,7 +246,6 @@ function caml_hash_entries(tbl)
         return entry.key, entry.value
       end
 
-      -- Move to next bucket
       bucket_idx = bucket_idx + 1
       entry_idx = 0
     end
@@ -323,9 +254,6 @@ function caml_hash_entries(tbl)
   end
 end
 
--- Get all keys in the hash table
--- tbl: hash table
--- Returns: array of keys
 --Provides: caml_hash_keys
 function caml_hash_keys(tbl)
   local keys = {}
@@ -337,9 +265,6 @@ function caml_hash_keys(tbl)
   return keys
 end
 
--- Get all values in the hash table
--- tbl: hash table
--- Returns: array of values
 --Provides: caml_hash_values
 function caml_hash_values(tbl)
   local values = {}
@@ -351,9 +276,6 @@ function caml_hash_values(tbl)
   return values
 end
 
--- Convert hash table to array of {key, value} pairs
--- tbl: hash table
--- Returns: array of pairs
 --Provides: caml_hash_to_array
 function caml_hash_to_array(tbl)
   local result = {}
@@ -365,9 +287,6 @@ function caml_hash_to_array(tbl)
   return result
 end
 
--- Get statistics about the hash table (for debugging/testing)
--- tbl: hash table
--- Returns: table with statistics
 --Provides: caml_hash_stats
 function caml_hash_stats(tbl)
   local max_bucket_size = 0
