@@ -1039,8 +1039,9 @@ test("marshal error handling - truncated header", function()
   local filename = make_temp_file()
 
   -- Write partial header (only 10 bytes of 20) using low-level file I/O
+  -- Lua 5.1 doesn't support \x hex escapes, use string.char() instead
   local file = io.open(filename, "wb")
-  local partial_header = "\x84\x95\xA6\xBE\x00\x00\x00\x08\x00\x00"
+  local partial_header = string.char(0x84, 0x95, 0xA6, 0xBE, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00)
   file:write(partial_header)
   file:close()
 
@@ -1093,8 +1094,13 @@ test("marshal error handling - corrupted magic number", function()
   local filename = make_temp_file()
 
   -- Write invalid magic number using low-level file I/O
+  -- Lua 5.1 doesn't support \x hex escapes, use string.char() instead
   local file = io.open(filename, "wb")
-  local invalid_header = "\xFF\xFF\xFF\xFF\x00\x00\x00\x08\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+  local invalid_header = string.char(
+    0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x08,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00
+  )
   local fake_data = "12345678"
   file:write(invalid_header .. fake_data)
   file:close()

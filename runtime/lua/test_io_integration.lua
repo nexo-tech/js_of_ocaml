@@ -323,7 +323,8 @@ test("binary mode preserves all bytes", function()
   local filename = "/tmp/test_binary_mode.dat"
 
   -- Write binary data including null bytes and special characters
-  local data = "\x00\x01\x02\xFF\xFE"
+  -- Lua 5.1 doesn't support \x hex escapes, use string.char() instead
+  local data = string.char(0x00, 0x01, 0x02, 0xFF, 0xFE)
   local chan = open_write(filename, true)
   output_string(chan, data)
   caml_ml_flush(chan)
