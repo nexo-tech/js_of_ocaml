@@ -93,9 +93,10 @@
   - **FIXED**: ERRCODE=256 inlined in error handling code
   - **FIXED**: Converted local variable caml_parser_trace to global caml_parser_trace_flag
   - **VERIFIED**: All 24 parsing tests pass, parser state machine working correctly
-- [ ] Task 3.11: Refactor `queue.lua` - queue primitives (30 min + tests)
-  - **VIOLATIONS**: Local table with metatable
-  - **STATUS**: Needs rewrite - remove metatable pattern, redesign with flat functions
+- [x] Task 3.11: Refactor `queue.lua` - queue primitives (30 min + tests)
+  - **FIXED**: Removed local Queue table with __index metatable
+  - **FIXED**: Removed setmetatable call in caml_queue_create
+  - **VERIFIED**: All 30 queue tests pass, FIFO operations working correctly with flat table structure
 - [x] Task 3.12: Refactor `result.lua` - result primitives (30 min + tests)
   - **VERIFIED**: Clean (documentation comments removed)
 - [ ] Task 3.13: Refactor `set.lua` - set primitives (45 min + tests)
