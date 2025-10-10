@@ -119,10 +119,8 @@ function caml_buffer_clear(buffer)
 end
 
 --Provides: caml_buffer_add_printf
---Requires: caml_ocaml_string_to_lua, caml_buffer_add_string
+--Requires: caml_ocaml_string_to_lua, caml_buffer_add_string, caml_format_int, caml_format_float, caml_format_string, caml_format_char
 function caml_buffer_add_printf(buffer, fmt, ...)
-  local format = package.loaded.format or require("format")
-
   local fmt_str = caml_ocaml_string_to_lua(fmt)
   local args = {...}
   local arg_idx = 1
@@ -156,25 +154,25 @@ function caml_buffer_add_printf(buffer, fmt, ...)
         table.insert(result_parts, "%")
       elseif conv == "d" or conv == "i" or conv == "u" or conv == "x" or conv == "X" or conv == "o" then
         if arg_idx <= #args then
-          local formatted = format.caml_format_int("%" .. spec, args[arg_idx])
+          local formatted = caml_format_int("%" .. spec, args[arg_idx])
           table.insert(result_parts, caml_ocaml_string_to_lua(formatted))
           arg_idx = arg_idx + 1
         end
       elseif conv == "f" or conv == "F" or conv == "e" or conv == "E" or conv == "g" or conv == "G" then
         if arg_idx <= #args then
-          local formatted = format.caml_format_float("%" .. spec, args[arg_idx])
+          local formatted = caml_format_float("%" .. spec, args[arg_idx])
           table.insert(result_parts, caml_ocaml_string_to_lua(formatted))
           arg_idx = arg_idx + 1
         end
       elseif conv == "s" then
         if arg_idx <= #args then
-          local formatted = format.caml_format_string("%" .. spec, args[arg_idx])
+          local formatted = caml_format_string("%" .. spec, args[arg_idx])
           table.insert(result_parts, caml_ocaml_string_to_lua(formatted))
           arg_idx = arg_idx + 1
         end
       elseif conv == "c" then
         if arg_idx <= #args then
-          local formatted = format.caml_format_char("%" .. spec, args[arg_idx])
+          local formatted = caml_format_char("%" .. spec, args[arg_idx])
           table.insert(result_parts, caml_ocaml_string_to_lua(formatted))
           arg_idx = arg_idx + 1
         end

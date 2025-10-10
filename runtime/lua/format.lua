@@ -15,12 +15,10 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
--- Format string parsing and formatting for Printf/Scanf support
 
 --Provides: caml_parse_format
 function caml_parse_format(fmt)
   if type(fmt) == "table" then
-    -- OCaml string (bytes array)
     local chars = {}
     for i = 1, #fmt do
       table.insert(chars, string.char(fmt[i]))
@@ -64,7 +62,6 @@ function caml_parse_format(fmt)
       f.alternate = true
       i = i + 1
     elseif c >= "1" and c <= "9" then
-      -- Parse width
       f.width = 0
       while i <= len do
         local digit = fmt:byte(i) - 48
@@ -76,7 +73,6 @@ function caml_parse_format(fmt)
         end
       end
     elseif c == "." then
-      -- Parse precision
       f.prec = 0
       i = i + 1
       while i <= len do
@@ -126,7 +122,6 @@ function caml_parse_format(fmt)
       f.conv = "c"
       i = i + 1
     else
-      -- Unknown character, skip it
       i = i + 1
     end
   end
@@ -142,7 +137,6 @@ function caml_finish_formatting(f, rawbuffer)
 
   local len = #rawbuffer
 
-  -- Adjust len to reflect additional chars (sign, etc)
   if f.signedconv and (f.sign < 0 or f.signstyle ~= "-") then
     len = len + 1
   end
@@ -154,17 +148,14 @@ function caml_finish_formatting(f, rawbuffer)
     end
   end
 
-  -- Build the formatted string
   local buffer = ""
 
-  -- Right justify with space padding
   if f.justify == "+" and f.filler == " " then
     for i = len + 1, f.width do
       buffer = buffer .. " "
     end
   end
 
-  -- Add sign
   if f.signedconv then
     if f.sign < 0 then
       buffer = buffer .. "-"
@@ -173,7 +164,6 @@ function caml_finish_formatting(f, rawbuffer)
     end
   end
 
-  -- Add alternate prefix
   if f.alternate and f.base == 8 then
     buffer = buffer .. "0"
   end
@@ -181,24 +171,20 @@ function caml_finish_formatting(f, rawbuffer)
     buffer = buffer .. (f.uppercase and "0X" or "0x")
   end
 
-  -- Right justify with zero padding
   if f.justify == "+" and f.filler == "0" then
     for i = len + 1, f.width do
       buffer = buffer .. "0"
     end
   end
 
-  -- Add the actual content
   buffer = buffer .. rawbuffer
 
-  -- Left justify
   if f.justify == "-" then
     for i = len + 1, f.width do
       buffer = buffer .. " "
     end
   end
 
-  -- Convert to OCaml string (bytes array)
   local result = {}
   for i = 1, #buffer do
     result[i] = buffer:byte(i)
@@ -206,12 +192,11 @@ function caml_finish_formatting(f, rawbuffer)
   return result
 end
 
--- Helper: Convert OCaml string to Lua string
-local function ocaml_string_to_lua(s)
+--Provides: caml_ocaml_string_to_lua
+function caml_ocaml_string_to_lua(s)
   if type(s) == "string" then
     return s
   end
-  -- OCaml string is a byte array
   local chars = {}
   for i = 1, #s do
     table.insert(chars, string.char(s[i]))
@@ -219,8 +204,8 @@ local function ocaml_string_to_lua(s)
   return table.concat(chars)
 end
 
--- Helper: Convert Lua string to OCaml string (byte array)
-local function lua_string_to_ocaml(s)
+--Provides: caml_lua_string_to_ocaml
+function caml_lua_string_to_ocaml(s)
   local result = {}
   for i = 1, #s do
     result[i] = s:byte(i)
@@ -228,8 +213,8 @@ local function lua_string_to_ocaml(s)
   return result
 end
 
--- Helper: Repeat a string n times
-local function str_repeat(n, s)
+--Provides: caml_str_repeat
+function caml_str_repeat(n, s)
   local result = {}
   for i = 1, n do
     table.insert(result, s)
@@ -237,194 +222,8 @@ local function str_repeat(n, s)
   return table.concat(result)
 end
 
---Provides: caml_format_int
-function caml_format_int(fmt, i)
-  local fmt_str = ocaml_string_to_lua(fmt)
-
-  -- Fast path for simple %d
-  if fmt_str == "%d" then
-    return lua_string_to_ocaml(tostring(i))
-  end
-
-  local f = caml_parse_format(fmt)
-
-  -- Handle negative numbers
-  if i < 0 then
-    if f.signedconv then
-      f.sign = -1
-      i = -i
-    else
-      -- Unsigned conversion of negative number
-      -- In Lua, we need to handle this carefully
-      -- For 32-bit integers: add 2^32
-      i = i + 4294967296  -- 2^32
-    end
-  end
-
-  -- Convert to string in the appropriate base
-  local s
-  if f.base == 10 then
-    s = string.format("%d", math.floor(i))
-  elseif f.base == 16 then
-    s = string.format("%x", math.floor(i))
-  elseif f.base == 8 then
-    s = string.format("%o", math.floor(i))
-  else
-    s = tostring(math.floor(i))
-  end
-
-  -- Apply precision (minimum number of digits)
-  if f.prec >= 0 then
-    f.filler = " "
-    local n = f.prec - #s
-    if n > 0 then
-      s = str_repeat(n, "0") .. s
-    end
-  end
-
-  return caml_finish_formatting(f, s)
-end
-
---Provides: caml_format_float
-function caml_format_float(fmt, x)
-  local f = caml_parse_format(fmt)
-  local prec = f.prec < 0 and 6 or f.prec
-
-  -- Handle sign
-  if x < 0 or (x == 0 and 1/x == -math.huge) then
-    f.sign = -1
-    x = -x
-  end
-
-  local s
-
-  -- Handle special values
-  if x ~= x then  -- NaN
-    s = "nan"
-    f.filler = " "
-  elseif x == math.huge then  -- Infinity
-    s = "inf"
-    f.filler = " "
-  else
-    -- Format according to conversion type
-    if f.conv == "e" then
-      -- Exponential notation
-      s = string.format("%." .. prec .. "e", x)
-      -- Ensure exponent has at least two digits
-      s = s:gsub("e([+-])(%d)$", "e%10%2")
-    elseif f.conv == "f" then
-      -- Fixed-point notation
-      s = string.format("%." .. prec .. "f", x)
-    elseif f.conv == "g" then
-      -- General format (use exponential or fixed, whichever is shorter)
-      local effective_prec = prec > 0 and prec or 1
-
-      -- Try exponential first to get the exponent
-      local exp_str = string.format("%." .. (effective_prec - 1) .. "e", x)
-      local exp_val = tonumber(exp_str:match("e([+-]%d+)$"))
-
-      if exp_val and (exp_val < -4 or x >= 1e21 or #string.format("%.0f", x) > effective_prec) then
-        -- Use exponential notation
-        s = exp_str
-        -- Remove trailing zeros
-        s = s:gsub("(%d)0+e", "%1e")
-        s = s:gsub("%.e", "e")
-        -- Ensure exponent has at least two digits
-        s = s:gsub("e([+-])(%d)$", "e%10%2")
-      else
-        -- Use fixed-point notation
-        local p = effective_prec
-        if exp_val and exp_val < 0 then
-          p = p - exp_val - 1
-          s = string.format("%." .. p .. "f", x)
-        else
-          -- Find appropriate precision
-          repeat
-            s = string.format("%." .. p .. "f", x)
-            if #s <= effective_prec + 1 then break end
-            p = p - 1
-          until p < 0
-        end
-
-        if p > 0 then
-          -- Remove trailing zeros
-          s = s:gsub("0+$", "")
-          s = s:gsub("%.$", "")
-        end
-      end
-    else
-      -- Default to fixed-point
-      s = string.format("%." .. prec .. "f", x)
-    end
-  end
-
-  return caml_finish_formatting(f, s)
-end
-
---Provides: caml_format_string
-function caml_format_string(fmt, s)
-  local f = caml_parse_format(fmt)
-  local str = ocaml_string_to_lua(s)
-
-  -- Apply precision (maximum length)
-  if f.prec >= 0 and #str > f.prec then
-    str = str:sub(1, f.prec)
-  end
-
-  -- Apply width
-  local len = #str
-  local buffer = ""
-
-  if f.justify == "+" and len < f.width then
-    -- Right justify
-    buffer = str_repeat(f.width - len, " ") .. str
-  elseif f.justify == "-" and len < f.width then
-    -- Left justify
-    buffer = str .. str_repeat(f.width - len, " ")
-  else
-    buffer = str
-  end
-
-  return lua_string_to_ocaml(buffer)
-end
-
---Provides: caml_format_char
-function caml_format_char(fmt, c)
-  local f = caml_parse_format(fmt)
-
-  -- Convert to character
-  local char
-  if type(c) == "number" then
-    char = string.char(c)
-  elseif type(c) == "string" then
-    char = c:sub(1, 1)
-  elseif type(c) == "table" and #c == 1 then
-    -- OCaml string with single char
-    char = string.char(c[1])
-  else
-    char = " "
-  end
-
-  -- Apply width
-  local buffer = ""
-  if f.justify == "+" and 1 < f.width then
-    -- Right justify
-    buffer = str_repeat(f.width - 1, " ") .. char
-  elseif f.justify == "-" and 1 < f.width then
-    -- Left justify
-    buffer = char .. str_repeat(f.width - 1, " ")
-  else
-    buffer = char
-  end
-
-  return lua_string_to_ocaml(buffer)
-end
-
--- Scanf-style parsing functions
-
--- Skip whitespace in input string starting at position pos
--- Returns new position after whitespace
-local function skip_whitespace(s, pos)
+--Provides: caml_skip_whitespace
+function caml_skip_whitespace(s, pos)
   while pos <= #s do
     local c = s:sub(pos, pos)
     if c == " " or c == "\t" or c == "\n" or c == "\r" then
@@ -436,20 +235,175 @@ local function skip_whitespace(s, pos)
   return pos
 end
 
+--Provides: caml_format_int
+--Requires: caml_ocaml_string_to_lua, caml_lua_string_to_ocaml, caml_parse_format, caml_str_repeat, caml_finish_formatting
+function caml_format_int(fmt, i)
+  local fmt_str = caml_ocaml_string_to_lua(fmt)
+
+  if fmt_str == "%d" then
+    return caml_lua_string_to_ocaml(tostring(i))
+  end
+
+  local f = caml_parse_format(fmt)
+
+  if i < 0 then
+    if f.signedconv then
+      f.sign = -1
+      i = -i
+    else
+      i = i + 4294967296  -- 2^32
+    end
+  end
+
+  local s
+  if f.base == 10 then
+    s = string.format("%d", math.floor(i))
+  elseif f.base == 16 then
+    s = string.format("%x", math.floor(i))
+  elseif f.base == 8 then
+    s = string.format("%o", math.floor(i))
+  else
+    s = tostring(math.floor(i))
+  end
+
+  if f.prec >= 0 then
+    f.filler = " "
+    local n = f.prec - #s
+    if n > 0 then
+      s = caml_str_repeat(n, "0") .. s
+    end
+  end
+
+  return caml_finish_formatting(f, s)
+end
+
+--Provides: caml_format_float
+--Requires: caml_parse_format, caml_finish_formatting
+function caml_format_float(fmt, x)
+  local f = caml_parse_format(fmt)
+  local prec = f.prec < 0 and 6 or f.prec
+
+  if x < 0 or (x == 0 and 1/x == -math.huge) then
+    f.sign = -1
+    x = -x
+  end
+
+  local s
+
+  if x ~= x then  -- NaN
+    s = "nan"
+    f.filler = " "
+  elseif x == math.huge then  -- Infinity
+    s = "inf"
+    f.filler = " "
+  else
+    if f.conv == "e" then
+      s = string.format("%." .. prec .. "e", x)
+      s = s:gsub("e([+-])(%d)$", "e%10%2")
+    elseif f.conv == "f" then
+      s = string.format("%." .. prec .. "f", x)
+    elseif f.conv == "g" then
+      local effective_prec = prec > 0 and prec or 1
+
+      local exp_str = string.format("%." .. (effective_prec - 1) .. "e", x)
+      local exp_val = tonumber(exp_str:match("e([+-]%d+)$"))
+
+      if exp_val and (exp_val < -4 or x >= 1e21 or #string.format("%.0f", x) > effective_prec) then
+        s = exp_str
+        s = s:gsub("(%d)0+e", "%1e")
+        s = s:gsub("%.e", "e")
+        s = s:gsub("e([+-])(%d)$", "e%10%2")
+      else
+        local p = effective_prec
+        if exp_val and exp_val < 0 then
+          p = p - exp_val - 1
+          s = string.format("%." .. p .. "f", x)
+        else
+          repeat
+            s = string.format("%." .. p .. "f", x)
+            if #s <= effective_prec + 1 then break end
+            p = p - 1
+          until p < 0
+        end
+
+        if p > 0 then
+          s = s:gsub("0+$", "")
+          s = s:gsub("%.$", "")
+        end
+      end
+    else
+      s = string.format("%." .. prec .. "f", x)
+    end
+  end
+
+  return caml_finish_formatting(f, s)
+end
+
+--Provides: caml_format_string
+--Requires: caml_parse_format, caml_ocaml_string_to_lua, caml_str_repeat, caml_lua_string_to_ocaml
+function caml_format_string(fmt, s)
+  local f = caml_parse_format(fmt)
+  local str = caml_ocaml_string_to_lua(s)
+
+  if f.prec >= 0 and #str > f.prec then
+    str = str:sub(1, f.prec)
+  end
+
+  local len = #str
+  local buffer = ""
+
+  if f.justify == "+" and len < f.width then
+    buffer = caml_str_repeat(f.width - len, " ") .. str
+  elseif f.justify == "-" and len < f.width then
+    buffer = str .. caml_str_repeat(f.width - len, " ")
+  else
+    buffer = str
+  end
+
+  return caml_lua_string_to_ocaml(buffer)
+end
+
+--Provides: caml_format_char
+--Requires: caml_parse_format, caml_str_repeat, caml_lua_string_to_ocaml
+function caml_format_char(fmt, c)
+  local f = caml_parse_format(fmt)
+
+  local char
+  if type(c) == "number" then
+    char = string.char(c)
+  elseif type(c) == "string" then
+    char = c:sub(1, 1)
+  elseif type(c) == "table" and #c == 1 then
+    char = string.char(c[1])
+  else
+    char = " "
+  end
+
+  local buffer = ""
+  if f.justify == "+" and 1 < f.width then
+    buffer = caml_str_repeat(f.width - 1, " ") .. char
+  elseif f.justify == "-" and 1 < f.width then
+    buffer = char .. caml_str_repeat(f.width - 1, " ")
+  else
+    buffer = char
+  end
+
+  return caml_lua_string_to_ocaml(buffer)
+end
+
 --Provides: caml_scan_int
+--Requires: caml_ocaml_string_to_lua, caml_parse_format, caml_skip_whitespace
 function caml_scan_int(s, pos, fmt)
   pos = pos or 1
-  local str = ocaml_string_to_lua(s)
+  local str = caml_ocaml_string_to_lua(s)
   local f = caml_parse_format(fmt or "%d")
 
-  -- Skip leading whitespace
-  pos = skip_whitespace(str, pos)
+  pos = caml_skip_whitespace(str, pos)
 
   if pos > #str then
     return nil, pos
   end
 
-  -- Parse sign
   local sign = 1
   local c = str:sub(pos, pos)
   if c == "-" then
@@ -463,13 +417,11 @@ function caml_scan_int(s, pos, fmt)
     return nil, pos
   end
 
-  -- Determine base
   local base = f.base
   if base == 0 then
     base = 10
   end
 
-  -- Check for base prefix (0x, 0o, 0b)
   if str:sub(pos, pos + 1) == "0x" or str:sub(pos, pos + 1) == "0X" then
     if base == 16 or base == 0 then
       base = 16
@@ -489,7 +441,6 @@ function caml_scan_int(s, pos, fmt)
     base = 8
   end
 
-  -- Parse digits
   local start_pos = pos
   local value = 0
   local found_digit = false
@@ -523,37 +474,32 @@ function caml_scan_int(s, pos, fmt)
 end
 
 --Provides: caml_scan_float
+--Requires: caml_ocaml_string_to_lua, caml_skip_whitespace
 function caml_scan_float(s, pos)
   pos = pos or 1
-  local str = ocaml_string_to_lua(s)
+  local str = caml_ocaml_string_to_lua(s)
 
-  -- Skip leading whitespace
-  pos = skip_whitespace(str, pos)
+  pos = caml_skip_whitespace(str, pos)
 
   if pos > #str then
     return nil, pos
   end
 
-  -- Try to match a float pattern
-  -- Pattern: [+-]?(\d+\.?\d*|\d*\.\d+)([eE][+-]?\d+)?
   local start_pos = pos
   local sign_str = ""
   local int_part = ""
   local frac_part = ""
   local exp_part = ""
 
-  -- Parse sign
   local c = str:sub(pos, pos)
   if c == "-" or c == "+" then
     sign_str = c
     pos = pos + 1
   end
 
-  -- Check for special values
   if str:sub(pos, pos + 2) == "nan" or str:sub(pos, pos + 2) == "NaN" then
     return 0/0, pos + 3
   end
-  -- Check for infinity (longer first)
   if str:sub(pos, pos + 7) == "infinity" or str:sub(pos, pos + 7) == "Infinity" then
     return (sign_str == "-" and -math.huge or math.huge), pos + 8
   end
@@ -561,7 +507,6 @@ function caml_scan_float(s, pos)
     return (sign_str == "-" and -math.huge or math.huge), pos + 3
   end
 
-  -- Parse integer part
   while pos <= #str do
     c = str:sub(pos, pos)
     if c >= "0" and c <= "9" then
@@ -572,7 +517,6 @@ function caml_scan_float(s, pos)
     end
   end
 
-  -- Parse decimal point and fractional part
   if pos <= #str and str:sub(pos, pos) == "." then
     pos = pos + 1
     while pos <= #str do
@@ -586,12 +530,10 @@ function caml_scan_float(s, pos)
     end
   end
 
-  -- Must have at least integer or fractional part
   if int_part == "" and frac_part == "" then
     return nil, start_pos
   end
 
-  -- Parse exponent
   if pos <= #str then
     c = str:sub(pos, pos)
     if c == "e" or c == "E" then
@@ -624,7 +566,6 @@ function caml_scan_float(s, pos)
     end
   end
 
-  -- Build the number string and convert
   local num_str = sign_str .. (int_part ~= "" and int_part or "0") ..
                   (frac_part ~= "" and ("." .. frac_part) or "") .. exp_part
   local value = tonumber(num_str)
@@ -637,18 +578,17 @@ function caml_scan_float(s, pos)
 end
 
 --Provides: caml_scan_string
+--Requires: caml_ocaml_string_to_lua, caml_skip_whitespace
 function caml_scan_string(s, pos, width)
   pos = pos or 1
-  local str = ocaml_string_to_lua(s)
+  local str = caml_ocaml_string_to_lua(s)
 
-  -- Skip leading whitespace
-  pos = skip_whitespace(str, pos)
+  pos = caml_skip_whitespace(str, pos)
 
   if pos > #str then
     return nil, pos
   end
 
-  -- Read non-whitespace characters
   local start_pos = pos
   local result = ""
   local count = 0
@@ -676,13 +616,13 @@ function caml_scan_string(s, pos, width)
 end
 
 --Provides: caml_scan_char
+--Requires: caml_ocaml_string_to_lua, caml_skip_whitespace
 function caml_scan_char(s, pos, skip_ws)
   pos = pos or 1
-  local str = ocaml_string_to_lua(s)
+  local str = caml_ocaml_string_to_lua(s)
 
-  -- Optionally skip leading whitespace (for %c with space before)
   if skip_ws then
-    pos = skip_whitespace(str, pos)
+    pos = caml_skip_whitespace(str, pos)
   end
 
   if pos > #str then
@@ -694,9 +634,10 @@ function caml_scan_char(s, pos, skip_ws)
 end
 
 --Provides: caml_sscanf
+--Requires: caml_ocaml_string_to_lua, caml_scan_int, caml_scan_float, caml_scan_string, caml_scan_char, caml_skip_whitespace
 function caml_sscanf(input, fmt)
-  local str = ocaml_string_to_lua(input)
-  local fmt_str = ocaml_string_to_lua(fmt)
+  local str = caml_ocaml_string_to_lua(input)
+  local fmt_str = caml_ocaml_string_to_lua(fmt)
 
   local results = {}
   local pos = 1
@@ -742,25 +683,21 @@ function caml_sscanf(input, fmt)
         table.insert(results, value)
         pos = new_pos
       elseif conv == "%" then
-        -- Literal %
-        pos = skip_whitespace(str, pos)
+        pos = caml_skip_whitespace(str, pos)
         if str:sub(pos, pos) ~= "%" then
           return nil
         end
         pos = pos + 1
       else
-        -- Unsupported format
         return nil
       end
 
       fmt_pos = fmt_pos + 1
     elseif c == " " or c == "\t" or c == "\n" or c == "\r" then
-      -- Whitespace in format matches any whitespace in input
-      pos = skip_whitespace(str, pos)
+      pos = caml_skip_whitespace(str, pos)
       fmt_pos = fmt_pos + 1
     else
-      -- Literal character must match
-      pos = skip_whitespace(str, pos)
+      pos = caml_skip_whitespace(str, pos)
       if str:sub(pos, pos) ~= c then
         return nil
       end
@@ -772,17 +709,12 @@ function caml_sscanf(input, fmt)
   return results
 end
 
--- Channel I/O integration
--- These functions require lazy loading of the io module to avoid circular dependencies
-
--- Printf-style channel output functions
-
 --Provides: caml_fprintf
+--Requires: caml_ocaml_string_to_lua, caml_lua_string_to_ocaml, caml_format_int, caml_format_float, caml_format_string, caml_format_char
 function caml_fprintf(chanid, fmt, ...)
-  -- Lazy load io module
   local io_module = package.loaded.io or require("io")
 
-  local fmt_str = ocaml_string_to_lua(fmt)
+  local fmt_str = caml_ocaml_string_to_lua(fmt)
   local args = {...}
   local arg_idx = 1
   local result_parts = {}
@@ -797,17 +729,14 @@ function caml_fprintf(chanid, fmt, ...)
         break
       end
 
-      -- Parse format specifier
       local spec_start = i - 1
       local spec = ""
 
-      -- Collect flags, width, precision, and conversion
       while i <= #fmt_str do
         local ch = fmt_str:sub(i, i)
         spec = spec .. ch
         i = i + 1
 
-        -- Check if we hit a conversion character
         if ch:match("[diouxXeEfFgGaAcspn%%]") then
           break
         end
@@ -820,25 +749,25 @@ function caml_fprintf(chanid, fmt, ...)
       elseif conv == "d" or conv == "i" or conv == "u" or conv == "x" or conv == "X" or conv == "o" then
         if arg_idx <= #args then
           local formatted = caml_format_int("%" .. spec, args[arg_idx])
-          table.insert(result_parts, ocaml_string_to_lua(formatted))
+          table.insert(result_parts, caml_ocaml_string_to_lua(formatted))
           arg_idx = arg_idx + 1
         end
       elseif conv == "f" or conv == "F" or conv == "e" or conv == "E" or conv == "g" or conv == "G" then
         if arg_idx <= #args then
           local formatted = caml_format_float("%" .. spec, args[arg_idx])
-          table.insert(result_parts, ocaml_string_to_lua(formatted))
+          table.insert(result_parts, caml_ocaml_string_to_lua(formatted))
           arg_idx = arg_idx + 1
         end
       elseif conv == "s" then
         if arg_idx <= #args then
           local formatted = caml_format_string("%" .. spec, args[arg_idx])
-          table.insert(result_parts, ocaml_string_to_lua(formatted))
+          table.insert(result_parts, caml_ocaml_string_to_lua(formatted))
           arg_idx = arg_idx + 1
         end
       elseif conv == "c" then
         if arg_idx <= #args then
           local formatted = caml_format_char("%" .. spec, args[arg_idx])
-          table.insert(result_parts, ocaml_string_to_lua(formatted))
+          table.insert(result_parts, caml_ocaml_string_to_lua(formatted))
           arg_idx = arg_idx + 1
         end
       end
@@ -848,9 +777,8 @@ function caml_fprintf(chanid, fmt, ...)
     end
   end
 
-  -- Write result to channel
   local output = table.concat(result_parts)
-  local output_bytes = lua_string_to_ocaml(output)
+  local output_bytes = caml_lua_string_to_ocaml(output)
   io_module.caml_ml_output_bytes(chanid, output_bytes, 0, #output_bytes)
   io_module.caml_ml_flush(chanid)
 
@@ -858,37 +786,31 @@ function caml_fprintf(chanid, fmt, ...)
 end
 
 --Provides: caml_printf
+--Requires: caml_fprintf
 function caml_printf(fmt, ...)
-  -- Lazy load io module
   local io_module = package.loaded.io or require("io")
-  -- stdout channel is typically 1
   local stdout_chanid = io_module.caml_ml_open_descriptor_out(1)
   return caml_fprintf(stdout_chanid, fmt, ...)
 end
 
 --Provides: caml_eprintf
+--Requires: caml_fprintf
 function caml_eprintf(fmt, ...)
-  -- Lazy load io module
   local io_module = package.loaded.io or require("io")
-  -- stderr channel is typically 2
   local stderr_chanid = io_module.caml_ml_open_descriptor_out(2)
   return caml_fprintf(stderr_chanid, fmt, ...)
 end
 
--- Scanf-style channel input functions
-
 --Provides: caml_fscanf
+--Requires: caml_ocaml_string_to_lua, caml_sscanf
 function caml_fscanf(chanid, fmt)
-  -- Lazy load io module
   local io_module = package.loaded.io or require("io")
 
-  -- Scan line to get the length
   local line_len = io_module.caml_ml_input_scan_line(chanid)
   if not line_len or line_len <= 0 then
     return nil
   end
 
-  -- Read the actual line data
   local line_bytes = {}
   local actual_len = io_module.caml_ml_input(chanid, line_bytes, 0, math.abs(line_len))
 
@@ -896,18 +818,15 @@ function caml_fscanf(chanid, fmt)
     return nil
   end
 
-  -- Convert to Lua string
-  local line = ocaml_string_to_lua(line_bytes)
+  local line = caml_ocaml_string_to_lua(line_bytes)
 
-  -- Parse using sscanf
   return caml_sscanf(line, fmt)
 end
 
 --Provides: caml_scanf
+--Requires: caml_fscanf
 function caml_scanf(fmt)
-  -- Lazy load io module
   local io_module = package.loaded.io or require("io")
-  -- stdin channel is typically 0
   local stdin_chanid = io_module.caml_ml_open_descriptor_in(0)
   return caml_fscanf(stdin_chanid, fmt)
 end

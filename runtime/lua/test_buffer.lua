@@ -1,7 +1,9 @@
 #!/usr/bin/env lua
 -- Test Buffer primitives
 
--- Load buffer.lua directly (it defines global caml_* functions)
+-- Load format.lua first (buffer.lua's printf function requires format functions)
+dofile("format.lua")
+-- Load buffer.lua (it defines global caml_* functions)
 dofile("buffer.lua")
 
 local tests_passed = 0

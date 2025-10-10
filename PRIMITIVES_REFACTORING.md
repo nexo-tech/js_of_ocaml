@@ -39,10 +39,14 @@
   - **FIXED**: Removed local constant DEFAULT_INITIAL_SIZE (inlined to 16)
   - **FIXED**: Removed local Buffer metatable and setmetatable call
   - **FIXED**: Converted local function ocaml_string_to_lua to caml_ocaml_string_to_lua with --Provides
-  - **VERIFIED**: 24/28 tests pass (4 printf tests depend on format.lua Task 3.2), Lua 5.1 compatible
-- [ ] Task 3.2: Refactor `format.lua` - format primitives (45 min + tests)
-  - **VIOLATIONS**: 4 local helper functions (linker cannot inline!)
-  - **STATUS**: Needs rewrite - convert helpers to caml_* functions with --Provides
+  - **FIXED**: Updated caml_buffer_add_printf to call global caml_format_* functions directly
+  - **VERIFIED**: All 28 tests pass, Lua 5.1 compatible
+- [x] Task 3.2: Refactor `format.lua` - format primitives (45 min + tests)
+  - **FIXED**: Converted local function ocaml_string_to_lua to caml_ocaml_string_to_lua with --Provides
+  - **FIXED**: Converted local function lua_string_to_ocaml to caml_lua_string_to_ocaml with --Provides
+  - **FIXED**: Converted local function str_repeat to caml_str_repeat with --Provides
+  - **FIXED**: Converted local function skip_whitespace to caml_skip_whitespace with --Provides
+  - **VERIFIED**: All 55 format tests pass, all buffer tests pass, Lua 5.1 compatible
 - [ ] Task 3.3: Refactor `hash.lua` - hashing primitives (45 min + tests)
   - **VIOLATIONS**: 9 local helper functions (bit operations)
   - **STATUS**: Needs rewrite - convert all bit helpers to caml_* functions
