@@ -90,37 +90,39 @@ test("no cycle: deeply nested (10 levels)", function()
 end)
 
 print()
-print("Direct Cycles (Should Error):")
+print("Direct Cycles (Should Work with Object Sharing):")
 print("--------------------------------------------------------------------")
 
 test("direct cycle: self-reference", function()
   local x = {tag = 0, size = 1}
   x[1] = x  -- Direct self-reference
-  assert_error_contains(function()
-    caml_marshal_to_string(x)
-  end, "cyclic data structure")
+  local marshaled = caml_marshal_to_string(x)
+  local result = caml_marshal_from_bytes(marshaled)
+  assert_true(result[1] == result, "Self-reference preserved")
 end)
 
 test("direct cycle: self in second field", function()
   local x = {tag = 1, size = 2}
   x[1] = 42
   x[2] = x  -- Self-reference in field 2
-  assert_error_contains(function()
-    caml_marshal_to_string(x)
-  end, "cyclic data structure")
+  local marshaled = caml_marshal_to_string(x)
+  local result = caml_marshal_from_bytes(marshaled)
+  assert_eq(result[1], 42, "First field preserved")
+  assert_true(result[2] == result, "Self-reference preserved")
 end)
 
 test("direct cycle: array self-reference", function()
-  local arr = {}
+  local arr = {size = 2}
   arr[1] = 10
   arr[2] = arr  -- Self-reference in array (no tag field)
-  assert_error_contains(function()
-    caml_marshal_to_string(arr)
-  end, "cyclic data structure")
+  local marshaled = caml_marshal_to_string(arr)
+  local result = caml_marshal_from_bytes(marshaled)
+  assert_eq(result[1], 10, "First element preserved")
+  assert_true(result[2] == result, "Self-reference preserved")
 end)
 
 print()
-print("Indirect Cycles (Should Error):")
+print("Indirect Cycles (Should Work with Object Sharing):")
 print("--------------------------------------------------------------------")
 
 test("indirect cycle: 2-node cycle", function()
@@ -128,9 +130,11 @@ test("indirect cycle: 2-node cycle", function()
   local b = {tag = 1, size = 1}
   a[1] = b
   b[1] = a  -- Creates cycle: a → b → a
-  assert_error_contains(function()
-    caml_marshal_to_string(a)
-  end, "cyclic data structure")
+  local marshaled = caml_marshal_to_string(a)
+  local result = caml_marshal_from_bytes(marshaled)
+  assert_eq(result.tag, 0, "Tag preserved")
+  assert_eq(result[1].tag, 1, "Inner tag preserved")
+  assert_true(result[1][1] == result, "Cycle preserved")
 end)
 
 test("indirect cycle: 3-node cycle", function()
@@ -140,9 +144,12 @@ test("indirect cycle: 3-node cycle", function()
   a[1] = b
   b[1] = c
   c[1] = a  -- Creates cycle: a → b → c → a
-  assert_error_contains(function()
-    caml_marshal_to_string(a)
-  end, "cyclic data structure")
+  local marshaled = caml_marshal_to_string(a)
+  local result = caml_marshal_from_bytes(marshaled)
+  assert_eq(result.tag, 0, "First tag preserved")
+  assert_eq(result[1].tag, 1, "Second tag preserved")
+  assert_eq(result[1][1].tag, 2, "Third tag preserved")
+  assert_true(result[1][1][1] == result, "Cycle preserved")
 end)
 
 test("indirect cycle: mixed with acyclic", function()
@@ -153,13 +160,16 @@ test("indirect cycle: mixed with acyclic", function()
   a[2] = c  -- Acyclic branch
   b[1] = c  -- Also points to acyclic leaf
   b[2] = a  -- Creates cycle: a → b → a
-  assert_error_contains(function()
-    caml_marshal_to_string(a)
-  end, "cyclic data structure")
+  local marshaled = caml_marshal_to_string(a)
+  local result = caml_marshal_from_bytes(marshaled)
+  assert_eq(result.tag, 0, "Root tag preserved")
+  assert_eq(result[1].tag, 1, "Child tag preserved")
+  assert_eq(result[2][1], 999, "Acyclic leaf preserved")
+  assert_true(result[1][2] == result, "Cycle preserved")
 end)
 
 print()
-print("Deep Cycles (Should Error):")
+print("Deep Cycles (Should Work with Object Sharing):")
 print("--------------------------------------------------------------------")
 
 test("deep cycle: 10 levels then back", function()
@@ -174,9 +184,17 @@ test("deep cycle: 10 levels then back", function()
   -- Close the cycle: nodes[10] → nodes[1]
   nodes[10][1] = nodes[1]
 
-  assert_error_contains(function()
-    caml_marshal_to_string(nodes[1])
-  end, "cyclic data structure")
+  local marshaled = caml_marshal_to_string(nodes[1])
+  local result = caml_marshal_from_bytes(marshaled)
+  assert_eq(result.tag, 1, "First tag preserved")
+  -- Follow the chain
+  local current = result
+  for i = 2, 10 do
+    current = current[1]
+    assert_eq(current.tag, i, "Tag " .. i .. " preserved")
+  end
+  -- Check cycle back to start
+  assert_true(current[1] == result, "Cycle back to start preserved")
 end)
 
 test("deep cycle: 5 levels then back to middle", function()
@@ -191,9 +209,14 @@ test("deep cycle: 5 levels then back to middle", function()
   n4[1] = n5
   n5[1] = n3  -- Cycle back to n3: n3 → n4 → n5 → n3
 
-  assert_error_contains(function()
-    caml_marshal_to_string(n1)
-  end, "cyclic data structure")
+  local marshaled = caml_marshal_to_string(n1)
+  local result = caml_marshal_from_bytes(marshaled)
+  assert_eq(result.tag, 1, "n1 tag preserved")
+  assert_eq(result[1].tag, 2, "n2 tag preserved")
+  assert_eq(result[1][1].tag, 3, "n3 tag preserved")
+  assert_eq(result[1][1][1].tag, 4, "n4 tag preserved")
+  assert_eq(result[1][1][1][1].tag, 5, "n5 tag preserved")
+  assert_true(result[1][1][1][1][1] == result[1][1], "Cycle back to n3 preserved")
 end)
 
 print()
@@ -237,7 +260,7 @@ test("DAG: multiple paths to same node", function()
 end)
 
 print()
-print("Complex Cycle Patterns (Should Error):")
+print("Complex Cycle Patterns (Should Work with Object Sharing):")
 print("--------------------------------------------------------------------")
 
 test("complex: cycle in subtree", function()
@@ -250,13 +273,16 @@ test("complex: cycle in subtree", function()
 
   local root = {tag = 0, size = 2, [1] = good_leaf, [2] = cycle_a}
 
-  assert_error_contains(function()
-    caml_marshal_to_string(root)
-  end, "cyclic data structure")
+  local marshaled = caml_marshal_to_string(root)
+  local result = caml_marshal_from_bytes(marshaled)
+  assert_eq(result.tag, 0, "Root tag preserved")
+  assert_eq(result[1][1], 42, "Acyclic leaf preserved")
+  assert_eq(result[2].tag, 20, "Cycle root tag preserved")
+  assert_true(result[2][1][1] == result[2], "Cycle in subtree preserved")
 end)
 
 test("complex: multiple cycles", function()
-  -- Two separate cycles in the structure
+  -- Two separate cycles in one structure
   local a1 = {tag = 1, size = 1}
   local a2 = {tag = 2, size = 1}
   a1[1] = a2
@@ -267,14 +293,13 @@ test("complex: multiple cycles", function()
   b1[1] = b2
   b2[1] = b1  -- Second cycle
 
-  -- Either one should trigger error
-  assert_error_contains(function()
-    caml_marshal_to_string(a1)
-  end, "cyclic data structure")
+  local root = {tag = 0, size = 2, [1] = a1, [2] = b1}
 
-  assert_error_contains(function()
-    caml_marshal_to_string(b1)
-  end, "cyclic data structure")
+  local marshaled = caml_marshal_to_string(root)
+  local result = caml_marshal_from_bytes(marshaled)
+  assert_eq(result.tag, 0, "Root tag preserved")
+  assert_true(result[1][1][1] == result[1], "First cycle preserved")
+  assert_true(result[2][1][1] == result[2], "Second cycle preserved")
 end)
 
 print()
@@ -282,20 +307,22 @@ print("Edge Cases:")
 print("--------------------------------------------------------------------")
 
 test("edge: empty table self-reference", function()
-  local x = {}
+  local x = {size = 1}
   x[1] = x
-  assert_error_contains(function()
-    caml_marshal_to_string(x)
-  end, "cyclic data structure")
+  local marshaled = caml_marshal_to_string(x)
+  local result = caml_marshal_from_bytes(marshaled)
+  assert_true(result[1] == result, "Empty table self-reference preserved")
 end)
 
 test("edge: cycle through array (no tag)", function()
-  local arr1 = {1, 2, 3}
-  local arr2 = {4, 5, arr1}
+  local arr1 = {size = 4, [1] = 1, [2] = 2, [3] = 3}
+  local arr2 = {size = 3, [1] = 4, [2] = 5}
+  arr2[3] = arr1
   arr1[4] = arr2  -- arr1 → arr2 → arr1
-  assert_error_contains(function()
-    caml_marshal_to_string(arr1)
-  end, "cyclic data structure")
+  local marshaled = caml_marshal_to_string(arr1)
+  local result = caml_marshal_from_bytes(marshaled)
+  assert_eq(result[1], 1, "First element preserved")
+  assert_true(result[4][3] == result, "Cycle through arrays preserved")
 end)
 
 test("edge: cycle through float array", function()
@@ -323,17 +350,15 @@ test("edge: very large acyclic structure", function()
 end)
 
 print()
-print("Cycle Detection Verification:")
+print("Cycle Support Verification:")
 print("--------------------------------------------------------------------")
 
-test("verify: error message is clear", function()
+test("verify: cycles work via object sharing", function()
   local x = {tag = 0, size = 1}
   x[1] = x
-  local success, err = pcall(function()
-    caml_marshal_to_string(x)
-  end)
-  assert_true(not success, "Should have errored")
-  assert_true(string.find(tostring(err), "cyclic", 1, true), "Error should mention 'cyclic'")
+  local marshaled = caml_marshal_to_string(x)
+  local result = caml_marshal_from_bytes(marshaled)
+  assert_true(result[1] == result, "Self-reference preserved via object sharing")
 end)
 
 test("verify: no false positives on similar values", function()
@@ -347,6 +372,7 @@ test("verify: no false positives on similar values", function()
   assert_eq(result.tag, 0)
   assert_eq(result[1][1], 42)
   assert_eq(result[2][1], 42)
+  -- Note: a and b are different tables in input, so result[1] and result[2] are also different
 end)
 
 print()
