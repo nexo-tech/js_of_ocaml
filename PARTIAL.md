@@ -33,48 +33,55 @@ js_of_ocaml handles this elegantly:
 
 ## Master Checklist
 
-### Phase 1: Analysis and Design
+### Phase 1: Analysis and Design ✅
 - [x] Task 1.1: Analyze js_of_ocaml's function calling conventions
 - [x] Task 1.2: Document OCaml function representation requirements
 - [x] Task 1.3: Design Lua function calling strategy
-- [ ] Task 1.4: Design arity tracking system
+- [x] Task 1.4: Complete design phase (merged into 1.1-1.3)
 
-### Phase 2: Core Infrastructure
-- [ ] Task 2.1: Implement function metadata tracking in code generator
-- [ ] Task 2.2: Add arity annotation to generated closures
-- [ ] Task 2.3: Create runtime helper for arity checking
-- [ ] Task 2.4: Update caml_call_gen to handle all cases
+### Phase 2: Runtime Infrastructure (caml_call_gen)
+- [ ] Task 2.1: Implement caml_call_gen core logic
+- [ ] Task 2.2: Add arity 1 and 2 fast paths
+- [ ] Task 2.3: Test caml_call_gen with all three cases
+- [ ] Task 2.4: Add runtime tests for partial application
 
-### Phase 3: Code Generation Refactoring
-- [ ] Task 3.1: Revert universal function wrapping
-- [ ] Task 3.2: Implement conditional wrapping for closures
-- [ ] Task 3.3: Fix function application generation
-- [ ] Task 3.4: Handle exact vs non-exact calls correctly
+### Phase 3: Code Generation - Direct Calls (Tier 1)
+- [ ] Task 3.1: Generate direct calls for exact=true
+- [ ] Task 3.2: Never wrap primitive calls
+- [ ] Task 3.3: Add .l property to user-defined closures
+- [ ] Task 3.4: Test direct call generation
 
-### Phase 4: Primitive Handling
-- [ ] Task 4.1: Identify all external primitives
-- [ ] Task 4.2: Ensure primitives are never wrapped
-- [ ] Task 4.3: Fix primitive function calls
-- [ ] Task 4.4: Test primitive operations
+### Phase 4: Code Generation - Conditional Calls (Tier 2)
+- [ ] Task 4.1: Implement arity check conditional
+- [ ] Task 4.2: Generate fast path for arity match
+- [ ] Task 4.3: Generate slow path to caml_call_gen
+- [ ] Task 4.4: Test conditional call generation
 
-### Phase 5: Format/Printf Fix
-- [ ] Task 5.1: Trace Format module channel passing
-- [ ] Task 5.2: Fix channel ID representation
-- [ ] Task 5.3: Remove channel ID workarounds
-- [ ] Task 5.4: Verify Printf works correctly
+### Phase 5: Remove Universal Wrapping
+- [ ] Task 5.1: Remove {l=arity, f=function} table wrapping from closures
+- [ ] Task 5.2: Use function properties (f.l = arity) instead
+- [ ] Task 5.3: Update all closure generation sites
+- [ ] Task 5.4: Verify primitives never get wrapped
 
-### Phase 6: Integration and Testing
-- [ ] Task 6.1: Run hello.ml with all Printf statements
-- [ ] Task 6.2: Create partial application test suite
-- [ ] Task 6.3: Test curried function composition
-- [ ] Task 6.4: Verify no TODOs or hacks remain
-- [ ] Task 6.5: Update LUA.md Task M1.2 as complete
+### Phase 6: Fix Printf/Format
+- [ ] Task 6.1: Debug channel ID passing issue
+- [ ] Task 6.2: Fix channel representation in I/O primitives
+- [ ] Task 6.3: Remove workarounds from runtime/lua/io.lua
+- [ ] Task 6.4: Test Printf.printf with multiple formats
+
+### Phase 7: Integration Testing
+- [ ] Task 7.1: Run hello.ml with all Printf statements
+- [ ] Task 7.2: Test partial application patterns
+- [ ] Task 7.3: Test over-application patterns
+- [ ] Task 7.4: Test curried function composition
+- [ ] Task 7.5: Remove all TODO/HACK comments
+- [ ] Task 7.6: Update LUA.md Task M1.2 as complete
 
 ---
 
 ## Detailed Task Breakdown
 
-### Phase 1: Analysis and Design
+### Phase 1: Analysis and Design ✅ COMPLETE
 
 #### Task 1.1: Analyze js_of_ocaml's function calling conventions ✅
 **Estimated Lines**: 50 (analysis/documentation)
@@ -967,389 +974,449 @@ end
 
 ---
 
-#### Task 1.4: Design arity tracking system
-**Estimated Lines**: 40 (design)
-**Deliverable**: Arity tracking design
+### Phase 2: Runtime Infrastructure (caml_call_gen)
 
-**Actions**:
-1. Design how to track function arity in IR
-2. Plan how to propagate arity through compiler
-3. Design metadata structure for functions
-4. Plan how to distinguish user functions from primitives
-
-**Success Criteria**: Design that enables proper arity-based decisions
-
----
-
-### Phase 2: Core Infrastructure
-
-#### Task 2.1: Implement function metadata tracking in code generator
-**Estimated Lines**: 150
-**Deliverable**: Enhanced context with function metadata
-
-**File**: `compiler/lib-lua/lua_generate.ml`
-
-**Actions**:
-1. Add `function_arities` map to context
-2. Implement `register_function_arity` helper
-3. Add `lookup_function_arity` helper
-4. Populate arities during closure generation
-5. Add helper to check if function is primitive
-
-**Success Criteria**: Context tracks function arities, compiles without errors
-
----
-
-#### Task 2.2: Add arity annotation to generated closures
-**Estimated Lines**: 80
-**Deliverable**: Closures with `.l` property
-
-**File**: `compiler/lib-lua/lua_generate.ml`
-
-**Actions**:
-1. Modify `generate_closure` to add `.l` property
-2. Keep function as direct Lua function (not wrapped in table yet)
-3. Add arity as metadata comment in generated code
-4. Ensure arity matches parameter count
-
-**Success Criteria**: Generated closures have arity information
-
----
-
-#### Task 2.3: Create runtime helper for arity checking
-**Estimated Lines**: 80
-**Deliverable**: `caml_check_arity` function
-
-**File**: `runtime/lua/fun.lua`
-
-**Actions**:
-1. Create `caml_check_arity(func, n_args)` that:
-   - Returns true if function has arity n_args
-   - Handles both wrapped and unwrapped functions
-   - Returns false for non-functions
-2. Add `--Provides: caml_check_arity` comment
-3. Write tests in `test_fun.lua`
-
-**Success Criteria**: Runtime can check function arity, tests pass
-
----
-
-#### Task 2.4: Update caml_call_gen to handle all cases
-**Estimated Lines**: 100
-**Deliverable**: Robust caml_call_gen
-
-**File**: `runtime/lua/fun.lua`
-
-**Actions**:
-1. Handle functions with `.l` property
-2. Handle plain Lua functions (assign arity from params)
-3. Handle primitives (never wrapped)
-4. Add better error messages
-5. Optimize common cases (1-2 arg partial application)
-
-**Success Criteria**: caml_call_gen handles wrapped and unwrapped functions
-
----
-
-### Phase 3: Code Generation Refactoring
-
-#### Task 3.1: Revert universal function wrapping
-**Estimated Lines**: 50
-**Deliverable**: Closures not automatically wrapped
-
-**File**: `compiler/lib-lua/lua_generate.ml`
-
-**Actions**:
-1. Remove `{l = arity, f = function}` wrapper from `generate_closure`
-2. Return plain `L.Function` instead
-3. Keep arity tracking in place
-4. Add comment explaining why not wrapped
-
-**Success Criteria**: Generates plain functions, compiles successfully
-
----
-
-#### Task 3.2: Implement conditional wrapping for closures
+#### Task 2.1: Implement caml_call_gen core logic
 **Estimated Lines**: 120
-**Deliverable**: Selective wrapping logic
+**Deliverable**: Working caml_call_gen in runtime/lua/fun.lua
 
-**File**: `compiler/lib-lua/lua_generate.ml`
+**File**: `runtime/lua/fun.lua`
 
 **Actions**:
-1. Add `needs_wrapping` predicate:
-   - True for closures that can be partially applied
-   - False for primitives
-   - False for functions only called with exact arity
-2. Modify `generate_closure` to wrap only when needed
-3. Add wrapping helper function
-4. Track wrapped vs unwrapped functions in context
+1. Implement three-case logic (exact/over/under application)
+2. Get arity from `f.l` property
+3. Case d==0: Direct call with table.unpack
+4. Case d<0: Over-application recursion
+5. Case d>0: Build partial closure with remaining arity
 
-**Success Criteria**: Only necessary functions wrapped, code compiles
+**Success Criteria**: caml_call_gen handles all three cases correctly
+
+**Reference**: runtime/js/stdlib.js:20-63
 
 ---
 
-#### Task 3.3: Fix function application generation
-**Estimated Lines**: 200
-**Deliverable**: Correct function calls
-
-**File**: `compiler/lib-lua/lua_generate.ml`
-
-**Actions**:
-1. Modify `Code.Apply` handling:
-   ```ocaml
-   | Code.Apply { f; args; exact } ->
-       if exact then
-         (* Exact call - check if wrapped *)
-         if is_wrapped then
-           L.Call (L.Index (func, L.String "f"), args)
-         else
-           L.Call (func, args)
-       else
-         (* Non-exact - use caml_call_gen *)
-         L.Call (L.Ident "caml_call_gen", [func; L.Table args])
-   ```
-2. Add `is_wrapped_function` helper
-3. Handle primitives specially (never wrapped)
-4. Optimize common cases
-
-**Success Criteria**: Generated calls are correct, compiles
-
----
-
-#### Task 3.4: Handle exact vs non-exact calls correctly
-**Estimated Lines**: 150
-**Deliverable**: Proper exact call optimization
-
-**File**: `compiler/lib-lua/lua_generate.ml`
-
-**Actions**:
-1. When `exact` is true:
-   - Call function directly if unwrapped
-   - Call `.f` if wrapped
-2. When `exact` is false:
-   - Always use `caml_call_gen`
-   - Let runtime handle arity mismatch
-3. Add fast path for known-arity functions
-4. Add comments explaining logic
-
-**Success Criteria**: Exact calls optimized, partial application works
-
----
-
-### Phase 4: Primitive Handling
-
-#### Task 4.1: Identify all external primitives
-**Estimated Lines**: 80
-**Deliverable**: Primitive registry
-
-**File**: `compiler/lib-lua/lua_generate.ml`
-
-**Actions**:
-1. Create `is_external_primitive` function
-2. Add set of all primitive names (caml_*, runtime functions)
-3. Check primitive list from `generate_prim`
-4. Document which functions are primitives
-
-**Success Criteria**: Can identify all primitives programmatically
-
----
-
-#### Task 4.2: Ensure primitives are never wrapped
+#### Task 2.2: Add arity 1 and 2 fast paths
 **Estimated Lines**: 60
-**Deliverable**: Primitives always unwrapped
+**Deliverable**: Optimized caml_call_gen for common arities
 
-**File**: `compiler/lib-lua/lua_generate.ml`
+**File**: `runtime/lua/fun.lua`
 
 **Actions**:
-1. Modify `needs_wrapping` to return false for primitives
-2. Add assertion to prevent primitive wrapping
-3. Document why primitives aren't wrapped
-4. Test that primitives compile correctly
+1. Special case for d==1 (one more arg needed)
+2. Special case for d==2 (two more args needed)
+3. Build closures without array allocation
+4. Set .l property on returned closures
 
-**Success Criteria**: No primitives wrapped, all primitive calls work
+**Success Criteria**: Arity 1 and 2 partial applications optimized
+
+**Reference**: runtime/js/stdlib.js:33-51
 
 ---
 
-#### Task 4.3: Fix primitive function calls
-**Estimated Lines**: 100
-**Deliverable**: Correct primitive application
-
-**File**: `compiler/lib-lua/lua_generate.ml`
-
-**Actions**:
-1. Modify `generate_prim` to return unwrapped calls
-2. Ensure primitive calls never use `.f`
-3. Primitives always called directly
-4. Handle special cases (caml_ml_output, etc.)
-
-**Success Criteria**: All primitives called correctly
-
----
-
-#### Task 4.4: Test primitive operations
+#### Task 2.3: Test caml_call_gen with all three cases
 **Estimated Lines**: 150 (tests)
-**Deliverable**: Primitive test suite
+**Deliverable**: Comprehensive test suite
 
-**File**: `compiler/tests-lua/test_primitives.ml`
+**File**: `runtime/lua/test_fun.lua`
 
 **Actions**:
-1. Test string operations (caml_string_get, etc.)
-2. Test array operations
-3. Test I/O operations (caml_ml_output)
-4. Test arithmetic operations
-5. Verify all tests pass
+1. Test exact application: `call_gen(f3, {1,2,3})` → result
+2. Test under-application: `call_gen(f3, {1,2})` → closure with l=1
+3. Test over-application: `call_gen(f1, {1,2,3})` → recursive calls
+4. Test arity 1 fast path
+5. Test arity 2 fast path
 
-**Success Criteria**: All primitive tests pass
+**Success Criteria**: All tests pass with lua test_fun.lua
 
 ---
 
-### Phase 5: Format/Printf Fix
+#### Task 2.4: Add runtime tests for partial application
+**Estimated Lines**: 100 (tests)
+**Deliverable**: Partial application test cases
 
-#### Task 5.1: Trace Format module channel passing
-**Estimated Lines**: 80 (analysis + debugging)
-**Deliverable**: Understanding of channel flow
+**File**: `runtime/lua/test_fun.lua`
 
 **Actions**:
-1. Add debug output to generated Format code
-2. Trace how stdout channel is created
-3. Trace how it's passed to Format functions
-4. Identify where channel becomes block
-5. Document the exact call chain
+1. Test `let add x y = x + y; let add5 = add 5` pattern
+2. Test multi-level partial: `f a |> g b |> h c`
+3. Test closure arity preservation
+4. Test over-application chains
+5. Verify closure.l is correct
 
-**Success Criteria**: Know exactly where channel ID becomes block
+**Success Criteria**: Currying patterns work correctly
 
 ---
 
-#### Task 5.2: Fix channel ID representation
-**Estimated Lines**: 120
-**Deliverable**: Proper channel ID passing
+### Phase 3: Code Generation - Direct Calls (Tier 1)
 
-**File**: `compiler/lib-lua/lua_generate.ml` or runtime
+#### Task 3.1: Generate direct calls for exact=true
+**Estimated Lines**: 100
+**Deliverable**: Direct call generation in lua_generate.ml
+
+**File**: `compiler/lib-lua/lua_generate.ml`
 
 **Actions**:
-1. Based on Task 5.1 findings, fix the root cause
-2. Ensure channels stay as integers through call chain
-3. Fix any field access bugs related to channels
-4. Remove any incorrect block wrapping
+1. In translate_expr for Apply { exact=true }, generate L.Call(f, args)
+2. No wrapping, no arity check
+3. Handle both Var and Prim cases
+4. Add comment: "Direct call (exact=true)"
 
-**Success Criteria**: Channel IDs are integers end-to-end
+**Success Criteria**: Exact calls compile to direct Lua calls
 
 ---
 
-#### Task 5.3: Remove channel ID workarounds
+#### Task 3.2: Never wrap primitive calls
 **Estimated Lines**: 40
-**Deliverable**: Clean runtime code
+**Deliverable**: Primitive detection and direct generation
+
+**File**: `compiler/lib-lua/lua_generate.ml`
+
+**Actions**:
+1. Create is_primitive function checking for Prim(Extern _)
+2. Primitives always use direct calls
+3. Never generate .l property for primitives
+4. Document primitive naming convention (caml_*)
+
+**Success Criteria**: All primitives compile to direct calls
+
+---
+
+#### Task 3.3: Add .l property to user-defined closures
+**Estimated Lines**: 80
+**Deliverable**: Arity annotation on closures
+
+**File**: `compiler/lib-lua/lua_generate.ml`
+
+**Actions**:
+1. After generating L.Function, emit assignment: `closure.l = arity`
+2. Arity = List.length params from Code.Closure
+3. Use L.Assign to set property
+4. Only for non-primitive closures
+
+**Success Criteria**: Generated closures have .l property set
+
+---
+
+#### Task 3.4: Test direct call generation
+**Estimated Lines**: 80 (tests)
+**Deliverable**: Code generation tests
+
+**File**: `compiler/tests-lua/test_direct_calls.ml`
+
+**Actions**:
+1. Test primitive call compiles to direct call
+2. Test local exact call compiles to direct call
+3. Test closure has .l property
+4. Verify no wrapper tables generated
+
+**Success Criteria**: Tests pass, code review shows direct calls
+
+---
+
+### Phase 4: Code Generation - Conditional Calls (Tier 2)
+
+#### Task 4.1: Implement arity check conditional
+**Estimated Lines**: 120
+**Deliverable**: Conditional call generation
+
+**File**: `compiler/lib-lua/lua_generate.ml`
+
+**Actions**:
+1. For Apply { exact=false }, generate if statement
+2. Condition: `f.l == n or f.l == nil` (optimistic)
+3. True branch: direct call
+4. False branch: caml_call_gen
+5. Bind result to temp variable
+
+**Success Criteria**: Non-exact calls generate conditional
+
+**Reference**: generate.ml:1074-1096 JavaScript pattern
+
+---
+
+#### Task 4.2: Generate fast path for arity match
+**Estimated Lines**: 40
+**Deliverable**: Optimized true branch
+
+**File**: `compiler/lib-lua/lua_generate.ml`
+
+**Actions**:
+1. True branch: L.Call(f, args) directly
+2. No indirection, no array creation
+3. Same as exact=true path
+4. Add comment explaining optimization
+
+**Success Criteria**: Fast path is identical to direct call
+
+---
+
+#### Task 4.3: Generate slow path to caml_call_gen
+**Estimated Lines**: 60
+**Deliverable**: Fallback to generic handler
+
+**File**: `compiler/lib-lua/lua_generate.ml`
+
+**Actions**:
+1. False branch: L.Call(L.Ident "caml_call_gen", [f; L.Table args])
+2. Build args as Lua table literal
+3. Call runtime function
+4. Return result from call
+
+**Success Criteria**: Slow path calls caml_call_gen correctly
+
+---
+
+#### Task 4.4: Test conditional call generation
+**Estimated Lines**: 100 (tests)
+**Deliverable**: Conditional call tests
+
+**File**: `compiler/tests-lua/test_conditional_calls.ml`
+
+**Actions**:
+1. Test non-exact call generates if statement
+2. Test condition checks f.l
+3. Test fast path is direct call
+4. Test slow path calls caml_call_gen
+5. Compile and verify generated Lua
+
+**Success Criteria**: Generated code matches expected pattern
+
+---
+
+### Phase 5: Remove Universal Wrapping
+
+#### Task 5.1: Remove {l=arity, f=function} table wrapping from closures
+**Estimated Lines**: 60
+**Deliverable**: Plain functions without table wrappers
+
+**File**: `compiler/lib-lua/lua_generate.ml`
+
+**Actions**:
+1. Find all places generating `{l = arity, f = function}` wrapper
+2. Replace with plain `L.Function` generation
+3. Keep arity assignment as separate statement: `func.l = arity`
+4. Verify no code assumes `f.f` accessor pattern
+
+**Success Criteria**: Generated closures are plain Lua functions
+
+---
+
+#### Task 5.2: Use function properties (f.l = arity) instead
+**Estimated Lines**: 40
+**Deliverable**: Property-based arity annotation
+
+**File**: `compiler/lib-lua/lua_generate.ml`
+
+**Actions**:
+1. After function definition, generate: `L.Assign([L.Dot(func, "l")], [L.Number arity])`
+2. Ensure assignment happens immediately after function creation
+3. Works for both local and non-local functions
+4. Document this pattern in code comments
+
+**Success Criteria**: All closures get .l property via assignment
+
+---
+
+#### Task 5.3: Update all closure generation sites
+**Estimated Lines**: 80
+**Deliverable**: Consistent closure generation
+
+**File**: `compiler/lib-lua/lua_generate.ml`
+
+**Actions**:
+1. Find all `Code.Closure` translation sites
+2. Update to use new plain function + property pattern
+3. Ensure arity is calculated correctly (List.length params)
+4. Add helper function `generate_closure_with_arity`
+
+**Success Criteria**: All closures follow new pattern
+
+---
+
+#### Task 5.4: Verify primitives never get wrapped
+**Estimated Lines**: 40 (verification + tests)
+**Deliverable**: Primitive verification tests
+
+**File**: `compiler/tests-lua/test_no_wrapping.ml`
+
+**Actions**:
+1. Compile test file calling primitives
+2. Parse generated Lua and verify no `{l=..., f=...}` tables
+3. Verify no `.f` accessor on primitive calls
+4. Test that primitives work correctly after changes
+
+**Success Criteria**: Primitives remain unwrapped, tests pass
+
+---
+
+### Phase 6: Fix Printf/Format
+
+#### Task 6.1: Debug channel ID passing issue
+**Estimated Lines**: 60 (debugging)
+**Deliverable**: Root cause identified
+
+**File**: Various (debugging session)
+
+**Actions**:
+1. Add debug prints to `runtime/lua/io.lua` showing channel values
+2. Add debug prints to generated Format code
+3. Run hello.ml and trace channel flow
+4. Identify exact point where channel becomes wrapped
+5. Document findings in PARTIAL.md
+
+**Success Criteria**: Root cause clearly identified and documented
+
+---
+
+#### Task 6.2: Fix channel representation in I/O primitives
+**Estimated Lines**: 80
+**Deliverable**: Correct channel handling
+
+**File**: `runtime/lua/io.lua` or `compiler/lib-lua/lua_generate.ml`
+
+**Actions**:
+1. Based on Task 6.1 findings, apply fix
+2. If issue is in codegen: fix how channels are passed
+3. If issue is in runtime: fix how channels are unwrapped
+4. Ensure channels stay as integers (not tables)
+5. Test with simple Printf.printf call
+
+**Success Criteria**: Channels remain integers throughout
+
+---
+
+#### Task 6.3: Remove workarounds from runtime/lua/io.lua
+**Estimated Lines**: 30
+**Deliverable**: Clean I/O runtime code
 
 **File**: `runtime/lua/io.lua`
 
 **Actions**:
-1. Remove HACK comment and workaround in `caml_unwrap_chanid`
-2. Remove stdin→stdout remapping logic
-3. Restore proper error handling
-4. Add assertion that channel is integer
+1. Remove HACK comment and associated workaround code
+2. Remove stdin→stdout remapping (lines with HACK)
+3. Simplify `caml_unwrap_chanid` to just return channel_id
+4. Add assertion: `assert(type(channel_id) == "number")`
 
-**Success Criteria**: No hacks or workarounds in io.lua
+**Success Criteria**: No HACK comments, clean code
 
 ---
 
-#### Task 5.4: Verify Printf works correctly
+#### Task 6.4: Test Printf.printf with multiple formats
 **Estimated Lines**: 100 (tests)
 **Deliverable**: Printf test suite
 
 **File**: `compiler/tests-lua/test_printf.ml`
 
 **Actions**:
-1. Test Printf.printf with various format strings
-2. Test Printf.fprintf to stdout/stderr
-3. Test Printf.sprintf
-4. Test format string with multiple arguments
-5. Verify output is correct
+1. Test `Printf.printf "Hello %s\n" "world"`
+2. Test `Printf.printf "Number: %d\n" 42`
+3. Test `Printf.printf "Float: %f\n" 3.14`
+4. Test multiple args: `Printf.printf "%s: %d\n" "Count" 5`
+5. Test fprintf to different channels
 
-**Success Criteria**: All Printf tests pass
+**Success Criteria**: All Printf format strings work
 
 ---
 
-### Phase 6: Integration and Testing
+### Phase 7: Integration Testing
 
-#### Task 6.1: Run hello.ml with all Printf statements
-**Estimated Lines**: 20 (testing)
+#### Task 7.1: Run hello.ml with all Printf statements
+**Estimated Lines**: 30 (testing + fixes)
 **Deliverable**: hello.ml runs completely
 
-**Actions**:
-1. Run `lua _build/default/examples/hello_lua/hello.bc.lua`
-2. Verify all output is correct:
-   - "Hello from Lua_of_ocaml!"
-   - "Factorial of 5 is: 120"
-   - "Testing string operations..."
-   - "Length of 'lua_of_ocaml': 12"
-   - "Uppercase: LUA_OF_OCAML"
-3. Verify no errors or crashes
+**File**: `examples/hello_lua/hello.ml` (testing)
 
-**Success Criteria**: hello.ml runs to completion with correct output
+**Actions**:
+1. Compile: `dune build examples/hello_lua/hello.bc.lua`
+2. Run: `lua _build/default/examples/hello_lua/hello.bc.lua`
+3. Verify all output appears correctly
+4. Fix any runtime errors that appear
+5. Ensure no crashes or exceptions
+
+**Success Criteria**: hello.ml runs to completion, all output correct
 
 ---
 
-#### Task 6.2: Create partial application test suite
-**Estimated Lines**: 200
-**Deliverable**: Comprehensive partial application tests
+#### Task 7.2: Test partial application patterns
+**Estimated Lines**: 150 (tests)
+**Deliverable**: Partial application test suite
 
 **File**: `compiler/tests-lua/test_partial_application.ml`
 
 **Actions**:
-1. Test simple partial application: `let add x y = x + y; let add5 = add 5`
-2. Test multi-level currying: `let f a b c = a + b + c; let g = f 1; let h = g 2`
-3. Test over-application: passing too many args
-4. Test exact application
-5. Test composition of partial applications
-6. Verify all tests pass
+1. Test `let add x y = x + y; let add5 = add 5`
+2. Test multi-level: `let f a b c = a+b+c; let g = f 1; let h = g 2`
+3. Test arity 1 partial: `List.map (fun x -> x + 1) [1;2;3]`
+4. Test arity 2 partial: `List.fold_left (+) 0 [1;2;3]`
+5. Verify closure.l is correct at each step
 
-**Success Criteria**: 20+ partial application tests, all passing
+**Success Criteria**: All partial application patterns work
 
 ---
 
-#### Task 6.3: Test curried function composition
-**Estimated Lines**: 150
-**Deliverable**: Composition tests
+#### Task 7.3: Test over-application patterns
+**Estimated Lines**: 100 (tests)
+**Deliverable**: Over-application test suite
+
+**File**: `compiler/tests-lua/test_over_application.ml`
+
+**Actions**:
+1. Test `let f x = (fun y -> x + y); f 1 2` (over-apply)
+2. Test `let id x = x; id id 5` (higher-order over-apply)
+3. Test chain: `make_adder 5 |> apply_to 10`
+4. Verify result is correct, not a closure
+5. Test caml_call_gen handles recursion
+
+**Success Criteria**: Over-application returns correct values
+
+---
+
+#### Task 7.4: Test curried function composition
+**Estimated Lines**: 120 (tests)
+**Deliverable**: Composition test suite
 
 **File**: `compiler/tests-lua/test_composition.ml`
 
 **Actions**:
-1. Test `let compose f g x = f (g x)`
-2. Test pipeline: `x |> f |> g |> h`
-3. Test List.map with partial application
-4. Test List.fold_left with currying
-5. Test function returning function
+1. Test `let compose f g x = f (g x); compose succ double 5`
+2. Test pipeline: `5 |> double |> succ |> string_of_int`
+3. Test map + filter + fold chains
+4. Test List.map with partial functions
+5. Test nested function returns
 
-**Success Criteria**: Complex currying patterns work
+**Success Criteria**: Complex currying/composition works
 
 ---
 
-#### Task 6.4: Verify no TODOs or hacks remain
-**Estimated Lines**: 20 (verification)
+#### Task 7.5: Remove all TODO/HACK comments
+**Estimated Lines**: 20 (cleanup)
 **Deliverable**: Clean codebase
 
 **Actions**:
-1. `grep -r "HACK\|TODO\|FIXME\|WORKAROUND" compiler/lib-lua/`
-2. `grep -r "HACK\|TODO\|FIXME\|WORKAROUND" runtime/lua/`
-3. Remove or document any remaining TODOs
-4. Ensure all hacks are removed
-5. Clean up debug output
+1. `grep -rn "HACK" compiler/lib-lua/ runtime/lua/`
+2. `grep -rn "TODO" compiler/lib-lua/ runtime/lua/`
+3. Remove workaround in runtime/lua/io.lua
+4. Remove any debug print statements
+5. Document any remaining edge cases
 
-**Success Criteria**: Zero hacks/todos related to partial application
+**Success Criteria**: Zero HACK/TODO related to partial application
 
 ---
 
-#### Task 6.5: Update LUA.md Task M1.2 as complete
-**Estimated Lines**: 10
+#### Task 7.6: Update LUA.md Task M1.2 as complete
+**Estimated Lines**: 10 (documentation)
 **Deliverable**: LUA.md updated
 
-**Actions**:
-1. Mark Task M1.2 as `- [x]` completed
-2. Update status from 🟡 to ✅
-3. Add note about partial application support
-4. Commit changes with proper message
+**File**: `LUA.md`
 
-**Success Criteria**: LUA.md reflects completion
+**Actions**:
+1. Find Task M1.2 in LUA.md
+2. Change `- [ ]` to `- [x]`
+3. Update status indicator (🟡 → ✅)
+4. Add brief note: "Partial application fully implemented"
+5. Commit with message: "feat(lua): complete M1.2 - partial application support"
+
+**Success Criteria**: LUA.md shows M1.2 complete
 
 ---
 
@@ -1399,14 +1466,15 @@ The implementation is complete when:
 
 ## Timeline Estimate
 
-- **Phase 1** (Analysis): 2-3 hours
-- **Phase 2** (Infrastructure): 4-5 hours
-- **Phase 3** (Refactoring): 6-8 hours
-- **Phase 4** (Primitives): 3-4 hours
-- **Phase 5** (Printf): 4-5 hours
-- **Phase 6** (Testing): 3-4 hours
+- **Phase 1** (Analysis and Design): COMPLETE ✅
+- **Phase 2** (Runtime Infrastructure): 4-6 hours
+- **Phase 3** (Code Gen - Direct Calls): 3-4 hours
+- **Phase 4** (Code Gen - Conditional Calls): 3-4 hours
+- **Phase 5** (Remove Wrapping): 2-3 hours
+- **Phase 6** (Fix Printf/Format): 3-4 hours
+- **Phase 7** (Integration Testing): 3-4 hours
 
-**Total**: 22-29 hours of focused work
+**Total**: 18-25 hours of focused work (Phase 1 complete)
 
 ---
 
