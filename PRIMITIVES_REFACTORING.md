@@ -695,14 +695,18 @@
   - **KNOWN ISSUE**: Test 14 (caml_sys_random_seed) fails due to Lua 5.1 math.random() range limitations - pre-existing bug unrelated to refactoring
   - **VERIFIED**: test_filename.lua (70/70 passing) confirms no regressions
 
-- [ ] Task 8.7: Refactor `format_channel.lua` - channel formatting (45 min + tests)
-  - **FAILING TEST**: test_format_channel.lua
-  - **CURRENT STATE**: Uses module pattern
-  - **FUNCTIONS TO REFACTOR**:
-    - caml_fprintf (format to channel)
-    - caml_ifprintf (no-op format)
-    - Channel-based formatting helpers
-  - **DEPENDENCIES**: Requires format.lua and io.lua (both refactored)
+- [x] Task 8.7: Refactor `format_channel.lua` - channel formatting (45 min + tests)
+  - **STATUS**: ✅ COMPLETE - Fixed test_format_channel.lua to use refactored global functions
+  - **TEST RESULTS**: 16/16 tests passing
+  - **CHANGES MADE**:
+    - No separate format_channel.lua file - fprintf/fscanf functions are in format.lua
+    - Refactored test_format_channel.lua to remove module pattern:
+      - Removed `local io_module = dofile("./io.lua")` and `package.loaded.io = io_module`
+      - Changed to `dofile("io.lua")` to load global caml_* functions
+      - Replaced all `io_module.caml_*` calls with direct `caml_*` global function calls
+    - format.lua already has caml_fprintf, caml_printf, caml_eprintf, caml_fscanf, caml_scanf, caml_sscanf
+  - **VERIFIED**: test_format.lua (55/55), test_format_printf.lua (56/56), test_format_scanf.lua (55/55) - no regressions
+  - **FILES MODIFIED**: test_format_channel.lua (test infrastructure fix)
 
 - [ ] Task 8.8: Refactor `fun.lua` - function primitives (45 min + tests)
   - **FAILING TEST**: test_fun.lua
