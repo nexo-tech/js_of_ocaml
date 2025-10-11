@@ -481,24 +481,10 @@ function caml_marshal_write_value(buf, value, seen, object_table, next_id)
     caml_marshal_write_string(buf, value)
 
   elseif value_type == "table" then
-    -- Object sharing: check if this table was already marshaled
-    local obj_id = object_table[value]
-    if obj_id then
-      -- Write CODE_SHARED (0x04) + object_id as 32-bit unsigned big-endian
-      caml_marshal_buffer_write8u(buf, 0x04)
-      caml_marshal_buffer_write32u(buf, obj_id)
-      return
-    end
-
     -- Cycle detection: check if this table is currently being visited
     if seen[value] then
-      error("caml_marshal_write_value: cyclic data structure detected")
+      error("caml_marshal_write_value: cyclic data structure detected (object sharing not implemented yet)")
     end
-
-    -- Assign object ID and record in object_table
-    local current_id = next_id.value
-    object_table[value] = current_id
-    next_id.value = next_id.value + 1
 
     -- Mark table as being visited
     seen[value] = true
