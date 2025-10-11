@@ -971,7 +971,7 @@ and compile_blocks_with_labels ctx program start_addr ?(params = []) () =
     Format.eprintf "DEBUG collect_block_variables at addr %d: collected %d vars: %s@."
       start_addr
       (StringSet.cardinal hoisted_vars)
-      (StringSet.elements hoisted_vars |> String.concat ", ");
+      (String.concat ~sep:", " (StringSet.elements hoisted_vars));
 
   (* Determine if we need table-based storage and set context accordingly *)
   let total_vars = StringSet.cardinal hoisted_vars in
@@ -1156,9 +1156,9 @@ and compile_blocks_with_labels ctx program start_addr ?(params = []) () =
     has its own local scope), so shadowing is not an issue in practice.
 
     @param ctx Code generation context (parent)
-    @param params Parameter list
+    @param params Function parameters list (from Code.Closure first argument)
     @param pc Program counter pointing to function body
-    @return Lua function expression
+    @return Lua function expression wrapped in caml_make_closure
 *)
 and generate_closure ctx params pc =
   match ctx.program with
@@ -1171,6 +1171,19 @@ and generate_closure ctx params pc =
           (* Block not found - return placeholder *)
           L.Ident "caml_closure"
       | Some _block ->
+          (* Generate closure: Code.Closure (params, (pc, _), _) where:
+             - params: Function parameters (same naming as js_of_ocaml/compiler/lib/code.ml:653)
+             - pc: Address of the block containing the function body
+
+             This matches js_of_ocaml's generate.ml:1487-1497:
+             ```ocaml
+             | Closure (args, ((pc, _) as cont), cloc) ->
+                 ...
+                 J.fun_ (List.map args ~f:(fun v -> J.V v)) (Js_simpl.function_body clo)
+             ```
+             Where `args` (params) are used as the function parameters.
+          *)
+
           (* Create child context for closure that inherits parent's variable mappings
              This allows closures to capture variables from enclosing scopes as upvalues *)
           let closure_ctx = make_child_context ctx program in
