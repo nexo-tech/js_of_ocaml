@@ -958,15 +958,39 @@
 
 #### Parsing Primitives (Est: 1.5 hours)
 
-- [ ] Task 9.8: Refactor parsing primitives (1.5 hours)
-  - **CURRENT TEST**: test_parsing.lua
-  - **CURRENT STATE**: Uses module pattern
-  - **FUNCTIONS TO REFACTOR**:
-    - caml_parser_env (parser environment)
-    - caml_parser_peek, caml_parser_shift
-    - Error recovery and position tracking
+- [x] Task 9.8: Refactor parsing primitives (1.5 hours)
+  - **STATUS**: ✅ COMPLETE - Parsing primitives already refactored, Lua 5.1 compatibility fixed
+  - **TEST RESULTS**: test_parsing.lua: 24/24 tests passing
+  - **IMPLEMENTATION STATUS**:
+    - Parsing primitives already fully refactored with global functions
+    - All functions follow runtime implementation guidelines
+    - Each function has --Provides: directive
+    - No module patterns used
+  - **LUA 5.1 COMPATIBILITY FIX**:
+    - Removed `goto` statements (added in Lua 5.2, not available in Lua 5.1)
+    - Replaced `goto continue` pattern with boolean flag-based loop control
+    - Maintains identical behavior while being Lua 5.1 compatible
+  - **FUNCTIONS VERIFIED**:
+    - `caml_create_parser_env(stacksize)` - Create parser environment (lines 207-234)
+    - `caml_set_parser_trace(bool)` - Enable/disable parser tracing (lines 200-205)
+    - `caml_grow_parser_stacks(env, new_size)` - Grow parser stacks (lines 236-239)
+    - `caml_parser_rule_info(env)` - Get rule number and length (lines 241-244)
+    - `caml_parser_stack_value(env, offset)` - Access stack values (lines 246-250)
+    - `caml_parser_symb_start(env, offset)` - Get symbol start position (lines 252-256)
+    - `caml_parser_symb_end(env, offset)` - Get symbol end position (lines 258-262)
+    - `caml_parse_engine(tables, env, cmd, arg)` - Main parser engine (lines 22-198)
+  - **TEST COVERAGE**:
+    - Parser environment: 4 tests (creation, initialization, stack setup)
+    - Parser trace: 3 tests (enable/disable tracing)
+    - Stack growth: 2 tests (size updates, multiple grows)
+    - Rule information: 2 tests (access, initial values)
+    - Stack value access: 3 tests (offsets, multiple values)
+    - Symbol positions: 3 tests (start/end, multiple offsets)
+    - Parse engine: 4 tests (caching, commands, state preservation)
+    - Integration: 3 tests (env/tables, multiple calls, tracking)
+  - **FILES MODIFIED**:
+    - parsing.lua (removed goto statements for Lua 5.1 compatibility)
   - **DEPENDENCIES**: lexing.lua (already refactored)
-  - **IMPLEMENTATION**: Follow refactoring pattern (global functions)
 
 #### Compatibility & Optimization Suites (Out of Scope - Optional)
 

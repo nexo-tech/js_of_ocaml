@@ -43,23 +43,27 @@ function caml_parse_engine(tables, env, cmd, arg)
   local state = env[15]   -- ENV_STATE
   local errflag = env[16] -- ENV_ERRFLAG
 
-  while true do
+  local continue = true
+  while continue do
+    continue = false  -- Will be set to true to continue loop
+
     if cmd == 0 then  -- START
       state = 0
       errflag = 0
       cmd = 6  -- LOOP
+      continue = true
     elseif cmd == 6 then  -- LOOP
       n = tables.defred[state + 1]
       if n ~= 0 then
         cmd = 10  -- REDUCE
-        goto continue
-      end
-      if env[7] >= 0 then  -- ENV_CURR_CHAR
+        continue = true
+      elseif env[7] >= 0 then  -- ENV_CURR_CHAR
         cmd = 7  -- TESTSHIFT
-        goto continue
+        continue = true
+      else
+        res = 0  -- READ_TOKEN
+        break
       end
-      res = 0  -- READ_TOKEN
-      break
     elseif cmd == 1 then  -- TOKEN_READ
       -- Inline TBL_TRANSL_BLOCK=3, TBL_TRANSL_CONST=2, ENV_CURR_CHAR=7, ENV_LVAL=8
       if type(arg) == "table" and arg.tag ~= nil then
@@ -70,40 +74,43 @@ function caml_parse_engine(tables, env, cmd, arg)
         env[8] = 0                   -- ENV_LVAL
       end
       cmd = 7  -- TESTSHIFT
+      continue = true
     elseif cmd == 7 then  -- TESTSHIFT
       n1 = tables.sindex[state + 1]
       n2 = n1 + env[7]  -- ENV_CURR_CHAR
       if n1 ~= 0 and n2 >= 0 and n2 <= tables[11] and  -- TBL_TABLESIZE
          tables.check[n2 + 1] == env[7] then  -- ENV_CURR_CHAR
         cmd = 8  -- SHIFT
-        goto continue
+        continue = true
+      else
+        n1 = tables.rindex[state + 1]
+        n2 = n1 + env[7]  -- ENV_CURR_CHAR
+        if n1 ~= 0 and n2 >= 0 and n2 <= tables[11] and  -- TBL_TABLESIZE
+           tables.check[n2 + 1] == env[7] then  -- ENV_CURR_CHAR
+          n = tables.table[n2 + 1]
+          cmd = 10  -- REDUCE
+          continue = true
+        elseif errflag <= 0 then
+          res = 5  -- CALL_ERROR_FUNCTION
+          break
+        else
+          cmd = 5  -- ERROR_DETECTED
+          continue = true
+        end
       end
-
-      n1 = tables.rindex[state + 1]
-      n2 = n1 + env[7]  -- ENV_CURR_CHAR
-      if n1 ~= 0 and n2 >= 0 and n2 <= tables[11] and  -- TBL_TABLESIZE
-         tables.check[n2 + 1] == env[7] then  -- ENV_CURR_CHAR
-        n = tables.table[n2 + 1]
-        cmd = 10  -- REDUCE
-        goto continue
-      end
-
-      if errflag <= 0 then
-        res = 5  -- CALL_ERROR_FUNCTION
-        break
-      end
-      cmd = 5  -- ERROR_DETECTED
     elseif cmd == 5 then  -- ERROR_DETECTED
       if errflag < 3 then
         errflag = 3
-        while true do
+        local error_loop = true
+        while error_loop do
           state1 = env[1][sp + 1]  -- ENV_S_STACK
           n1 = tables.sindex[state1 + 1]
           n2 = n1 + 256  -- ERRCODE
           if n1 ~= 0 and n2 >= 0 and n2 <= tables[11] and  -- TBL_TABLESIZE
              tables.check[n2 + 1] == 256 then  -- ERRCODE
             cmd = 9  -- SHIFT_RECOVER
-            goto continue
+            error_loop = false
+            continue = true
           else
             if sp <= env[6] then  -- ENV_STACKBASE
               env[14] = sp      -- ENV_SP
@@ -123,7 +130,7 @@ function caml_parse_engine(tables, env, cmd, arg)
         end
         env[7] = -1  -- ENV_CURR_CHAR
         cmd = 6  -- LOOP
-        goto continue
+        continue = true
       end
     elseif cmd == 8 then  -- SHIFT
       env[7] = -1  -- ENV_CURR_CHAR
@@ -131,6 +138,7 @@ function caml_parse_engine(tables, env, cmd, arg)
         errflag = errflag - 1
       end
       cmd = 9  -- SHIFT_RECOVER
+      continue = true
     elseif cmd == 9 then  -- SHIFT_RECOVER
       state = tables.table[n2 + 1]
       sp = sp + 1
@@ -139,6 +147,7 @@ function caml_parse_engine(tables, env, cmd, arg)
         break
       end
       cmd = 2  -- STACKS_GROWN_1
+      continue = true
     elseif cmd == 2 then  -- STACKS_GROWN_1
       -- Inline ENV_S_STACK=1, ENV_V_STACK=2, ENV_SYMB_START_STACK=3, ENV_SYMB_END_STACK=4, ENV_LVAL=8, ENV_SYMB_START=9, ENV_SYMB_END=10
       env[1][sp + 1] = state   -- ENV_S_STACK
@@ -146,7 +155,7 @@ function caml_parse_engine(tables, env, cmd, arg)
       env[3][sp + 1] = env[9]  -- ENV_SYMB_START_STACK = ENV_SYMB_START
       env[4][sp + 1] = env[10] -- ENV_SYMB_END_STACK = ENV_SYMB_END
       cmd = 6  -- LOOP
-      goto continue
+      continue = true
     elseif cmd == 10 then  -- REDUCE
       local m = tables.len[n + 1]
       env[11] = sp  -- ENV_ASP
@@ -168,6 +177,7 @@ function caml_parse_engine(tables, env, cmd, arg)
         break
       end
       cmd = 3  -- STACKS_GROWN_2
+      continue = true
     elseif cmd == 3 then  -- STACKS_GROWN_2
       res = 4  -- COMPUTE_SEMANTIC_ACTION
       break
@@ -180,15 +190,13 @@ function caml_parse_engine(tables, env, cmd, arg)
         env[3][sp + 1] = env[4][asp + 1]  -- ENV_SYMB_START_STACK = ENV_SYMB_END_STACK
       end
       cmd = 6  -- LOOP
-      goto continue
+      continue = true
     else
       env[14] = sp      -- ENV_SP
       env[15] = state   -- ENV_STATE
       env[16] = errflag -- ENV_ERRFLAG
       return 1  -- RAISE_PARSE_ERROR
     end
-
-    ::continue::
   end
 
   env[14] = sp      -- ENV_SP
