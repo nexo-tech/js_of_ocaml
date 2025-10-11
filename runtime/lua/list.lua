@@ -1,31 +1,16 @@
--- Lua_of_ocaml runtime support
--- Standard Library: List module
---
--- OCaml lists are represented as:
--- [] (empty) = 0
--- hd :: tl (cons) = {tag=0, hd, tl}
 
---
--- List construction
---
 
--- Create empty list
 --Provides: caml_list_empty
 function caml_list_empty()
   return 0
 end
 
--- Cons operation: add element to front of list
 --Provides: caml_list_cons
 function caml_list_cons(hd, tl)
   return {tag = 0, hd, tl}
 end
 
---
--- List deconstruction
---
 
--- Get head of list (raises Failure if empty)
 --Provides: caml_list_hd
 function caml_list_hd(list)
   if list == 0 then
@@ -34,7 +19,6 @@ function caml_list_hd(list)
   return list[1]
 end
 
--- Get tail of list (raises Failure if empty)
 --Provides: caml_list_tl
 function caml_list_tl(list)
   if list == 0 then
@@ -43,15 +27,11 @@ function caml_list_tl(list)
   return list[2]
 end
 
--- Check if list is empty
 --Provides: caml_list_is_empty
 function caml_list_is_empty(list)
   return list == 0
 end
 
---
--- List length
---
 
 --Provides: caml_list_length
 function caml_list_length(list)
@@ -63,11 +43,7 @@ function caml_list_length(list)
   return len
 end
 
---
--- List access
---
 
--- Get nth element (0-indexed, raises Failure if out of bounds)
 --Provides: caml_list_nth
 function caml_list_nth(list, n)
   local current = list
@@ -82,7 +58,6 @@ function caml_list_nth(list, n)
   error("nth")
 end
 
--- Get nth element with Option return (0-indexed)
 --Provides: caml_list_nth_opt
 function caml_list_nth_opt(list, n)
   local current = list
@@ -97,9 +72,6 @@ function caml_list_nth_opt(list, n)
   return 0  -- None
 end
 
---
--- List reversal
---
 
 --Provides: caml_list_rev
 function caml_list_rev(list)
@@ -111,7 +83,6 @@ function caml_list_rev(list)
   return result
 end
 
--- Reverse and append
 --Provides: caml_list_rev_append
 function caml_list_rev_append(list1, list2)
   local result = list2
@@ -122,23 +93,18 @@ function caml_list_rev_append(list1, list2)
   return result
 end
 
---
--- List concatenation
---
 
 --Provides: caml_list_append
 function caml_list_append(list1, list2)
   if list1 == 0 then
     return list2
   end
-  -- Build reversed first list
   local rev = 0
   local current = list1
   while current ~= 0 do
     rev = {tag = 0, current[1], rev}
     current = current[2]
   end
-  -- Reverse back while appending list2
   local result = list2
   while rev ~= 0 do
     result = {tag = 0, rev[1], result}
@@ -147,18 +113,15 @@ function caml_list_append(list1, list2)
   return result
 end
 
--- Concatenate list of lists
 --Provides: caml_list_concat
 --Requires: caml_list_append
 function caml_list_concat(lists)
   local result = 0
-  -- First, reverse the list of lists to process in order
   local rev_lists = 0
   while lists ~= 0 do
     rev_lists = {tag = 0, lists[1], rev_lists}
     lists = lists[2]
   end
-  -- Now concatenate from the end
   while rev_lists ~= 0 do
     result = caml_list_append(rev_lists[1], result)
     rev_lists = rev_lists[2]
@@ -166,16 +129,12 @@ function caml_list_concat(lists)
   return result
 end
 
--- Flatten alias
 --Provides: caml_list_flatten
 --Requires: caml_list_concat
 function caml_list_flatten(lists)
   return caml_list_concat(lists)
 end
 
---
--- List iteration
---
 
 --Provides: caml_list_iter
 function caml_list_iter(f, list)
@@ -195,9 +154,6 @@ function caml_list_iteri(f, list)
   end
 end
 
---
--- List mapping
---
 
 --Provides: caml_list_map
 --Requires: caml_list_rev
@@ -205,13 +161,11 @@ function caml_list_map(f, list)
   if list == 0 then
     return 0
   end
-  -- Build in reverse
   local rev = 0
   while list ~= 0 do
     rev = {tag = 0, f(list[1]), rev}
     list = list[2]
   end
-  -- Reverse result
   return caml_list_rev(rev)
 end
 
@@ -221,7 +175,6 @@ function caml_list_mapi(f, list)
   if list == 0 then
     return 0
   end
-  -- Build in reverse
   local rev = 0
   local i = 0
   while list ~= 0 do
@@ -229,7 +182,6 @@ function caml_list_mapi(f, list)
     list = list[2]
     i = i + 1
   end
-  -- Reverse result
   return caml_list_rev(rev)
 end
 
@@ -261,13 +213,11 @@ end
 --Requires: caml_list_append
 function caml_list_concat_map(f, list)
   local result = 0
-  -- Build reversed result
   local rev_parts = 0
   while list ~= 0 do
     rev_parts = {tag = 0, f(list[1]), rev_parts}
     list = list[2]
   end
-  -- Concatenate all parts (already in reverse order)
   while rev_parts ~= 0 do
     result = caml_list_append(rev_parts[1], result)
     rev_parts = rev_parts[2]
@@ -275,9 +225,6 @@ function caml_list_concat_map(f, list)
   return result
 end
 
---
--- List folding
---
 
 --Provides: caml_list_fold_left
 function caml_list_fold_left(f, acc, list)
@@ -291,7 +238,6 @@ end
 --Provides: caml_list_fold_right
 --Requires: caml_list_rev
 function caml_list_fold_right(f, list, acc)
-  -- Reverse list first to fold from right
   local rev = caml_list_rev(list)
   while rev ~= 0 do
     acc = f(rev[1], acc)
@@ -300,9 +246,6 @@ function caml_list_fold_right(f, list, acc)
   return acc
 end
 
---
--- List scanning
---
 
 --Provides: caml_list_for_all
 function caml_list_for_all(pred, list)
@@ -340,13 +283,9 @@ end
 --Provides: caml_list_memq
 --Requires: caml_list_mem
 function caml_list_memq(x, list)
-  -- Physical equality (same as mem in Lua)
   return caml_list_mem(x, list)
 end
 
---
--- List searching
---
 
 --Provides: caml_list_find
 function caml_list_find(pred, list)
@@ -400,7 +339,6 @@ end
 function caml_list_partition(pred, list)
   local true_list = 0
   local false_list = 0
-  -- Collect in reverse
   while list ~= 0 do
     if pred(list[1]) then
       true_list = {tag = 0, list[1], true_list}
@@ -409,13 +347,9 @@ function caml_list_partition(pred, list)
     end
     list = list[2]
   end
-  -- Reverse both lists
   return {caml_list_rev(true_list), caml_list_rev(false_list)}
 end
 
---
--- List association
---
 
 --Provides: caml_list_assoc
 function caml_list_assoc(key, list)
@@ -444,7 +378,6 @@ end
 --Provides: caml_list_assq
 --Requires: caml_list_assoc
 function caml_list_assq(key, list)
-  -- Physical equality (same as assoc in Lua)
   return caml_list_assoc(key, list)
 end
 
@@ -482,7 +415,6 @@ function caml_list_remove_assoc(key, list)
   if pair[1] == key then
     return list[2]  -- Skip this element
   end
-  -- Rebuild list without the key
   local rev = 0
   local current = list
   local found = false
@@ -504,23 +436,18 @@ function caml_list_remove_assq(key, list)
   return caml_list_remove_assoc(key, list)
 end
 
---
--- List combination
---
 
 --Provides: caml_list_split
 --Requires: caml_list_rev
 function caml_list_split(list)
   local list1 = 0
   local list2 = 0
-  -- Collect in reverse
   while list ~= 0 do
     local pair = list[1]
     list1 = {tag = 0, pair[1], list1}
     list2 = {tag = 0, pair[2], list2}
     list = list[2]
   end
-  -- Reverse both
   return {caml_list_rev(list1), caml_list_rev(list2)}
 end
 
@@ -529,38 +456,30 @@ end
 function caml_list_combine(list1, list2)
   local result = 0
   local rev = 0
-  -- Build pairs in reverse
   while list1 ~= 0 and list2 ~= 0 do
     rev = {tag = 0, {list1[1], list2[1]}, rev}
     list1 = list1[2]
     list2 = list2[2]
   end
-  -- Check both lists are same length
   if list1 ~= 0 or list2 ~= 0 then
     error("Invalid_argument")
   end
   return caml_list_rev(rev)
 end
 
---
--- List sorting
---
 
 --Provides: caml_list_sort
 function caml_list_sort(cmp, list)
   if list == 0 or list[2] == 0 then
     return list
   end
-  -- Convert to array
   local arr = {}
   local current = list
   while current ~= 0 do
     table.insert(arr, current[1])
     current = current[2]
   end
-  -- Sort array
   table.sort(arr, function(a, b) return cmp(a, b) < 0 end)
-  -- Convert back to list
   local result = 0
   for i = #arr, 1, -1 do
     result = {tag = 0, arr[i], result}
@@ -571,7 +490,6 @@ end
 --Provides: caml_list_stable_sort
 --Requires: caml_list_sort
 function caml_list_stable_sort(cmp, list)
-  -- Lua's table.sort is stable
   return caml_list_sort(cmp, list)
 end
 
@@ -588,7 +506,6 @@ function caml_list_sort_uniq(cmp, list)
     return 0
   end
   local sorted = caml_list_sort(cmp, list)
-  -- Remove duplicates
   local result = {tag = 0, sorted[1], 0}
   local tail = result
   sorted = sorted[2]
@@ -603,7 +520,6 @@ function caml_list_sort_uniq(cmp, list)
   return result
 end
 
--- Merge two sorted lists
 --Provides: caml_list_merge
 --Requires: caml_list_rev
 function caml_list_merge(cmp, list1, list2)
@@ -613,7 +529,6 @@ function caml_list_merge(cmp, list1, list2)
   if list2 == 0 then
     return list1
   end
-  -- Build in reverse, then reverse at end
   local rev = 0
   while list1 ~= 0 and list2 ~= 0 do
     if cmp(list1[1], list2[1]) <= 0 then
@@ -624,7 +539,6 @@ function caml_list_merge(cmp, list1, list2)
       list2 = list2[2]
     end
   end
-  -- Append remaining elements
   local remaining = list1 ~= 0 and list1 or list2
   while remaining ~= 0 do
     rev = {tag = 0, remaining[1], rev}

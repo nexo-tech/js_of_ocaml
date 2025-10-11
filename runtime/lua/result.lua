@@ -1,13 +1,4 @@
--- Lua_of_ocaml runtime support
--- Standard Library: Result module
---
--- OCaml result values are represented as:
--- Ok(v) = {tag=0, v}
--- Error(e) = {tag=1, e}
 
---
--- Result construction
---
 
 --Provides: caml_result_ok
 function caml_result_ok(value)
@@ -19,9 +10,6 @@ function caml_result_error(err)
   return {tag = 1, err}
 end
 
---
--- Result queries
---
 
 --Provides: caml_result_is_ok
 function caml_result_is_ok(result)
@@ -33,9 +21,6 @@ function caml_result_is_error(result)
   return result.tag == 1
 end
 
---
--- Result extraction
---
 
 --Provides: caml_result_get_ok
 function caml_result_get_ok(result)
@@ -61,9 +46,6 @@ function caml_result_value(result, default)
   return default
 end
 
---
--- Result mapping
---
 
 --Provides: caml_result_map
 function caml_result_map(f, result)
@@ -120,9 +102,6 @@ function caml_result_iter_error(f, result)
   end
 end
 
---
--- Result comparison
---
 
 --Provides: caml_result_equal
 function caml_result_equal(ok_eq, error_eq, result1, result2)
@@ -152,9 +131,6 @@ function caml_result_compare(ok_cmp, error_cmp, result1, result2)
   end
 end
 
---
--- Result conversion
---
 
 --Provides: caml_result_to_option
 function caml_result_to_option(result)
@@ -174,7 +150,6 @@ end
 
 --Provides: caml_result_to_seq
 function caml_result_to_seq(result)
-  -- Sequences are represented as functions
   if result.tag == 1 then
     return function() return 0 end  -- Empty sequence
   end

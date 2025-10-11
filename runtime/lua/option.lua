@@ -1,13 +1,4 @@
--- Lua_of_ocaml runtime support
--- Standard Library: Option module
---
--- OCaml option values are represented as:
--- None = 0
--- Some(v) = {tag=0, v}
 
---
--- Option construction
---
 
 --Provides: caml_option_none
 function caml_option_none()
@@ -19,9 +10,6 @@ function caml_option_some(value)
   return {tag = 0, value}
 end
 
---
--- Option queries
---
 
 --Provides: caml_option_is_none
 function caml_option_is_none(opt)
@@ -33,9 +21,6 @@ function caml_option_is_some(opt)
   return opt ~= 0
 end
 
---
--- Option extraction
---
 
 --Provides: caml_option_get
 function caml_option_get(opt)
@@ -53,9 +38,6 @@ function caml_option_value(opt, default)
   return opt[1]
 end
 
---
--- Option mapping
---
 
 --Provides: caml_option_map
 function caml_option_map(f, opt)
@@ -96,9 +78,6 @@ function caml_option_iter(f, opt)
   end
 end
 
---
--- Option comparison
---
 
 --Provides: caml_option_equal
 function caml_option_equal(eq, opt1, opt2)
@@ -125,9 +104,6 @@ function caml_option_compare(cmp, opt1, opt2)
   return cmp(opt1[1], opt2[1])
 end
 
---
--- Option conversion
---
 
 --Provides: caml_option_to_result
 function caml_option_to_result(none_error, opt)
@@ -147,7 +123,6 @@ end
 
 --Provides: caml_option_to_seq
 function caml_option_to_seq(opt)
-  -- Sequences are represented as functions
   if opt == 0 then
     return function() return 0 end  -- Empty sequence
   end
@@ -160,4 +135,3 @@ function caml_option_to_seq(opt)
     return {tag = 0, opt[1], function() return 0 end}
   end
 end
-
