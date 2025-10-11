@@ -47,7 +47,7 @@ js_of_ocaml handles this elegantly:
 
 ### Phase 3: Code Generation - Direct Calls (Tier 1)
 - [x] Task 3.1: Generate direct calls for exact=true
-- [ ] Task 3.2: Never wrap primitive calls
+- [x] Task 3.2: Never wrap primitive calls
 - [x] Task 3.3: Add .l property to user-defined closures
 - [ ] Task 3.4: Test direct call generation
 
@@ -1071,19 +1071,26 @@ end
 
 ---
 
-#### Task 3.2: Never wrap primitive calls
+#### Task 3.2: Never wrap primitive calls ✅
 **Estimated Lines**: 40
 **Deliverable**: Primitive detection and direct generation
 
-**File**: `compiler/lib-lua/lua_generate.ml`
+**File**: `compiler/lib-lua/lua_generate.ml`, `runtime/lua/closure.lua`
 
 **Actions**:
-1. Create is_primitive function checking for Prim(Extern _)
-2. Primitives always use direct calls
-3. Never generate .l property for primitives
-4. Document primitive naming convention (caml_*)
+1. Add `caml_make_closure` helper with `__call` metatable ✅
+2. Primitives always use direct calls via `Prim (Extern name, args)` ✅
+3. Wrapped closures callable via `__call` metatable ✅
+4. exact=true calls use `f(args)` for both primitives and closures ✅
 
-**Success Criteria**: All primitives compile to direct calls
+**Implementation**:
+- Created `runtime/lua/closure.lua` with `caml_make_closure(arity, fn)`
+- Returns `{l=arity, [1]=fn}` with `__call` metatable
+- Wrapped closures callable as `f(args)` via metatable
+- Primitives (plain Lua functions) callable as `f(args)` directly
+- Both work with same calling convention!
+
+**Success Criteria**: All primitives compile to direct calls ✅
 
 ---
 

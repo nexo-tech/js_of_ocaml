@@ -1,6 +1,7 @@
 #!/usr/bin/env lua
 -- Test suite for fun.lua function application module
 
+dofile("closure.lua")
 dofile("fun.lua")
 
 local tests_passed = 0
@@ -20,9 +21,9 @@ local function test(name, func)
 end
 
 -- Helper to create function with arity
--- In Lua 5.1, we can't set properties on functions, so wrap in table
+-- Uses caml_make_closure to wrap with __call metatable
 local function make_func(arity, fn)
-  return {l = arity, fn}
+  return caml_make_closure(arity, fn)
 end
 
 -- Test exact application
@@ -50,7 +51,7 @@ test("Partial application: missing 1 arg", function()
   local partial = caml_call_gen(f, {3})
   assert(type(partial) == "table", "Should return a table")
   assert(partial.l == 1, "Partial should have arity 1")
-  local result = partial[1](4)
+  local result = partial(4)
   assert(result == 12, "Expected 12, got " .. result)
 end)
 
@@ -59,7 +60,7 @@ test("Partial application: missing 2 args", function()
   local partial = caml_call_gen(f, {10})
   assert(type(partial) == "table", "Should return a table")
   assert(partial.l == 2, "Partial should have arity 2")
-  local result = partial[1](20, 30)
+  local result = partial(20, 30)
   assert(result == 60, "Expected 60, got " .. result)
 end)
 
@@ -68,7 +69,7 @@ test("Partial application: missing 3 args", function()
   local partial = caml_call_gen(f, {1})
   assert(type(partial) == "table", "Should return a table")
   assert(partial.l == 3, "Partial should have arity 3")
-  local result = partial[1](2, 3, 4)
+  local result = partial(2, 3, 4)
   assert(result == 10, "Expected 10, got " .. result)
 end)
 
@@ -78,7 +79,7 @@ test("Multi-stage partial application", function()
   assert(type(f1) == "table", "First partial should be table")
   local f2 = caml_call_gen(f1, {2})
   assert(type(f2) == "table", "Second partial should be table")
-  local result = f2[1](3)
+  local result = f2(3)
   assert(result == 6, "Expected 6, got " .. result)
 end)
 
@@ -116,7 +117,7 @@ test("caml_apply with partial", function()
   local f = make_func(2, function(x, y) return x * y end)
   local partial = caml_apply(f, 5)
   assert(type(partial) == "table", "Should return table")
-  local result = partial[1](6)
+  local result = partial(6)
   assert(result == 30, "Expected 30, got " .. result)
 end)
 
@@ -129,7 +130,7 @@ test("Curried function returning curried function", function()
 
   local add5 = caml_call_gen(make_adder, {5})
   assert(type(add5) == "table", "Should return table")
-  local result = add5[1](10)
+  local result = add5(10)
   assert(result == 15, "Expected 15, got " .. result)
 end)
 
@@ -175,12 +176,12 @@ test("OCaml pattern: let add x y = x + y; let add5 = add 5", function()
   assert(add5.l == 1, "add5 should have arity 1")
 
   -- Apply to 10
-  local result = add5[1](10)
+  local result = add5(10)
   assert(result == 15, "Expected 15, got " .. tostring(result))
 
   -- Apply to different values
-  assert(add5[1](7) == 12, "add5 7 should be 12")
-  assert(add5[1](100) == 105, "add5 100 should be 105")
+  assert(add5(7) == 12, "add5 7 should be 12")
+  assert(add5(100) == 105, "add5 100 should be 105")
 end)
 
 test("Multi-level partial: let f a b c = a+b+c; let g = f 1; let h = g 2", function()
@@ -197,7 +198,7 @@ test("Multi-level partial: let f a b c = a+b+c; let g = f 1; let h = g 2", funct
   assert(h.l == 1, "h should have arity 1")
 
   -- Final application: h 3
-  local result = h[1](3)
+  local result = h(3)
   assert(result == 6, "Expected 6, got " .. tostring(result))
 end)
 
@@ -217,7 +218,7 @@ test("Closure arity preservation through multiple stages", function()
   assert(f3.l == 1, "f3 arity should be 1")
 
   -- Final: provide last arg, get result
-  local result = f3[1](5)
+  local result = f3(5)
   assert(result == 26, "Expected 26 (2*3 + 4*5), got " .. tostring(result))
 end)
 
@@ -264,7 +265,7 @@ test("Partial application with string concat", function()
   local hello_space = caml_call_gen(hello, {" "})
   assert(hello_space.l == 1, "hello_space arity should be 1")
 
-  local result = hello_space[1]("World")
+  local result = hello_space("World")
   assert(result == "Hello World", "Expected 'Hello World', got " .. tostring(result))
 end)
 
@@ -281,8 +282,8 @@ test("Partial with arithmetic operations", function()
   assert(plus5.l == 1, "plus5 arity should be 1")
 
   -- Compose: (3 * 10) + 5 = 35
-  local x = times10[1](3)
-  local result = plus5[1](x)
+  local x = times10(3)
+  local result = plus5(x)
   assert(result == 35, "Expected 35, got " .. tostring(result))
 end)
 
@@ -304,7 +305,7 @@ test("Higher-order: map-like function with partial application", function()
   assert(map_inc.l == 1, "map_inc arity should be 1")
 
   -- Apply to list
-  local result = map_inc[1]({1, 2, 3})
+  local result = map_inc({1, 2, 3})
   assert(result[1] == 2 and result[2] == 3 and result[3] == 4, "map_inc failed")
 end)
 
@@ -319,7 +320,7 @@ test("Partial application preserves closure captures", function()
   local partial = caml_call_gen(add_with_base, {10})
   assert(partial.l == 1, "partial arity should be 1")
 
-  local result = partial[1](5)
+  local result = partial(5)
   assert(result == 115, "Expected 115 (100+10+5), got " .. tostring(result))
 end)
 
@@ -338,7 +339,7 @@ test("Complex pipeline: f |> g |> h with partial application", function()
 
   -- Now with partial application
   local f_10 = caml_call_gen(f, {10})
-  local step1_partial = f_10[1](5)          -- 15
+  local step1_partial = f_10(5)          -- 15
   local step2_partial = caml_call_gen(g, {step1_partial})  -- 30
   local step3_partial = caml_call_gen(h, {step2_partial})  -- 27
 

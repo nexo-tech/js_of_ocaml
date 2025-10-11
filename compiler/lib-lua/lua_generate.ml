@@ -738,9 +738,11 @@ let rec generate_expr ctx expr =
       if exact
       then
         (* Direct call (exact=true) - we know we have the right number of arguments
-           OCaml functions are wrapped as {l = arity, [1] = function}
-           Call the function directly from index [1] *)
-        L.Call (L.Index (func_expr, L.Number "1"), arg_exprs)
+           Call function directly: f(args)
+           Works for both:
+           - Wrapped closures via __call metatable: {l=arity, [1]=fn} callable as f(args)
+           - Primitive runtime functions: plain Lua functions callable as f(args) *)
+        L.Call (func_expr, arg_exprs)
       else
         (* Non-exact call - use caml_call_gen to handle partial application *)
         L.Call (L.Ident "caml_call_gen", [ func_expr; L.Table (List.map ~f:(fun e -> L.Array_field e) arg_exprs) ])
@@ -1092,14 +1094,15 @@ and generate_closure ctx params pc =
              Each closure gets its own _V table if needed (>180 vars) *)
           let body_stmts = compile_blocks_with_labels closure_ctx program pc ~params () in
 
-          (* Wrap the function in OCaml function format: {l = arity, [1] = function}
-             This allows caml_call_gen to handle partial application
-             Function is at index 1, arity is in .l property *)
+          (* Wrap the function in OCaml function format using caml_make_closure
+             Creates: {l = arity, [1] = function} with __call metatable
+             This allows:
+             1. exact=true calls to work as f(args) via __call metatable
+             2. caml_call_gen to access arity via .l and function via [1]
+             3. Primitive functions (plain Lua functions) to work with same calling convention *)
           let lua_func = L.Function (param_names, false, body_stmts) in
-          L.Table
-            [ L.Rec_field ("l", L.Number (string_of_int (List.length params)))
-            ; L.Array_field lua_func
-            ])
+          let arity = L.Number (string_of_int (List.length params)) in
+          L.Call (L.Ident "caml_make_closure", [ arity; lua_func ]))
 
 (** Generate argument passing code for block continuation
     When jumping to a block with parameters, assign the arguments to the parameters

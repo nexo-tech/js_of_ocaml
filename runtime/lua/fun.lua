@@ -16,6 +16,7 @@
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 --Provides: caml_call_gen
+--Requires: caml_make_closure
 function caml_call_gen(f, args)
   -- Get arity and actual function
   -- f can be either a plain function (no arity info) or a table {l=arity, [...]}
@@ -112,8 +113,8 @@ function caml_call_gen(f, args)
       end
     end
 
-    -- Return table with arity and function
-    return {l = d, g_fn}
+    -- Return wrapped closure with arity and function
+    return caml_make_closure(d, g_fn)
   end
 end
 
