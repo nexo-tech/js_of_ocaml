@@ -730,10 +730,23 @@
 
 **OPTIONAL**: These provide stdlib compatibility but aren't critical for runtime
 
-- [ ] Task 8.9: Refactor `hashtbl.lua` - hash table primitives (1 hour + tests)
-  - **FAILING TEST**: test_hashtbl.lua
-  - **DEPENDENCIES**: hash.lua (Task 8.5)
-  - **FUNCTIONS**: create, add, find, remove, iter, fold, etc.
+- [x] Task 8.9: Refactor `hashtbl.lua` - hash table primitives (1 hour + tests)
+  - **STATUS**: ✅ ALREADY COMPLETE - Refactored in Task 3.4
+  - **TEST RESULTS**: 54/54 tests passing
+  - **REFACTORED IN**: Task 3.4 (Phase 3: Refactor Core Primitives)
+  - **CHANGES MADE** (Task 3.4):
+    - Removed local constants: DEFAULT_INITIAL_SIZE, LOAD_FACTOR
+    - Removed local Hashtbl metatable and setmetatable call
+    - Converted local helper functions to global caml_* functions:
+      - equal → caml_hashtbl_equal
+      - get_bucket_index → caml_hashtbl_get_bucket_index
+      - resize → caml_hashtbl_resize
+  - **FUNCTIONS**:
+    - caml_hash_create, caml_hash_add, caml_hash_find, caml_hash_find_opt
+    - caml_hash_remove, caml_hash_replace, caml_hash_mem, caml_hash_length
+    - caml_hash_clear, caml_hash_iter, caml_hash_fold, caml_hash_entries
+    - caml_hash_keys, caml_hash_values, caml_hash_to_array, caml_hash_stats
+  - **VERIFIED**: No local variables, all functions global with --Provides directives
 
 - [ ] Task 8.10: Refactor `map.lua` - map primitives (1 hour + tests)
   - **FAILING TEST**: test_map.lua
