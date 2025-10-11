@@ -52,9 +52,9 @@ js_of_ocaml handles this elegantly:
 - [x] Task 3.4: Test direct call generation
 
 ### Phase 4: Code Generation - Conditional Calls (Tier 2)
-- [ ] Task 4.1: Implement arity check conditional
-- [ ] Task 4.2: Generate fast path for arity match
-- [ ] Task 4.3: Generate slow path to caml_call_gen
+- [x] Task 4.1: Implement arity check conditional
+- [x] Task 4.2: Generate fast path for arity match (included in 4.1)
+- [x] Task 4.3: Generate slow path to caml_call_gen (included in 4.1)
 - [ ] Task 4.4: Test conditional call generation
 
 ### Phase 5: Remove Universal Wrapping
@@ -1142,54 +1142,77 @@ end
 
 ### Phase 4: Code Generation - Conditional Calls (Tier 2)
 
-#### Task 4.1: Implement arity check conditional
+#### Task 4.1: Implement arity check conditional ✅
 **Estimated Lines**: 120
 **Deliverable**: Conditional call generation
 
 **File**: `compiler/lib-lua/lua_generate.ml`
 
 **Actions**:
-1. For Apply { exact=false }, generate if statement
-2. Condition: `f.l == n or f.l == nil` (optimistic)
-3. True branch: direct call
-4. False branch: caml_call_gen
-5. Bind result to temp variable
+1. For Apply { exact=false }, generate if statement ✅
+2. Condition: `f.l == n or f.l == nil` (optimistic) ✅
+3. True branch: direct call ✅
+4. False branch: caml_call_gen ✅
+5. Bind result to target variable ✅
 
-**Success Criteria**: Non-exact calls generate conditional
+**Implementation**:
+- Added special case in `generate_instr` for `Let (var, Apply { exact=false })`
+- Generates conditional at statement level (lua_generate.ml:779-814):
+  ```lua
+  if f.l == n or f.l == nil then
+    target = f(args)  -- Fast path
+  else
+    target = caml_call_gen(f, {args})  -- Slow path
+  end
+  ```
+- Optimistic check: assumes primitives (f.l == nil) match arity
+- All 26 runtime tests still passing
+
+**Success Criteria**: Non-exact calls generate conditional ✅
 
 **Reference**: generate.ml:1074-1096 JavaScript pattern
 
 ---
 
-#### Task 4.2: Generate fast path for arity match
+#### Task 4.2: Generate fast path for arity match ✅
 **Estimated Lines**: 40
 **Deliverable**: Optimized true branch
 
 **File**: `compiler/lib-lua/lua_generate.ml`
 
 **Actions**:
-1. True branch: L.Call(f, args) directly
-2. No indirection, no array creation
-3. Same as exact=true path
-4. Add comment explaining optimization
+1. True branch: L.Call(f, args) directly ✅
+2. No indirection, no array creation ✅
+3. Same as exact=true path ✅
+4. Add comment explaining optimization ✅
 
-**Success Criteria**: Fast path is identical to direct call
+**Implementation**: Included in Task 4.1 (lua_generate.ml:801)
+- True branch: `target = f(args)`
+- Direct call with no wrapping
+- Identical to exact=true path
+
+**Success Criteria**: Fast path is identical to direct call ✅
 
 ---
 
-#### Task 4.3: Generate slow path to caml_call_gen
+#### Task 4.3: Generate slow path to caml_call_gen ✅
 **Estimated Lines**: 60
 **Deliverable**: Fallback to generic handler
 
 **File**: `compiler/lib-lua/lua_generate.ml`
 
 **Actions**:
-1. False branch: L.Call(L.Ident "caml_call_gen", [f; L.Table args])
-2. Build args as Lua table literal
-3. Call runtime function
-4. Return result from call
+1. False branch: L.Call(L.Ident "caml_call_gen", [f; L.Table args]) ✅
+2. Build args as Lua table literal ✅
+3. Call runtime function ✅
+4. Assign result to target ✅
 
-**Success Criteria**: Slow path calls caml_call_gen correctly
+**Implementation**: Included in Task 4.1 (lua_generate.ml:804-810)
+- False branch: `target = caml_call_gen(f, {args})`
+- Creates table with Array_field for each argument
+- Handles partial application correctly
+
+**Success Criteria**: Slow path calls caml_call_gen correctly ✅
 
 ---
 

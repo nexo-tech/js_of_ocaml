@@ -744,7 +744,9 @@ let rec generate_expr ctx expr =
            - Primitive runtime functions: plain Lua functions callable as f(args) *)
         L.Call (func_expr, arg_exprs)
       else
-        (* Non-exact call - use caml_call_gen to handle partial application *)
+        (* Non-exact call - use caml_call_gen to handle partial application
+           Note: Conditional optimization (Tier 2) is handled at statement level
+           in generate_instr for Let instructions *)
         L.Call (L.Ident "caml_call_gen", [ func_expr; L.Table (List.map ~f:(fun e -> L.Array_field e) arg_exprs) ])
   | Code.Block (tag, arr, _array_or_not, _mutability) ->
       (* Block construction - create table with tag (optimized) *)
@@ -774,6 +776,42 @@ let rec generate_expr ctx expr =
 *)
 and generate_instr ctx instr =
   match instr with
+  | Code.Let (var, Code.Apply { f; args; exact = false }) ->
+      (* Special case: non-exact Apply - generate conditional for optimization (Tier 2)
+         Pattern from js_of_ocaml (generate.ml:1074-1096):
+         if f.l == n or f.l == nil then
+           target = f(args)  -- Fast path: arity matches
+         else
+           target = caml_call_gen(f, {args})  -- Slow path: partial application
+         end *)
+      let target = var_ident ctx var in
+      let func_expr = var_ident ctx f in
+      let arg_exprs = List.map ~f:(var_ident ctx) args in
+      let n = List.length args in
+
+      (* Condition: f.l == n or f.l == nil (optimistic - primitives have nil .l) *)
+      let arity_check =
+        L.BinOp
+          ( L.Or
+          , L.BinOp (L.Eq, L.Dot (func_expr, "l"), L.Number (string_of_int n))
+          , L.BinOp (L.Eq, L.Dot (func_expr, "l"), L.Nil) )
+      in
+
+      (* True branch: direct call (fast path) *)
+      let fast_path = L.Assign ([ target ], [ L.Call (func_expr, arg_exprs) ]) in
+
+      (* False branch: caml_call_gen (slow path for partial application) *)
+      let slow_path =
+        L.Assign
+          ( [ target ]
+          , [ L.Call
+                ( L.Ident "caml_call_gen"
+                , [ func_expr; L.Table (List.map ~f:(fun e -> L.Array_field e) arg_exprs) ] )
+            ] )
+      in
+
+      (* Generate if statement *)
+      L.If (arity_check, [ fast_path ], Some [ slow_path ])
   | Code.Let (var, expr) ->
       (* Generate assignment (variables are hoisted at function start or in _V table) *)
       let target = var_ident ctx var in
