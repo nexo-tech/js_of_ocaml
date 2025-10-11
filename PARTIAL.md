@@ -39,11 +39,11 @@ js_of_ocaml handles this elegantly:
 - [x] Task 1.3: Design Lua function calling strategy
 - [x] Task 1.4: Complete design phase (merged into 1.1-1.3)
 
-### Phase 2: Runtime Infrastructure (caml_call_gen)
+### Phase 2: Runtime Infrastructure (caml_call_gen) ✅
 - [x] Task 2.1: Implement caml_call_gen core logic
 - [x] Task 2.2: Add arity 1 and 2 fast paths (included in 2.1)
 - [x] Task 2.3: Test caml_call_gen with all three cases (included in 2.1)
-- [ ] Task 2.4: Add runtime tests for partial application
+- [x] Task 2.4: Add runtime tests for partial application
 
 ### Phase 3: Code Generation - Direct Calls (Tier 1)
 - [ ] Task 3.1: Generate direct calls for exact=true
