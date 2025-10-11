@@ -12,6 +12,9 @@
 - ✅ Build system integration (dune)
 - ✅ Variable limit fixes (auto-chunking)
 - ✅ Source maps for debugging
+- ✅ Inline primitive operations (13 operations)
+- ✅ Closure variable capture with _V table inheritance
+- ✅ Function parameter handling in _V table functions
 
 **Runtime System** (95% Complete)
 - ✅ 88+ runtime modules implemented
@@ -27,6 +30,16 @@
 - ✅ Marshal: 10 test suites covering all marshal features
 - ✅ I/O: channels, files, memory buffers, integration tests
 - ✅ Compatibility: Lua 5.1, LuaJIT optimization tests
+
+### ⚠️ Known Issues
+
+**Pattern Matching / Control Flow** (Needs Investigation)
+- Complex pattern matches on variants may have missing field extractions
+- Symptoms: "attempt to index field 'vXXX' (a nil value)" errors in generated code
+- Example: v1165 error in hello.bc.lua after closure capture fix
+- Root cause: Variables used in match branches without being extracted on control flow path
+- Impact: Some OCaml programs fail at runtime after initial execution
+- **Status**: Documented, needs separate investigation of IR block traversal
 
 ---
 
