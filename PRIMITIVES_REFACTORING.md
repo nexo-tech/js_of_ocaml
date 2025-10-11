@@ -1047,11 +1047,33 @@ These tests validate compatibility and performance but don't require refactoring
   - **PURPOSE**: Verify runtime on LuaJIT (Lua 5.1 compatible JIT compiler)
   - **SCOPE**: Standard Lua 5.1 features on LuaJIT (runtime compatible with JIT compilation)
 
-- [ ] Task 9.11: LuaJIT optimization testing (Optional - 1 hour)
-  - **CURRENT TEST**: test_luajit_optimizations.lua
-  - **PURPOSE**: Benchmark JIT optimization effectiveness
-  - **SCOPE**: Performance profiling, trace compilation
-  - **STATUS**: Low priority - optimization is bonus, not requirement
+- [x] Task 9.11: LuaJIT optimization testing (Optional - 1 hour)
+  - **STATUS**: ✅ COMPLETE - All 14 optimization tests passing on LuaJIT 2.1.1741730670
+  - **CURRENT TEST**: test_luajit_optimizations.lua (rewritten to use global functions)
+  - **ENVIRONMENT**: LuaJIT 2.1.1741730670 with JIT enabled (accessed via nix-shell -p luajit)
+  - **TEST RESULTS** (all passing, 100% success rate):
+    1. ints: JIT-compiled arithmetic operations ✓
+    2. float: JIT-compiled float operations ✓
+    3. mlBytes: Table operations under JIT ✓
+    4. mlBytes: Multi-byte ops with JIT ✓
+    5. array: Array operations under JIT ✓
+    6. obj: Method dispatch under JIT ✓
+    7. bitwise: Bitwise ops under JIT ✓
+    8. mlBytes: String conversions under JIT ✓
+    9. ints: Numerical accuracy under JIT ✓
+    10. JIT: Explicit compilation check ✓
+    11. Performance: Table allocation patterns ✓
+    12. float: Float classification under JIT ✓
+    13. Complex: Nested operations under JIT ✓
+    14. mlBytes: Byte-level string ops under JIT ✓
+  - **VERIFICATION**:
+    - All runtime modules maintain correct semantics under JIT compilation
+    - Table optimizations work correctly without breaking semantics
+    - No FFI compatibility issues (FFI not used by runtime)
+    - JIT-compiled hot loops produce correct results
+    - Numerical accuracy preserved under JIT optimization
+  - **PURPOSE**: Verify JIT optimization effectiveness and semantic preservation
+  - **SCOPE**: Performance profiling under JIT compilation, trace compilation verification
 
 **Total Estimated Time for Phase 9: 8 hours (required) + 7 hours (optional) = 15 hours max**
 
