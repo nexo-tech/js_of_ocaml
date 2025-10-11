@@ -36,7 +36,7 @@ js_of_ocaml handles this elegantly:
 ### Phase 1: Analysis and Design
 - [x] Task 1.1: Analyze js_of_ocaml's function calling conventions
 - [x] Task 1.2: Document OCaml function representation requirements
-- [ ] Task 1.3: Design Lua function calling strategy
+- [x] Task 1.3: Design Lua function calling strategy
 - [ ] Task 1.4: Design arity tracking system
 
 ### Phase 2: Core Infrastructure
@@ -457,7 +457,7 @@ example.cps.l = 3  -- Arity includes continuation
 
 ---
 
-#### Task 1.3: Design Lua function calling strategy
+#### Task 1.3: Design Lua function calling strategy ✅
 **Estimated Lines**: 50 (design document)
 **Deliverable**: Calling convention design document
 
@@ -471,6 +471,499 @@ example.cps.l = 3  -- Arity includes continuation
 4. Plan backwards compatibility
 
 **Success Criteria**: Clear decision tree for function calls
+
+---
+
+## Lua Function Calling Strategy (Task 1.3)
+
+### Overview
+
+Based on analysis of js_of_ocaml's `apply_fun_raw` (generate.ml:1048-1126), we design a **three-tier strategy** that balances performance and correctness.
+
+### Three-Tier Strategy
+
+#### **Tier 1: Direct Call (Fastest)**
+
+**When to use**:
+- `exact = true` (compiler knows arity matches)
+- Function is NOT wrapped (plain Lua function)
+- No arity check needed
+
+**Generated code**:
+```lua
+-- Simple direct call
+local result = f(arg1, arg2, arg3)
+```
+
+**Performance**: ✅✅✅ Fastest (no overhead)
+
+**Use cases**:
+- Primitive function calls: `caml_ml_output(chan, str)`
+- Known-arity local calls: `add(1, 2)`
+- Tail calls within known functions
+
+---
+
+#### **Tier 2: Conditional Call with Arity Check (Fast path)**
+
+**When to use**:
+- `exact = false` (compiler uncertain about arity match)
+- Function MAY have `.l` property
+- Want to optimize for the common case (arity matches)
+
+**Generated code pattern** (matches generate.ml:1074-1096):
+```lua
+-- Check if function has correct arity, then call directly or fall back
+local function get_arity(f)
+  if type(f) == "table" and f.l then
+    return f.l
+  elseif type(f) == "function" and f.l then
+    return f.l
+  else
+    -- Unknown arity, assume it matches (risky) or error
+    return #args  -- Optimistic assumption
+  end
+end
+
+local n = get_arity(f)
+if n == 3 then  -- Expected arity
+  result = f(arg1, arg2, arg3)
+else
+  result = caml_call_gen(f, {arg1, arg2, arg3})
+end
+```
+
+**Optimized version** (inline arity check):
+```lua
+-- Inline the common case
+local result
+if f.l == 3 or f.l == nil then
+  -- Arity matches or unknown (optimistic)
+  result = f(arg1, arg2, arg3)
+else
+  -- Wrong arity, need generic handler
+  result = caml_call_gen(f, {arg1, arg2, arg3})
+end
+```
+
+**Performance**: ✅✅ Fast when arity matches (common case)
+
+**Use cases**:
+- Higher-order function calls: `List.map f list`
+- Function passed as argument: `apply_twice f x`
+- Callback invocations
+
+---
+
+#### **Tier 3: Generic Call via `caml_call_gen` (Correct)**
+
+**When to use**:
+- `exact = false` AND arity check failed
+- Unknown function with unknown arity
+- Guaranteed to handle all cases correctly
+
+**Generated code**:
+```lua
+-- Always use runtime dispatch
+local result = caml_call_gen(f, {arg1, arg2, arg3})
+```
+
+**Runtime behavior** (from stdlib.js:20-63):
+```lua
+function caml_call_gen(f, args)
+  local n = f.l or error("Function arity unknown")
+  local argsLen = #args
+  local d = n - argsLen
+
+  if d == 0 then
+    -- Exact match: call directly
+    return f(table.unpack(args))
+  elseif d < 0 then
+    -- Over-application: call with first n args, recurse with rest
+    local g = f(table.unpack(args, 1, n))
+    if type(g) ~= "function" then
+      return g  -- Result is not a function
+    end
+    local rest_args = {table.unpack(args, n + 1)}
+    return caml_call_gen(g, rest_args)
+  else
+    -- Under-application: build partial closure
+    local closure = function(...)
+      local extra = {...}
+      local combined = {}
+      for _, v in ipairs(args) do
+        table.insert(combined, v)
+      end
+      for _, v in ipairs(extra) do
+        table.insert(combined, v)
+      end
+      return caml_call_gen(f, combined)
+    end
+    closure.l = d  -- Remaining arity
+    return closure
+  end
+end
+```
+
+**Performance**: ✅ Correct but slower (function call overhead)
+
+**Use cases**:
+- Partial application: `let add5 = add 5`
+- Over-application: `f 1 2 3 4 5` where `f` has arity 2
+- Unknown arity at compile time
+
+---
+
+### Decision Tree
+
+**Code generation decision flow**:
+
+```
+┌─────────────────────────────────┐
+│ Code.Apply { f; args; exact }   │
+└────────────┬────────────────────┘
+             │
+             v
+      ┌──────────────┐
+      │ exact = ?    │
+      └──┬────────┬──┘
+         │        │
+    true │        │ false
+         v        v
+   ┌──────────┐ ┌─────────────────┐
+   │ Is f     │ │ Optimize with   │
+   │ wrapped? │ │ arity check?    │
+   └─┬────┬───┘ └───┬─────────┬───┘
+     │    │         │         │
+  yes│    │no    yes│         │no
+     │    │         │         │
+     v    v         v         v
+   ┌──────────┐ ┌────────┐ ┌──────────────┐
+   │ f.f(...)  │ │ f(...) │ │ if f.l==n    │
+   │          │ │        │ │   f(...)     │
+   │ Tier 1   │ │ Tier 1 │ │ else         │
+   │          │ │        │ │   caml_call  │
+   └──────────┘ └────────┘ │              │
+                           │ Tier 2       │
+                           └──────┬───────┘
+                                  │
+                                  v (slow path)
+                           ┌──────────────┐
+                           │ caml_call_   │
+                           │ gen(f, args) │
+                           │              │
+                           │ Tier 3       │
+                           └──────────────┘
+```
+
+---
+
+### Arity Tracking Mechanism
+
+#### At Function Definition
+
+**Where arity is determined**:
+1. **From IR**: `Code.Closure (params, cont, loc)` → `#params` is arity
+2. **From primitives**: Primitive registry has arity info
+3. **From external**: Manually specified or inferred
+
+**How arity is stored**:
+
+**Option A: Table wrapper** (explicit):
+```lua
+local f = {
+  l = 3,
+  f = function(a, b, c) return a + b + c end
+}
+```
+
+**Option B: Property on function** (simpler):
+```lua
+local function f(a, b, c)
+  return a + b + c
+end
+f.l = 3
+```
+
+**Recommendation**: Use **Option B** for simplicity, fallback to table when needed for CPS.
+
+#### At Call Site
+
+**Compile-time knowledge**:
+- IR contains `exact` flag from compiler analysis
+- If `exact = true`, we know arity matches
+- If `exact = false`, we need runtime check
+
+**Runtime lookup**:
+```lua
+-- Get arity safely
+local function safe_arity(f)
+  if type(f) == "function" then
+    return f.l
+  elseif type(f) == "table" and f.l then
+    return f.l
+  else
+    return nil  -- Unknown
+  end
+end
+```
+
+---
+
+### Code Generation Patterns
+
+#### Pattern 1: Primitive Call (Always Direct)
+
+**OCaml IR**:
+```
+Apply { f = Prim(Extern "caml_ml_output"); args = [chan; str]; exact = true }
+```
+
+**Generated Lua**:
+```lua
+caml_ml_output(chan, str)
+```
+
+**Rationale**: Primitives are never wrapped, always exact calls.
+
+---
+
+#### Pattern 2: Known Function, Exact Call
+
+**OCaml IR**:
+```
+Apply { f = Var f_123; args = [x; y]; exact = true }
+-- where f_123 is known local closure with arity 2
+```
+
+**Generated Lua**:
+```lua
+f_123(x, y)
+```
+
+**Rationale**: Compiler verified arity matches, direct call.
+
+---
+
+#### Pattern 3: Higher-Order, Non-Exact Call
+
+**OCaml IR**:
+```
+Apply { f = Var func; args = [a; b]; exact = false }
+-- where func might be partially applied
+```
+
+**Generated Lua (optimized Tier 2)**:
+```lua
+-- Inline arity check for common case
+local _r
+if func.l == 2 or func.l == nil then
+  _r = func(a, b)
+else
+  _r = caml_call_gen(func, {a, b})
+end
+```
+
+**Rationale**: Optimize for exact match (common), fallback to generic.
+
+---
+
+#### Pattern 4: Partial Application
+
+**OCaml IR**:
+```
+Apply { f = Var add; args = [5]; exact = false }
+-- where add has arity 2, only providing 1 arg
+```
+
+**Generated Lua (Tier 3)**:
+```lua
+local add5 = caml_call_gen(add, {5})
+-- Returns closure with arity 1
+```
+
+**Rationale**: Must use `caml_call_gen` to build partial closure.
+
+---
+
+#### Pattern 5: Over-Application
+
+**OCaml IR**:
+```
+Apply { f = Var make_adder; args = [10; 20]; exact = false }
+-- where make_adder has arity 1, returns function with arity 1
+```
+
+**Generated Lua (Tier 3)**:
+```lua
+local result = caml_call_gen(make_adder, {10, 20})
+-- Calls make_adder(10), gets closure, calls it with 20
+```
+
+**Rationale**: Over-application requires recursion, handled by `caml_call_gen`.
+
+---
+
+### Backwards Compatibility
+
+#### Compatibility with Existing Runtime
+
+**JavaScript runtime compatibility**:
+- Same `.l` property convention
+- Same `caml_call_gen` semantics
+- Compatible function representation
+
+**Lua-specific adaptations**:
+- Use `table.unpack` instead of spread `...`
+- Use `table.insert` for array building
+- Handle 1-indexed arrays (or use 0-indexed like OCaml blocks)
+
+#### Migration Strategy
+
+**Phase 1**: Implement Tier 3 only (always use `caml_call_gen`)
+- Simple, correct, but slow
+- Validates runtime semantics
+
+**Phase 2**: Add Tier 1 for primitives and exact calls
+- Optimize common cases
+- Significant performance improvement
+
+**Phase 3**: Add Tier 2 for conditional optimization
+- Handle non-exact calls efficiently
+- Final optimization pass
+
+---
+
+### Performance Optimization Strategy
+
+#### Inline Thresholds
+
+**When to inline arity checks**:
+- Small number of arguments (1-3): inline
+- Large number of arguments (4+): use helper function
+- Repeated calls: hoist check outside loop
+
+**Example optimizations**:
+
+**Before** (naive):
+```lua
+for i = 1, n do
+  result = caml_call_gen(f, {i})
+end
+```
+
+**After** (optimized):
+```lua
+if f.l == 1 then
+  -- Fast path: direct calls
+  for i = 1, n do
+    result = f(i)
+  end
+else
+  -- Slow path: generic calls
+  for i = 1, n do
+    result = caml_call_gen(f, {i})
+  end
+end
+```
+
+#### Special Cases
+
+**Arity 1 optimization** (very common):
+```lua
+-- Instead of creating array {x}
+if f.l == 1 or f.l == nil then
+  result = f(x)
+else
+  result = caml_call_gen(f, {x})
+end
+```
+
+**Arity 2 optimization** (also common):
+```lua
+if f.l == 2 or f.l == nil then
+  result = f(x, y)
+else
+  result = caml_call_gen(f, {x, y})
+end
+```
+
+---
+
+### Implementation Guidelines
+
+#### Code Generation Helpers
+
+**Helper functions in `lua_generate.ml`**:
+
+```ocaml
+(* Determine call tier *)
+let call_tier ctx f args exact =
+  if exact && is_primitive f then Tier1_Direct
+  else if exact then Tier1_Direct
+  else if should_optimize_arity ctx then Tier2_Conditional
+  else Tier3_Generic
+
+(* Generate call based on tier *)
+let generate_apply ctx f args exact =
+  match call_tier ctx f args exact with
+  | Tier1_Direct ->
+      L.Call (f, args)  (* Direct call *)
+  | Tier2_Conditional ->
+      let n = List.length args in
+      L.If (
+        L.BinOp(Or,
+          L.BinOp(Eq, L.Dot(f, "l"), L.Number n),
+          L.BinOp(Eq, L.Dot(f, "l"), L.Nil)),
+        L.Call(f, args),
+        Some (L.Call(L.Ident "caml_call_gen", [f; L.Table args]))
+      )
+  | Tier3_Generic ->
+      L.Call (L.Ident "caml_call_gen", [f; L.Table args])
+```
+
+#### Runtime Helpers
+
+**Required in `runtime/lua/fun.lua`**:
+
+```lua
+--Provides: caml_call_gen
+function caml_call_gen(f, args)
+  -- Full implementation as documented above
+end
+
+--Provides: caml_check_arity
+function caml_check_arity(f, n)
+  return f.l == n or f.l == nil
+end
+```
+
+---
+
+### Decision Matrix
+
+| Scenario | `exact` | Known Arity? | Strategy | Code Pattern |
+|----------|---------|--------------|----------|--------------|
+| Primitive call | true | Yes | Tier 1 | `f(...)` |
+| Local exact call | true | Yes | Tier 1 | `f(...)` |
+| Higher-order exact | true | Maybe | Tier 1 | `f(...)` |
+| HOF non-exact | false | Maybe | Tier 2 | `if f.l==n then f(...) else caml_call_gen` |
+| Partial app | false | Maybe | Tier 3 | `caml_call_gen(f, {...})` |
+| Over-app | false | Maybe | Tier 3 | `caml_call_gen(f, {...})` |
+| Unknown function | false | No | Tier 3 | `caml_call_gen(f, {...})` |
+
+---
+
+### Summary: Lua Calling Convention
+
+1. **Three tiers**: Direct (fast) → Conditional (balanced) → Generic (correct)
+2. **Tier 1**: Use for `exact = true` and primitives (no overhead)
+3. **Tier 2**: Inline arity check for non-exact with fast path
+4. **Tier 3**: Always use `caml_call_gen` for correctness
+5. **Arity tracking**: Store in `.l` property on functions
+6. **Backwards compatible**: Matches js_of_ocaml conventions
+7. **Optimization strategy**: Start simple (Tier 3), add fast paths incrementally
+8. **Performance**: Tier 1 for 90% of calls (hot path), Tier 3 for flexibility
 
 ---
 
