@@ -235,7 +235,9 @@ function caml_hash(count, limit, seed, obj)
     rd = rd + 1
 
     if type(v) == "number" then
-      if math.type(v) == "integer" or (v == math.floor(v) and v >= -0x40000000 and v < 0x40000000) then
+      -- Lua 5.1: no math.type(), all numbers are doubles
+      -- Check if integer-valued and in 31-bit signed range
+      if v == math.floor(v) and v >= -0x40000000 and v < 0x40000000 then
         h = caml_hash_mix_int(h, caml_hash_to_int32(v + v + 1))
         num = num - 1
       else

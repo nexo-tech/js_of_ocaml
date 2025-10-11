@@ -659,14 +659,26 @@
     - ✓ test_compare.lua: 73/73 tests pass - no regressions
   - **FILES MODIFIED**: float.lua (removed local constants), test_float.lua (fixed -0.0 literal)
 
-- [ ] Task 8.5: Refactor `hash.lua` - hashing primitives (1 hour + tests)
-  - **FAILING TEST**: test_hash.lua
-  - **CURRENT STATE**: Uses module pattern
-  - **FUNCTIONS TO REFACTOR**:
-    - caml_hash (polymorphic hash function)
-    - caml_hash_mix_int, caml_hash_mix_string
-    - caml_hash_univ_param (configurable depth/breadth)
-  - **IMPLEMENTATION**: Follow OCaml hashing semantics
+- [x] Task 8.5: Fix `hash.lua` Lua 5.1 compatibility (1 hour + tests) ✓
+  - **ISSUE**: test_hash.lua had 32/64 tests failing with "attempt to call field 'type' (a nil value)"
+  - **ROOT CAUSE**: hash.lua used `math.type(v)` which is Lua 5.3+ only
+    - Lua 5.1 doesn't have `math.type()` function
+    - Line 238: `if math.type(v) == "integer" or ...` caused runtime error
+  - **SOLUTION**: Removed `math.type()` call, use integer-value check only
+    - Lua 5.1: all numbers are doubles, no integer type
+    - Changed to: `if v == math.floor(v) and v >= -0x40000000 and v < 0x40000000`
+    - Checks if number is integer-valued and within 31-bit signed range
+  - **NOTE**: hash.lua was already refactored in Task 3.3 (Phase 3)
+    - Removed local helper functions with Lua 5.3+ bitwise operators
+    - Implemented Lua 5.1 compatible bitwise operations
+    - Replaced string.pack/unpack with Lua 5.1 float decomposition
+    - This task only fixed remaining `math.type()` compatibility issue
+  - **VERIFICATION**:
+    - ✓ test_hash.lua: **64/64 tests pass (100%)** (was 32/64)
+    - ✓ test_hashtbl.lua: all tests pass - no regressions
+    - ✓ test_compare.lua: 73/73 tests pass - no regressions
+    - ✓ test_float.lua: all tests pass - no regressions
+  - **FILES MODIFIED**: hash.lua (removed math.type() call)
 
 - [ ] Task 8.6: Refactor `sys.lua` - system primitives (1.5 hours + tests)
   - **FAILING TEST**: test_sys.lua
@@ -860,10 +872,9 @@ These tests validate compatibility and performance but don't require refactoring
 - Phase 6: test_lexing.lua, test_digest.lua, test_bigarray.lua
 - Marshal: test_marshal_header.lua, test_marshal_io.lua, test_marshal_int.lua, test_marshal_string.lua, test_marshal_block.lua, test_marshal_blocks.lua, test_marshal_value.lua, test_marshal_sharing.lua, test_marshal_double.lua, test_marshal_public.lua
 - I/O: test_io_marshal.lua, test_io_integration.lua
-- Core: test_compare.lua, test_float.lua
+- Core: test_compare.lua, test_float.lua, test_hash.lua
 
-**NEEDS REFACTORING - CORE (4 files)**:
-- test_hash.lua (Task 8.5)
+**NEEDS REFACTORING - CORE (3 files)**:
 - test_sys.lua (Task 8.6)
 - test_format_channel.lua (Task 8.7)
 - test_fun.lua (Task 8.8)
