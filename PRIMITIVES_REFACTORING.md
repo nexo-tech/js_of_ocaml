@@ -561,21 +561,30 @@
 
 #### Fix Known Issues in Refactored Modules (Est: 2 hours)
 
-- [ ] Task 8.1: Fix `test_marshal_double.lua` failures (1 hour)
+- [x] Task 8.1: Fix `test_marshal_double.lua` failures (1 hour) ✓
+  - **COMPLETED**: Fixed float array format to include all required fields
   - **ISSUE**: 9 test failures - float array size field not populated
-  - **CURRENT**: Float arrays use `{tag=254, values={...}}` format
-  - **PROBLEM**: Tests expect `size` field, getting `nil`
-  - **AFFECTED TESTS**:
-    - read_float_array: empty, 1 element, 5 elements, 255 elements, 256 elements, at offset
-    - roundtrip: DOUBLE_ARRAY8 boundary (0, 1, 255)
-    - roundtrip: DOUBLE_ARRAY32 (256, 300)
-    - roundtrip: special values in array
-  - **RESOLUTION PLAN**:
-    1. Review marshal_double.lua float array read/write implementation
-    2. Ensure `size` field is set: `{tag=254, size=N, values={...}}`
-    3. Update caml_marshal_read_float_array to populate size field
-    4. Verify all 9 tests pass
-    5. Run test_io_marshal.lua and test_io_integration.lua to ensure no regressions
+  - **ROOT CAUSE**: caml_marshal_read_float_array returned `{tag=254, values={...}}` without `size` field
+  - **SOLUTION**: Updated float array format to include all fields:
+    ```lua
+    {
+      tag = 254,        -- For test_io_marshal.lua compatibility
+      size = len,       -- For test_marshal_double.lua compatibility
+      values = values,  -- For test_io_marshal.lua compatibility
+      [1] = v1,         -- For direct numeric access
+      [2] = v2,
+      ...
+    }
+    ```
+  - **IMPLEMENTATION**:
+    - Modified caml_marshal_read_float_array in marshal.lua
+    - Added `size` field while keeping `tag` and `values` for backward compatibility
+    - Populated numeric indices [1], [2], ... for direct access
+  - **TEST RESULTS**:
+    - ✓ test_marshal_double.lua: **40/40 tests pass (100%)** - all 9 failures fixed
+    - ✓ test_io_marshal.lua: **53/53 tests pass (100%)** - no regressions
+    - ✓ test_io_integration.lua: **35/35 tests pass (100%)** - no regressions
+  - **FILES MODIFIED**: marshal.lua (caml_marshal_read_float_array function)
 
 - [ ] Task 8.2: Fix `test_marshal_public.lua` offset failures (1 hour)
   - **ISSUE**: 3 test failures - offset parameter not working in public API

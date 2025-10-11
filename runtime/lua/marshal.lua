@@ -429,11 +429,18 @@ function caml_marshal_read_float_array(str, offset)
     bytes_consumed = bytes_consumed + 8
   end
 
-  -- Return float array in OCaml format: {tag = 254, values = {...}}
+  -- Return float array with both formats for compatibility:
+  -- - size field for test_marshal_double.lua compatibility
+  -- - tag=254 and values for test_io_marshal.lua compatibility
+  -- - numeric indices [1], [2], ... for direct access
   local arr = {
     tag = 254,
+    size = len,
     values = values
   }
+  for i = 1, len do
+    arr[i] = values[i]
+  end
 
   return {
     value = arr,
