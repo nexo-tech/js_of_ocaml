@@ -35,7 +35,7 @@ js_of_ocaml handles this elegantly:
 
 ### Phase 1: Analysis and Design
 - [x] Task 1.1: Analyze js_of_ocaml's function calling conventions
-- [ ] Task 1.2: Document OCaml function representation requirements
+- [x] Task 1.2: Document OCaml function representation requirements
 - [ ] Task 1.3: Design Lua function calling strategy
 - [ ] Task 1.4: Design arity tracking system
 
@@ -187,7 +187,7 @@ js_of_ocaml handles this elegantly:
 
 ---
 
-#### Task 1.2: Document OCaml function representation requirements
+#### Task 1.2: Document OCaml function representation requirements ✅
 **Estimated Lines**: 30 (documentation)
 **Deliverable**: Specification of OCaml function format in Lua
 
@@ -199,6 +199,261 @@ js_of_ocaml handles this elegantly:
 5. Document arity checking requirements
 
 **Success Criteria**: Clear spec that can guide implementation
+
+---
+
+## OCaml Function Representation in Lua (Task 1.2)
+
+### Function Representations
+
+**Reference**: `runtime/js/stdlib.js:20-63` (`caml_call_gen` implementation)
+
+OCaml functions in Lua can be represented in **two ways**:
+
+#### 1. **Plain Lua Functions** (Direct representation)
+
+Used for:
+- External primitives (e.g., `caml_ml_output`, `caml_string_get`)
+- Functions that are only called with exact arity
+- Performance-critical code paths
+- Functions where currying is not needed
+
+```lua
+-- Plain Lua function
+local function add_three(a, b, c)
+  return a + b + c
+end
+
+-- Called directly:
+local result = add_three(1, 2, 3)
+```
+
+**Characteristics**:
+- No `.l` property (arity determined by introspection if needed)
+- Called directly: `f(arg1, arg2, arg3)`
+- Cannot be partially applied without runtime support
+- **Fastest** representation
+
+#### 2. **Wrapped Functions** (With arity metadata)
+
+Used for:
+- User-defined functions that support partial application
+- Functions in non-exact calls (`exact = false`)
+- Closures that may be curried
+
+```lua
+-- Wrapped function with arity
+local add_three = {
+  l = 3,  -- Arity
+  f = function(a, b, c)
+    return a + b + c
+  end
+}
+
+-- OR: Arity as property of function itself (JavaScript style)
+local function add_three(a, b, c)
+  return a + b + c
+end
+add_three.l = 3
+
+-- Called via wrapper:
+local result = add_three.f(1, 2, 3)
+-- OR if arity stored as property:
+local result = add_three(1, 2, 3)
+```
+
+**Characteristics**:
+- Has `.l` property indicating arity
+- Can be partially applied via `caml_call_gen`
+- Runtime checks arity before calling
+- Slightly slower due to indirection
+
+### Arity Representation
+
+**From analysis of `caml_call_gen` (stdlib.js:24)**:
+
+```javascript
+var n = f.l >= 0 ? f.l : (f.l = f.length);
+```
+
+**Strategy**:
+1. Check if `.l` property exists and is non-negative
+2. If not, fall back to function's intrinsic arity (`.length` in JS)
+3. Cache the arity in `.l` for future calls
+
+**Lua equivalent**:
+```lua
+local function get_arity(f)
+  if type(f) == "table" and f.l then
+    return f.l
+  elseif type(f) == "function" then
+    -- Lua has no native way to get function arity
+    -- Must be stored at function definition time
+    return f.l or error("Function arity unknown")
+  else
+    error("Not a function")
+  end
+end
+```
+
+### Closure Variable Capture
+
+**From analysis of `compiler/lib/generate.ml:2319-2339` (`compile_closure`)**
+
+Closures capture free variables from their environment. In JavaScript:
+```javascript
+function make_adder(x) {
+  return function(y) { return x + y; };
+}
+```
+
+In Lua (compiled from OCaml):
+```lua
+local function make_adder(x)
+  local closure = function(y)
+    return x + y  -- 'x' captured from environment
+  end
+  closure.l = 1  -- Arity of returned function
+  return closure
+end
+```
+
+**Key points**:
+- Free variables are captured in Lua's natural closure mechanism
+- No special wrapping needed for captured variables
+- Lua handles lexical scoping automatically
+- Wrapped closures still have access to captured variables
+
+### When to Use `.f` vs Direct Call
+
+**Decision tree** (based on code generation context):
+
+#### Scenario 1: Exact call (`exact = true`)
+```lua
+-- Code generation pattern:
+if is_wrapped(f) then
+  -- Call through wrapper
+  result = f.f(arg1, arg2, arg3)
+else
+  -- Direct call
+  result = f(arg1, arg2, arg3)
+end
+```
+
+#### Scenario 2: Non-exact call (`exact = false`)
+```lua
+-- Always use caml_call_gen for runtime dispatch
+result = caml_call_gen(f, {arg1, arg2, arg3})
+```
+
+**Simplified approach** (recommended for Lua):
+- Store arity as property: `f.l = arity`
+- Functions remain callable: `f(args)` not `f.f(args)`
+- Check for `.l` property to determine if wrapped
+- Use `caml_call_gen` for all non-exact calls
+
+### Arity Checking Requirements
+
+**From `compiler/lib/generate.ml:1074-1085`**
+
+When `exact = false`, runtime must:
+
+1. **Get function arity**: `n = f.l or function_length(f)`
+2. **Count arguments**: `argsLen = #args`
+3. **Calculate difference**: `d = n - argsLen`
+4. **Three cases**:
+
+   **Case A: `d == 0` (Exact match)**
+   ```lua
+   return f(table.unpack(args))
+   ```
+
+   **Case B: `d < 0` (Over-application)**
+   ```lua
+   -- Call with first n args, then apply remaining to result
+   local g = f(table.unpack(args, 1, n))
+   if type(g) ~= "function" then
+     return g  -- Result is not a function
+   end
+   return caml_call_gen(g, table.slice(args, n + 1))
+   ```
+
+   **Case C: `d > 0` (Under-application / Partial application)**
+   ```lua
+   -- Build closure that captures current args
+   local captured = args
+   local closure = function(...)
+     local new_args = {...}
+     return caml_call_gen(f, table.concat(captured, new_args))
+   end
+   closure.l = d  -- Remaining arity
+   return closure
+   ```
+
+### Which Functions Need Wrapping
+
+**Based on analysis of generate.ml and stdlib.js**:
+
+| Function Type | Wrapping | Reason |
+|---------------|----------|--------|
+| **External primitives** | ❌ No | Performance, always exact calls |
+| **Runtime functions** | ❌ No | Direct calls only |
+| **Known exact calls** | ❌ No | Compiler knows exact arity match |
+| **User closures** | ✅ Yes (sometimes) | May be partially applied |
+| **Exported functions** | ✅ Yes (sometimes) | Unknown call sites |
+| **Higher-order args** | ✅ Yes (maybe) | May be curried |
+
+**Decision criteria** (to be implemented in Phase 3):
+```ocaml
+let needs_wrapping ctx var =
+  (* Is it a primitive? *)
+  if is_primitive var then false
+  (* Is it only called with exact arity? *)
+  else if all_calls_exact ctx var then false
+  (* Is it in a non-exact application? *)
+  else if has_non_exact_call ctx var then true
+  (* Default: wrap if might be partially applied *)
+  else might_be_curried ctx var
+```
+
+### Effect Handler Representation (Optional `.cps` field)
+
+**From `compiler/lib/generate.ml:1061-1066`** and stdlib.js effect handling:
+
+Functions in CPS mode can have a `.cps` variant:
+```lua
+local function example(a, b)
+  return a + b
+end
+example.l = 2
+
+-- CPS variant (added when effects enabled)
+example.cps = function(a, b, k)
+  return k(a + b)  -- Call continuation with result
+end
+example.cps.l = 3  -- Arity includes continuation
+```
+
+**When used**:
+- `Config.effects() = 'Double_translation'` AND `in_cps = true`
+- Call `f.cps` instead of `f` when in CPS context
+- Otherwise, use regular `f`
+
+**Note**: This is for Phase 8+ (Effect handlers), not needed for basic implementation.
+
+---
+
+### Summary: Lua Function Representation Spec
+
+1. **Two representations**: Plain functions vs wrapped functions with `.l` property
+2. **Arity stored in `.l` field** when wrapping needed
+3. **Plain functions for primitives** and known-exact calls (performance)
+4. **Wrapped functions for currying** and unknown call sites
+5. **Closure capture uses Lua's native lexical scoping**
+6. **`caml_call_gen` handles all partial application** cases at runtime
+7. **Arity check: get `.l` or function length**, compare with arg count
+8. **Three cases**: exact (call), over (call + recurse), under (build closure)
+9. **Optional `.cps` field** for effect handlers (future work)
 
 ---
 
