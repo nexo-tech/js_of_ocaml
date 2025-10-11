@@ -1,6 +1,8 @@
 #!/usr/bin/env lua
 -- Test suite for marshal.lua (Task 2.1 - Immediate Values)
 
+dofile("marshal_io.lua")
+dofile("marshal_header.lua")
 dofile("marshal.lua")
 
 -- Test framework
@@ -49,6 +51,12 @@ local function assert_deep_eq(actual, expected, msg)
     end
   elseif actual ~= expected then
     error(msg or ("Expected " .. tostring(expected) .. ", got " .. tostring(actual)))
+  end
+end
+
+local function assert_close(actual, expected, epsilon, msg)
+  if math.abs(actual - expected) > epsilon then
+    error(msg or ("Expected " .. tostring(expected) .. " ± " .. tostring(epsilon) .. ", got " .. tostring(actual)))
   end
 end
 

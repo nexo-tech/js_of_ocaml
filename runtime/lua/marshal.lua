@@ -852,3 +852,49 @@ function caml_marshal_total_size(str, offset)
   -- Return total
   return header_size + data_size
 end
+
+--Provides: marshal_value_internal
+--Requires: caml_marshal_buffer_create, caml_marshal_write_value, caml_marshal_buffer_to_string
+function marshal_value_internal(value)
+  -- High-level API: Marshal value to string without header
+  -- This is a simplified wrapper for test compatibility
+  -- Returns: marshaled data (no header)
+
+  local buf = caml_marshal_buffer_create()
+  local seen = {}
+  local object_table = {}
+  local next_id = {value = 1}
+
+  caml_marshal_write_value(buf, value, seen, object_table, next_id)
+
+  return caml_marshal_buffer_to_string(buf)
+end
+
+--Provides: unmarshal_value_internal
+--Requires: caml_marshal_read_value
+function unmarshal_value_internal(str)
+  -- High-level API: Unmarshal value from string without header
+  -- This is a simplified wrapper for test compatibility
+  -- Returns: unmarshaled value
+
+  local objects_by_id = {}
+  local next_id = {value = 1}
+
+  local result = caml_marshal_read_value(str, 0, objects_by_id, next_id)
+
+  return result.value
+end
+
+--Provides: marshal_header_read_header
+--Requires: caml_marshal_header_read
+function marshal_header_read_header(str, offset)
+  -- High-level API: Alias for caml_marshal_header_read
+  -- Provided for test compatibility
+  return caml_marshal_header_read(str, offset)
+end
+
+--Provides: MARSHAL_MAGIC_SMALL
+MARSHAL_MAGIC_SMALL = 0x8495A6BE
+
+--Provides: MARSHAL_MAGIC_BIG
+MARSHAL_MAGIC_BIG = 0x8495A6BF
