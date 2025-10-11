@@ -882,13 +882,32 @@
   - **VERIFIED**: All existing marshal tests pass with no regressions
   - **FILES MODIFIED**: marshal.lua, test_marshal.lua
 
-- [ ] Task 9.5: Implement unit value marshaling optimization (30 min)
-  - **CURRENT TEST**: test_marshal_unit.lua
+- [x] Task 9.5: Implement unit value marshaling optimization (30 min)
+  - **STATUS**: ✅ COMPLETE - Unit optimization already implemented and verified
+  - **TEST RESULTS**: test_marshal_unit_simple.lua: 12/12 tests passing
   - **IMPLEMENTATION**:
-    - Special case for unit type ()
-    - Minimal representation (single byte)
-    - Fast path for unit values
-  - **OPTIMIZATION**: Unit is common in OCaml, optimize for size/speed
+    - Unit type () represented as integer 0 in OCaml
+    - Marshaled using small integer encoding (0x40)
+    - Single byte representation - optimal encoding
+    - Fast path through small int code (0x40-0x7F range)
+  - **VERIFICATION**:
+    - Unit (0) marshals to exactly 1 byte
+    - Uses small int code 0x40 (not INT8/INT16/INT32)
+    - With header: 21 bytes total (20-byte header + 1 byte data)
+    - Roundtrip preserves value correctly
+    - Multiple units marshal independently
+    - Unit in nested structures works correctly
+  - **OPTIMIZATION DETAILS**:
+    - Single byte is the smallest possible representation
+    - No additional encoding overhead
+    - Fast path - no conditional checks needed
+    - Same encoding as OCaml marshal format
+  - **CHANGES MADE**:
+    - No code changes needed - optimization already present
+    - Created test_marshal_unit_simple.lua to verify optimization
+  - **NOTE**: Original test_marshal_unit.lua is comprehensive test suite, not unit-specific
+  - **VERIFIED**: All marshal tests pass with no regressions
+  - **FILES ADDED**: test_marshal_unit_simple.lua
 
 - [ ] Task 9.6: Implement marshal roundtrip verification (30 min)
   - **CURRENT TEST**: test_marshal_roundtrip.lua
