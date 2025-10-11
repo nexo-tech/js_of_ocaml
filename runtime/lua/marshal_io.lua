@@ -87,6 +87,9 @@ end
 function caml_marshal_read8u(str, offset)
   -- Read 8-bit unsigned from string at offset (0-indexed)
   -- Returns: byte value
+  if offset + 1 > #str then
+    error(string.format("caml_marshal_read8u: data truncated (need %d bytes, got %d bytes)", offset + 1, #str))
+  end
   return string.byte(str, offset + 1)
 end
 
@@ -94,6 +97,9 @@ end
 function caml_marshal_read16u(str, offset)
   -- Read 16-bit unsigned big-endian from string at offset (0-indexed)
   -- Returns: 16-bit value
+  if offset + 2 > #str then
+    error(string.format("caml_marshal_read16u: data truncated (need %d bytes, got %d bytes)", offset + 2, #str))
+  end
   local hi = string.byte(str, offset + 1)      -- High byte
   local lo = string.byte(str, offset + 2)      -- Low byte
 
@@ -105,6 +111,9 @@ end
 function caml_marshal_read32u(str, offset)
   -- Read 32-bit unsigned big-endian from string at offset (0-indexed)
   -- Returns: 32-bit value
+  if offset + 4 > #str then
+    error(string.format("caml_marshal_read32u: data truncated (need %d bytes, got %d bytes)", offset + 4, #str))
+  end
   local b3 = string.byte(str, offset + 1)  -- Byte 3 (highest)
   local b2 = string.byte(str, offset + 2)  -- Byte 2
   local b1 = string.byte(str, offset + 3)  -- Byte 1

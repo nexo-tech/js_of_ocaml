@@ -180,8 +180,9 @@ function caml_marshal_read_string(str, offset)
   if code >= 0x20 and code <= 0x3F then
     local len = code - 0x20
     -- Validate sufficient data
-    if #str < offset + 1 + len then
-      error("caml_marshal_read_string: insufficient data for small string")
+    local needed = offset + 1 + len
+    if #str < needed then
+      error(string.format("caml_marshal_read_string: data truncated (need %d bytes, got %d bytes)", needed, #str))
     end
     local value = caml_marshal_read_bytes(str, offset + 1, len)
     return {
@@ -194,8 +195,9 @@ function caml_marshal_read_string(str, offset)
   if code == 0x09 then
     local len = caml_marshal_read8u(str, offset + 1)
     -- Validate sufficient data
-    if #str < offset + 2 + len then
-      error("caml_marshal_read_string: insufficient data for STRING8")
+    local needed = offset + 2 + len
+    if #str < needed then
+      error(string.format("caml_marshal_read_string: data truncated (need %d bytes, got %d bytes)", needed, #str))
     end
     local value = caml_marshal_read_bytes(str, offset + 2, len)
     return {
@@ -208,8 +210,9 @@ function caml_marshal_read_string(str, offset)
   if code == 0x0A then
     local len = caml_marshal_read32u(str, offset + 1)
     -- Validate sufficient data
-    if #str < offset + 5 + len then
-      error("caml_marshal_read_string: insufficient data for STRING32")
+    local needed = offset + 5 + len
+    if #str < needed then
+      error(string.format("caml_marshal_read_string: data truncated (need %d bytes, got %d bytes)", needed, #str))
     end
     local value = caml_marshal_read_bytes(str, offset + 5, len)
     return {
@@ -335,8 +338,9 @@ function caml_marshal_read_double(str, offset)
   -- CODE_DOUBLE_LITTLE (0x0C)
   if code == 0x0C then
     -- Validate sufficient data (8 bytes for double)
-    if #str < offset + 1 + 8 then
-      error("caml_marshal_read_double: insufficient data for double (need 8 bytes)")
+    local needed = offset + 1 + 8
+    if #str < needed then
+      error(string.format("caml_marshal_read_double: data truncated (need %d bytes, got %d bytes)", needed, #str))
     end
 
     -- Read double using marshal_io function (handles Lua 5.1 fallback)
@@ -413,8 +417,9 @@ function caml_marshal_read_float_array(str, offset)
 
   -- Validate sufficient data (8 bytes per double)
   local data_size = len * 8
-  if #str < offset + bytes_consumed + data_size then
-    error(string.format("caml_marshal_read_float_array: insufficient data (need %d bytes for %d doubles)", data_size, len))
+  local needed = offset + bytes_consumed + data_size
+  if #str < needed then
+    error(string.format("caml_marshal_read_float_array: data truncated (need %d bytes, got %d bytes)", needed, #str))
   end
 
   -- Create values array
@@ -683,7 +688,14 @@ function caml_marshal_read_value(str, offset, objects_by_id, next_id)
     }
 
   else
-    error(string.format("caml_marshal_read_value: unknown code 0x%02X at offset %d", code, offset))
+    -- Handle specific unsupported codes with helpful messages
+    if code == 0x10 then
+      error(string.format("caml_marshal_read_value: code pointer not supported (0x%02X at offset %d)", code, offset))
+    elseif code == 0x13 then
+      error(string.format("caml_marshal_read_value: 64-bit blocks not supported (0x%02X at offset %d)", code, offset))
+    else
+      error(string.format("caml_marshal_read_value: unsupported code 0x%02X at offset %d", code, offset))
+    end
   end
 end
 
@@ -695,6 +707,23 @@ function caml_marshal_to_string(value, flags)
   -- Marshal value to string with header
   -- flags parameter is optional (reserved for future use, not implemented)
   -- Returns: marshaled string with 20-byte header + data
+
+  -- Input validation
+  if value == nil then
+    error("caml_marshal_to_string: cannot marshal nil value")
+  end
+
+  if flags ~= nil and type(flags) ~= "table" then
+    error("caml_marshal_to_string: flags must be a table or nil, got " .. type(flags))
+  end
+
+  -- Check for unsupported flags
+  if flags and type(flags) == "table" then
+    -- flags[1] = Closures flag (not supported)
+    if flags[1] ~= nil and flags[1] ~= 0 then
+      error("caml_marshal_to_string: Closures flag not supported")
+    end
+  end
 
   -- Create buffer for marshaling the value
   local data_buf = caml_marshal_buffer_create()
@@ -744,8 +773,22 @@ function caml_marshal_from_bytes(str, offset)
   -- offset parameter is optional (defaults to 0)
   -- Returns: unmarshaled value
 
+  -- Input validation
+  if type(str) ~= "string" then
+    error("caml_marshal_from_bytes: expected string, got " .. type(str))
+  end
+
   -- Default offset to 0
   offset = offset or 0
+
+  -- Validate offset
+  if type(offset) ~= "number" then
+    error("caml_marshal_from_bytes: offset must be non-negative number, got " .. type(offset))
+  end
+
+  if offset < 0 then
+    error("caml_marshal_from_bytes: offset must be non-negative, got " .. tostring(offset))
+  end
 
   -- Read and validate header (20 bytes)
   local header = caml_marshal_header_read(str, offset)

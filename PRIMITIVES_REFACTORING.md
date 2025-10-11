@@ -817,14 +817,25 @@
   - **VERIFIED**: test_marshal_value.lua (32/32), test_marshal_block.lua (27/27), test_marshal_io.lua (41/41), test_marshal_public.lua (40/40), test_io_marshal.lua (53/53) - no regressions
   - **FILES MODIFIED**: marshal.lua, test_marshal_cycles.lua
 
-- [ ] Task 9.2: Complete marshal error handling (1 hour)
-  - **CURRENT TEST**: test_marshal_errors.lua
+- [x] Task 9.2: Complete marshal error handling (1 hour)
+  - **STATUS**: ✅ COMPLETE - Comprehensive error handling implemented
+  - **TEST RESULTS**: test_marshal_errors.lua: 25/25 tests passing
   - **IMPLEMENTATION**:
-    - Proper exception raising for all error cases
-    - Validate buffer bounds before reads
-    - Handle malformed data gracefully
-    - Add error recovery mechanisms
-  - **ERROR CASES**: Invalid codes, truncated data, type mismatches, version incompatibility
+    - Input validation (nil values, type checking, unsupported flags)
+    - Truncation detection with byte counts in all read functions
+    - Corrupted data detection (invalid magic, unknown codes)
+    - Unsupported features detection (code pointers, 64-bit blocks)
+    - Error message quality (byte counts, hex codes, type names)
+    - Error recovery and state consistency
+  - **CHANGES MADE**:
+    - caml_marshal_to_string: Added nil check, flags validation, Closures flag rejection
+    - caml_marshal_from_bytes: Added string type check, offset validation
+    - caml_marshal_header_read: Improved error messages ("too short", "invalid header")
+    - caml_marshal_read_value: Added specific unsupported code detection (0x10, 0x13)
+    - caml_marshal_read8u/16u/32u: Added truncation detection with byte counts
+    - caml_marshal_read_string/double/float_array: Added truncation detection
+  - **VERIFIED**: All marshal tests pass with no regressions
+  - **FILES MODIFIED**: marshal.lua, marshal_header.lua, marshal_io.lua
 
 - [ ] Task 9.3: Implement marshal compatibility layer (30 min)
   - **CURRENT TEST**: test_marshal_compat.lua

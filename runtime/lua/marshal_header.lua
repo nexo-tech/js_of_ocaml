@@ -52,8 +52,9 @@ function caml_marshal_header_read(str, offset)
   -- Returns: {magic, data_len, num_objects, size_32, size_64} or nil on error
 
   -- Check minimum length
-  if #str < offset + 20 then
-    error("caml_marshal_header_read: insufficient data (need 20 bytes)")
+  local available = #str - offset
+  if available < 20 then
+    error(string.format("caml_marshal_header_read: data too short (need 20 bytes, got %d bytes)", available))
   end
 
   -- Read magic number (4 bytes)
@@ -63,7 +64,7 @@ function caml_marshal_header_read(str, offset)
   -- 0x8495A6BE = MAGIC_SMALL (32-bit safe)
   -- 0x8495A6BF = MAGIC_BIG (64-bit values)
   if magic ~= 0x8495A6BE and magic ~= 0x8495A6BF then
-    error(string.format("caml_marshal_header_read: invalid magic number 0x%08X", magic))
+    error(string.format("caml_marshal_header_read: invalid header magic 0x%08X", magic))
   end
 
   -- Read data length (4 bytes)
