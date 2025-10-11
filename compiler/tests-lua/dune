@@ -145,6 +145,13 @@
  (preprocess (pps ppx_expect)))
 
 (library
+ (name test_pattern_matching_args)
+ (libraries util str unix)
+ (modules test_pattern_matching_args)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
  (name test_control_flow)
  (libraries util str unix)
  (modules test_control_flow)

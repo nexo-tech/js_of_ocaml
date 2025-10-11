@@ -1086,6 +1086,35 @@ and generate_closure ctx params pc =
 
           L.Function (param_names, false, body_stmts))
 
+(** Generate argument passing code for block continuation
+    When jumping to a block with parameters, assign the arguments to the parameters
+    @param ctx Code generation context
+    @param addr Target block address
+    @param args Arguments to pass
+    @return List of assignment statements
+*)
+and generate_argument_passing ctx addr args =
+  match ctx.program with
+  | None -> []
+  | Some program -> (
+      match Code.Addr.Map.find_opt addr program.Code.blocks with
+      | None -> []
+      | Some block ->
+          (* Match args with block params and generate assignments *)
+          let rec build_assignments args params acc =
+            match args, params with
+            | [], [] -> List.rev acc
+            | arg_var :: rest_args, param_var :: rest_params ->
+                let arg_expr = var_ident ctx arg_var in
+                let param_target = var_ident ctx param_var in
+                let assignment = L.Assign ([param_target], [arg_expr]) in
+                build_assignments rest_args rest_params (assignment :: acc)
+            | _, _ ->
+                (* Argument count mismatch - this shouldn't happen in valid IR *)
+                List.rev acc
+          in
+          build_assignments args block.Code.params [])
+
 (** Generate Lua last statement from Code last (terminator) using dispatch
     Sets _next_block variable for dispatch loop (Lua 5.1 compatible)
     @param ctx Code generation context
@@ -1101,22 +1130,32 @@ and generate_last_dispatch ctx last =
       let lua_expr = var_ident ctx var in
       [ L.Call_stat (L.Call (L.Ident "error", [ lua_expr ])) ]
   | Code.Stop -> [ L.Return [ L.Nil ] ]
-  | Code.Branch (addr, _args) ->
-      (* Set next block and continue loop *)
-      [ L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int addr)]) ]
-  | Code.Cond (var, (addr_true, _), (addr_false, _)) ->
+  | Code.Branch (addr, args) ->
+      (* Generate argument passing, then set next block *)
+      let arg_passing = generate_argument_passing ctx addr args in
+      let set_block = L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int addr)]) in
+      arg_passing @ [ set_block ]
+  | Code.Cond (var, (addr_true, args_true), (addr_false, args_false)) ->
       let cond_expr = var_ident ctx var in
-      let set_true = [ L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int addr_true)]) ] in
-      let set_false = [ L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int addr_false)]) ] in
-      [ L.If (cond_expr, set_true, Some set_false) ]
+      (* Generate argument passing for both branches *)
+      let pass_true = generate_argument_passing ctx addr_true args_true in
+      let pass_false = generate_argument_passing ctx addr_false args_false in
+      let set_true = L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int addr_true)]) in
+      let set_false = L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int addr_false)]) in
+      let then_stmts = pass_true @ [ set_true ] in
+      let else_stmts = pass_false @ [ set_false ] in
+      [ L.If (cond_expr, then_stmts, Some else_stmts) ]
   | Code.Switch (var, conts) ->
       let switch_var = var_ident ctx var in
       let cases =
         Array.to_list conts
-        |> List.mapi ~f:(fun idx (addr, _) ->
+        |> List.mapi ~f:(fun idx (addr, args) ->
             let cond = L.BinOp (L.Eq, switch_var, L.Number (string_of_int idx)) in
-            let set_block = [ L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int addr)]) ] in
-            (cond, set_block))
+            (* Generate argument passing *)
+            let arg_passing = generate_argument_passing ctx addr args in
+            let set_block = L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int addr)]) in
+            let then_stmt = arg_passing @ [ set_block ] in
+            (cond, then_stmt))
       in
       (match cases with
       | [] -> []
@@ -1126,11 +1165,16 @@ and generate_last_dispatch ctx last =
             | (c, t) :: rest -> [ L.If (c, t, Some (build_if_chain rest)) ]
           in
           [ L.If (cond, then_stmt, Some (build_if_chain rest)) ])
-  | Code.Pushtrap ((cont_addr, _), _var, (_handler_addr, _)) ->
-      (* For now, just set continuation block - proper exception handling TODO *)
-      [ L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int cont_addr)]) ]
-  | Code.Poptrap (addr, _) ->
-      [ L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int addr)]) ]
+  | Code.Pushtrap ((cont_addr, args), _var, (_handler_addr, _handler_args)) ->
+      (* Jump to continuation with argument passing.
+         Exception handler setup is handled by runtime caml_push_trap. *)
+      let arg_passing = generate_argument_passing ctx cont_addr args in
+      let set_block = L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int cont_addr)]) in
+      arg_passing @ [ set_block ]
+  | Code.Poptrap (addr, args) ->
+      let arg_passing = generate_argument_passing ctx addr args in
+      let set_block = L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int addr)]) in
+      arg_passing @ [ set_block ]
 
 (** Alias for backward compatibility *)
 and generate_last ctx last =
