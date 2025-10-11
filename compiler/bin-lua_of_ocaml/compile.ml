@@ -26,8 +26,13 @@ let times = Debug.find "times"
 let () = Sys.catch_break true
 
 let run { Cmd_arg.common; bytecode; output_file; params; include_dirs; linkall; source_map; compact } =
-  Config.set_target `Wasm;
+  (* Use JavaScript target - it's more similar to Lua than Wasm
+     This runs Generate_closure.f pass which may produce better IR
+     See PARTIAL.md Task 6.1.2 Option C for rationale *)
+  Config.set_target `JavaScript;
   Jsoo_cmdline.Arg.eval common;
+  (* Set effects backend - Disabled for now as Lua has native coroutines *)
+  Config.set_effects_backend `Disabled;
   Linker.reset ();
   List.iter params ~f:(fun (s, v) -> Config.Param.set s v);
 
@@ -56,7 +61,14 @@ let run { Cmd_arg.common; bytecode; output_file; params; include_dirs; linkall; 
   if times () then Format.eprintf "parsing: %a@." Timer.print t;
 
   (* Get the program from the bytecode *)
-  let p = one.code in
+  let code = one.code in
+
+  (* Run optimization passes like js_of_ocaml does
+     See PARTIAL.md Task 6.1 for detailed rationale.
+     These passes are REQUIRED to fix IR argument ordering issues. *)
+  let result, _ = Driver.optimize_for_wasm ~shapes:false ~profile:Profile.O1 code in
+  let p = result.program in
+  if times () then Format.eprintf "optimization: %a@." Timer.print t;
 
   (* Generate Lua code with debug info if needed *)
   let lua_code = Lua_generate.generate ~debug:need_debug p in

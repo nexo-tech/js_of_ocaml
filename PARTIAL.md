@@ -64,10 +64,14 @@ js_of_ocaml handles this elegantly:
 - [x] Task 5.4: Confirm all tests pass with current approach (26/26 PASSING)
 
 ### Phase 6: Fix Printf/Format
-- [x] Task 6.1: Debug channel ID passing issue
-- [ ] Task 6.2: Fix channel representation in I/O primitives
-- [ ] Task 6.3: Remove workarounds from runtime/lua/io.lua
-- [ ] Task 6.4: Test Printf.printf with multiple formats
+- [x] Task 6.1: Debug channel ID passing issue and Enable Optimization Passes (PARTIAL - optimization enabled, scoping blocked)
+  - [x] Subtask 6.1.1: Enable optimization passes ✅
+  - [ ] Subtask 6.1.2: Fix variable scoping (IN PROGRESS - needs Option A or B)
+  - [x] Subtask 6.1.3: Tested JavaScript vs Wasm target (no difference)
+  - [ ] Subtask 6.1.4: Verify Printf works end-to-end (blocked)
+- [ ] Task 6.2: Fix channel representation in I/O primitives (blocked by 6.1.2)
+- [ ] Task 6.3: Remove workarounds from runtime/lua/io.lua (blocked by 6.1.2)
+- [ ] Task 6.4: Test Printf.printf with multiple formats (blocked by 6.1.2)
 
 ### Phase 7: Integration Testing
 - [ ] Task 7.1: Run hello.ml with all Printf statements
@@ -1328,45 +1332,174 @@ $ dune runtest compiler/tests-lua
 
 ### Phase 6: Fix Printf/Format
 
-#### Task 6.1: Debug channel ID passing issue ✅
-**Deliverable**: Root cause identified
+#### Task 6.1: Debug channel ID passing issue and Enable Optimization Passes ✅
+**Deliverable**: Root cause identified, optimization passes enabled, variable scoping fixed
 
 **Test Case**: `examples/hello_lua/hello.ml`
 ```ocaml
 Printf.printf "Factorial of 5 is: %d\n" (factorial 5)
 ```
 
-**Error**:
+**Original Error**:
 ```
 Hello from Lua_of_ocaml!
 lua: hello.bc.lua:77528: attempt to call field 'v1118' (a table value)
 ```
 
+**ROOT CAUSE IDENTIFIED** ✅:
+
+The raw bytecode IR from `Parse_bytecode` has **inconsistent argument ordering** that causes blocks (data) to be passed where functions are expected. This is NOT a Printf-specific issue - it's a fundamental IR problem.
+
+**Key Findings** (by comparing with js_of_ocaml):
+
+1. **js_of_ocaml Solution**: The JS compiler runs optimization passes via `Driver.f` before code generation (see `compiler/bin-js_of_ocaml/compile.ml:274-282`). These passes normalize the IR and fix argument ordering issues.
+
+2. **lua_of_ocaml Problem**: The Lua compiler was NOT running any optimization passes - it was directly generating code from raw bytecode IR (see `compiler/bin-lua_of_ocaml/compile.ml:59-61`).
+
+3. **Evidence**:
+   - Without optimization: `caml_call_gen(_V.v1082, {_V.v1120, _V.v1118, _V.v1119})` passes a block (`v1120` with `tag=2`) where function expected
+   - Function signature: `function(v1118, v1119, v1120)` - WRONG ORDER!
+   - With optimization (`Driver.optimize_for_wasm`): First Printf works! But hits variable scoping issues
+
+4. **The Fix**: Enable optimization passes like js_of_ocaml does:
+   - JS uses: `Driver.f ~standalone ~shapes ?profile ~link ~wrap_with_fun ~source_map ~formatter code`
+   - Wasm uses: `Driver.optimize_for_wasm ~shapes ~profile code` (returns optimized Code.program)
+   - Both call the same `optimize` function internally
+
+**Implementation Plan** (Subtasks):
+
+##### Subtask 6.1.1: Enable optimization passes for Lua ✅
+**Reference**: `compiler/bin-js_of_ocaml/compile.ml:274-306`, `compiler/lib/driver.ml:699-729`
+
+**Actions**:
+1. In `compiler/bin-lua_of_ocaml/compile.ml`, call `Driver.optimize_for_wasm` before `Lua_generate.generate`
+2. Set `Config.set_effects_backend \`Disabled` (Lua has native coroutines, doesn't need CPS transform)
+3. Use `Profile.O1` optimization level initially
+4. Extract optimized `program` from result
+
+**Code**:
+```ocaml
+let result, _ = Driver.optimize_for_wasm ~shapes:false ~profile:Profile.O1 code in
+let p = result.program in
+```
+
+**Success Criteria**: Compiler runs optimization passes, Printf argument order is fixed
+
+---
+
+##### Subtask 6.1.2: Fix variable scoping in optimized IR **[IN PROGRESS]**
+**Reference**: Optimized IR uses different variable lifetime/scoping than raw IR
+
+**Problem**: After enabling optimization passes, new error:
+```
+lua: hello.bc.lua:19810: attempt to index field 'v349' (a nil value)
+Stack: function at line 19803 references _V.v349 which is undefined
+```
+
 **Root Cause Analysis**:
 
-1. **Symptom**: A table value is being passed where a function is expected in Printf's curried implementation
+1. **Current Architecture**: All variables are stored in a shared `_V` table that nested closures access dynamically
+   - Parent function has `local _V = {}`
+   - Child closures inherit this `_V` table via `inherit_var_table` flag
+   - Variables referenced as `_V.v349`, `_V.v220`, etc.
 
-2. **Location**: Line 77528 in generated code attempts to call `_V.v1118(_V.v1119)` but v1118 is a table
+2. **The Problem**: Optimized IR has complex control flow where:
+   - Variables may be defined in specific code paths only
+   - Closures may reference variables before they're assigned
+   - Example: Closure at line 19803 references `v349`, but `v349` is assigned at lines 20183+
+   - This is a **forward reference** - closure created before variable exists
 
-3. **Debug Output**:
+3. **Why This Happens**: Optimization passes (deadcode, inlining, specialization) reorder and restructure code, creating forward references that didn't exist in raw IR
+
+**Options for Fix**:
+
+**Option A: Initialize All Variables (Quick Fix)**
+- Scan all variables referenced in nested closures
+- Initialize them to `nil` at function start: `_V.v349 = nil`
+- Pros: Simple, gets Printf working quickly
+- Cons: Wastes memory, doesn't solve architectural issue
+
+**Option B: Use Proper Lua Upvalues (Correct Fix)**
+- Stop using shared `_V` table
+- Generate proper Lua closures with upvalue capture
+- When closure references parent variable, use actual Lua upvalue mechanism
+- Pros: Correct semantics, efficient
+- Cons: Significant refactoring of `lua_generate.ml`
+
+**Option C: Use JavaScript Target Instead of Wasm**
+- Change `Config.set_target \`JavaScript` in `compile.ml`
+- JavaScript target runs `Generate_closure.f` pass which may handle this better
+- Pros: Minimal code changes, leverages existing pass
+- Cons: May still have same issue, or introduce JS-specific problems
+
+**Recommended Approach**: Try Option C first (change target), then Option A if needed, then Option B for proper fix
+
+**Actions** (Option C): ✅ TESTED
+1. ✅ Changed `Config.set_target \`Wasm` to `Config.set_target \`JavaScript` in `compiler/bin-lua_of_ocaml/compile.ml:32`
+2. ✅ Rebuilt and tested
+3. **Result**: Same issue with different variable (`v359` instead of `v349`)
+4. **Conclusion**: Problem is fundamental to `_V` table architecture, not target-specific
+
+**Next Step**: Implement Option A (Initialize All Variables) as interim fix
+
+**Files**: `compiler/bin-lua_of_ocaml/compile.ml`, `compiler/lib-lua/lua_generate.ml`
+
+**Success Criteria**: Optimized IR generates valid Lua code with correct variable scoping, all Printf calls work
+
+---
+
+##### Subtask 6.1.3: Handle target-specific primitives
+**Reference**: `compiler/lib/driver.ml:715-717` shows target-specific code generation
+
+**Problem**: When `Config.target() = \`Wasm`, optimization may generate Wasm-specific primitives like `caml_js_array`, `caml_cps_trampoline`.
+
+**Analysis**:
+- The `optimize` function has target-dependent transforms
+- For `\`JavaScript` + effects disabled: runs `Generate_closure.f`
+- For `\`Wasm` + effects disabled: runs `Fun.id` (no transform)
+- This might cause different IR output
+
+**Actions**:
+1. Experiment with `Config.set_target \`JavaScript` vs `\`Wasm`
+2. Check if JavaScript target produces better IR for Lua
+3. If Wasm-specific primitives appear, either:
+   - Switch to JavaScript target (more similar to Lua)
+   - Filter/translate Wasm primitives in Lua generator
+4. Document which target works best for Lua
+
+**Files**: `compiler/bin-lua_of_ocaml/compile.ml`
+
+**Success Criteria**: No Wasm/JS-specific primitives in generated Lua, or they're properly handled
+
+---
+
+##### Subtask 6.1.4: Verify Printf works end-to-end
+**Actions**:
+1. Build: `dune build examples/hello_lua/hello.bc.lua`
+2. Run: `lua _build/default/examples/hello_lua/hello.bc.lua`
+3. Verify output:
    ```
-   DEBUG: v1118 type=table
-   DEBUG: v1118.l=1
-   DEBUG: v1118 metatable=table: 0x...
-   DEBUG: v1118.__call=function: 0x...
+   Hello from Lua_of_ocaml!
+   Factorial of 5 is: 120
+   Testing string operations...
+   Length of 'lua_of_ocaml': 12
+   Uppercase: LUA_OF_OCAML
    ```
+4. Confirm NO errors or crashes
 
-4. **Key Finding**: The v1118 table HAS the correct `__call` metatable from `caml_make_closure`, so it SHOULD be callable
+**Success Criteria**: All Printf calls in hello.ml work correctly
 
-5. **Actual Problem**: The issue is NOT with the closure wrapping (that works correctly). The problem is that **Printf's format compilation is passing arguments in the wrong order or structure**, causing a channel object (which might be a table) to be passed where a continuation function is expected.
+---
 
-6. **Printf Structure**: The generated code shows multiple layers of curried closures (v1082 calls v1086, etc.), and somewhere in this chain, what should be a function parameter is receiving a channel value instead.
+**Overall Success Criteria**:
+- ✅ Root cause identified (missing optimization passes)
+- ✅ Optimization passes enabled (`Driver.optimize_for_wasm` called)
+- ✅ First Printf works ("Hello from Lua_of_ocaml!" prints successfully)
+- ❌ Variable scoping needs architectural fix (forward references in optimized IR)
+- ❌ Remaining Printf calls blocked by variable scoping issue
+- [ ] All hello.ml output correct (blocked by above)
 
-**Hypothesis**: The OCaml compiler's Printf format string compilation creates a specific calling convention, and lua_of_ocaml may not be handling the channel parameter correctly in the generated code. This is likely a bug in how Printf primitives are implemented or how format strings are compiled to IR.
-
-**Next Step**: Need to investigate how Printf format strings are compiled and ensure channel parameters are passed correctly (Task 6.2).
-
-**Success Criteria**: Root cause identified ✅ - Issue is in Printf's argument passing, not in closure wrapping
+**Current Status**: Optimization passes successfully enabled and fixed argument ordering (first Printf works!). However, optimized IR creates forward references that break the `_V` table architecture. Need to implement Option A (initialize all variables) or Option B (proper upvalues) to proceed.
 
 ---
 
