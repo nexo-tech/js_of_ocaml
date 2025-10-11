@@ -242,21 +242,21 @@ end)
 
 test("from_bytes: with padding before", function()
   local marshaled = caml_marshal_to_string(999)
-  local padded = string.rep("\xFF", 10) .. marshaled
+  local padded = string.rep(string.char(0xFF), 10) .. marshaled
   local value = caml_marshal_from_bytes(padded, 10)
   assert_eq(value, 999)
 end)
 
 test("data_size: with offset", function()
   local marshaled = caml_marshal_to_string(42)
-  local padded = string.rep("\x00", 5) .. marshaled
+  local padded = string.rep(string.char(0x00), 5) .. marshaled
   local data_size = caml_marshal_data_size(padded, 5)
   assert_eq(data_size, 1)
 end)
 
 test("total_size: with offset", function()
   local marshaled = caml_marshal_to_string(42)
-  local padded = string.rep("\x00", 5) .. marshaled
+  local padded = string.rep(string.char(0x00), 5) .. marshaled
   local total_size = caml_marshal_total_size(padded, 5)
   assert_eq(total_size, 21)
 end)
@@ -374,7 +374,7 @@ print("Error Handling:")
 print("--------------------------------------------------------------------")
 
 test("from_bytes: invalid header magic", function()
-  local bad_header = string.rep("\x00", 20) .. string.char(0x40)
+  local bad_header = string.rep(string.char(0x00), 20) .. string.char(0x40)
   local success = pcall(function()
     caml_marshal_from_bytes(bad_header)
   end)
@@ -391,7 +391,7 @@ test("from_bytes: insufficient data", function()
 end)
 
 test("data_size: insufficient header", function()
-  local short_string = string.rep("\x00", 10)
+  local short_string = string.rep(string.char(0x00), 10)
   local success = pcall(function()
     caml_marshal_data_size(short_string)
   end)

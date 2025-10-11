@@ -586,20 +586,25 @@
     - ✓ test_io_integration.lua: **35/35 tests pass (100%)** - no regressions
   - **FILES MODIFIED**: marshal.lua (caml_marshal_read_float_array function)
 
-- [ ] Task 8.2: Fix `test_marshal_public.lua` offset failures (1 hour)
-  - **ISSUE**: 3 test failures - offset parameter not working in public API
-  - **CURRENT**: Offset parameter ignored, reads from start of string
-  - **PROBLEM**: Invalid magic number errors when offset > 0
-  - **AFFECTED TESTS**:
-    - from_bytes: with padding before
-    - data_size: with offset
-    - total_size: with offset
-  - **RESOLUTION PLAN**:
-    1. Review caml_marshal_from_bytes, caml_marshal_data_size, caml_marshal_total_size
-    2. Implement proper string.sub(data, offset+1) for offset handling
-    3. Update all public API functions to respect offset parameter
-    4. Verify all 3 tests pass
-    5. Test with various offset values (0, 1, 10, 100)
+- [x] Task 8.2: Fix `test_marshal_public.lua` offset failures (1 hour) ✓
+  - **ISSUE**: 3 test failures - offset parameter not working due to Lua 5.1 hex escape issue
+  - **ROOT CAUSE**: Test file used `\xHH` hex escape syntax not supported in Lua 5.1
+    - `string.rep("\x00", 5)` created "x00x00x00x00x00" (15 bytes) instead of 5 null bytes
+    - `\x` interpreted as literal "x" character, not hex escape
+    - Padding length incorrect caused offset calculations to fail
+  - **SOLUTION**: Replaced all `\xHH` escapes with `string.char(0xHH)` calls
+    - `string.rep(string.char(0x00), 5)` correctly creates 5 null bytes
+    - Fixed 5 occurrences in test file (lines 245, 252, 259, 377, 394)
+  - **AFFECTED TESTS** (all now pass):
+    - from_bytes: with padding before ✓
+    - data_size: with offset ✓
+    - total_size: with offset ✓
+  - **VERIFICATION**:
+    - ✓ test_marshal_public.lua: **40/40 tests pass (100%)** (was 37/40)
+    - ✓ test_marshal_double.lua: **40/40 tests pass (100%)** - no regressions
+    - ✓ test_io_marshal.lua: **53/53 tests pass (100%)** - no regressions
+    - ✓ test_io_integration.lua: **35/35 tests pass (100%)** - no regressions
+  - **FILES MODIFIED**: test_marshal_public.lua (replaced hex escapes with string.char)
 
 #### Refactor Remaining Core Modules (Est: 6 hours)
 
@@ -823,12 +828,8 @@ These tests validate compatibility and performance but don't require refactoring
 - Phase 4: test_fail.lua, test_filename.lua, test_stream.lua
 - Phase 5: test_obj.lua, test_effect.lua
 - Phase 6: test_lexing.lua, test_digest.lua, test_bigarray.lua
-- Marshal: test_marshal_header.lua, test_marshal_io.lua, test_marshal_int.lua, test_marshal_string.lua, test_marshal_block.lua, test_marshal_blocks.lua, test_marshal_value.lua, test_marshal_sharing.lua
+- Marshal: test_marshal_header.lua, test_marshal_io.lua, test_marshal_int.lua, test_marshal_string.lua, test_marshal_block.lua, test_marshal_blocks.lua, test_marshal_value.lua, test_marshal_sharing.lua, test_marshal_double.lua, test_marshal_public.lua
 - I/O: test_io_marshal.lua, test_io_integration.lua
-
-**REFACTORED WITH KNOWN ISSUES (2 files)**:
-- test_marshal_double.lua (31/40 - Task 8.1)
-- test_marshal_public.lua (37/40 - Task 8.2)
 
 **NEEDS REFACTORING - CORE (6 files)**:
 - test_compare.lua (Task 8.3)
