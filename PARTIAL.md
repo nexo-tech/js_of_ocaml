@@ -64,7 +64,7 @@ js_of_ocaml handles this elegantly:
 - [x] Task 5.4: Confirm all tests pass with current approach (26/26 PASSING)
 
 ### Phase 6: Fix Printf/Format
-- [ ] Task 6.1: Debug channel ID passing issue
+- [x] Task 6.1: Debug channel ID passing issue
 - [ ] Task 6.2: Fix channel representation in I/O primitives
 - [ ] Task 6.3: Remove workarounds from runtime/lua/io.lua
 - [ ] Task 6.4: Test Printf.printf with multiple formats
@@ -1328,20 +1328,45 @@ $ dune runtest compiler/tests-lua
 
 ### Phase 6: Fix Printf/Format
 
-#### Task 6.1: Debug channel ID passing issue
-**Estimated Lines**: 60 (debugging)
+#### Task 6.1: Debug channel ID passing issue ✅
 **Deliverable**: Root cause identified
 
-**File**: Various (debugging session)
+**Test Case**: `examples/hello_lua/hello.ml`
+```ocaml
+Printf.printf "Factorial of 5 is: %d\n" (factorial 5)
+```
 
-**Actions**:
-1. Add debug prints to `runtime/lua/io.lua` showing channel values
-2. Add debug prints to generated Format code
-3. Run hello.ml and trace channel flow
-4. Identify exact point where channel becomes wrapped
-5. Document findings in PARTIAL.md
+**Error**:
+```
+Hello from Lua_of_ocaml!
+lua: hello.bc.lua:77528: attempt to call field 'v1118' (a table value)
+```
 
-**Success Criteria**: Root cause clearly identified and documented
+**Root Cause Analysis**:
+
+1. **Symptom**: A table value is being passed where a function is expected in Printf's curried implementation
+
+2. **Location**: Line 77528 in generated code attempts to call `_V.v1118(_V.v1119)` but v1118 is a table
+
+3. **Debug Output**:
+   ```
+   DEBUG: v1118 type=table
+   DEBUG: v1118.l=1
+   DEBUG: v1118 metatable=table: 0x...
+   DEBUG: v1118.__call=function: 0x...
+   ```
+
+4. **Key Finding**: The v1118 table HAS the correct `__call` metatable from `caml_make_closure`, so it SHOULD be callable
+
+5. **Actual Problem**: The issue is NOT with the closure wrapping (that works correctly). The problem is that **Printf's format compilation is passing arguments in the wrong order or structure**, causing a channel object (which might be a table) to be passed where a continuation function is expected.
+
+6. **Printf Structure**: The generated code shows multiple layers of curried closures (v1082 calls v1086, etc.), and somewhere in this chain, what should be a function parameter is receiving a channel value instead.
+
+**Hypothesis**: The OCaml compiler's Printf format string compilation creates a specific calling convention, and lua_of_ocaml may not be handling the channel parameter correctly in the generated code. This is likely a bug in how Printf primitives are implemented or how format strings are compiled to IR.
+
+**Next Step**: Need to investigate how Printf format strings are compiled and ensure channel parameters are passed correctly (Task 6.2).
+
+**Success Criteria**: Root cause identified ✅ - Issue is in Printf's argument passing, not in closure wrapping
 
 ---
 
