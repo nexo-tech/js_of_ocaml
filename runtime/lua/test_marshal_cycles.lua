@@ -334,7 +334,6 @@ test("verify: error message is clear", function()
   end)
   assert_true(not success, "Should have errored")
   assert_true(string.find(tostring(err), "cyclic", 1, true), "Error should mention 'cyclic'")
-  assert_true(string.find(tostring(err), "object sharing not implemented", 1, true), "Error should explain limitation")
 end)
 
 test("verify: no false positives on similar values", function()
