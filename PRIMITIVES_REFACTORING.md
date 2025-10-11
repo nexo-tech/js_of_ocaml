@@ -748,21 +748,44 @@
     - caml_hash_keys, caml_hash_values, caml_hash_to_array, caml_hash_stats
   - **VERIFIED**: No local variables, all functions global with --Provides directives
 
-- [ ] Task 8.10: Refactor `map.lua` - map primitives (1 hour + tests)
-  - **FAILING TEST**: test_map.lua
-  - **DEPENDENCIES**: compare.lua (Task 8.3)
-  - **FUNCTIONS**: empty, add, find, remove, map, fold, etc.
+- [x] Task 8.10: Refactor `map.lua` - map primitives (1 hour + tests)
+  - **STATUS**: ✅ ALREADY COMPLETE - Already refactored with global caml_* functions
+  - **TEST RESULTS**: 33/33 tests passing
+  - **CURRENT STATE**: No local variables, all functions global with --Provides directives
+  - **FUNCTIONS**:
+    - caml_map_height, caml_map_create_node, caml_map_balance, caml_map_empty
+    - caml_map_is_empty, caml_map_add, caml_map_find, caml_map_find_opt
+    - caml_map_remove, caml_map_mem, caml_map_iter, caml_map_fold
+    - caml_map_map, caml_map_for_all, caml_map_exists, caml_map_cardinal
+  - **IMPLEMENTATION**: AVL tree-based map with balance invariants
 
-- [ ] Task 8.11: Refactor `set.lua` - set primitives (1 hour + tests)
-  - **FAILING TEST**: test_set.lua
-  - **DEPENDENCIES**: compare.lua (Task 8.3)
-  - **FUNCTIONS**: empty, add, remove, mem, union, inter, diff, etc.
+- [x] Task 8.11: Refactor `set.lua` - set primitives (1 hour + tests)
+  - **STATUS**: ✅ ALREADY COMPLETE - Already refactored with global caml_* functions
+  - **TEST RESULTS**: 38/38 tests passing
+  - **CURRENT STATE**: No local variables, all functions global with --Provides directives
+  - **FUNCTIONS**:
+    - caml_set_height, caml_set_create_node, caml_set_balance, caml_set_empty
+    - caml_set_is_empty, caml_set_add, caml_set_remove, caml_set_mem
+    - caml_set_iter, caml_set_fold, caml_set_for_all, caml_set_exists
+    - caml_set_union, caml_set_inter, caml_set_diff, caml_set_cardinal
+  - **IMPLEMENTATION**: AVL tree-based set with balance invariants
 
-- [ ] Task 8.12: Refactor `gc.lua` - GC primitives (1 hour + tests)
-  - **FAILING TEST**: test_gc.lua
-  - **CURRENT STATE**: Uses module pattern
-  - **FUNCTIONS**: caml_gc_stat, caml_gc_get, caml_gc_set, caml_gc_minor, caml_gc_major, caml_gc_full_major, caml_gc_compact
-  - **IMPLEMENTATION**: Lua collectgarbage() wrappers
+- [x] Task 8.12: Refactor `gc.lua` - GC primitives (1 hour + tests)
+  - **STATUS**: ✅ COMPLETE - Fixed local variable and finalizer implementation
+  - **TEST RESULTS**: All tests passing
+  - **CHANGES MADE**:
+    - Removed `local all_finalizers = {}` and converted to `_OCAML_gc = {finalizers = {}}`
+    - Fixed finalizer implementation for Lua 5.1 compatibility (newproxy vs setmetatable)
+    - Removed all documentation comments (kept only --Provides and --Requires)
+  - **FUNCTIONS**:
+    - caml_gc_minor, caml_gc_major, caml_gc_full_major, caml_gc_compaction
+    - caml_gc_counters, caml_gc_quick_stat, caml_gc_stat, caml_gc_set, caml_gc_get
+    - caml_gc_major_slice, caml_gc_minor_words, caml_get_minor_free
+    - caml_final_register, caml_final_register_called_without_value, caml_final_release
+    - caml_memprof_start, caml_memprof_stop, caml_memprof_discard
+    - caml_eventlog_resume, caml_eventlog_pause, caml_gc_huge_fallback_count
+  - **IMPLEMENTATION**: Lua collectgarbage() wrappers with finalizer support
+  - **FILES MODIFIED**: gc.lua
 
 **Total Estimated Time for Phase 8: 12 hours**
 
