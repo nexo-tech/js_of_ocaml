@@ -731,11 +731,18 @@ let optimize_block_construction tag fields =
 let rec generate_expr ctx expr =
   match expr with
   | Code.Constant c -> generate_constant c
-  | Code.Apply { f; args; exact = _ } ->
-      (* Function application *)
+  | Code.Apply { f; args; exact } ->
+      (* Function application - handle partial application like js_of_ocaml *)
       let func_expr = var_ident ctx f in
       let arg_exprs = List.map ~f:(var_ident ctx) args in
-      L.Call (func_expr, arg_exprs)
+      if exact
+      then
+        (* Exact call - we know we have the right number of arguments
+           OCaml functions are wrapped as {l = arity, f = function}, so call .f *)
+        L.Call (L.Index (func_expr, L.String "f"), arg_exprs)
+      else
+        (* Non-exact call - use caml_call_gen to handle partial application *)
+        L.Call (L.Ident "caml_call_gen", [ func_expr; L.Table (List.map ~f:(fun e -> L.Array_field e) arg_exprs) ])
   | Code.Block (tag, arr, _array_or_not, _mutability) ->
       (* Block construction - create table with tag (optimized) *)
       let fields =
@@ -1084,7 +1091,13 @@ and generate_closure ctx params pc =
              Each closure gets its own _V table if needed (>180 vars) *)
           let body_stmts = compile_blocks_with_labels closure_ctx program pc ~params () in
 
-          L.Function (param_names, false, body_stmts))
+          (* Wrap the function in OCaml function format: {l = arity, f = function}
+             This allows caml_call_gen to handle partial application *)
+          let lua_func = L.Function (param_names, false, body_stmts) in
+          L.Table
+            [ L.Rec_field ("l", L.Number (string_of_int (List.length params)))
+            ; L.Rec_field ("f", lua_func)
+            ])
 
 (** Generate argument passing code for block continuation
     When jumping to a block with parameters, assign the arguments to the parameters
@@ -1588,17 +1601,10 @@ let generate_standalone ctx program =
       ~init:StringMap.empty
       fragments
   in
-  (* Find which fragments provide the primitives we need *)
-  let needed_fragments_set =
-    StringSet.fold
-      (fun prim_name acc ->
-        match StringMap.find_opt prim_name provides_map with
-        | Some frag_name -> StringSet.add frag_name acc
-        | None -> acc  (* Primitive not found - might be inlined or missing *)
-      )
-      used_primitives
-      StringSet.empty
-  in
+  (* NOTE: We used to find which fragments provide needed primitives here,
+     but we now use linkall behavior since codegen adds primitives not in IR. *)
+  let _ = provides_map in  (* Suppress unused warning *)
+  let _ = used_primitives in  (* Suppress unused warning *)
 
   (* 4. Resolve dependencies between needed fragments *)
   (* TEMPORARY: Use linkall behavior - include ALL runtime modules.
@@ -1620,38 +1626,20 @@ let generate_standalone ctx program =
          Specifically, core.lua's caml_register_global is for primitives (name, func)
          while our inline version is for values (index, value, name).
          The inline runtime already initializes _G._OCAML. *)
+      (* FORCE linkall behavior until we track primitives added during codegen *)
       let needed_symbols =
-        if StringSet.is_empty needed_fragments_set
-        then (
-          (* Include all symbols from all fragments (linkall) *)
-          List.fold_left
-            ~f:(fun acc frag ->
-              (* Skip core.lua to avoid conflicts *)
-              if String.equal frag.Lua_link.name "core" then acc
-              else
-                List.fold_left
-                  ~f:(fun acc2 sym -> StringSet.add sym acc2)
-                  ~init:acc
-                  frag.Lua_link.provides)
-            ~init:StringSet.empty
-            fragments
-        ) else (
-          (* Collect symbols from needed fragments *)
-          StringSet.fold
-            (fun frag_name acc ->
-              (* Skip core.lua to avoid conflicts *)
-              if String.equal frag_name "core" then acc
-              else
-                match List.find_opt ~f:(fun f -> String.equal f.Lua_link.name frag_name) fragments with
-                | Some frag ->
-                    List.fold_left
-                      ~f:(fun acc2 sym -> StringSet.add sym acc2)
-                      ~init:acc
-                      frag.Lua_link.provides
-                | None -> acc)
-            needed_fragments_set
-            StringSet.empty
-        )
+        (* Include all symbols from all fragments (linkall) *)
+        List.fold_left
+          ~f:(fun acc frag ->
+            (* Skip core.lua to avoid conflicts *)
+            if String.equal frag.Lua_link.name "core" then acc
+            else
+              List.fold_left
+                ~f:(fun acc2 sym -> StringSet.add sym acc2)
+                ~init:acc
+                frag.Lua_link.provides)
+          ~init:StringSet.empty
+          fragments
       in
       let sorted_fragment_names, _missing =
         Lua_link.resolve_deps state (StringSet.elements needed_symbols)
