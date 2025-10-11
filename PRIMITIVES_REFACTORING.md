@@ -708,15 +708,23 @@
   - **VERIFIED**: test_format.lua (55/55), test_format_printf.lua (56/56), test_format_scanf.lua (55/55) - no regressions
   - **FILES MODIFIED**: test_format_channel.lua (test infrastructure fix)
 
-- [ ] Task 8.8: Refactor `fun.lua` - function primitives (45 min + tests)
-  - **FAILING TEST**: test_fun.lua
-  - **CURRENT STATE**: Uses module pattern
-  - **FUNCTIONS TO REFACTOR**:
-    - caml_fun_id (identity function)
-    - caml_fun_const (constant function)
-    - caml_fun_flip (argument flip)
-    - Function composition and application helpers
-  - **IMPLEMENTATION**: Simple function wrappers
+- [x] Task 8.8: Refactor `fun.lua` - function primitives (45 min + tests)
+  - **STATUS**: ✅ COMPLETE - Fixed Lua 5.1 compatibility and added proper directives
+  - **TEST RESULTS**: 20/20 tests passing
+  - **CHANGES MADE**:
+    - Fixed Lua 5.1 compatibility: Changed `table.unpack` to `unpack` (4 occurrences)
+    - Renamed `is_ocaml_fun` to `caml_is_ocaml_fun` with `--Provides:` directive
+    - Updated all references to use `caml_is_ocaml_fun`
+    - Updated `--Requires` directives for caml_call_gen and caml_apply
+    - Removed all documentation comments (kept only --Provides and --Requires)
+  - **FUNCTIONS**:
+    - caml_is_ocaml_fun - check if value is OCaml function
+    - caml_call_gen - generic currying application
+    - caml_apply - apply function to arguments
+    - caml_curry - create curried function
+    - caml_closure - create closure with environment
+  - **VERIFIED**: test_effect.lua (24/24), test_obj.lua (17/17) - no regressions
+  - **FILES MODIFIED**: fun.lua, test_fun.lua
 
 #### Refactor Data Structure Modules (Est: 4 hours)
 

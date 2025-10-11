@@ -15,39 +15,15 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
--- Function and Closure Support
---
--- This module provides OCaml function application and currying for Lua.
---
--- OCaml functions are represented as tables (not raw Lua functions) with:
--- - `f` field: the actual Lua function
--- - `l` field: arity (number of expected parameters)
---
--- This design allows us to attach metadata to functions in all Lua versions.
---
--- Partial application: When a function is called with fewer arguments
--- than expected, a new closure is returned that captures the provided
--- arguments and waits for the remaining ones.
---
--- Over-application: When a function is called with more arguments than
--- expected, the function is called with the first n arguments, and if
--- the result is a function, it's called with the remaining arguments.
-
---- Check if a value is an OCaml function (table with f and l fields)
--- Helper function for testing
-function is_ocaml_fun(v)
+--Provides: caml_is_ocaml_fun
+function caml_is_ocaml_fun(v)
   return type(v) == "table" and type(v.f) == "function" and type(v.l) == "number"
 end
 
 --Provides: caml_call_gen
---- Generic function application with currying and partial application.
--- This is the core function that handles OCaml's currying semantics.
---
--- @param func table OCaml function {f = lua_function, l = arity}
--- @param args table Array of arguments
--- @return any Result of function application (may be a partial closure)
+--Requires: caml_is_ocaml_fun
 function caml_call_gen(func, args)
-  assert(is_ocaml_fun(func), "caml_call_gen expects an OCaml function")
+  assert(caml_is_ocaml_fun(func), "caml_call_gen expects an OCaml function")
 
   local n = func.l
   local args_len = #args
@@ -55,7 +31,7 @@ function caml_call_gen(func, args)
 
   if d == 0 then
     -- Exact number of arguments: call directly
-    return func.f(table.unpack(args))
+    return func.f(unpack(args))
   elseif d < 0 then
     -- Over-application: too many arguments
     -- Call func with first n arguments
@@ -63,10 +39,10 @@ function caml_call_gen(func, args)
     for i = 1, n do
       first_args[i] = args[i]
     end
-    local result = func.f(table.unpack(first_args))
+    local result = func.f(unpack(first_args))
 
     -- If result is an OCaml function, apply remaining arguments
-    if is_ocaml_fun(result) then
+    if caml_is_ocaml_fun(result) then
       local rest_args = {}
       for i = n + 1, args_len do
         rest_args[#rest_args + 1] = args[i]
@@ -91,7 +67,7 @@ function caml_call_gen(func, args)
             new_args[i] = args[i]
           end
           new_args[args_len + 1] = x
-          return func.f(table.unpack(new_args))
+          return func.f(unpack(new_args))
         end
       }
     elseif d == 2 then
@@ -105,7 +81,7 @@ function caml_call_gen(func, args)
           end
           new_args[args_len + 1] = x
           new_args[args_len + 2] = y
-          return func.f(table.unpack(new_args))
+          return func.f(unpack(new_args))
         end
       }
     else
@@ -135,31 +111,17 @@ function caml_call_gen(func, args)
 end
 
 --Provides: caml_apply
---Requires: caml_call_gen
---- Apply a function to arguments (runtime helper).
--- This is a simpler version for when arity is known at compile time.
---
--- @param func table OCaml function
--- @param ... any Arguments to pass
--- @return any Result of function application
+--Requires: caml_call_gen, caml_is_ocaml_fun
 function caml_apply(func, ...)
   local args = {...}
-  if is_ocaml_fun(func) then
-    -- Function has known arity, use general application
+  if caml_is_ocaml_fun(func) then
     return caml_call_gen(func, args)
   else
-    -- Shouldn't happen in well-typed code
     error("caml_apply expects an OCaml function")
   end
 end
 
 --Provides: caml_curry
---- Create a curried function with known arity.
--- This wraps a Lua function to give it OCaml currying semantics.
---
--- @param arity number Number of parameters the function expects
--- @param lua_fn function The actual Lua function implementation
--- @return table OCaml function {f, l}
 function caml_curry(arity, lua_fn)
   return {
     l = arity,
@@ -168,14 +130,6 @@ function caml_curry(arity, lua_fn)
 end
 
 --Provides: caml_closure
---- Create a closure with captured free variables.
--- Generated code will use this to create closures that close over
--- variables from enclosing scopes.
---
--- @param arity number Number of parameters
--- @param lua_fn function Function implementation
--- @param env table Optional environment table with free variables
--- @return table OCaml function {f, l}
 function caml_closure(arity, lua_fn, env)
   if env then
     -- Closure with environment - wrap to inject env as first parameter

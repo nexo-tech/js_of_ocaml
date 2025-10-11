@@ -188,13 +188,13 @@ test("Primitives are defined", function()
   assert(type(caml_closure) == "function", "caml_closure is defined")
 end)
 
--- Test that is_ocaml_fun helper is available
-test("is_ocaml_fun helper is defined", function()
-  assert(type(is_ocaml_fun) == "function", "is_ocaml_fun is defined")
+-- Test that caml_is_ocaml_fun helper is available
+test("caml_is_ocaml_fun helper is defined", function()
+  assert(type(caml_is_ocaml_fun) == "function", "caml_is_ocaml_fun is defined")
   local f = {l = 1, f = function(x) return x end}
-  assert(is_ocaml_fun(f), "Recognizes OCaml function")
-  assert(not is_ocaml_fun(42), "Rejects non-function")
-  assert(not is_ocaml_fun(function() end), "Rejects raw Lua function")
+  assert(caml_is_ocaml_fun(f), "Recognizes OCaml function")
+  assert(not caml_is_ocaml_fun(42), "Rejects non-function")
+  assert(not caml_is_ocaml_fun(function() end), "Rejects raw Lua function")
 end)
 
 -- Print summary
