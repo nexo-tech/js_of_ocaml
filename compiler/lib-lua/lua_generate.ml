@@ -848,9 +848,11 @@ and generate_instrs ctx instrs =
 (** Collect all variables used in reachable blocks
     Returns set of variable names that need to be hoisted to avoid Lua goto/scope issues.
 
-    This function traverses all reachable blocks and collects variables from Let and Assign
-    instructions. These variables will be hoisted to the function start to allow safe
-    goto statements without violating Lua's scoping rules.
+    IMPORTANT: For optimized IR with forward references, this must collect:
+    1. Variables ASSIGNED in this function (Let/Assign)
+    2. Variables REFERENCED in expressions (for closure capture)
+
+    This ensures nested closures that reference parent variables will find them initialized.
 
     @param ctx Code generation context
     @param program Full IR program
@@ -858,17 +860,40 @@ and generate_instrs ctx instrs =
     @return Set of variable names (v_N format) that need hoisting
 *)
 and collect_block_variables ctx program start_addr =
-  (* Collect variables from a single instruction *)
+  (* Collect variables referenced in an expression *)
+  let collect_expr_refs acc = function
+    | Code.Constant _ -> acc
+    | Code.Apply { f; args; _ } ->
+        let acc = StringSet.add (var_name ctx f) acc in
+        List.fold_left ~f:(fun a v -> StringSet.add (var_name ctx v) a) ~init:acc args
+    | Code.Block (_, vars, _, _) ->
+        Array.fold_left ~f:(fun a v -> StringSet.add (var_name ctx v) a) ~init:acc vars
+    | Code.Field (v, _, _) ->
+        StringSet.add (var_name ctx v) acc
+    | Code.Closure _ -> acc  (* Closures handled separately *)
+    | Code.Prim (_, args) ->
+        List.fold_left ~f:(fun a -> function
+          | Code.Pv v -> StringSet.add (var_name ctx v) a
+          | Code.Pc _ -> a) ~init:acc args
+    | Code.Special _ -> acc
+  in
+  (* Collect variables from a single instruction (assignments AND references) *)
   let collect_instr_vars acc = function
-    | Code.Let (var, _expr) ->
-        (* Let introduces a new variable *)
-        StringSet.add (var_name ctx var) acc
-    | Code.Assign (var, _expr) ->
-        (* Assign may introduce a variable if not already defined *)
-        StringSet.add (var_name ctx var) acc
-    | Code.Set_field _ | Code.Offset_ref _ | Code.Array_set _ | Code.Event _ ->
-        (* These don't introduce new variables *)
-        acc
+    | Code.Let (var, expr) ->
+        let acc = StringSet.add (var_name ctx var) acc in
+        collect_expr_refs acc expr
+    | Code.Assign (var, source_var) ->
+        (* Assign is var := source_var, both are variables *)
+        StringSet.add (var_name ctx var) (StringSet.add (var_name ctx source_var) acc)
+    | Code.Set_field (v1, _, _, v2) ->
+        StringSet.add (var_name ctx v1) (StringSet.add (var_name ctx v2) acc)
+    | Code.Array_set (v1, v2, v3) ->
+        let acc = StringSet.add (var_name ctx v1) acc in
+        let acc = StringSet.add (var_name ctx v2) acc in
+        StringSet.add (var_name ctx v3) acc
+    | Code.Offset_ref (v, _) ->
+        StringSet.add (var_name ctx v) acc
+    | Code.Event _ -> acc
   in
   (* Collect all reachable blocks (reuse existing logic) *)
   let rec collect_reachable visited addr =
@@ -891,12 +916,19 @@ and collect_block_variables ctx program start_addr =
           List.fold_left ~f:collect_reachable ~init:visited successors
   in
   let reachable = collect_reachable Code.Addr.Set.empty start_addr in
-  (* Collect variables from all reachable blocks *)
+  (* Collect variables from all reachable blocks (body AND branch) *)
   Code.Addr.Set.fold
     (fun addr acc ->
       match Code.Addr.Map.find_opt addr program.Code.blocks with
       | None -> acc
-      | Some block -> List.fold_left ~f:collect_instr_vars ~init:acc block.Code.body)
+      | Some block ->
+          (* Collect from block body *)
+          let acc = List.fold_left ~f:collect_instr_vars ~init:acc block.Code.body in
+          (* Also collect from branch condition *)
+          match block.Code.branch with
+          | Code.Cond (v, _, _) | Code.Switch (v, _) | Code.Raise (v, _) | Code.Return v ->
+              StringSet.add (var_name ctx v) acc
+          | Code.Branch _ | Code.Pushtrap _ | Code.Poptrap _ | Code.Stop -> acc)
     reachable
     StringSet.empty
 
@@ -935,10 +967,19 @@ and compile_blocks_with_labels ctx program start_addr ?(params = []) () =
         (* Inheriting parent's _V table - don't create new one, just add comment *)
         [ L.Comment (Printf.sprintf "Hoisted variables (%d total, using inherited _V table)" total_vars) ]
       else
-        (* Create new _V table for this function *)
+        (* Create new _V table for this function and initialize all fields to nil
+           This is REQUIRED for optimized IR which may have forward references where
+           closures are created before variables they reference are assigned.
+           See PARTIAL.md Task 6.1.2 for full analysis. *)
+        let init_stmts =
+          StringSet.elements hoisted_vars
+          |> List.map ~f:(fun var ->
+              (* _V.var = nil *)
+              L.Assign ([ L.Dot (L.Ident var_table_name, var) ], [ L.Nil ]))
+        in
         [ L.Comment (Printf.sprintf "Hoisted variables (%d total, using table due to Lua's 200 local limit)" total_vars)
         ; L.Local ([ var_table_name ], Some [ L.Table [] ])  (* local _V = {} *)
-        ]
+        ] @ init_stmts
     else
       (* Use local declarations for ≤180 variables *)
       let var_list = StringSet.elements hoisted_vars |> List.sort ~cmp:String.compare in

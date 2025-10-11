@@ -1387,7 +1387,7 @@ let p = result.program in
 
 ---
 
-##### Subtask 6.1.2: Fix variable scoping in optimized IR **[IN PROGRESS]**
+##### Subtask 6.1.2: Fix variable scoping in optimized IR **[BLOCKED - COMPLEX]**
 **Reference**: Optimized IR uses different variable lifetime/scoping than raw IR
 
 **Problem**: After enabling optimization passes, new error:
@@ -1440,7 +1440,36 @@ Stack: function at line 19803 references _V.v349 which is undefined
 3. **Result**: Same issue with different variable (`v359` instead of `v349`)
 4. **Conclusion**: Problem is fundamental to `_V` table architecture, not target-specific
 
-**Next Step**: Implement Option A (Initialize All Variables) as interim fix
+**Work Attempted**:
+1. ✅ Added _V table field initialization (line 942-950)
+2. ✅ Enhanced `collect_block_variables` to collect variable REFERENCES not just assignments (line 864-893)
+3. ❌ Still failing - nested closures inherit _V but reference variables from sibling closures
+
+**Root Issue Discovered**:
+The problem is MORE complex than initially understood:
+- Parent function creates `_V` table
+- Nested closure A is created and inherits _V
+- Nested closure B is created later and assigns v359 to _V
+- But closure A was created BEFORE v359 existed, and references it
+- Current `collect_block_variables` only collects variables from THAT function's blocks
+- It does NOT collect variables referenced by nested closures OR sibling closures
+- Result: v359 is not in parent's hoisted_vars, so not initialized in _V
+
+**Correct Fix Requires**:
+1. Collect variables across entire closure tree (recursive collection)
+2. When function has nested closures that inherit _V, collect:
+   - Variables assigned in this function
+   - Variables referenced by ALL nested closures (recursively)
+   - Variables assigned by sibling closures
+3. Initialize ALL of these in _V table at parent function start
+4. This is essentially closure conversion analysis
+
+**Recommended Approach**:
+Given complexity, recommend either:
+- **Short term**: Collect ALL variables from entire IR program and initialize all in top-level _V (inefficient but works)
+- **Long term**: Implement proper closure conversion with escape analysis (like Generate_closure.f in JS backend)
+
+**Next Step**: Implement short-term fix to unblock Printf, then proper closure conversion as Phase 8
 
 **Files**: `compiler/bin-lua_of_ocaml/compile.ml`, `compiler/lib-lua/lua_generate.ml`
 
