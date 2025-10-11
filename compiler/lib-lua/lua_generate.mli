@@ -123,8 +123,9 @@ val collect_block_variables : context -> Code.program -> int -> Stdlib.StringSet
     @param start_addr Starting block address
     @return Set of variable names defined in reachable blocks *)
 
-val compile_blocks_with_labels : context -> Code.program -> int -> Lua_ast.stat list
-(** [compile_blocks_with_labels ctx program start_addr] compiles IR blocks into
+val compile_blocks_with_labels :
+  context -> Code.program -> int -> ?params:Code.Var.t list -> unit -> Lua_ast.stat list
+(** [compile_blocks_with_labels ctx program start_addr ~params ()] compiles IR blocks into
     Lua statements with variable hoisting and labeled gotos. Variables are hoisted
     to the beginning to avoid Lua's goto/scope restrictions.
     @param ctx Code generation context

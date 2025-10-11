@@ -51,6 +51,9 @@ type context =
             Set to true when function needs >180 hoisted variables.
             When true: generates _V.v0 = expr
             When false: generates v0 = expr *)
+  ; inherit_var_table : bool
+        (** If true, this is a nested closure that inherits parent's _V table.
+            When true: don't create 'local _V = {}', use parent's _V as upvalue *)
   }
 
 (** {2 Context Operations} *)
@@ -65,6 +68,7 @@ let make_context ~debug =
   ; program = None
   ; optimize_field_access = true
   ; use_var_table = false  (* Default to locals, set to true in hoisting logic if needed *)
+  ; inherit_var_table = false  (* Top-level context doesn't inherit *)
   }
 
 (** Create a context with program for closure generation *)
@@ -74,6 +78,26 @@ let make_context_with_program ~debug program =
   ; program = Some program
   ; optimize_field_access = true
   ; use_var_table = false  (* Default to locals, set to true in hoisting logic if needed *)
+  ; inherit_var_table = false  (* Top-level function doesn't inherit *)
+  }
+
+(** Create a child context for closure generation that inherits parent's variable mappings
+    This allows closures to reference variables from enclosing scopes (captured as upvalues in Lua)
+    @param parent_ctx Parent context to inherit variable mappings from
+    @param program Program for the child context
+    @return New context with inherited variable mappings
+*)
+let make_child_context parent_ctx program =
+  let parent_uses_table = parent_ctx.use_var_table in
+  { vars =
+      { var_map = parent_ctx.vars.var_map  (* Inherit parent's variable mappings *)
+      ; var_counter = parent_ctx.vars.var_counter  (* Continue parent's counter *)
+      }
+  ; _debug = parent_ctx._debug
+  ; program = Some program
+  ; optimize_field_access = parent_ctx.optimize_field_access
+  ; use_var_table = parent_uses_table  (* Inherit parent's table usage *)
+  ; inherit_var_table = parent_uses_table  (* If parent uses table, inherit it *)
   }
 
 (** Generate a fresh Lua variable name
@@ -598,15 +622,61 @@ let generate_prim ctx prim args =
           L.Call (L.Ident "caml_ml_set_buffered", [ chan; v ])
       (* Default: call external primitive function *)
       | _, args ->
-          (* Don't add caml_ prefix if name already starts with caml_ *)
-          let prim_name =
-            if String.starts_with ~prefix:"caml_" name then
-              name
-            else
-              "caml_" ^ name
-          in
-          let prim_func = L.Ident prim_name in
-          L.Call (prim_func, args))
+          (* Check if this is an inline primitive (starts with %) *)
+          if String.starts_with ~prefix:"%" name then
+            (* Inline primitives - generate direct Lua code instead of function calls *)
+            let inline_name = String.sub name ~pos:1 ~len:(String.length name - 1) in
+            (match inline_name, args with
+            (* Integer arithmetic inline operations *)
+            | "int_add", [ e1; e2 ] -> L.BinOp (L.Add, e1, e2)
+            | "int_sub", [ e1; e2 ] -> L.BinOp (L.Sub, e1, e2)
+            | "int_mul", [ e1; e2 ] -> L.BinOp (L.Mul, e1, e2)
+            | "int_div", [ e1; e2 ] ->
+                (* Integer division - use math.floor(a/b) for Lua 5.1 *)
+                L.Call (L.Ident "math.floor", [ L.BinOp (L.Div, e1, e2) ])
+            | "int_mod", [ e1; e2 ] -> L.BinOp (L.Mod, e1, e2)
+            | "int_neg", [ e ] -> L.UnOp (L.Neg, e)
+            (* Bitwise inline operations *)
+            (* For Lua 5.1 compatibility, we implement these using math operations *)
+            | "int_and", [ e1; e2 ] ->
+                (* Bitwise AND using modulo trick for small values *)
+                (* TODO: Move to runtime for full 32-bit support *)
+                L.Call (L.Ident "caml_int_and", [ e1; e2 ])
+            | "int_or", [ e1; e2 ] ->
+                L.Call (L.Ident "caml_int_or", [ e1; e2 ])
+            | "int_xor", [ e1; e2 ] ->
+                L.Call (L.Ident "caml_int_xor", [ e1; e2 ])
+            | "int_lsl", [ e1; e2 ] ->
+                (* Left shift: a << b = a * (2^b) *)
+                L.BinOp (L.Mul, e1, L.BinOp (L.Pow, L.Number "2", e2))
+            | "int_lsr", [ e1; e2 ] ->
+                (* Logical right shift: a >> b = floor(a / (2^b)) *)
+                L.Call (L.Ident "math.floor",
+                  [ L.BinOp (L.Div, e1, L.BinOp (L.Pow, L.Number "2", e2)) ])
+            | "int_asr", [ e1; e2 ] ->
+                (* Arithmetic right shift - for now same as logical *)
+                L.Call (L.Ident "math.floor",
+                  [ L.BinOp (L.Div, e1, L.BinOp (L.Pow, L.Number "2", e2)) ])
+            (* Direct object operations *)
+            | "direct_obj_tag", [ e ] ->
+                (* Get tag from object: obj.tag or 0 if not a table *)
+                L.BinOp (L.Or,
+                  L.Dot (e, "tag"),
+                  L.Number "0")
+            (* Fallback for unknown inline primitives *)
+            | _ ->
+                (* Generate call with caml_ prefix *)
+                L.Call (L.Ident ("caml_" ^ inline_name), args))
+          else
+            (* Don't add caml_ prefix if name already starts with caml_ *)
+            let prim_name =
+              if String.starts_with ~prefix:"caml_" name then
+                name
+              else
+                "caml_" ^ name
+            in
+            let prim_func = L.Ident prim_name in
+            L.Call (prim_func, args))
   (* Fallback for other cases *)
   | _ ->
       (* Generate runtime call for unhandled primitives *)
@@ -796,21 +866,30 @@ and collect_block_variables ctx program start_addr =
     reachable
     StringSet.empty
 
-(** Compile all reachable blocks with labels and gotos (unified approach)
+(** Compile all reachable blocks with dispatch loop (Lua 5.1 compatible)
     This is the single unified function that all code generation paths use.
+    Uses a while loop with numeric dispatch instead of goto/labels for Lua 5.1 compatibility.
 
     @param ctx Code generation context
     @param program Full IR program
     @param start_addr Starting block address
-    @return List of Lua statements with labels and gotos
+    @param params Optional list of function parameters (for closures)
+    @return List of Lua statements with dispatch loop
 *)
-and compile_blocks_with_labels ctx program start_addr =
+and compile_blocks_with_labels ctx program start_addr ?(params = []) () =
   (* Collect all variables that need hoisting *)
   let hoisted_vars = collect_block_variables ctx program start_addr in
 
   (* Determine if we need table-based storage and set context accordingly *)
   let total_vars = StringSet.cardinal hoisted_vars in
-  let use_table = should_use_var_table total_vars in
+  let use_table =
+    if ctx.inherit_var_table then
+      (* If inheriting parent's _V table, keep parent's use_var_table setting *)
+      ctx.use_var_table
+    else
+      (* Otherwise, decide based on this function's variable count *)
+      should_use_var_table total_vars
+  in
   ctx.use_var_table <- use_table;
 
   (* Generate variable declaration statements *)
@@ -818,16 +897,34 @@ and compile_blocks_with_labels ctx program start_addr =
     if StringSet.is_empty hoisted_vars
     then []
     else if use_table then
-      (* Use table-based storage for >180 variables *)
-      [ L.Comment (Printf.sprintf "Hoisted variables (%d total, using table due to Lua's 200 local limit)" total_vars)
-      ; L.Local ([ var_table_name ], Some [ L.Table [] ])  (* local _V = {} *)
-      ]
+      if ctx.inherit_var_table then
+        (* Inheriting parent's _V table - don't create new one, just add comment *)
+        [ L.Comment (Printf.sprintf "Hoisted variables (%d total, using inherited _V table)" total_vars) ]
+      else
+        (* Create new _V table for this function *)
+        [ L.Comment (Printf.sprintf "Hoisted variables (%d total, using table due to Lua's 200 local limit)" total_vars)
+        ; L.Local ([ var_table_name ], Some [ L.Table [] ])  (* local _V = {} *)
+        ]
     else
       (* Use local declarations for ≤180 variables *)
       let var_list = StringSet.elements hoisted_vars |> List.sort ~cmp:String.compare in
       [ L.Comment (Printf.sprintf "Hoisted variables (%d total)" total_vars)
       ; L.Local (var_list, None)
       ]
+  in
+
+  (* Generate parameter copy statements if using _V table *)
+  let param_copy_stmts =
+    if use_table && not (List.is_empty params) then
+      (* Copy parameters from function locals to _V table *)
+      List.map params ~f:(fun param ->
+          let param_name = var_name ctx param in
+          (* _V.param_name = param_name *)
+          L.Assign
+            ( [ L.Dot (L.Ident var_table_name, param_name) ]
+            , [ L.Ident param_name ] ))
+    else
+      []
   in
 
   (* Collect all reachable blocks from start *)
@@ -855,53 +952,48 @@ and compile_blocks_with_labels ctx program start_addr =
   (* Build list of blocks sorted by address *)
   let sorted_blocks = reachable |> Code.Addr.Set.elements |> List.sort ~cmp:compare in
 
-  (* Generate code for each block with fall-through optimization *)
-  let block_stmts =
+  (* Generate code for each block with dispatch-based control flow (Lua 5.1 compatible) *)
+  let block_cases =
     sorted_blocks
-    |> List.mapi ~f:(fun idx addr ->
+    |> List.map ~f:(fun addr ->
          match Code.Addr.Map.find_opt addr program.Code.blocks with
-         | None -> []
+         | None -> (addr, [])
          | Some block ->
-             let label = L.Label ("block_" ^ Code.Addr.to_string addr) in
              let body = generate_instrs ctx block.Code.body in
-             (* Check if this block can fall through to the next *)
-             let can_fall_through =
-               match block.Code.branch with
-               | Code.Branch (next, _) ->
-                   (* Fall through if next block is sequential (addr + 1) *)
-                   next = addr + 1
-                   && (* And the next block is in our sorted list at the next position *)
-                   idx + 1 < List.length sorted_blocks
-                   && List.nth sorted_blocks (idx + 1) = next
-               | _ -> false
-             in
-             (* Check if this is a non-branching terminator (return/raise/stop) *)
-             let is_non_branching =
-               match block.Code.branch with
-               | Code.Return _ | Code.Raise _ | Code.Stop -> true
-               | _ -> false
-             in
-             (* Check if there are more blocks after this one *)
-             let has_next_block = idx + 1 < List.length sorted_blocks in
-             (* Generate terminator, wrapping return/raise in do...end if needed *)
-             let terminator =
-               if can_fall_through then
-                 [] (* Omit goto, let it fall through *)
-               else if is_non_branching && has_next_block then
-                 (* Wrap non-branching terminators in do...end to avoid syntax errors
-                    when labels follow. In Lua, return/break must be the last statement
-                    before end/else/until, so we wrap them to allow labels after. *)
-                 let term_stmts = generate_last ctx block.Code.branch in
-                 [ L.Block term_stmts ]  (* do <statements> end *)
-               else
-                 generate_last ctx block.Code.branch
-             in
-             [ label ] @ body @ terminator)
-    |> List.concat
+             let terminator = generate_last_dispatch ctx block.Code.branch in
+             (addr, body @ terminator))
   in
 
-  (* Return hoisted declarations + blocks *)
-  hoist_stmts @ block_stmts
+  (* Build dispatch loop using if-elseif chain *)
+  let dispatch_loop =
+    match block_cases with
+    | [] -> []
+    | (first_addr, _) :: _ ->
+        (* Initialize dispatch variable to start address *)
+        let init_stmt = L.Local (["_next_block"], Some [L.Number (string_of_int first_addr)]) in
+
+        (* Build if-elseif chain for block dispatch *)
+        let rec build_dispatch_chain = function
+          | [] -> [ L.Break ]  (* No matching block, exit loop *)
+          | [(addr, body)] ->
+              (* Last block - no else needed *)
+              let cond = L.BinOp (L.Eq, L.Ident "_next_block", L.Number (string_of_int addr)) in
+              [ L.If (cond, body, Some [ L.Break ]) ]
+          | (addr, body) :: rest ->
+              let cond = L.BinOp (L.Eq, L.Ident "_next_block", L.Number (string_of_int addr)) in
+              [ L.If (cond, body, Some (build_dispatch_chain rest)) ]
+        in
+
+        let dispatch_body = build_dispatch_chain block_cases in
+
+        (* Wrap in while true do ... end loop *)
+        [ init_stmt
+        ; L.While (L.Bool true, dispatch_body)
+        ]
+  in
+
+  (* Return hoisted declarations + parameter copies + dispatch loop *)
+  hoist_stmts @ param_copy_stmts @ dispatch_loop
 
 (** {2 Function/Closure Generation} *)
 
@@ -977,8 +1069,9 @@ and generate_closure ctx params pc =
           (* Block not found - return placeholder *)
           L.Ident "caml_closure"
       | Some _block ->
-          (* Create new context for closure - each closure is independent *)
-          let closure_ctx = make_context_with_program ~debug:ctx._debug program in
+          (* Create child context for closure that inherits parent's variable mappings
+             This allows closures to capture variables from enclosing scopes as upvalues *)
+          let closure_ctx = make_child_context ctx program in
 
           (* Generate parameter names using the closure's context *)
           let param_names = List.map ~f:(var_name closure_ctx) params in
@@ -987,17 +1080,19 @@ and generate_closure ctx params pc =
              1. Collect variables in this closure's blocks
              2. Decide independently if use_var_table should be set
              3. Generate either `local _V = {}` or `local v0, v1, ...`
+             4. If using _V table, copy parameters into _V
              Each closure gets its own _V table if needed (>180 vars) *)
-          let body_stmts = compile_blocks_with_labels closure_ctx program pc in
+          let body_stmts = compile_blocks_with_labels closure_ctx program pc ~params () in
 
           L.Function (param_names, false, body_stmts))
 
-(** Generate Lua last statement from Code last (terminator) using gotos
+(** Generate Lua last statement from Code last (terminator) using dispatch
+    Sets _next_block variable for dispatch loop (Lua 5.1 compatible)
     @param ctx Code generation context
     @param last IR terminator
     @return List of Lua statements
 *)
-and generate_last ctx last =
+and generate_last_dispatch ctx last =
   match last with
   | Code.Return var ->
       let lua_expr = var_ident ctx var in
@@ -1007,21 +1102,21 @@ and generate_last ctx last =
       [ L.Call_stat (L.Call (L.Ident "error", [ lua_expr ])) ]
   | Code.Stop -> [ L.Return [ L.Nil ] ]
   | Code.Branch (addr, _args) ->
-      let label = "block_" ^ Code.Addr.to_string addr in
-      [ L.Goto label ]
+      (* Set next block and continue loop *)
+      [ L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int addr)]) ]
   | Code.Cond (var, (addr_true, _), (addr_false, _)) ->
       let cond_expr = var_ident ctx var in
-      let true_label = "block_" ^ Code.Addr.to_string addr_true in
-      let false_label = "block_" ^ Code.Addr.to_string addr_false in
-      [ L.If (cond_expr, [ L.Goto true_label ], Some [ L.Goto false_label ]) ]
+      let set_true = [ L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int addr_true)]) ] in
+      let set_false = [ L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int addr_false)]) ] in
+      [ L.If (cond_expr, set_true, Some set_false) ]
   | Code.Switch (var, conts) ->
       let switch_var = var_ident ctx var in
       let cases =
         Array.to_list conts
         |> List.mapi ~f:(fun idx (addr, _) ->
-            let label = "block_" ^ Code.Addr.to_string addr in
             let cond = L.BinOp (L.Eq, switch_var, L.Number (string_of_int idx)) in
-            (cond, [ L.Goto label ]))
+            let set_block = [ L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int addr)]) ] in
+            (cond, set_block))
       in
       (match cases with
       | [] -> []
@@ -1032,12 +1127,14 @@ and generate_last ctx last =
           in
           [ L.If (cond, then_stmt, Some (build_if_chain rest)) ])
   | Code.Pushtrap ((cont_addr, _), _var, (_handler_addr, _)) ->
-      (* For now, just goto continuation - proper exception handling TODO *)
-      let label = "block_" ^ Code.Addr.to_string cont_addr in
-      [ L.Goto label ]
+      (* For now, just set continuation block - proper exception handling TODO *)
+      [ L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int cont_addr)]) ]
   | Code.Poptrap (addr, _) ->
-      let label = "block_" ^ Code.Addr.to_string addr in
-      [ L.Goto label ]
+      [ L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int addr)]) ]
+
+(** Alias for backward compatibility *)
+and generate_last ctx last =
+  generate_last_dispatch ctx last
 
 (** Generate Lua block from Code block
     @param ctx Code generation context
@@ -1117,7 +1214,7 @@ let chunk_statements ?(max_locals = 150) stmts =
 *)
 let generate_module_init ctx program =
   (* Use unified block compilation starting from entry point *)
-  let all_stmts = compile_blocks_with_labels ctx program program.Code.start in
+  let all_stmts = compile_blocks_with_labels ctx program program.Code.start () in
 
   (* Count local variables in generated code *)
   let local_count = count_locals all_stmts in
@@ -1285,22 +1382,20 @@ let debug_print_program program =
 let generate_inline_runtime () =
   [
     L.Comment "=== OCaml Runtime (Minimal Inline Version) ===";
-    L.Comment "Global storage for OCaml values";
-    L.Local ([ "_OCAML_GLOBALS" ], Some [ L.Table [] ]);
+    L.Comment "Initialize global OCaml namespace (required before loading runtime modules)";
+    L.Assign ([L.Dot (L.Ident "_G", "_OCAML")], [L.Table []]);
     L.Comment "";
-    L.Comment "caml_register_global: Register a global OCaml value";
-    L.Comment "  n: global index";
-    L.Comment "  v: value to register";
-    L.Comment "  name: optional string name for the global";
+    L.Comment "NOTE: core.lua provides caml_register_global for primitives (name, func).";
+    L.Comment "This inline version is for registering OCaml global VALUES (used by generated code).";
+    L.Comment "TODO: Rename one of them to avoid confusion.";
+    L.Local ([ "_OCAML_GLOBALS" ], Some [ L.Table [] ]);
     L.Function_decl
       ( "caml_register_global"
       , [ "n"; "v"; "name" ]
       , false
-      , [ L.Comment "Store value at index n+1 (Lua 1-indexed)";
-          L.Assign
+      , [ L.Assign
             ( [ L.Index (L.Ident "_OCAML_GLOBALS", L.BinOp (L.Add, L.Ident "n", L.Number "1")) ]
             , [ L.Ident "v" ] );
-          L.Comment "Also store by name if provided";
           L.If
             ( L.Ident "name"
             , [ L.Assign
@@ -1308,11 +1403,94 @@ let generate_inline_runtime () =
                   , [ L.Ident "v" ] )
               ]
             , None );
-          L.Comment "Return the value for chaining";
           L.Return [ L.Ident "v" ]
         ] );
+    L.Function_decl
+      ( "caml_register_named_value"
+      , [ "name"; "value" ]
+      , false
+      , [ L.Assign
+            ( [ L.Index (L.Ident "_OCAML_GLOBALS", L.Ident "name") ]
+            , [ L.Ident "value" ] );
+          L.Return [ L.Ident "value" ]
+        ] );
     L.Comment "";
-    L.Comment "=== End Runtime ==="
+    L.Comment "Bitwise operations for Lua 5.1 (simplified implementations)";
+    L.Function_decl
+      ( "caml_int_and"
+      , [ "a"; "b" ]
+      , false
+      , [ L.Comment "Simplified bitwise AND for common cases";
+          L.Comment "For full implementation, see runtime/lua/ints.lua";
+          L.Local ([ "result"; "bit" ], Some [ L.Number "0"; L.Number "1" ]);
+          L.Assign ([ L.Ident "a" ], [ L.Call (L.Ident "math.floor", [ L.Ident "a" ]) ]);
+          L.Assign ([ L.Ident "b" ], [ L.Call (L.Ident "math.floor", [ L.Ident "b" ]) ]);
+          L.While
+            ( L.BinOp (L.And, L.BinOp (L.Gt, L.Ident "a", L.Number "0"), L.BinOp (L.Gt, L.Ident "b", L.Number "0"))
+            , [ L.If
+                  ( L.BinOp (L.And,
+                      L.BinOp (L.Eq, L.BinOp (L.Mod, L.Ident "a", L.Number "2"), L.Number "1"),
+                      L.BinOp (L.Eq, L.BinOp (L.Mod, L.Ident "b", L.Number "2"), L.Number "1"))
+                  , [ L.Assign ([ L.Ident "result" ], [ L.BinOp (L.Add, L.Ident "result", L.Ident "bit") ]) ]
+                  , None );
+                L.Assign ([ L.Ident "a" ], [ L.Call (L.Ident "math.floor", [ L.BinOp (L.Div, L.Ident "a", L.Number "2") ]) ]);
+                L.Assign ([ L.Ident "b" ], [ L.Call (L.Ident "math.floor", [ L.BinOp (L.Div, L.Ident "b", L.Number "2") ]) ]);
+                L.Assign ([ L.Ident "bit" ], [ L.BinOp (L.Mul, L.Ident "bit", L.Number "2") ])
+              ] );
+          L.Return [ L.Ident "result" ]
+        ] );
+    L.Function_decl
+      ( "caml_int_or"
+      , [ "a"; "b" ]
+      , false
+      , [ L.Local ([ "result"; "bit" ], Some [ L.Number "0"; L.Number "1" ]);
+          L.Assign ([ L.Ident "a" ], [ L.Call (L.Ident "math.floor", [ L.Ident "a" ]) ]);
+          L.Assign ([ L.Ident "b" ], [ L.Call (L.Ident "math.floor", [ L.Ident "b" ]) ]);
+          L.While
+            ( L.BinOp (L.Or, L.BinOp (L.Gt, L.Ident "a", L.Number "0"), L.BinOp (L.Gt, L.Ident "b", L.Number "0"))
+            , [ L.If
+                  ( L.BinOp (L.Or,
+                      L.BinOp (L.Eq, L.BinOp (L.Mod, L.Ident "a", L.Number "2"), L.Number "1"),
+                      L.BinOp (L.Eq, L.BinOp (L.Mod, L.Ident "b", L.Number "2"), L.Number "1"))
+                  , [ L.Assign ([ L.Ident "result" ], [ L.BinOp (L.Add, L.Ident "result", L.Ident "bit") ]) ]
+                  , None );
+                L.Assign ([ L.Ident "a" ], [ L.Call (L.Ident "math.floor", [ L.BinOp (L.Div, L.Ident "a", L.Number "2") ]) ]);
+                L.Assign ([ L.Ident "b" ], [ L.Call (L.Ident "math.floor", [ L.BinOp (L.Div, L.Ident "b", L.Number "2") ]) ]);
+                L.Assign ([ L.Ident "bit" ], [ L.BinOp (L.Mul, L.Ident "bit", L.Number "2") ])
+              ] );
+          L.Return [ L.Ident "result" ]
+        ] );
+    L.Function_decl
+      ( "caml_int_xor"
+      , [ "a"; "b" ]
+      , false
+      , [ L.Local ([ "result"; "bit" ], Some [ L.Number "0"; L.Number "1" ]);
+          L.Assign ([ L.Ident "a" ], [ L.Call (L.Ident "math.floor", [ L.Ident "a" ]) ]);
+          L.Assign ([ L.Ident "b" ], [ L.Call (L.Ident "math.floor", [ L.Ident "b" ]) ]);
+          L.While
+            ( L.BinOp (L.Or, L.BinOp (L.Gt, L.Ident "a", L.Number "0"), L.BinOp (L.Gt, L.Ident "b", L.Number "0"))
+            , [ L.Local ([ "a_bit"; "b_bit" ], Some [ L.BinOp (L.Mod, L.Ident "a", L.Number "2"); L.BinOp (L.Mod, L.Ident "b", L.Number "2") ]);
+                L.If
+                  ( L.BinOp (L.Neq, L.Ident "a_bit", L.Ident "b_bit")
+                  , [ L.Assign ([ L.Ident "result" ], [ L.BinOp (L.Add, L.Ident "result", L.Ident "bit") ]) ]
+                  , None );
+                L.Assign ([ L.Ident "a" ], [ L.Call (L.Ident "math.floor", [ L.BinOp (L.Div, L.Ident "a", L.Number "2") ]) ]);
+                L.Assign ([ L.Ident "b" ], [ L.Call (L.Ident "math.floor", [ L.BinOp (L.Div, L.Ident "b", L.Number "2") ]) ]);
+                L.Assign ([ L.Ident "bit" ], [ L.BinOp (L.Mul, L.Ident "bit", L.Number "2") ])
+              ] );
+          L.Return [ L.Ident "result" ]
+        ] );
+    L.Comment "";
+    L.Comment "Int64/Float bit conversion stubs (TODO: proper implementation)";
+    L.Function_decl
+      ( "caml_int64_float_of_bits"
+      , [ "i" ]
+      , false
+      , [ L.Comment "Convert int64 bits to float - stub implementation";
+          L.Comment "In Lua, numbers are already IEEE 754 doubles";
+          L.Return [ L.Ident "i" ]
+        ] );
+    L.Comment "=== End Inline Runtime ==="
   ]
 
 (** Generate standalone program
@@ -1328,30 +1506,63 @@ let generate_standalone ctx program =
   (* 1. Track which primitives are used *)
   let used_primitives = collect_used_primitives program in
 
-  (* 2. Load runtime modules *)
-  let runtime_dir = "runtime/lua" in
+  (* 2. Load runtime modules - find source tree runtime directory *)
+  let find_runtime_dir () =
+    (* Try to find the js_of_ocaml source tree by looking for dune-project *)
+    let rec find_project_root dir depth =
+      if depth > 10 then None (* Prevent infinite loop *)
+      else if Sys.file_exists (Filename.concat dir "dune-project") then
+        let runtime_dir = Filename.concat dir "runtime/lua" in
+        if Sys.file_exists runtime_dir && Sys.is_directory runtime_dir
+        then Some runtime_dir
+        else None
+      else
+        let parent = Filename.dirname dir in
+        if String.equal parent dir then None (* Reached filesystem root *)
+        else find_project_root parent (depth + 1)
+    in
+    (* Start from current working directory *)
+    find_project_root (Sys.getcwd ()) 0
+  in
   let fragments =
-    try Lua_link.load_runtime_dir runtime_dir
-    with Sys_error _ ->
-      (* Runtime directory not found - continue without runtime modules *)
-      []
+    match find_runtime_dir () with
+    | Some runtime_dir -> Lua_link.load_runtime_dir runtime_dir
+    | None ->
+        (* Runtime directory not found - continue without runtime modules *)
+        []
   in
 
-  (* 3. Find fragments that provide used primitives (using hybrid strategy) *)
+  (* 3. Find fragments that provide used primitives *)
+  (* Build provides map: primitive name -> fragment *)
+  let provides_map =
+    List.fold_left
+      ~f:(fun acc frag ->
+        List.fold_left
+          ~f:(fun m prim -> StringMap.add prim frag.Lua_link.name m)
+          ~init:acc
+          frag.Lua_link.provides)
+      ~init:StringMap.empty
+      fragments
+  in
+  (* Find which fragments provide the primitives we need *)
   let needed_fragments_set =
     StringSet.fold
       (fun prim_name acc ->
-        match Lua_link.find_primitive_implementation prim_name fragments with
-        | Some (frag, _func_name) -> StringSet.add frag.Lua_link.name acc
-        | None -> acc  (* Primitive not found - might be inlined *)
+        match StringMap.find_opt prim_name provides_map with
+        | Some frag_name -> StringSet.add frag_name acc
+        | None -> acc  (* Primitive not found - might be inlined or missing *)
       )
       used_primitives
       StringSet.empty
   in
 
   (* 4. Resolve dependencies between needed fragments *)
+  (* TEMPORARY: Use linkall behavior - include ALL runtime modules.
+     This is needed because code generation adds primitive calls (like caml_fresh_oo_id)
+     that aren't in the original IR, so collect_used_primitives misses them.
+     TODO: Either (1) track primitives during codegen, or (2) analyze generated AST. *)
   let sorted_fragments =
-    if List.length fragments = 0 || StringSet.is_empty needed_fragments_set
+    if List.length fragments = 0
     then []
     else
       let state =
@@ -1360,12 +1571,51 @@ let generate_standalone ctx program =
           ~init:(Lua_link.init ())
           fragments
       in
-      let sorted_fragment_names, _missing =
-        Lua_link.resolve_deps state (StringSet.elements needed_fragments_set)
+      (* resolve_deps expects SYMBOL names, not fragment names.
+         NOTE: We don't include core.lua because it conflicts with our inline runtime.
+         Specifically, core.lua's caml_register_global is for primitives (name, func)
+         while our inline version is for values (index, value, name).
+         The inline runtime already initializes _G._OCAML. *)
+      let needed_symbols =
+        if StringSet.is_empty needed_fragments_set
+        then (
+          (* Include all symbols from all fragments (linkall) *)
+          List.fold_left
+            ~f:(fun acc frag ->
+              (* Skip core.lua to avoid conflicts *)
+              if String.equal frag.Lua_link.name "core" then acc
+              else
+                List.fold_left
+                  ~f:(fun acc2 sym -> StringSet.add sym acc2)
+                  ~init:acc
+                  frag.Lua_link.provides)
+            ~init:StringSet.empty
+            fragments
+        ) else (
+          (* Collect symbols from needed fragments *)
+          StringSet.fold
+            (fun frag_name acc ->
+              (* Skip core.lua to avoid conflicts *)
+              if String.equal frag_name "core" then acc
+              else
+                match List.find_opt ~f:(fun f -> String.equal f.Lua_link.name frag_name) fragments with
+                | Some frag ->
+                    List.fold_left
+                      ~f:(fun acc2 sym -> StringSet.add sym acc2)
+                      ~init:acc
+                      frag.Lua_link.provides
+                | None -> acc)
+            needed_fragments_set
+            StringSet.empty
+        )
       in
+      let sorted_fragment_names, _missing =
+        Lua_link.resolve_deps state (StringSet.elements needed_symbols)
+      in
+      (* Filter out core.lua from the sorted list to avoid conflicts *)
+      let sorted_fragment_names = List.filter ~f:(fun name -> not (String.equal name "core")) sorted_fragment_names in
       List.filter_map
-        ~f:(fun name ->
-          List.find_opt ~f:(fun f -> String.equal f.Lua_link.name name) fragments)
+        ~f:(fun name -> List.find_opt ~f:(fun f -> String.equal f.Lua_link.name name) fragments)
         sorted_fragment_names
   in
 
@@ -1377,13 +1627,13 @@ let generate_standalone ctx program =
   let inline_runtime = generate_inline_runtime () in
   let embedded_modules =
     List.map ~f:Lua_link.embed_runtime_module sorted_fragments
-    |> List.map ~f:(fun code -> L.Comment code)
+    |> List.map ~f:(fun code -> L.Raw code)
   in
   let wrappers_code = Lua_link.generate_wrappers used_primitives fragments in
   let wrappers =
     if String.length wrappers_code = 0
     then []
-    else [ L.Comment wrappers_code ]
+    else [ L.Raw wrappers_code ]
   in
   let program_code = generate_module_init ctx program in
 
@@ -1400,7 +1650,7 @@ let generate_standalone ctx program =
 *)
 let generate_module ctx program module_name =
   (* Use unified block compilation starting from entry point *)
-  let init_code = compile_blocks_with_labels ctx program program.Code.start in
+  let init_code = compile_blocks_with_labels ctx program program.Code.start () in
 
   (* Create module table *)
   let module_var = "M" in
