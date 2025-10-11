@@ -28,6 +28,44 @@
 - ✅ I/O: channels, files, memory buffers, integration tests
 - ✅ Compatibility: Lua 5.1, LuaJIT optimization tests
 
+### 🔧 How It Works
+
+**Compilation Pipeline** (`compiler/bin-lua_of_ocaml/compile.ml`):
+1. **Parse bytecode** → OCaml IR (shares js_of_ocaml's `Parse_bytecode`)
+2. **Generate Lua AST** → `Lua_generate.generate` converts IR to Lua
+3. **Bundle runtime** → Embeds needed runtime modules from `runtime/lua/`
+4. **Output Lua** → `Lua_output.program_to_string` produces final `.lua` file
+
+**Runtime Loading** (`compiler/lib-lua/lua_generate.ml:1328-1390`):
+- **NOT** loaded via `require()` - runtime is **bundled** into generated .lua file
+- Compiler scans IR for used primitives (e.g., `caml_ml_open_out`)
+- Loads corresponding runtime modules from `runtime/lua/` directory
+- Sorts modules by dependencies (`--Provides:` and `--Requires:` comments)
+- Generates global function wrappers for primitives
+- Embeds everything in this order:
+  ```
+  1. Inline runtime (caml_register_global)
+  2. Runtime modules (from runtime/lua/*.lua)
+  3. Global wrappers (for caml_* functions)
+  4. Program code (your OCaml program)
+  ```
+
+**Generated Code Structure**:
+```lua
+-- Inline runtime (minimal, ~30 lines)
+_OCAML_GLOBALS = {}
+function caml_register_global(n, v, name) ... end
+
+-- Embedded runtime modules (e.g., io.lua, array.lua)
+function caml_ml_open_out(name, flags) ... end
+function caml_array_get(arr, idx) ... end
+
+-- Your program code
+__caml_init__()  -- Initializes your OCaml program
+```
+
+**Key Insight**: Generated .lua files are **standalone** - no external runtime files needed! This makes deployment simple: just copy the .lua file and run it.
+
 ### ⏳ What's Next
 
 **Three Critical Milestones**:
@@ -445,6 +483,56 @@ luajit program.lua
 - Performance tuning and optimization
 - Documentation and examples
 - Public release
+
+---
+
+## 📜 Historical Progress Tracking
+
+The above roadmap focuses on the **3 critical milestones** needed to reach production. For detailed historical progress tracking of all completed work (Phases 1-14), see:
+
+### Completed Phases (✅ 100% Done)
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| **Phase 1-2** | Foundation & Runtime | ✅ 100% Complete |
+| **Phase 3** | Value Representation | ✅ 100% Complete |
+| **Phase 4-5** | Code Generation & Primitives | ✅ 100% Complete |
+| **Phase 6** | Module System | ✅ 100% Complete |
+| **Phase 7** | Advanced Features | ✅ 100% Complete |
+| **Phase 8** | Lua Interop | ✅ 100% Complete |
+| **Phase 9** | Build System | ✅ 100% Complete |
+| **Phase 10** | Testing & Docs | ✅ 100% Complete |
+| **Phase 11** | Advanced Runtime | ✅ 95% Complete (Unix optional) |
+| **Phase 12** | Production Ready | ⏳ 10% (Phase 9 refactoring complete) |
+
+### Phase 9 Refactoring (Complete!)
+
+All runtime modules refactored to global function pattern:
+- ✅ **Tasks 9.1-9.8**: Marshal, cyclic structures, error handling, memory channels, parsing (all complete)
+- ✅ **Tasks 9.9-9.11**: Lua 5.1 compatibility, LuaJIT full suite, LuaJIT optimizations (all verified)
+- **Status**: 11/11 tasks complete - see [PRIMITIVES_REFACTORING.md](PRIMITIVES_REFACTORING.md) for details
+
+**Remaining Work** (Phase 12 - aligns with Milestone 1):
+- Tasks 8.6-8.12: Refactor 7 remaining modules (sys, format_channel, fun, hashtbl, map, set, gc)
+- These are needed for M1.1 (runtime adapter layer) and M3.1 (self-hosting)
+
+### Master Checklist (Phases 1-14)
+
+For the **complete detailed checklist** with all historical tasks, sub-tasks, commit messages, and test results, see the git history:
+
+```bash
+# View original comprehensive checklist from before milestone refactor
+git show 967893f1:LUA.md
+```
+
+**Summary of Historical Work**:
+- **48 major tasks** across 14 phases (37 complete, 11 remaining)
+- **88+ runtime modules** implemented (5,000+ lines of Lua)
+- **57 test suites** with 251+ individual tests
+- **100% compatibility** verified on Lua 5.1, 5.4, and LuaJIT
+- **Comprehensive documentation**: ARCH.md, RUNTIME.md, PRIMITIVES_REFACTORING.md, MARSHAL.md
+
+**Why the Focus Changed**: After Phase 11 completion, we realized the blocker isn't missing features - it's the **runtime integration** (M1.1) and **E2E testing** (M2.1). The 3 milestone roadmap focuses on these critical path items.
 
 ---
 
