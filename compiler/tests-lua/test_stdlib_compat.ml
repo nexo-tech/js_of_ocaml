@@ -17,11 +17,11 @@ let%expect_test "Printf.sprintf basic" =
       print_endline s3
     |};
   [%expect {|
-    lua: test.lua:1073: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:1194: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:1073: in function '__caml_init__'
-    test.lua:32073: in main chunk
-    [C]: in ?
+    test.lua:1194: in function '__caml_init__'
+    test.lua:57607: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "Printf.sprintf formats" =
@@ -41,11 +41,11 @@ let%expect_test "Printf.sprintf formats" =
       print_endline (Printf.sprintf "%b" false)
     |};
   [%expect {|
-    lua: test.lua:1077: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:1198: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:1077: in function '__caml_init__'
-    test.lua:32101: in main chunk
-    [C]: in ?
+    test.lua:1198: in function '__caml_init__'
+    test.lua:57635: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "String.concat" =
@@ -57,11 +57,11 @@ let%expect_test "String.concat" =
       print_endline (String.concat " - " [])
     |};
   [%expect {|
-    lua: test.lua:879: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:1000: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:879: in function '__caml_init__'
-    test.lua:11760: in main chunk
-    [C]: in ?
+    test.lua:1000: in function '__caml_init__'
+    test.lua:18132: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "String.split_on_char" =
@@ -76,11 +76,11 @@ let%expect_test "String.split_on_char" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:892: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:1013: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:892: in function '__caml_init__'
-    test.lua:15573: in main chunk
-    [C]: in ?
+    test.lua:1013: in function '__caml_init__'
+    test.lua:24068: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "List.sort and List.sort_uniq" =
@@ -95,11 +95,11 @@ let%expect_test "List.sort and List.sort_uniq" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:822: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:943: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:822: in function '__caml_init__'
-    test.lua:6016: in main chunk
-    [C]: in ?
+    test.lua:943: in function '__caml_init__'
+    test.lua:9101: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "List.assoc" =
@@ -116,11 +116,11 @@ let%expect_test "List.assoc" =
         print_endline "Not_found raised"
     |};
   [%expect {|
-    lua: test.lua:825: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:946: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:825: in function '__caml_init__'
-    test.lua:6002: in main chunk
-    [C]: in ?
+    test.lua:946: in function '__caml_init__'
+    test.lua:9081: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "List.partition" =
@@ -134,11 +134,11 @@ let%expect_test "List.partition" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:821: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:942: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:821: in function '__caml_init__'
-    test.lua:6011: in main chunk
-    [C]: in ?
+    test.lua:942: in function '__caml_init__'
+    test.lua:9088: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "List.combine and List.split" =
@@ -160,11 +160,11 @@ let%expect_test "List.combine and List.split" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:822: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:943: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:822: in function '__caml_init__'
-    test.lua:6027: in main chunk
-    [C]: in ?
+    test.lua:943: in function '__caml_init__'
+    test.lua:9104: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "Option.bind and Option.map" =
@@ -186,11 +186,11 @@ let%expect_test "Option.bind and Option.map" =
       | None -> print_endline "none"
     |};
   [%expect {|
-    lua: test.lua:829: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:950: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:829: in function '__caml_init__'
-    test.lua:5585: in main chunk
-    [C]: in ?
+    test.lua:950: in function '__caml_init__'
+    test.lua:8324: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "Array.to_list and Array.of_list" =
@@ -206,11 +206,11 @@ let%expect_test "Array.to_list and Array.of_list" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:853: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:974: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:853: in function '__caml_init__'
-    test.lua:11223: in main chunk
-    [C]: in ?
+    test.lua:974: in function '__caml_init__'
+    test.lua:17475: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "Array.sub and Array.concat" =
@@ -226,11 +226,11 @@ let%expect_test "Array.sub and Array.concat" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:836: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:957: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:836: in function '__caml_init__'
-    test.lua:7432: in main chunk
-    [C]: in ?
+    test.lua:957: in function '__caml_init__'
+    test.lua:11569: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "Hashtbl basic operations" =
@@ -248,13 +248,7 @@ let%expect_test "Hashtbl basic operations" =
       print_int (Hashtbl.length h);
       print_newline ()
     |};
-  [%expect {|
-    lua: test.lua:1237: attempt to call a nil value (global 'caml_register_named_value')
-    stack traceback:
-    test.lua:1237: in function '__caml_init__'
-    test.lua:47150: in main chunk
-    [C]: in ?
-    |}]
+  [%expect {| /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:39621: chunk has too many syntax levels |}]
 
 let%expect_test "Hashtbl.iter and Hashtbl.fold" =
   compile_and_run
@@ -268,13 +262,7 @@ let%expect_test "Hashtbl.iter and Hashtbl.fold" =
       print_int sum;
       print_newline ()
     |};
-  [%expect {|
-    lua: test.lua:1230: attempt to call a nil value (global 'caml_register_named_value')
-    stack traceback:
-    test.lua:1230: in function '__caml_init__'
-    test.lua:47120: in main chunk
-    [C]: in ?
-    |}]
+  [%expect {| /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:39614: chunk has too many syntax levels |}]
 
 let%expect_test "Buffer operations" =
   compile_and_run
@@ -290,11 +278,11 @@ let%expect_test "Buffer operations" =
       print_endline (Buffer.contents buf)
     |};
   [%expect {|
-    lua: test.lua:885: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:1006: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:885: in function '__caml_init__'
-    test.lua:13193: in main chunk
-    [C]: in ?
+    test.lua:1006: in function '__caml_init__'
+    test.lua:20598: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "String.index and String.rindex" =
@@ -313,11 +301,11 @@ let%expect_test "String.index and String.rindex" =
         print_endline "Not_found"
     |};
   [%expect {|
-    lua: test.lua:877: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:998: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:877: in function '__caml_init__'
-    test.lua:11790: in main chunk
-    [C]: in ?
+    test.lua:998: in function '__caml_init__'
+    test.lua:18184: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "Sys.word_size" =
@@ -329,9 +317,9 @@ let%expect_test "Sys.word_size" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:807: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:928: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:807: in function '__caml_init__'
-    test.lua:2331: in main chunk
-    [C]: in ?
+    test.lua:928: in function '__caml_init__'
+    test.lua:3345: in main chunk
+    [C]: ?
     |}]

@@ -65,13 +65,19 @@ let%expect_test "generate closure - simple function" =
   print_endline (expr_to_string lua_expr);
   [%expect
     {|
-    function(v0, v1)
+    caml_make_closure(2, function(v0, v1)
       -- Hoisted variables (1 total)
       local v2
-      ::block_10::
-      v2 = v0 + v1
-      return v2
-    end
+      local _next_block = 10
+      while true do
+        if _next_block == 10 then
+          v2 = v0 + v1
+          return v2
+        else
+          break
+        end
+      end
+    end)
     |}]
 
 let%expect_test "generate closure - zero parameters" =
@@ -91,13 +97,19 @@ let%expect_test "generate closure - zero parameters" =
   print_endline (expr_to_string lua_expr);
   [%expect
     {|
-    function()
+    caml_make_closure(0, function()
       -- Hoisted variables (1 total)
       local v0
-      ::block_10::
-      v0 = 42
-      return v0
-    end
+      local _next_block = 10
+      while true do
+        if _next_block == 10 then
+          v0 = 42
+          return v0
+        else
+          break
+        end
+      end
+    end)
     |}]
 
 let%expect_test "generate closure - single parameter" =
@@ -114,10 +126,16 @@ let%expect_test "generate closure - single parameter" =
   let lua_expr = Lua_generate.generate_expr ctx closure in
   print_endline (expr_to_string lua_expr);
   [%expect {|
-    function(v0)
-      ::block_10::
-      return v0
-    end
+    caml_make_closure(1, function(v0)
+      local _next_block = 10
+      while true do
+        if _next_block == 10 then
+          return v0
+        else
+          break
+        end
+      end
+    end)
     |}]
 
 (* Function application tests *)
@@ -162,10 +180,16 @@ let%expect_test "generate instr - let with closure" =
   print_endline (stat_to_string lua_stmt);
   [%expect
     {|
-    v0 = function(v0)
-      ::block_10::
-      return v0
-    end
+    v0 = caml_make_closure(1, function(v1)
+      local _next_block = 10
+      while true do
+        if _next_block == 10 then
+          return v1
+        else
+          break
+        end
+      end
+    end)
     |}]
 
 (* Recursive function tests *)
@@ -249,19 +273,31 @@ let%expect_test "generate closure - nested closures" =
   print_endline (expr_to_string lua_expr);
   [%expect
     {|
-    function(v0)
+    caml_make_closure(1, function(v0)
       -- Hoisted variables (1 total)
       local v1
-      ::block_10::
-      v1 = function(v0)
-        -- Hoisted variables (1 total)
-        local v1
-        ::block_20::
-        v1 = v2 + v0
-        return v1
+      local _next_block = 10
+      while true do
+        if _next_block == 10 then
+          v1 = caml_make_closure(1, function(v2)
+            -- Hoisted variables (1 total)
+            local v3
+            local _next_block = 20
+            while true do
+              if _next_block == 20 then
+                v3 = v0 + v2
+                return v3
+              else
+                break
+              end
+            end
+          end)
+          return v1
+        else
+          break
+        end
       end
-      return v1
-    end
+    end)
     |}]
 
 (* Higher-order function tests *)
@@ -288,16 +324,28 @@ let%expect_test "generate - function returning function" =
   print_endline (expr_to_string lua_expr);
   [%expect
     {|
-    function(v0)
+    caml_make_closure(1, function(v0)
       -- Hoisted variables (1 total)
       local v1
-      ::block_10::
-      v1 = function()
-        ::block_20::
-        return v0
+      local _next_block = 10
+      while true do
+        if _next_block == 10 then
+          v1 = caml_make_closure(0, function()
+            local _next_block = 20
+            while true do
+              if _next_block == 20 then
+                return v0
+              else
+                break
+              end
+            end
+          end)
+          return v1
+        else
+          break
+        end
       end
-      return v1
-    end
+    end)
     |}]
 
 (* Function with conditional tests *)
@@ -343,25 +391,33 @@ let%expect_test "generate closure - function with if-then-else" =
   print_endline (expr_to_string lua_expr);
   [%expect
     {|
-    function(v0)
+    caml_make_closure(1, function(v0)
       -- Hoisted variables (2 total)
       local v1, v2
-      ::block_10::
-      v1 = v0 == 0
-      if v1 then
-        goto block_11
-      else
-        goto block_12
+      local _next_block = 10
+      while true do
+        if _next_block == 10 then
+          v1 = v0 == 0
+          if v1 then
+            _next_block = 11
+          else
+            _next_block = 12
+          end
+        else
+          if _next_block == 11 then
+            v2 = 1
+            return v2
+          else
+            if _next_block == 12 then
+              v2 = 0
+              return v2
+            else
+              break
+            end
+          end
+        end
       end
-      ::block_11::
-      v2 = 1
-      do
-        return v2
-      end
-      ::block_12::
-      v2 = 0
-      return v2
-    end
+    end)
     |}]
 
 (* Multiple parameters test *)
@@ -393,14 +449,20 @@ let%expect_test "generate closure - three parameters" =
   print_endline (expr_to_string lua_expr);
   [%expect
     {|
-    function(v0, v1, v2)
+    caml_make_closure(3, function(v0, v1, v2)
       -- Hoisted variables (2 total)
       local v3, v4
-      ::block_10::
-      v3 = v0 + v1
-      v4 = v3 + v2
-      return v4
-    end
+      local _next_block = 10
+      while true do
+        if _next_block == 10 then
+          v3 = v0 + v1
+          v4 = v3 + v2
+          return v4
+        else
+          break
+        end
+      end
+    end)
     |}]
 
 (* Closure without program context (placeholder) *)

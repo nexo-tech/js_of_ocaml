@@ -43,8 +43,8 @@
 -- - co: Lua coroutine (optional, for fiber)
 --
 
--- Current execution stack
-local current_stack = {
+--Provides: caml_current_stack
+caml_current_stack = {
   k = 0,      -- low-level continuation
   x = 0,      -- exception stack
   h = 0,      -- handlers {retc, exnc, effc}
@@ -55,30 +55,30 @@ local current_stack = {
 -- Stack Management
 --
 
--- Save current stack for later restoration
--- Helper function for testing
+--Provides: save_stack
+--Requires: caml_current_stack
 function save_stack()
   return {
-    k = current_stack.k,
-    x = current_stack.x,
-    h = current_stack.h,
-    e = current_stack.e
+    k = caml_current_stack.k,
+    x = caml_current_stack.x,
+    h = caml_current_stack.h,
+    e = caml_current_stack.e
   }
 end
 
--- Restore saved stack
--- Helper function for testing
+--Provides: restore_stack
+--Requires: caml_current_stack
 function restore_stack(stack)
-  current_stack.k = stack.k
-  current_stack.x = stack.x
-  current_stack.h = stack.h
-  current_stack.e = stack.e
+  caml_current_stack.k = stack.k
+  caml_current_stack.x = stack.x
+  caml_current_stack.h = stack.h
+  caml_current_stack.e = stack.e
 end
 
--- Get current stack (for debugging)
--- Helper function for testing
+--Provides: get_current_stack
+--Requires: caml_current_stack
 function get_current_stack()
-  return current_stack
+  return caml_current_stack
 end
 
 --
@@ -86,21 +86,21 @@ end
 --
 
 --Provides: caml_push_trap
--- Push exception handler onto stack
+--Requires: caml_current_stack
 function caml_push_trap(handler)
-  current_stack.x = {h = handler, t = current_stack.x}
+  caml_current_stack.x = {h = handler, t = caml_current_stack.x}
 end
 
 --Provides: caml_pop_trap
--- Pop exception handler from stack
+--Requires: caml_current_stack
 function caml_pop_trap()
-  if not current_stack.x or current_stack.x == 0 then
+  if not caml_current_stack.x or caml_current_stack.x == 0 then
     return function(x)
       error(x)
     end
   end
-  local h = current_stack.x.h
-  current_stack.x = current_stack.x.t
+  local h = caml_current_stack.x.h
+  caml_current_stack.x = caml_current_stack.x.t
   return h
 end
 
@@ -109,16 +109,16 @@ end
 --
 
 --Provides: caml_pop_fiber
--- Pop fiber: move to parent fiber
+--Requires: caml_current_stack
 function caml_pop_fiber()
-  local parent = current_stack.e
-  current_stack.e = 0
-  current_stack = parent
+  local parent = caml_current_stack.e
+  caml_current_stack.e = 0
+  caml_current_stack = parent
   return parent.k
 end
 
 --Provides: caml_alloc_stack
---Requires: caml_alloc_stack_call
+--Requires: caml_alloc_stack_call, caml_current_stack
 -- Allocate new fiber with handlers
 -- hv: value handler (continuation for normal return)
 -- hx: exception handler
@@ -129,13 +129,13 @@ function caml_alloc_stack(hv, hx, hf)
   -- Handler wrappers that call handlers in parent fiber
   local function hval_wrapper(x)
     -- Call hv in parent fiber
-    local f = current_stack.h[1]
+    local f = caml_current_stack.h[1]
     return caml_alloc_stack_call(f, x)
   end
 
   local function hexn_wrapper(e)
     -- Call hx in parent fiber
-    local f = current_stack.h[2]
+    local f = caml_current_stack.h[2]
     return caml_alloc_stack_call(f, e)
   end
 
@@ -165,13 +165,13 @@ end
 -- Continuation Management
 --
 
--- Continuation representation: {tag=245, stack_ref, last_fiber}
-local CONTINUATION_TAG = 245
+--Provides: caml_continuation_tag
+caml_continuation_tag = 245
 
--- Create continuation from current fiber
--- Helper function for testing
+--Provides: make_continuation
+--Requires: caml_continuation_tag
 function make_continuation(stack, last)
-  return {tag = CONTINUATION_TAG, stack, last}
+  return {tag = caml_continuation_tag, stack, last}
 end
 
 --Provides: caml_continuation_use_noexc
@@ -219,19 +219,19 @@ function caml_raise_unhandled(eff)
 end
 
 --Provides: caml_perform_effect
---Requires: make_continuation, caml_pop_fiber
+--Requires: make_continuation, caml_pop_fiber, caml_current_stack
 -- Perform an effect
 -- eff: the effect value
 -- k0: current continuation
 function caml_perform_effect(eff, k0)
-  if current_stack.e == 0 then
+  if caml_current_stack.e == 0 then
     -- No effect handler installed
     error(make_unhandled_effect_exn(eff))
   end
 
   -- Get current effect handler
-  local handler = current_stack.h[3]
-  local last_fiber = current_stack
+  local handler = caml_current_stack.h[3]
+  local last_fiber = caml_current_stack
   last_fiber.k = k0
 
   -- Create continuation
@@ -245,10 +245,10 @@ function caml_perform_effect(eff, k0)
 end
 
 --Provides: caml_reperform_effect
---Requires: caml_pop_fiber, caml_continuation_use_noexc, caml_resume_stack
+--Requires: caml_pop_fiber, caml_continuation_use_noexc, caml_resume_stack, caml_current_stack
 -- Re-perform an effect (for effect forwarding)
 function caml_reperform_effect(eff, cont, last, k0)
-  if current_stack.e == 0 then
+  if caml_current_stack.e == 0 then
     -- No effect handler installed
     local stack = caml_continuation_use_noexc(cont)
     caml_resume_stack(stack, last, k0)
@@ -256,8 +256,8 @@ function caml_reperform_effect(eff, cont, last, k0)
   end
 
   -- Get current effect handler
-  local handler = current_stack.h[3]
-  local last_fiber = current_stack
+  local handler = caml_current_stack.h[3]
+  local last_fiber = caml_current_stack
   last_fiber.k = k0
   last.e = last_fiber
   cont[2] = last_fiber
@@ -273,7 +273,7 @@ end
 --
 
 --Provides: caml_resume_stack
--- Resume a continuation with a value
+--Requires: caml_current_stack
 function caml_resume_stack(stack, last, k)
   if not stack or stack == 0 then
     error("Effect.Continuation_already_resumed")
@@ -287,20 +287,20 @@ function caml_resume_stack(stack, last, k)
     end
   end
 
-  current_stack.k = k
-  last.e = current_stack
-  current_stack = stack
+  caml_current_stack.k = k
+  last.e = caml_current_stack
+  caml_current_stack = stack
   return stack.k
 end
 
 --Provides: caml_resume
---Requires: save_stack, restore_stack, caml_resume_stack
+--Requires: save_stack, restore_stack, caml_resume_stack, caml_current_stack
 -- High-level resume function
 function caml_resume(f, arg, stack, last)
-  local saved_current_stack = save_stack()
+  local saved_caml_current_stack = save_stack()
 
   local success, result = pcall(function()
-    current_stack = {k = 0, x = 0, h = 0, e = 0}
+    caml_current_stack = {k = 0, x = 0, h = 0, e = 0}
 
     local k = caml_resume_stack(stack, last, function(x)
       return x
@@ -310,7 +310,7 @@ function caml_resume(f, arg, stack, last)
     return f(arg, k)
   end)
 
-  restore_stack(saved_current_stack)
+  restore_stack(saved_caml_current_stack)
 
   if not success then
     error(result)
@@ -334,7 +334,7 @@ end
 -- Yield current fiber (for cooperative multitasking)
 -- Helper function for testing
 function fiber_yield(value)
-  if current_stack.e == 0 then
+  if caml_current_stack.e == 0 then
     -- No parent fiber, can't yield
     return value
   end

@@ -20,11 +20,11 @@ let%expect_test "if then else" =
         print_endline "smaller"
     |};
   [%expect {|
-    lua: test.lua:806: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:927: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:806: in function '__caml_init__'
-    test.lua:2175: in main chunk
-    [C]: in ?
+    test.lua:927: in function '__caml_init__'
+    test.lua:3128: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "nested if" =
@@ -44,11 +44,11 @@ let%expect_test "nested if" =
       print_endline (classify 0)
     |};
   [%expect {|
-    lua: test.lua:808: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:929: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:808: in function '__caml_init__'
-    test.lua:2219: in main chunk
-    [C]: in ?
+    test.lua:929: in function '__caml_init__'
+    test.lua:3175: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "for loop" =
@@ -62,11 +62,11 @@ let%expect_test "for loop" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2186: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3144: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "for loop downto" =
@@ -80,11 +80,11 @@ let%expect_test "for loop downto" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2186: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3144: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "while loop" =
@@ -100,11 +100,11 @@ let%expect_test "while loop" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2186: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3139: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "pattern matching" =
@@ -123,11 +123,11 @@ let%expect_test "pattern matching" =
       print_endline (color_name Blue)
     |};
   [%expect {|
-    lua: test.lua:807: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:928: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:807: in function '__caml_init__'
-    test.lua:2201: in main chunk
-    [C]: in ?
+    test.lua:928: in function '__caml_init__'
+    test.lua:3154: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "pattern matching with values" =
@@ -144,11 +144,11 @@ let%expect_test "pattern matching with values" =
       print_endline (describe (Error "failed"))
     |};
   [%expect {|
-    lua: test.lua:808: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:929: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:808: in function '__caml_init__'
-    test.lua:2199: in main chunk
-    [C]: in ?
+    test.lua:929: in function '__caml_init__'
+    test.lua:3151: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "list pattern matching" =
@@ -163,11 +163,11 @@ let%expect_test "list pattern matching" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:805: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:926: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:805: in function '__caml_init__'
-    test.lua:2188: in main chunk
-    [C]: in ?
+    test.lua:926: in function '__caml_init__'
+    test.lua:3140: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "option pattern matching" =
@@ -185,11 +185,11 @@ let%expect_test "option pattern matching" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:805: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:926: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:805: in function '__caml_init__'
-    test.lua:2193: in main chunk
-    [C]: in ?
+    test.lua:926: in function '__caml_init__'
+    test.lua:3146: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "match with guard" =
@@ -209,11 +209,11 @@ let%expect_test "match with guard" =
       print_endline (classify 0)
     |};
   [%expect {|
-    lua: test.lua:808: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:929: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:808: in function '__caml_init__'
-    test.lua:2226: in main chunk
-    [C]: in ?
+    test.lua:929: in function '__caml_init__'
+    test.lua:3190: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "sequencing" =
@@ -228,11 +228,11 @@ let%expect_test "sequencing" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2176: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3118: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "let in expressions" =
@@ -249,9 +249,9 @@ let%expect_test "let in expressions" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2168: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3110: in main chunk
+    [C]: ?
     |}]

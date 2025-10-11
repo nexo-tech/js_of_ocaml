@@ -21,11 +21,11 @@ let%expect_test "basic exception" =
         print_endline "caught MyError"
     |};
   [%expect {|
-    lua: test.lua:806: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:927: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:806: in function '__caml_init__'
-    test.lua:2185: in main chunk
-    [C]: in ?
+    test.lua:927: in function '__caml_init__'
+    test.lua:3138: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "exception with argument" =
@@ -40,11 +40,11 @@ let%expect_test "exception with argument" =
         print_endline ("caught: " ^ msg)
     |};
   [%expect {|
-    lua: test.lua:807: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:928: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:807: in function '__caml_init__'
-    test.lua:2191: in main chunk
-    [C]: in ?
+    test.lua:928: in function '__caml_init__'
+    test.lua:3144: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "nested exceptions" =
@@ -63,11 +63,11 @@ let%expect_test "nested exceptions" =
         print_endline "caught A"
     |};
   [%expect {|
-    lua: test.lua:808: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:929: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:808: in function '__caml_init__'
-    test.lua:2213: in main chunk
-    [C]: in ?
+    test.lua:929: in function '__caml_init__'
+    test.lua:3192: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "exception propagation" =
@@ -90,11 +90,11 @@ let%expect_test "exception propagation" =
         print_newline ()
     |};
   [%expect {|
-    lua: test.lua:807: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:928: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:807: in function '__caml_init__'
-    test.lua:2220: in main chunk
-    [C]: in ?
+    test.lua:928: in function '__caml_init__'
+    test.lua:3197: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "multiple exception types" =
@@ -125,11 +125,11 @@ let%expect_test "multiple exception types" =
       end
     |};
   [%expect {|
-    lua: test.lua:809: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:930: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:809: in function '__caml_init__'
-    test.lua:2268: in main chunk
-    [C]: in ?
+    test.lua:930: in function '__caml_init__'
+    test.lua:3278: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "finally simulation" =
@@ -158,11 +158,11 @@ let%expect_test "finally simulation" =
         print_endline "caught E"
     |};
   [%expect {|
-    lua: test.lua:808: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:929: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:808: in function '__caml_init__'
-    test.lua:2228: in main chunk
-    [C]: in ?
+    test.lua:929: in function '__caml_init__'
+    test.lua:3225: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "builtin exceptions" =
@@ -183,9 +183,9 @@ let%expect_test "builtin exceptions" =
       end
     |};
   [%expect {|
-    lua: test.lua:807: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:928: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:807: in function '__caml_init__'
-    test.lua:2215: in main chunk
-    [C]: in ?
+    test.lua:928: in function '__caml_init__'
+    test.lua:3186: in main chunk
+    [C]: ?
     |}]

@@ -17,11 +17,11 @@ let%expect_test "char operations" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:811: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:932: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:811: in function '__caml_init__'
-    test.lua:2463: in main chunk
-    [C]: in ?
+    test.lua:932: in function '__caml_init__'
+    test.lua:3516: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "char comparison" =
@@ -33,11 +33,11 @@ let%expect_test "char comparison" =
       print_endline (if 'A' = 'A' then "equal" else "not equal")
     |};
   [%expect {|
-    lua: test.lua:810: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:931: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:810: in function '__caml_init__'
-    test.lua:2203: in main chunk
-    [C]: in ?
+    test.lua:931: in function '__caml_init__'
+    test.lua:3172: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "char case conversion" =
@@ -50,11 +50,11 @@ let%expect_test "char case conversion" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:811: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:932: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:811: in function '__caml_init__'
-    test.lua:2460: in main chunk
-    [C]: in ?
+    test.lua:932: in function '__caml_init__'
+    test.lua:3513: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "escape sequences in strings" =
@@ -68,11 +68,11 @@ let%expect_test "escape sequences in strings" =
       print_endline "return\rtest"
     |};
   [%expect {|
-    lua: test.lua:809: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:930: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:809: in function '__caml_init__'
-    test.lua:2173: in main chunk
-    [C]: in ?
+    test.lua:930: in function '__caml_init__'
+    test.lua:3115: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "escape sequences in chars" =
@@ -86,11 +86,11 @@ let%expect_test "escape sequences in chars" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2173: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3115: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "null character" =
@@ -104,11 +104,11 @@ let%expect_test "null character" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:805: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:926: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:805: in function '__caml_init__'
-    test.lua:2172: in main chunk
-    [C]: in ?
+    test.lua:926: in function '__caml_init__'
+    test.lua:3114: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "high ascii characters" =
@@ -122,11 +122,11 @@ let%expect_test "high ascii characters" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:811: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:932: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:811: in function '__caml_init__'
-    test.lua:2460: in main chunk
-    [C]: in ?
+    test.lua:932: in function '__caml_init__'
+    test.lua:3513: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "string as char sequence" =
@@ -141,11 +141,11 @@ let%expect_test "string as char sequence" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:805: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:926: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:805: in function '__caml_init__'
-    test.lua:2190: in main chunk
-    [C]: in ?
+    test.lua:926: in function '__caml_init__'
+    test.lua:3152: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "string modification edge case" =
@@ -160,11 +160,11 @@ let%expect_test "string modification edge case" =
       print_endline (if s1 == s2 then "same" else "different")
     |};
   [%expect {|
-    lua: test.lua:807: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:928: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:807: in function '__caml_init__'
-    test.lua:2177: in main chunk
-    [C]: in ?
+    test.lua:928: in function '__caml_init__'
+    test.lua:3132: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "bytes creation and modification" =
@@ -178,11 +178,11 @@ let%expect_test "bytes creation and modification" =
       print_endline "hello"
     |};
   [%expect {|
-    lua: test.lua:866: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:987: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:866: in function '__caml_init__'
-    test.lua:10534: in main chunk
-    [C]: in ?
+    test.lua:987: in function '__caml_init__'
+    test.lua:16141: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "bytes vs string" =
@@ -197,11 +197,11 @@ let%expect_test "bytes vs string" =
       print_endline (Bytes.to_string b)
     |};
   [%expect {|
-    lua: test.lua:865: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:986: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:865: in function '__caml_init__'
-    test.lua:10533: in main chunk
-    [C]: in ?
+    test.lua:986: in function '__caml_init__'
+    test.lua:16140: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "bytes operations" =
@@ -217,11 +217,11 @@ let%expect_test "bytes operations" =
       print_endline (Bytes.to_string b)
     |};
   [%expect {|
-    lua: test.lua:864: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:985: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:864: in function '__caml_init__'
-    test.lua:10542: in main chunk
-    [C]: in ?
+    test.lua:985: in function '__caml_init__'
+    test.lua:16149: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "bytes concat and sub" =
@@ -236,11 +236,11 @@ let%expect_test "bytes concat and sub" =
       print_endline (Bytes.to_string sub)
     |};
   [%expect {|
-    lua: test.lua:867: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:988: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:867: in function '__caml_init__'
-    test.lua:10547: in main chunk
-    [C]: in ?
+    test.lua:988: in function '__caml_init__'
+    test.lua:16154: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "string contains all char range" =
@@ -260,11 +260,11 @@ let%expect_test "string contains all char range" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:864: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:985: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:864: in function '__caml_init__'
-    test.lua:10566: in main chunk
-    [C]: in ?
+    test.lua:985: in function '__caml_init__'
+    test.lua:16193: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "empty string edge cases" =
@@ -280,11 +280,11 @@ let%expect_test "empty string edge cases" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:869: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:990: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:869: in function '__caml_init__'
-    test.lua:10552: in main chunk
-    [C]: in ?
+    test.lua:990: in function '__caml_init__'
+    test.lua:16170: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "string equality with special chars" =
@@ -299,9 +299,9 @@ let%expect_test "string equality with special chars" =
       print_endline (if s3 = s4 then "equal" else "not equal")
     |};
   [%expect {|
-    lua: test.lua:812: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:933: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:812: in function '__caml_init__'
-    test.lua:2190: in main chunk
-    [C]: in ?
+    test.lua:933: in function '__caml_init__'
+    test.lua:3162: in main chunk
+    [C]: ?
     |}]

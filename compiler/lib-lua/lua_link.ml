@@ -53,11 +53,12 @@ let parse_provides (line : string) : string option =
     if String.length symbol > 0 then Some symbol else None
   else None
 
-(* Parse requires header: "--Requires: caml_foo, caml_bar" -> ["caml_foo"; "caml_bar"]
+(* Parse requires header: "--Requires: caml_foo caml_bar" -> ["caml_foo"; "caml_bar"]
    Unlike js_of_ocaml which uses "//Requires:", Lua uses "--Requires:"
-   Multiple dependencies can be listed on one line, comma-separated.
+   Multiple dependencies can be listed on one line, space or comma-separated.
 
-   Example:
+   Examples:
+     --Requires: caml_make_vect caml_array_get
      --Requires: caml_make_vect, caml_array_get
 *)
 let parse_requires (line : string) : string list =
@@ -67,7 +68,9 @@ let parse_requires (line : string) : string list =
      && String.equal (String.sub line ~pos:0 ~len:prefix_len) prefix
   then
     let rest = String.sub line ~pos:prefix_len ~len:(String.length line - prefix_len) in
-    let symbols = String.split_on_char ~sep:',' rest in
+    (* Split on both space and comma *)
+    let normalized = String.map ~f:(function ',' -> ' ' | c -> c) rest in
+    let symbols = String.split_on_char ~sep:' ' normalized in
     List.filter_map
       ~f:(fun s ->
         let trimmed = String.trim s in
@@ -97,13 +100,8 @@ let parse_fragment_header ~name (code : string) : fragment =
     | [] -> provides, requires
     | line :: rest ->
         let trimmed = String.trim line in
-        (* Stop at first non-comment line *)
-        if String.length trimmed > 0
-           && not (String.length trimmed >= 2
-                   && String.equal (String.sub trimmed ~pos:0 ~len:2) "--")
-        then provides, requires
-        (* Parse --Provides: directive *)
-        else if String.starts_with ~prefix:"--Provides:" trimmed
+        (* Parse --Provides: directive from anywhere in file *)
+        if String.starts_with ~prefix:"--Provides:" trimmed
         then
           let new_provides =
             match parse_provides trimmed with
@@ -111,7 +109,7 @@ let parse_fragment_header ~name (code : string) : fragment =
             | None -> provides
           in
           parse_headers new_provides requires rest
-        (* Parse --Requires: directive *)
+        (* Parse --Requires: directive from anywhere in file *)
         else if String.starts_with ~prefix:"--Requires:" trimmed
         then
           let new_requires =
@@ -120,7 +118,7 @@ let parse_fragment_header ~name (code : string) : fragment =
           in
           parse_headers provides new_requires rest
         else
-          (* Regular comment, continue *)
+          (* Not a provides/requires comment, continue scanning *)
           parse_headers provides requires rest
   in
   let provides, requires = parse_headers [] [] lines in
@@ -143,7 +141,18 @@ let load_runtime_dir dirname =
     let files =
       Sys.readdir dirname
       |> Array.to_list
-      |> List.filter ~f:(fun f -> Filename.check_suffix f ".lua")
+      |> List.filter ~f:(fun f ->
+          (* Include only .lua files that are runtime fragments *)
+          Filename.check_suffix f ".lua"
+          (* Exclude test files *)
+          && not (String.starts_with ~prefix:"test_" f)
+          (* Exclude benchmark files *)
+          && not (String.starts_with ~prefix:"benchmark_" f)
+          && not (String.starts_with ~prefix:"benchmarks" f)
+          (* Exclude library modules that use module patterns *)
+          && not (String.equal f "compat_bit.lua")
+          (* Exclude documentation/example files *)
+          && not (String.starts_with ~prefix:"example_" f))
       |> List.map ~f:(fun f -> Filename.concat dirname f)
     in
     List.map ~f:load_runtime_file files)

@@ -30,15 +30,14 @@
 -- Compatibility: unpack is global in Lua 5.1/LuaJIT, table.unpack in Lua 5.2+
 local unpack = table.unpack or unpack
 
--- Global object ID counter
-local oo_last_id = 0
+--Provides: caml_oo_last_id
+caml_oo_last_id = 0
 
 --Provides: caml_fresh_oo_id
---- Generate a fresh object ID
--- @return number New unique object ID
+--Requires: caml_oo_last_id
 function caml_fresh_oo_id()
-  oo_last_id = oo_last_id + 1
-  return oo_last_id
+  caml_oo_last_id = caml_oo_last_id + 1
+  return caml_oo_last_id
 end
 
 --Provides: caml_set_oo_id

@@ -146,7 +146,7 @@ let%expect_test "parse fragment header - stops at non-comment" =
   in
   let frag = Lua_link.parse_fragment_header ~name:"test" code in
   print_endline ("provides: " ^ String.concat ", " frag.provides);
-  [%expect {| provides: caml_foo |}]
+  [%expect {| provides: caml_foo, caml_bar |}]
 
 (* Test parse_fragment_header with mixed old/new format *)
 let%expect_test "parse fragment header - mixed formats" =

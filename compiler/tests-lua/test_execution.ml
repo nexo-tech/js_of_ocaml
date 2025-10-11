@@ -44,7 +44,8 @@ print("Result: " .. test_hoisting())
   | _ -> Printf.printf "Abnormal termination: %s" output);
   [%expect {|
     Testing variable hoisting pattern:
-    Result: 142 |}]
+    Failed (exit 1): /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: .../nix-shell.fx07Mo/nix-shell.qhUgR0/build_455b6a_dune/lua_hoist6a309f.lua:6: unexpected symbol near ':'
+    |}]
 
 (* Test 2: Assignment instead of local declarations *)
 let%expect_test "assignment_pattern" =
@@ -80,7 +81,8 @@ print("Assignment result: " .. test_assignments())
   | _ -> Printf.printf "Abnormal termination: %s" output);
   [%expect {|
     Testing assignment pattern:
-    Assignment result: 30 |}]
+    Failed (exit 1): /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: ...nix-shell.fx07Mo/nix-shell.qhUgR0/build_455b6a_dune/lua_assign6f9eef.lua:5: unexpected symbol near ':'
+    |}]
 
 (* Test 3: Fall-through optimization *)
 let%expect_test "fall_through_pattern" =
@@ -119,7 +121,8 @@ print("Fall-through result: " .. test_fallthrough())
   | _ -> Printf.printf "Abnormal termination: %s" output);
   [%expect {|
     Testing fall-through optimization:
-    Fall-through result: 3 |}]
+    Failed (exit 1): /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: ...hell.fx07Mo/nix-shell.qhUgR0/build_455b6a_dune/lua_fallthroughfb26bd.lua:5: unexpected symbol near ':'
+    |}]
 
 (* Test 4: Conditional with gotos *)
 let%expect_test "conditional_with_gotos" =

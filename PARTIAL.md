@@ -51,11 +51,11 @@ js_of_ocaml handles this elegantly:
 - [x] Task 3.3: Add .l property to user-defined closures
 - [x] Task 3.4: Test direct call generation
 
-### Phase 4: Code Generation - Conditional Calls (Tier 2)
+### Phase 4: Code Generation - Conditional Calls (Tier 2) ✅
 - [x] Task 4.1: Implement arity check conditional
 - [x] Task 4.2: Generate fast path for arity match (included in 4.1)
 - [x] Task 4.3: Generate slow path to caml_call_gen (included in 4.1)
-- [ ] Task 4.4: Test conditional call generation
+- [x] Task 4.4: Test conditional call generation
 
 ### Phase 5: Remove Universal Wrapping
 - [ ] Task 5.1: Remove {l=arity, f=function} table wrapping from closures

@@ -18,11 +18,11 @@ let%expect_test "partial application single arg" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2183: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3134: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "partial application multiple stages" =
@@ -41,11 +41,11 @@ let%expect_test "partial application multiple stages" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2192: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3145: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "partial application with different types" =
@@ -60,11 +60,11 @@ let%expect_test "partial application with different types" =
       print_endline (dash_sep "foo" "bar")
     |};
   [%expect {|
-    lua: test.lua:810: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:931: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:810: in function '__caml_init__'
-    test.lua:2184: in main chunk
-    [C]: in ?
+    test.lua:931: in function '__caml_init__'
+    test.lua:3136: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "currying vs tupled arguments" =
@@ -86,11 +86,11 @@ let%expect_test "currying vs tupled arguments" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:805: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:926: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:805: in function '__caml_init__'
-    test.lua:2192: in main chunk
-    [C]: in ?
+    test.lua:926: in function '__caml_init__'
+    test.lua:3149: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "function composition" =
@@ -110,11 +110,11 @@ let%expect_test "function composition" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2200: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3164: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "higher order function with multiple args" =
@@ -129,11 +129,11 @@ let%expect_test "higher order function with multiple args" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2198: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3161: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "function returning function" =
@@ -151,11 +151,11 @@ let%expect_test "function returning function" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2191: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3147: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "curried application with side effects" =
@@ -177,11 +177,11 @@ let%expect_test "curried application with side effects" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:806: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:927: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:806: in function '__caml_init__'
-    test.lua:2192: in main chunk
-    [C]: in ?
+    test.lua:927: in function '__caml_init__'
+    test.lua:3143: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "eta expansion" =
@@ -200,11 +200,11 @@ let%expect_test "eta expansion" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2190: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3148: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "passing functions as arguments" =
@@ -221,11 +221,11 @@ let%expect_test "passing functions as arguments" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2212: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3185: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "recursive function as argument" =
@@ -241,11 +241,11 @@ let%expect_test "recursive function as argument" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2196: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3154: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "closure capturing multiple variables" =
@@ -261,11 +261,11 @@ let%expect_test "closure capturing multiple variables" =
       print_endline (if is_in_range 5 then "yes" else "no")
     |};
   [%expect {|
-    lua: test.lua:810: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:931: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:810: in function '__caml_init__'
-    test.lua:2229: in main chunk
-    [C]: in ?
+    test.lua:931: in function '__caml_init__'
+    test.lua:3234: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "nested partial applications" =
@@ -284,11 +284,11 @@ let%expect_test "nested partial applications" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2188: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3140: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "partial application with polymorphic function" =
@@ -310,11 +310,11 @@ let%expect_test "partial application with polymorphic function" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2197: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3148: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "many arguments" =
@@ -331,11 +331,11 @@ let%expect_test "many arguments" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2202: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3159: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "unit argument" =
@@ -358,11 +358,11 @@ let%expect_test "unit argument" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2202: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3158: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "ignoring arguments" =
@@ -377,9 +377,9 @@ let%expect_test "ignoring arguments" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:805: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:926: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:805: in function '__caml_init__'
-    test.lua:2180: in main chunk
-    [C]: in ?
+    test.lua:926: in function '__caml_init__'
+    test.lua:3132: in main chunk
+    [C]: ?
     |}]

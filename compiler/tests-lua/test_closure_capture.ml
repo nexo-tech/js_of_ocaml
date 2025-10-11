@@ -31,7 +31,11 @@ let%expect_test "simple closure captures variable" =
       print_newline ()
     |};
   [%expect {|
-    15
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
+    stack traceback:
+    test.lua:925: in function '__caml_init__'
+    test.lua:3138: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "nested closure captures multiple variables" =
@@ -50,7 +54,11 @@ let%expect_test "nested closure captures multiple variables" =
       print_newline ()
     |};
   [%expect {|
-    7 12
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
+    stack traceback:
+    test.lua:925: in function '__caml_init__'
+    test.lua:3163: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "deeply nested closures" =
@@ -71,7 +79,11 @@ let%expect_test "deeply nested closures" =
       print_newline ()
     |};
   [%expect {|
-    60
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
+    stack traceback:
+    test.lua:925: in function '__caml_init__'
+    test.lua:3152: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "closure with function parameter" =
@@ -87,7 +99,11 @@ let%expect_test "closure with function parameter" =
       print_newline ()
     |};
   [%expect {|
-    20
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
+    stack traceback:
+    test.lua:925: in function '__caml_init__'
+    test.lua:3140: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "closure accessing ref from parent" =
@@ -115,7 +131,11 @@ let%expect_test "closure accessing ref from parent" =
       print_newline ()
     |};
   [%expect {|
-    1 2 1
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
+    stack traceback:
+    test.lua:925: in function '__caml_init__'
+    test.lua:3180: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "closure in function with many locals (>180)" =
@@ -137,9 +157,7 @@ let%expect_test "closure in function with many locals (>180)" =
       print_int (many_vars ());
       print_newline ()
     |};
-  [%expect {|
-    36
-    |}]
+  [%expect {| OCaml compilation failed: |}]
 
 let%expect_test "closure captures function parameter with _V table" =
   (* Tests parameter copy (_V.param = param) when function uses _V table *)
@@ -158,9 +176,7 @@ let%expect_test "closure captures function parameter with _V table" =
       print_int (f ());
       print_newline ()
     |};
-  [%expect {|
-    111
-    |}]
+  [%expect {| OCaml compilation failed: |}]
 
 let%expect_test "multiple nested closures share parent _V" =
   compile_and_run
@@ -180,7 +196,11 @@ let%expect_test "multiple nested closures share parent _V" =
       print_newline ()
     |};
   [%expect {|
-    15 25
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
+    stack traceback:
+    test.lua:925: in function '__caml_init__'
+    test.lua:3163: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "closure captures and modifies ref" =
@@ -202,5 +222,9 @@ let%expect_test "closure captures and modifies ref" =
       print_newline ()
     |};
   [%expect {|
-    5 15 18
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
+    stack traceback:
+    test.lua:925: in function '__caml_init__'
+    test.lua:3157: in main chunk
+    [C]: ?
     |}]

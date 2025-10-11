@@ -47,11 +47,11 @@ let%expect_test "lua number representation" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2182: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3124: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "lua table as array" =
@@ -68,11 +68,11 @@ let%expect_test "lua table as array" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2183: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3125: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "lua nil vs ocaml option" =
@@ -92,11 +92,11 @@ let%expect_test "lua nil vs ocaml option" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:807: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:928: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:807: in function '__caml_init__'
-    test.lua:2196: in main chunk
-    [C]: in ?
+    test.lua:928: in function '__caml_init__'
+    test.lua:3162: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "lua boolean representation" =
@@ -110,11 +110,11 @@ let%expect_test "lua boolean representation" =
       print_endline (if not true then "true" else "false")
     |};
   [%expect {|
-    lua: test.lua:814: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:935: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:814: in function '__caml_init__'
-    test.lua:2242: in main chunk
-    [C]: in ?
+    test.lua:935: in function '__caml_init__'
+    test.lua:3237: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "lua string escaping" =
@@ -128,11 +128,11 @@ let%expect_test "lua string escaping" =
       print_endline "Backslash\\here"
     |};
   [%expect {|
-    lua: test.lua:808: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:929: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:808: in function '__caml_init__'
-    test.lua:2170: in main chunk
-    [C]: in ?
+    test.lua:929: in function '__caml_init__'
+    test.lua:3112: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "lua vararg handling" =
@@ -149,11 +149,11 @@ let%expect_test "lua vararg handling" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2187: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3139: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "lua closure upvalue handling" =
@@ -167,11 +167,11 @@ let%expect_test "lua closure upvalue handling" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2176: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3126: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "lua module loading" =

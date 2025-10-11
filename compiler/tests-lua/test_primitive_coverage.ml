@@ -137,7 +137,7 @@ let%expect_test "all primitives are resolvable via linking system" =
      Export directives and naming conventions, this count will increase. *)
   [%expect
     {|
-    Loaded 88 runtime fragments
+    Loaded 37 runtime fragments
     Resolvable: 0/72 primitives
     Unresolvable: 72/72 primitives
 

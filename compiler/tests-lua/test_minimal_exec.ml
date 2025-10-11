@@ -105,43 +105,53 @@ let%expect_test "minimal program with single print generates execution code" =
   | None -> Printf.printf "ERROR: Entry block not found\n");
 
   [%expect {|
+    Warning [overriding-primitive]: symbol "caml_float_compare" provided by multiple fragments: compare, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_append" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_blit" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_concat" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_get" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_set" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_sub" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_format_float" provided by multiple fragments: float, format (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_int32_compare" provided by multiple fragments: compare, ints (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_ocaml_string_to_lua" provided by multiple fragments: buffer, format (later fragments override earlier ones)
     Entry block: 0
     Total blocks in program: 269
     Blocks with Apply instructions: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 72, 79, 87, 89, 90, 92, 117, 118, 120, 122, 123, 124, 125, 126, 128, 129, 130, 131, 132, 135, 136, 137, 138, 139, 147, 151, 155, 157, 158, 159, 163, 164, 168, 170, 171, 188, 193, 206, 208, 209, 210, 219, 221, 228, 229, 247, 253, 268]
     Entry block has 57 instructions
     Entry block has Apply: false
     Entry block has Extern: true
-    Generated Lua has print call: false
+    Generated Lua has print call: true
 
     === Generated Lua (first 30 lines) ===
     -- === OCaml Runtime (Minimal Inline Version) ===
-    -- Global storage for OCaml values
-    local _OCAML_GLOBALS = {}
+    -- Initialize global OCaml namespace (required before loading runtime modules)
+    _G._OCAML = {}
     --
-    -- caml_register_global: Register a global OCaml value
-    --   n: global index
-    --   v: value to register
-    --   name: optional string name for the global
+    -- NOTE: core.lua provides caml_register_global for primitives (name, func).
+    -- This inline version is for registering OCaml global VALUES (used by generated code).
+    -- TODO: Rename one of them to avoid confusion.
+    local _OCAML_GLOBALS = {}
     function caml_register_global(n, v, name)
-      -- Store value at index n+1 (Lua 1-indexed)
       _OCAML_GLOBALS[n + 1] = v
-      -- Also store by name if provided
       if name then
         _OCAML_GLOBALS[name] = v
       end
-      -- Return the value for chaining
       return v
     end
+    function caml_register_named_value(name, value)
+      _OCAML_GLOBALS[name] = value
+      return value
+    end
     --
-    -- === End Runtime ===
-    --
-    --
-    function __caml_init__()
-      -- Module initialization code
-      -- Hoisted variables (187 total, using table due to Lua's 200 local limit)
-      local _V = {}
-      ::block_0::
-      _V.Out_of_memory = {tag = 248, "Out_of_memory", -1}
-      _V.Sys_error = {tag = 248, "Sys_error", -2}
-      _V.Failure = {tag = 248, "Failure", -3}
+    -- Bitwise operations for Lua 5.1 (simplified implementations)
+    function caml_int_and(a, b)
+      -- Simplified bitwise AND for common cases
+      -- For full implementation, see runtime/lua/ints.lua
+      local result, bit = 0, 1
+      a = math.floor(a)
+      b = math.floor(b)
+      while a > 0 and b > 0 do
+        if a % 2 == 1 and b % 2 == 1 then
+          result = result + bit
     |}]

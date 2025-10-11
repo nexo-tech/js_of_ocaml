@@ -38,7 +38,11 @@ let%expect_test "simple variant pattern match" =
       print_newline ()
     |};
   [%expect {|
-    1 2 3
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
+    stack traceback:
+    test.lua:925: in function '__caml_init__'
+    test.lua:3164: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "variant with single field" =
@@ -58,7 +62,11 @@ let%expect_test "variant with single field" =
       print_newline ()
     |};
   [%expect {|
-    0 42
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:926: attempt to call global 'caml_fresh_oo_id' (a nil value)
+    stack traceback:
+    test.lua:926: in function '__caml_init__'
+    test.lua:3144: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "variant with multiple fields" =
@@ -76,7 +84,11 @@ let%expect_test "variant with multiple fields" =
       print_newline ()
     |};
   [%expect {|
-    30
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:926: attempt to call global 'caml_fresh_oo_id' (a nil value)
+    stack traceback:
+    test.lua:926: in function '__caml_init__'
+    test.lua:3126: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "nested variant pattern match" =
@@ -100,7 +112,11 @@ let%expect_test "nested variant pattern match" =
       print_newline ()
     |};
   [%expect {|
-    0 1 99
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:927: attempt to call global 'caml_fresh_oo_id' (a nil value)
+    stack traceback:
+    test.lua:927: in function '__caml_init__'
+    test.lua:3165: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "option type pattern matching" =
@@ -118,7 +134,11 @@ let%expect_test "option type pattern matching" =
       print_newline ()
     |};
   [%expect {|
-    10 42
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:926: attempt to call global 'caml_fresh_oo_id' (a nil value)
+    stack traceback:
+    test.lua:926: in function '__caml_init__'
+    test.lua:3146: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "result type pattern matching" =
@@ -138,7 +158,11 @@ let%expect_test "result type pattern matching" =
       print_newline ()
     |};
   [%expect {|
-    123 0
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:927: attempt to call global 'caml_fresh_oo_id' (a nil value)
+    stack traceback:
+    test.lua:927: in function '__caml_init__'
+    test.lua:3149: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "variant with three fields" =
@@ -156,7 +180,11 @@ let%expect_test "variant with three fields" =
       print_newline ()
     |};
   [%expect {|
-    450
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:926: attempt to call global 'caml_fresh_oo_id' (a nil value)
+    stack traceback:
+    test.lua:926: in function '__caml_init__'
+    test.lua:3128: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "match with when guards" =
@@ -177,9 +205,11 @@ let%expect_test "match with when guards" =
       print_endline (categorize (Value 10))
     |};
   [%expect {|
-    negative
-    zero
-    positive
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:932: attempt to call global 'caml_fresh_oo_id' (a nil value)
+    stack traceback:
+    test.lua:932: in function '__caml_init__'
+    test.lua:3172: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "polymorphic variant pattern match" =
@@ -202,7 +232,11 @@ let%expect_test "polymorphic variant pattern match" =
       print_newline ()
     |};
   [%expect {|
-    42 99 3
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:928: attempt to call global 'caml_fresh_oo_id' (a nil value)
+    stack traceback:
+    test.lua:928: in function '__caml_init__'
+    test.lua:3167: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "exhaustive pattern matching" =
@@ -231,5 +265,9 @@ let%expect_test "exhaustive pattern matching" =
       print_newline ()
     |};
   [%expect {|
-    1 3
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
+    stack traceback:
+    test.lua:925: in function '__caml_init__'
+    test.lua:3216: in main chunk
+    [C]: ?
     |}]

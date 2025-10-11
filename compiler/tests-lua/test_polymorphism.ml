@@ -16,11 +16,11 @@ let%expect_test "polymorphic identity" =
       print_endline (if id true then "true" else "false")
     |};
   [%expect {|
-    lua: test.lua:807: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:928: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:807: in function '__caml_init__'
-    test.lua:2190: in main chunk
-    [C]: in ?
+    test.lua:928: in function '__caml_init__'
+    test.lua:3152: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "polymorphic list functions" =
@@ -44,11 +44,11 @@ let%expect_test "polymorphic list functions" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:823: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:944: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:823: in function '__caml_init__'
-    test.lua:6047: in main chunk
-    [C]: in ?
+    test.lua:944: in function '__caml_init__'
+    test.lua:9135: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "polymorphic comparison" =
@@ -66,11 +66,11 @@ let%expect_test "polymorphic comparison" =
       print_endline (if compare None None = 0 then "none = none" else "fail")
     |};
   [%expect {|
-    lua: test.lua:819: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:940: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:819: in function '__caml_init__'
-    test.lua:2243: in main chunk
-    [C]: in ?
+    test.lua:940: in function '__caml_init__'
+    test.lua:3230: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "polymorphic equality vs physical equality" =
@@ -88,11 +88,11 @@ let%expect_test "polymorphic equality vs physical equality" =
       print_endline (if a == c then "same" else "different")
     |};
   [%expect {|
-    lua: test.lua:812: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:933: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:812: in function '__caml_init__'
-    test.lua:2202: in main chunk
-    [C]: in ?
+    test.lua:933: in function '__caml_init__'
+    test.lua:3185: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "option type polymorphism" =
@@ -111,11 +111,11 @@ let%expect_test "option type polymorphism" =
       print_endline (get_or "default" None)
     |};
   [%expect {|
-    lua: test.lua:808: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:929: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:808: in function '__caml_init__'
-    test.lua:2203: in main chunk
-    [C]: in ?
+    test.lua:929: in function '__caml_init__'
+    test.lua:3156: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "either type pattern" =
@@ -132,11 +132,11 @@ let%expect_test "either type pattern" =
       print_endline (show_either (Right "hello"))
     |};
   [%expect {|
-    lua: test.lua:808: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:929: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:808: in function '__caml_init__'
-    test.lua:2199: in main chunk
-    [C]: in ?
+    test.lua:929: in function '__caml_init__'
+    test.lua:3151: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "phantom types simulation" =
@@ -164,11 +164,11 @@ let%expect_test "phantom types simulation" =
           print_endline "invalid"
     |};
   [%expect {|
-    lua: test.lua:876: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:997: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:876: in function '__caml_init__'
-    test.lua:11800: in main chunk
-    [C]: in ?
+    test.lua:997: in function '__caml_init__'
+    test.lua:18213: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "polymorphic variants simulation" =
@@ -188,11 +188,11 @@ let%expect_test "polymorphic variants simulation" =
       print_endline (color_to_string Yellow)
     |};
   [%expect {|
-    lua: test.lua:808: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:929: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:808: in function '__caml_init__'
-    test.lua:2206: in main chunk
-    [C]: in ?
+    test.lua:929: in function '__caml_init__'
+    test.lua:3159: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "nested polymorphic types" =
@@ -216,11 +216,11 @@ let%expect_test "nested polymorphic types" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:805: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:926: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:805: in function '__caml_init__'
-    test.lua:2221: in main chunk
-    [C]: in ?
+    test.lua:926: in function '__caml_init__'
+    test.lua:3181: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "polymorphic refs" =
@@ -236,11 +236,11 @@ let%expect_test "polymorphic refs" =
       print_endline !r2
     |};
   [%expect {|
-    lua: test.lua:805: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:926: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:805: in function '__caml_init__'
-    test.lua:2174: in main chunk
-    [C]: in ?
+    test.lua:926: in function '__caml_init__'
+    test.lua:3116: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "polymorphic record fields" =
@@ -260,11 +260,11 @@ let%expect_test "polymorphic record fields" =
       print_endline (get_contents str_box)
     |};
   [%expect {|
-    lua: test.lua:805: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:926: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:805: in function '__caml_init__'
-    test.lua:2187: in main chunk
-    [C]: in ?
+    test.lua:926: in function '__caml_init__'
+    test.lua:3143: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "polymorphic recursion simulation" =
@@ -290,11 +290,11 @@ let%expect_test "polymorphic recursion simulation" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:807: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:928: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:807: in function '__caml_init__'
-    test.lua:2219: in main chunk
-    [C]: in ?
+    test.lua:928: in function '__caml_init__'
+    test.lua:3173: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "equality on functions fails" =
@@ -310,11 +310,11 @@ let%expect_test "equality on functions fails" =
         print_endline "cannot compare functions"
     |};
   [%expect {|
-    lua: test.lua:806: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:927: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:806: in function '__caml_init__'
-    test.lua:2206: in main chunk
-    [C]: in ?
+    test.lua:927: in function '__caml_init__'
+    test.lua:3181: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "polymorphic comparison with nested structures" =
@@ -331,9 +331,9 @@ let%expect_test "polymorphic comparison with nested structures" =
       print_endline (if c < d then "less" else "not less")
     |};
   [%expect {|
-    lua: test.lua:812: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:933: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:812: in function '__caml_init__'
-    test.lua:2190: in main chunk
-    [C]: in ?
+    test.lua:933: in function '__caml_init__'
+    test.lua:3162: in main chunk
+    [C]: ?
     |}]

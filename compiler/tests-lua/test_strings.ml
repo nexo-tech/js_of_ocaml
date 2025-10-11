@@ -17,11 +17,11 @@ let%expect_test "string concatenation" =
       print_endline s
     |};
   [%expect {|
-    lua: test.lua:807: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:928: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:807: in function '__caml_init__'
-    test.lua:2167: in main chunk
-    [C]: in ?
+    test.lua:928: in function '__caml_init__'
+    test.lua:3109: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "string length" =
@@ -34,11 +34,11 @@ let%expect_test "string length" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:806: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:927: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:806: in function '__caml_init__'
-    test.lua:2172: in main chunk
-    [C]: in ?
+    test.lua:927: in function '__caml_init__'
+    test.lua:3114: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "string access" =
@@ -52,11 +52,11 @@ let%expect_test "string access" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:805: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:926: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:805: in function '__caml_init__'
-    test.lua:2174: in main chunk
-    [C]: in ?
+    test.lua:926: in function '__caml_init__'
+    test.lua:3116: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "string_of_int" =
@@ -68,11 +68,11 @@ let%expect_test "string_of_int" =
       print_endline (string_of_int 0)
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2173: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3115: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "int_of_string" =
@@ -85,11 +85,11 @@ let%expect_test "int_of_string" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:806: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:927: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:806: in function '__caml_init__'
-    test.lua:2172: in main chunk
-    [C]: in ?
+    test.lua:927: in function '__caml_init__'
+    test.lua:3114: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "string compare" =
@@ -101,11 +101,11 @@ let%expect_test "string compare" =
       print_endline (if "abc" < "def" then "less" else "greater")
     |};
   [%expect {|
-    lua: test.lua:816: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:937: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:816: in function '__caml_init__'
-    test.lua:2206: in main chunk
-    [C]: in ?
+    test.lua:937: in function '__caml_init__'
+    test.lua:3175: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "string sub" =
@@ -117,11 +117,11 @@ let%expect_test "string sub" =
       print_endline (String.sub s 6 5)
     |};
   [%expect {|
-    lua: test.lua:875: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:996: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:875: in function '__caml_init__'
-    test.lua:11755: in main chunk
-    [C]: in ?
+    test.lua:996: in function '__caml_init__'
+    test.lua:18127: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "string contains" =
@@ -133,11 +133,11 @@ let%expect_test "string contains" =
       print_endline (if String.contains s 'x' then "yes" else "no")
     |};
   [%expect {|
-    lua: test.lua:879: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:1000: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:879: in function '__caml_init__'
-    test.lua:11775: in main chunk
-    [C]: in ?
+    test.lua:1000: in function '__caml_init__'
+    test.lua:18169: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "string make" =
@@ -148,11 +148,11 @@ let%expect_test "string make" =
       print_endline (String.make 3 'x')
     |};
   [%expect {|
-    lua: test.lua:874: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:995: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:874: in function '__caml_init__'
-    test.lua:11754: in main chunk
-    [C]: in ?
+    test.lua:995: in function '__caml_init__'
+    test.lua:18126: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "string escape sequences" =
@@ -164,11 +164,11 @@ let%expect_test "string escape sequences" =
       print_endline "quote:\"hello\""
     |};
   [%expect {|
-    lua: test.lua:807: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:928: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:807: in function '__caml_init__'
-    test.lua:2167: in main chunk
-    [C]: in ?
+    test.lua:928: in function '__caml_init__'
+    test.lua:3109: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "empty string" =
@@ -181,11 +181,11 @@ let%expect_test "empty string" =
       print_endline (if s = "" then "empty" else "not empty")
     |};
   [%expect {|
-    lua: test.lua:808: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:929: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:808: in function '__caml_init__'
-    test.lua:2180: in main chunk
-    [C]: in ?
+    test.lua:929: in function '__caml_init__'
+    test.lua:3133: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "string uppercase lowercase" =
@@ -196,11 +196,11 @@ let%expect_test "string uppercase lowercase" =
       print_endline (String.lowercase_ascii "WORLD")
     |};
   [%expect {|
-    lua: test.lua:876: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:997: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:876: in function '__caml_init__'
-    test.lua:11752: in main chunk
-    [C]: in ?
+    test.lua:997: in function '__caml_init__'
+    test.lua:18124: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "string trim" =
@@ -211,9 +211,9 @@ let%expect_test "string trim" =
       print_endline (String.trim "\n\tworld\t\n")
     |};
   [%expect {|
-    lua: test.lua:876: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:997: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:876: in function '__caml_init__'
-    test.lua:11752: in main chunk
-    [C]: in ?
+    test.lua:997: in function '__caml_init__'
+    test.lua:18124: in main chunk
+    [C]: ?
     |}]

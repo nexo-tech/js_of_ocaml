@@ -63,9 +63,9 @@ let%expect_test "generate cond - if-then-else inline" =
   List.iter (fun s -> print_endline (stat_to_string s)) stmts;
   [%expect {|
     if v0 then
-      goto block_1
+      _next_block = 1
     else
-      goto block_2
+      _next_block = 2
     end
     |}]
 
@@ -88,9 +88,9 @@ let%expect_test "generate cond - if-then only" =
   List.iter (fun s -> print_endline (stat_to_string s)) stmts;
   [%expect {|
     if v0 then
-      goto block_1
+      _next_block = 1
     else
-      goto block_999
+      _next_block = 999
     end
     |}]
 
@@ -144,9 +144,9 @@ let%expect_test "generate cond - nested conditionals" =
   List.iter (fun s -> print_endline (stat_to_string s)) stmts;
   [%expect {|
     if v0 then
-      goto block_1
+      _next_block = 1
     else
-      goto block_2
+      _next_block = 2
     end
     |}]
 
@@ -179,12 +179,12 @@ let%expect_test "generate switch - simple 2-way" =
   List.iter (fun s -> print_endline (stat_to_string s)) stmts;
   [%expect {|
     if v0 == 0 then
-      goto block_10
+      _next_block = 10
     else
       if v0 == 1 then
-        goto block_11
+        _next_block = 11
       else
-        goto block_10
+        _next_block = 10
       end
     end
     |}]
@@ -227,15 +227,15 @@ let%expect_test "generate switch - 3-way with default" =
   List.iter (fun s -> print_endline (stat_to_string s)) stmts;
   [%expect {|
     if v0 == 0 then
-      goto block_10
+      _next_block = 10
     else
       if v0 == 1 then
-        goto block_11
+        _next_block = 11
       else
         if v0 == 2 then
-          goto block_12
+          _next_block = 12
         else
-          goto block_10
+          _next_block = 10
         end
       end
     end
@@ -259,9 +259,9 @@ let%expect_test "generate switch - single case" =
   List.iter (fun s -> print_endline (stat_to_string s)) stmts;
   [%expect {|
     if v0 == 0 then
-      goto block_10
+      _next_block = 10
     else
-      goto block_10
+      _next_block = 10
     end
     |}]
 
@@ -274,7 +274,7 @@ let%expect_test "generate branch - goto" =
   let ctx = Lua_generate.make_context_with_program ~debug:false program in
   let stmts = Lua_generate.generate_last ctx last in
   List.iter (fun s -> print_endline (stat_to_string s)) stmts;
-  [%expect {| goto block_42 |}]
+  [%expect {| _next_block = 42 |}]
 
 (* Block with program context *)
 
@@ -317,9 +317,9 @@ let%expect_test "generate block with cond" =
     v0 = 1
     v1 = type(v0) == "number" and v0 % 1 == 0
     if v1 then
-      goto block_10
+      _next_block = 10
     else
-      goto block_11
+      _next_block = 11
     end
     |}]
 

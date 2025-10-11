@@ -40,6 +40,13 @@
  (preprocess (pps ppx_expect)))
 
 (library
+ (name test_conditional_calls)
+ (libraries lua_of_ocaml_compiler str)
+ (modules test_conditional_calls)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
  (name test_lua_expr_gen)
  (libraries lua_of_ocaml_compiler)
  (modules test_lua_expr_gen)

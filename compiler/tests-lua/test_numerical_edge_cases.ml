@@ -18,11 +18,11 @@ let%expect_test "max_int and min_int" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2178: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3120: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "integer overflow behavior" =
@@ -44,11 +44,11 @@ let%expect_test "integer overflow behavior" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2181: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3123: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "integer multiplication overflow" =
@@ -67,11 +67,11 @@ let%expect_test "integer multiplication overflow" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2176: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3118: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "division by zero" =
@@ -85,11 +85,11 @@ let%expect_test "division by zero" =
         print_endline "caught Division_by_zero"
     |};
   [%expect {|
-    lua: test.lua:806: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:927: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:806: in function '__caml_init__'
-    test.lua:2189: in main chunk
-    [C]: in ?
+    test.lua:927: in function '__caml_init__'
+    test.lua:3150: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "modulo operations" =
@@ -108,11 +108,11 @@ let%expect_test "modulo operations" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2190: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3132: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "float precision" =
@@ -131,11 +131,11 @@ let%expect_test "float precision" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:806: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:927: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:806: in function '__caml_init__'
-    test.lua:2186: in main chunk
-    [C]: in ?
+    test.lua:927: in function '__caml_init__'
+    test.lua:3141: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "float special values" =
@@ -155,11 +155,11 @@ let%expect_test "float special values" =
       print_endline (if nan <> nan then "nan<>nan true" else "nan<>nan false")
     |};
   [%expect {|
-    lua: test.lua:814: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:935: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:814: in function '__caml_init__'
-    test.lua:2234: in main chunk
-    [C]: in ?
+    test.lua:935: in function '__caml_init__'
+    test.lua:3247: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "float comparison edge cases" =
@@ -177,11 +177,11 @@ let%expect_test "float comparison edge cases" =
       print_endline (if nan > 0.0 then "nan > 0" else "nan not > 0")
     |};
   [%expect {|
-    lua: test.lua:812: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:933: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:812: in function '__caml_init__'
-    test.lua:2222: in main chunk
-    [C]: in ?
+    test.lua:933: in function '__caml_init__'
+    test.lua:3216: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "int and float conversion" =
@@ -200,11 +200,11 @@ let%expect_test "int and float conversion" =
       print_endline (if back = large_int then "preserved" else "lost precision")
     |};
   [%expect {|
-    lua: test.lua:806: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:927: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:806: in function '__caml_init__'
-    test.lua:2189: in main chunk
-    [C]: in ?
+    test.lua:927: in function '__caml_init__'
+    test.lua:3146: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "comparison edge cases" =
@@ -223,11 +223,11 @@ let%expect_test "comparison edge cases" =
       print_endline (if [1; 2] < [1; 3] then "less" else "not less")
     |};
   [%expect {|
-    lua: test.lua:819: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:940: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:819: in function '__caml_init__'
-    test.lua:2221: in main chunk
-    [C]: in ?
+    test.lua:940: in function '__caml_init__'
+    test.lua:3223: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "min max functions" =
@@ -250,11 +250,11 @@ let%expect_test "min max functions" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2212: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3154: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "bitwise operations" =
@@ -280,11 +280,11 @@ let%expect_test "bitwise operations" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:804: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:925: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:804: in function '__caml_init__'
-    test.lua:2206: in main chunk
-    [C]: in ?
+    test.lua:925: in function '__caml_init__'
+    test.lua:3148: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "power and sqrt" =
@@ -310,9 +310,9 @@ let%expect_test "power and sqrt" =
       print_endline (if classify_float neg_sqrt = FP_nan then "nan" else "not nan")
     |};
   [%expect {|
-    lua: test.lua:806: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:927: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:806: in function '__caml_init__'
-    test.lua:2233: in main chunk
-    [C]: in ?
+    test.lua:927: in function '__caml_init__'
+    test.lua:3201: in main chunk
+    [C]: ?
     |}]

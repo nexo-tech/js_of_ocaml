@@ -24,11 +24,11 @@ let%expect_test "list creation" =
       print_list l
     |};
   [%expect {|
-    lua: test.lua:805: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:926: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:805: in function '__caml_init__'
-    test.lua:2189: in main chunk
-    [C]: in ?
+    test.lua:926: in function '__caml_init__'
+    test.lua:3141: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "list cons" =
@@ -46,11 +46,11 @@ let%expect_test "list cons" =
       print_list l
     |};
   [%expect {|
-    lua: test.lua:805: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:926: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:805: in function '__caml_init__'
-    test.lua:2189: in main chunk
-    [C]: in ?
+    test.lua:926: in function '__caml_init__'
+    test.lua:3141: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "list length" =
@@ -63,11 +63,11 @@ let%expect_test "list length" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:821: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:942: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:821: in function '__caml_init__'
-    test.lua:5978: in main chunk
-    [C]: in ?
+    test.lua:942: in function '__caml_init__'
+    test.lua:9035: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "list hd tl" =
@@ -82,11 +82,11 @@ let%expect_test "list hd tl" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:821: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:942: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:821: in function '__caml_init__'
-    test.lua:5979: in main chunk
-    [C]: in ?
+    test.lua:942: in function '__caml_init__'
+    test.lua:9036: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "list append" =
@@ -105,11 +105,11 @@ let%expect_test "list append" =
       print_list (l1 @ l2)
     |};
   [%expect {|
-    lua: test.lua:806: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:927: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:806: in function '__caml_init__'
-    test.lua:2192: in main chunk
-    [C]: in ?
+    test.lua:927: in function '__caml_init__'
+    test.lua:3144: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "list rev" =
@@ -126,11 +126,11 @@ let%expect_test "list rev" =
       print_list (List.rev [1; 2; 3; 4; 5])
     |};
   [%expect {|
-    lua: test.lua:821: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:942: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:821: in function '__caml_init__'
-    test.lua:5995: in main chunk
-    [C]: in ?
+    test.lua:942: in function '__caml_init__'
+    test.lua:9062: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "list map" =
@@ -148,11 +148,11 @@ let%expect_test "list map" =
       print_list (List.map (fun x -> x * 2) l)
     |};
   [%expect {|
-    lua: test.lua:821: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:942: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:821: in function '__caml_init__'
-    test.lua:6003: in main chunk
-    [C]: in ?
+    test.lua:942: in function '__caml_init__'
+    test.lua:9076: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "list filter" =
@@ -170,11 +170,11 @@ let%expect_test "list filter" =
       print_list (List.filter (fun x -> x mod 2 = 0) l)
     |};
   [%expect {|
-    lua: test.lua:821: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:942: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:821: in function '__caml_init__'
-    test.lua:6005: in main chunk
-    [C]: in ?
+    test.lua:942: in function '__caml_init__'
+    test.lua:9078: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "list fold_left" =
@@ -187,11 +187,11 @@ let%expect_test "list fold_left" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:821: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:942: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:821: in function '__caml_init__'
-    test.lua:5980: in main chunk
-    [C]: in ?
+    test.lua:942: in function '__caml_init__'
+    test.lua:9046: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "list fold_right" =
@@ -204,11 +204,11 @@ let%expect_test "list fold_right" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:821: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:942: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:821: in function '__caml_init__'
-    test.lua:5980: in main chunk
-    [C]: in ?
+    test.lua:942: in function '__caml_init__'
+    test.lua:9046: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "list iter" =
@@ -220,11 +220,11 @@ let%expect_test "list iter" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:821: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:942: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:821: in function '__caml_init__'
-    test.lua:5981: in main chunk
-    [C]: in ?
+    test.lua:942: in function '__caml_init__'
+    test.lua:9046: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "list find" =
@@ -237,11 +237,11 @@ let%expect_test "list find" =
       print_newline ()
     |};
   [%expect {|
-    lua: test.lua:821: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:942: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:821: in function '__caml_init__'
-    test.lua:5980: in main chunk
-    [C]: in ?
+    test.lua:942: in function '__caml_init__'
+    test.lua:9045: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "list exists" =
@@ -253,11 +253,11 @@ let%expect_test "list exists" =
       print_endline (if List.exists (fun x -> x = 10) l then "yes" else "no")
     |};
   [%expect {|
-    lua: test.lua:825: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:946: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:825: in function '__caml_init__'
-    test.lua:6011: in main chunk
-    [C]: in ?
+    test.lua:946: in function '__caml_init__'
+    test.lua:9104: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "list for_all" =
@@ -270,11 +270,11 @@ let%expect_test "list for_all" =
       print_endline (if List.for_all (fun x -> x mod 2 = 0) l2 then "yes" else "no")
     |};
   [%expect {|
-    lua: test.lua:826: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:947: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:826: in function '__caml_init__'
-    test.lua:6016: in main chunk
-    [C]: in ?
+    test.lua:947: in function '__caml_init__'
+    test.lua:9111: in main chunk
+    [C]: ?
     |}]
 
 let%expect_test "list flatten" =
@@ -292,9 +292,9 @@ let%expect_test "list flatten" =
       print_list (List.flatten ll)
     |};
   [%expect {|
-    lua: test.lua:821: attempt to call a nil value (global 'caml_register_named_value')
+    /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: test.lua:942: attempt to call global 'caml_fresh_oo_id' (a nil value)
     stack traceback:
-    test.lua:821: in function '__caml_init__'
-    test.lua:5995: in main chunk
-    [C]: in ?
+    test.lua:942: in function '__caml_init__'
+    test.lua:9062: in main chunk
+    [C]: ?
     |}]

@@ -59,11 +59,22 @@ let%expect_test "small_function_uses_locals" =
   Printf.printf "Comment mentions 50 vars: %b\n" has_50_vars;
 
   [%expect {|
+    Warning [overriding-primitive]: symbol "caml_float_compare" provided by multiple fragments: compare, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_append" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_blit" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_concat" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_get" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_set" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_sub" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_format_float" provided by multiple fragments: float, format (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_int32_compare" provided by multiple fragments: compare, ints (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_ocaml_string_to_lua" provided by multiple fragments: buffer, format (later fragments override earlier ones)
     Test: Small function (50 vars) uses locals
     Uses local vars: true
     Uses table storage: false
     Variable count: 50 (threshold: 180)
-    Comment mentions 50 vars: true |}]
+    Comment mentions 50 vars: true
+    |}]
 
 (* Test 2: Large function with 250 variables uses table storage *)
 let%expect_test "large_function_uses_table" =
@@ -84,11 +95,22 @@ let%expect_test "large_function_uses_table" =
   Printf.printf "Uses _V.vN access pattern: %b\n" has_table_access;
 
   [%expect {|
+    Warning [overriding-primitive]: symbol "caml_float_compare" provided by multiple fragments: compare, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_append" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_blit" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_concat" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_get" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_set" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_sub" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_format_float" provided by multiple fragments: float, format (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_int32_compare" provided by multiple fragments: compare, ints (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_ocaml_string_to_lua" provided by multiple fragments: buffer, format (later fragments override earlier ones)
     Test: Large function (250 vars) uses table storage
     Uses table storage: true
     Has table comment: true
     Variable count: 250 (threshold: 180)
-    Uses _V.vN access pattern: true |}]
+    Uses _V.vN access pattern: true
+    |}]
 
 (* Test 3: Table access correctness - verify generated code structure *)
 let%expect_test "table_access_correctness" =
@@ -116,10 +138,21 @@ let%expect_test "table_access_correctness" =
   Printf.printf "Has _V in return: %b\n" has_v_return;
 
   [%expect {|
+    Warning [overriding-primitive]: symbol "caml_float_compare" provided by multiple fragments: compare, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_append" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_blit" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_concat" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_get" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_set" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_sub" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_format_float" provided by multiple fragments: float, format (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_int32_compare" provided by multiple fragments: compare, ints (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_ocaml_string_to_lua" provided by multiple fragments: buffer, format (later fragments override earlier ones)
     Test: Table access correctness
     Has _V declaration: true
     Has _V assignments: true
-    Has _V in return: true |}]
+    Has _V in return: true
+    |}]
 
 (* Test 4: Nested functions with independent storage decisions *)
 let%expect_test "nested_functions_independent" =
@@ -178,9 +211,19 @@ let%expect_test "nested_functions_independent" =
   Printf.printf "Each function decides independently\n";
 
   [%expect {|
+    Warning [overriding-primitive]: symbol "caml_float_compare" provided by multiple fragments: compare, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_append" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_blit" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_concat" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_get" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_set" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_sub" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_format_float" provided by multiple fragments: float, format (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_int32_compare" provided by multiple fragments: compare, ints (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_ocaml_string_to_lua" provided by multiple fragments: buffer, format (later fragments override earlier ones)
     Test: Nested functions with independent storage
     Outer function (250 vars) uses table: true
-    Inner function (50 vars) uses locals: true
+    Inner function (50 vars) uses locals: false
     Each function decides independently
     |}]
 
@@ -204,10 +247,31 @@ let%expect_test "threshold_boundary_test" =
   Printf.printf "Threshold is correctly set at 180\n";
 
   [%expect {|
+    Warning [overriding-primitive]: symbol "caml_float_compare" provided by multiple fragments: compare, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_append" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_blit" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_concat" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_get" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_set" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_sub" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_format_float" provided by multiple fragments: float, format (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_int32_compare" provided by multiple fragments: compare, ints (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_ocaml_string_to_lua" provided by multiple fragments: buffer, format (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_float_compare" provided by multiple fragments: compare, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_append" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_blit" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_concat" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_get" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_set" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_floatarray_sub" provided by multiple fragments: array, float (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_format_float" provided by multiple fragments: float, format (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_int32_compare" provided by multiple fragments: compare, ints (later fragments override earlier ones)
+    Warning [overriding-primitive]: symbol "caml_ocaml_string_to_lua" provided by multiple fragments: buffer, format (later fragments override earlier ones)
     Test: Threshold boundary (180 vars)
     180 vars uses locals: true
     181 vars uses table: true
-    Threshold is correctly set at 180 |}]
+    Threshold is correctly set at 180
+    |}]
 
 (* Test 6: Verify actual Lua execution with table storage *)
 let%expect_test "table_storage_execution" =
@@ -248,4 +312,5 @@ print("Result: " .. result)
 
   [%expect {|
     Test: Table storage execution
-    Result: 142 |}]
+    Failed (exit 1): /nix/store/rnjgfyk5cayaimd6h4gkhj2qbz4icy2d-lua-5.1.5/bin/lua: .../nix-shell.fx07Mo/nix-shell.qhUgR0/build_455b6a_dune/lua_tableb3b210.lua:6: unexpected symbol near ':'
+    |}]

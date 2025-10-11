@@ -507,6 +507,9 @@ and output_stat ctx stat =
   | Comment text ->
       output_string ctx "-- ";
       output_string ctx text
+  | Raw code ->
+      (* Output raw Lua code verbatim (for embedding runtime modules) *)
+      output_string ctx code
   | Location_hint info ->
       (* Record source mapping for this location *)
       (match info.Parse_info.src with
