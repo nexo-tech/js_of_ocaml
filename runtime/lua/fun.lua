@@ -15,135 +15,115 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
---Provides: caml_is_ocaml_fun
-function caml_is_ocaml_fun(v)
-  return type(v) == "table" and type(v.f) == "function" and type(v.l) == "number"
-end
-
 --Provides: caml_call_gen
---Requires: caml_is_ocaml_fun
-function caml_call_gen(func, args)
-  assert(caml_is_ocaml_fun(func), "caml_call_gen expects an OCaml function")
+function caml_call_gen(f, args)
+  -- Get arity and actual function
+  -- f can be either a plain function (no arity info) or a table {l=arity, [...]}
+  local n, actual_f
+  if type(f) == "table" and f.l then
+    n = f.l
+    -- Find the actual function: check if table is callable or has explicit function
+    if type(f[1]) == "function" then
+      actual_f = f[1]
+    else
+      -- Table might be callable via metatable
+      local mt = getmetatable(f)
+      if mt and mt.__call then
+        actual_f = f
+      else
+        error("caml_call_gen: table has .l but no callable function")
+      end
+    end
+  elseif type(f) == "function" then
+    error("caml_call_gen: plain function has no arity information")
+  else
+    error("caml_call_gen: not a function or callable table")
+  end
 
-  local n = func.l
-  local args_len = #args
-  local d = n - args_len
+  local argsLen = #args
+  local d = n - argsLen
 
   if d == 0 then
-    -- Exact number of arguments: call directly
-    return func.f(unpack(args))
+    -- Exact match: call function directly with all arguments
+    return actual_f(unpack(args))
   elseif d < 0 then
-    -- Over-application: too many arguments
-    -- Call func with first n arguments
+    -- Over-application: more args than needed
+    -- Call f with first n arguments, then apply rest to result
     local first_args = {}
     for i = 1, n do
       first_args[i] = args[i]
     end
-    local result = func.f(unpack(first_args))
+    local g = actual_f(unpack(first_args))
 
-    -- If result is an OCaml function, apply remaining arguments
-    if caml_is_ocaml_fun(result) then
-      local rest_args = {}
-      for i = n + 1, args_len do
-        rest_args[#rest_args + 1] = args[i]
-      end
-      return caml_call_gen(result, rest_args)
-    else
-      -- Result is not a function, return it
-      return result
+    -- If result is not a function or callable, return it
+    if type(g) ~= "function" and type(g) ~= "table" then
+      return g
     end
+
+    -- Result is a function, apply remaining arguments recursively
+    local rest_args = {}
+    for i = n + 1, argsLen do
+      rest_args[#rest_args + 1] = args[i]
+    end
+    return caml_call_gen(g, rest_args)
   else
     -- Under-application: not enough arguments
-    -- Return a closure that captures the provided arguments
+    -- Build a closure that captures provided args and waits for more
 
-    -- Optimize for common cases (1-2 missing parameters)
+    -- Optimize common cases: d == 1 or d == 2
+    local g_fn
     if d == 1 then
       -- Need exactly 1 more argument
-      return {
-        l = 1,
-        f = function(x)
-          local new_args = {}
-          for i = 1, args_len do
-            new_args[i] = args[i]
-          end
-          new_args[args_len + 1] = x
-          return func.f(unpack(new_args))
+      g_fn = function(x)
+        local nargs = {}
+        for i = 1, argsLen do
+          nargs[i] = args[i]
         end
-      }
+        nargs[argsLen + 1] = x
+        return actual_f(unpack(nargs))
+      end
     elseif d == 2 then
       -- Need exactly 2 more arguments
-      return {
-        l = 2,
-        f = function(x, y)
-          local new_args = {}
-          for i = 1, args_len do
-            new_args[i] = args[i]
-          end
-          new_args[args_len + 1] = x
-          new_args[args_len + 2] = y
-          return func.f(unpack(new_args))
+      g_fn = function(x, y)
+        local nargs = {}
+        for i = 1, argsLen do
+          nargs[i] = args[i]
         end
-      }
+        nargs[argsLen + 1] = x
+        nargs[argsLen + 2] = y
+        return actual_f(unpack(nargs))
+      end
     else
       -- Need 3 or more arguments
-      -- Create a vararg closure that accumulates arguments
-      return {
-        l = d,
-        f = function(...)
-          local extra_args = {...}
-          -- Handle case where no args provided (call with unit)
-          if #extra_args == 0 then
-            extra_args = {0}  -- OCaml unit
-          end
-          -- Concatenate args with extra_args
-          local combined = {}
-          for i = 1, args_len do
-            combined[i] = args[i]
-          end
-          for i = 1, #extra_args do
-            combined[args_len + i] = extra_args[i]
-          end
-          return caml_call_gen(func, combined)
+      -- Create vararg closure that recursively calls caml_call_gen
+      g_fn = function(...)
+        local extra_args = {...}
+        if #extra_args == 0 then
+          extra_args = {nil}  -- Handle zero-arg call
         end
-      }
+        local combined = {}
+        for i = 1, argsLen do
+          combined[i] = args[i]
+        end
+        for i = 1, #extra_args do
+          combined[argsLen + i] = extra_args[i]
+        end
+        return caml_call_gen(f, combined)
+      end
     end
+
+    -- Return table with arity and function
+    return {l = d, g_fn}
   end
 end
 
 --Provides: caml_apply
---Requires: caml_call_gen, caml_is_ocaml_fun
+--Requires: caml_call_gen
 function caml_apply(func, ...)
   local args = {...}
-  if caml_is_ocaml_fun(func) then
+  if type(func) == "table" or type(func) == "function" then
     return caml_call_gen(func, args)
   else
-    error("caml_apply expects an OCaml function")
-  end
-end
-
---Provides: caml_curry
-function caml_curry(arity, lua_fn)
-  return {
-    l = arity,
-    f = lua_fn
-  }
-end
-
---Provides: caml_closure
-function caml_closure(arity, lua_fn, env)
-  if env then
-    -- Closure with environment - wrap to inject env as first parameter
-    return {
-      l = arity,
-      f = function(...)
-        return lua_fn(env, ...)
-      end
-    }
-  else
-    -- No environment needed
-    return {
-      l = arity,
-      f = lua_fn
-    }
+    error("caml_apply expects a function or callable table")
   end
 end
