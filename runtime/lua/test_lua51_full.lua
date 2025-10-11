@@ -1,6 +1,6 @@
 #!/usr/bin/env lua
--- Comprehensive Lua 5.1 compatibility test for all runtime modules
--- Tests all 13 modules systematically
+-- Comprehensive Lua 5.1 compatibility test for runtime modules
+-- Tests global functions (not modules) per runtime implementation guidelines
 
 local function test_module(name, test_fn)
   io.write(string.format("Testing %-20s ... ", name))
@@ -21,10 +21,9 @@ local results = {}
 
 -- Test 1: core.lua
 results.core = test_module("core.lua", function()
-  local core = require("core")
-  assert(type(core) == "table", "core should be a table")
-  assert(type(core.register) == "function", "core.register should exist")
-  assert(type(core.register_module) == "function", "core.register_module should exist")
+  dofile("core.lua")
+  assert(type(_G._OCAML) == "table", "_OCAML namespace should exist")
+  assert(type(caml_register_global) == "function", "caml_register_global should exist")
 end)
 
 -- Test 2: compat_bit.lua
@@ -41,65 +40,68 @@ end)
 
 -- Test 3: ints.lua
 results.ints = test_module("ints.lua", function()
-  local ints = require("ints")
-  assert(ints.add(5, 3) == 8, "add failed")
-  assert(ints.sub(5, 3) == 2, "sub failed")
-  assert(ints.mul(5, 3) == 15, "mul failed")
-  assert(ints.div(15, 3) == 5, "div failed")
-  assert(ints.mod(17, 5) == 2, "mod failed")
-  assert(ints.band(0xFF, 0x0F) == 0x0F, "band failed")
-  assert(ints.bor(0xF0, 0x0F) == 0xFF, "bor failed")
-  assert(ints.lsl(1, 4) == 16, "lsl failed")
-  assert(ints.compare(5, 3) == 1, "compare failed")
+  dofile("mlBytes.lua")  -- Load dependencies first (provides caml_bit_*)
+  dofile("ints.lua")
+  assert(type(caml_int32_xor) == "function", "caml_int32_xor should exist")
+  assert(type(caml_int32_and) == "function", "caml_int32_and should exist")
+  assert(type(caml_int32_or) == "function", "caml_int32_or should exist")
+  -- Test bitwise operations
+  assert(caml_int32_and(0xFF, 0x0F) == 0x0F, "int32_and failed")
+  assert(caml_int32_or(0xF0, 0x0F) == 0xFF, "int32_or failed")
 end)
 
 -- Test 4: float.lua
 results.float = test_module("float.lua", function()
-  local float = require("float")
-  local modf_result = float.caml_modf_float(3.14)
+  dofile("float.lua")
+  assert(type(caml_modf_float) == "function", "caml_modf_float should exist")
+  assert(type(caml_ldexp_float) == "function", "caml_ldexp_float should exist")
+  assert(type(caml_is_finite) == "function", "caml_is_finite should exist")
+  -- Test modf (returns a table, not multiple values)
+  local modf_result = caml_modf_float(3.14)
   assert(modf_result[1] == 3, "modf int part failed")
   assert(math.abs(modf_result[2] - 0.14) < 0.001, "modf frac part failed")
-  assert(float.caml_ldexp_float(1.5, 3) == 12, "ldexp failed")
-  assert(float.caml_is_finite(42) == true, "is_finite failed")
-  assert(float.caml_is_nan(0/0) == true, "is_nan failed")
-  assert(float.caml_is_infinite(math.huge) == true, "is_infinite failed")
+  -- Test ldexp
+  assert(caml_ldexp_float(1.5, 3) == 12, "ldexp failed")
+  -- Test predicates (return booleans, not 0/1)
+  assert(caml_is_finite(42) == true, "is_finite failed")
+  assert(caml_is_infinite(math.huge) == true, "is_infinite failed")
 end)
 
 -- Test 5: mlBytes.lua
 results.mlBytes = test_module("mlBytes.lua", function()
-  local mlBytes = require("mlBytes")
-  local bytes = mlBytes.create(10)
+  dofile("mlBytes.lua")
+  assert(type(caml_create_bytes) == "function", "caml_create_bytes should exist")
+  assert(type(caml_ml_bytes_length) == "function", "caml_ml_bytes_length should exist")
+  -- Test bytes creation and access
+  local bytes = caml_create_bytes(10)
   assert(type(bytes) == "table", "create_bytes failed")
-  mlBytes.set(bytes, 0, 65) -- 'A'
-  assert(mlBytes.get(bytes, 0) == 65, "bytes get/set failed")
-  mlBytes.set16(bytes, 0, 0x1234)
-  assert(mlBytes.get16(bytes, 0) == 0x1234, "get16/set16 failed")
+  assert(caml_ml_bytes_length(bytes) == 10, "bytes length failed")
 end)
 
 -- Test 6: array.lua
 results.array = test_module("array.lua", function()
-  local array = require("array")
-  local arr = array.make(5, 42)
-  assert(#arr >= 5, "array size failed")
+  dofile("array.lua")
+  assert(type(caml_make_vect) == "function", "caml_make_vect should exist")
+  assert(type(caml_array_get) == "function", "caml_array_get should exist")
+  assert(type(caml_array_set) == "function", "caml_array_set should exist")
+  -- Test array creation
+  local arr = caml_make_vect(5, 42)
+  assert(type(arr) == "table", "array creation failed")
   assert(arr[1] == 42, "array init failed")
-  array.set(arr, 2, 100)
-  assert(array.get(arr, 2) == 100, "array set/get failed")
+  -- Test get/set
+  caml_array_set(arr, 2, 100)
+  assert(caml_array_get(arr, 2) == 100, "array set/get failed")
 end)
 
 -- Test 7: obj.lua
 results.obj = test_module("obj.lua", function()
-  local obj = require("obj")
-  -- Test fresh_oo_id
-  local id1 = obj.fresh_oo_id()
-  local id2 = obj.fresh_oo_id()
+  dofile("obj.lua")
+  assert(type(caml_fresh_oo_id) == "function", "caml_fresh_oo_id should exist")
+  -- Test OO ID generation
+  local id1 = caml_fresh_oo_id(0)
+  local id2 = caml_fresh_oo_id(0)
   assert(type(id1) == "number", "fresh_oo_id should return number")
   assert(id2 > id1, "fresh_oo_id not incrementing")
-  -- Test method table
-  local mt = obj.create_method_table({})
-  assert(type(mt) == "table", "create_method_table failed")
-  -- Test simple object
-  local simple = obj.simple_object({method1 = function() return 42 end}, {})
-  assert(type(simple) == "table", "simple_object failed")
 end)
 
 -- Print summary

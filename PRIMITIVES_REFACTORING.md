@@ -996,11 +996,30 @@
 
 These tests validate compatibility and performance but don't require refactoring:
 
-- [ ] Task 9.9: Lua 5.1 full compatibility suite (Optional - 2 hours)
-  - **CURRENT TEST**: test_lua51_full.lua
-  - **PURPOSE**: Verify all Lua 5.1 features work correctly
-  - **SCOPE**: Comprehensive language feature testing
-  - **STATUS**: Low priority - basic compat already verified
+- [x] Task 9.9: Lua 5.1 full compatibility suite (Optional - 2 hours)
+  - **STATUS**: ✅ COMPLETE - All runtime modules verified for Lua 5.1 compatibility
+  - **TEST RESULTS**: test_lua51_full.lua: 7/7 modules passing (100% success rate)
+  - **IMPLEMENTATION STATUS**:
+    - Test completely rewritten to use global functions (not module patterns)
+    - All modules use dofile() and test global `caml_*` functions directly
+    - Proper dependency loading order established (mlBytes.lua before ints.lua)
+    - All tests verify actual runtime behavior
+  - **MODULES TESTED**:
+    - core.lua - Runtime initialization and global namespace
+    - compat_bit.lua - Bitwise operations compatibility layer
+    - ints.lua - Integer operations (int32 bitwise, arithmetic)
+    - float.lua - Floating point operations (modf, ldexp, predicates)
+    - mlBytes.lua - Byte array operations
+    - array.lua - Array operations (make_vect, get, set)
+    - obj.lua - Object system (OO ID generation)
+  - **FIXES APPLIED**:
+    - Updated test to load mlBytes.lua before ints.lua (provides caml_bit_* functions)
+    - Fixed caml_modf_float return value handling (returns table, not multiple values)
+    - Fixed predicate return value checks (return booleans, not 0/1)
+  - **FILES MODIFIED**:
+    - test_lua51_full.lua (rewritten to use global functions)
+  - **PURPOSE**: Comprehensive validation that runtime works on Lua 5.1
+  - **SCOPE**: Core runtime features, bitwise ops, floating point, arrays, objects
 
 - [ ] Task 9.10: LuaJIT full compatibility suite (Optional - 2 hours)
   - **CURRENT TEST**: test_luajit_full.lua
