@@ -131,6 +131,20 @@
  (preprocess (pps ppx_expect)))
 
 (library
+ (name test_closure_capture)
+ (libraries util str unix)
+ (modules test_closure_capture)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_closure_context)
+ (libraries util str unix)
+ (modules test_closure_context)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
  (name test_control_flow)
  (libraries util str unix)
  (modules test_control_flow)
