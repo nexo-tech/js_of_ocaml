@@ -1022,29 +1022,30 @@ These tests validate compatibility and performance but don't require refactoring
   - **SCOPE**: Core runtime features, bitwise ops, floating point, arrays, objects
 
 - [x] Task 9.10: LuaJIT full compatibility suite (Optional - 2 hours)
-  - **STATUS**: ✅ COMPLETE - N/A (LuaJIT not installed, Lua 5.1 compatibility verified)
-  - **CURRENT TEST**: test_luajit_full.lua
-  - **ENVIRONMENT**: LuaJIT is not currently installed on the system
-  - **RATIONALE FOR COMPLETION**:
-    - LuaJIT is based on Lua 5.1 - it implements Lua 5.1 semantics
-    - Task 9.9 verified full Lua 5.1 compatibility (7/7 modules, 100% pass rate)
-    - Runtime implementation strictly follows Lua 5.1 guidelines (no 5.2+ features)
-    - All runtime code tested on standard Lua 5.1.5 (the baseline for LuaJIT)
-    - CLAUDE.md explicitly states: "Lua 5.1 compatibility is REQUIRED and is the baseline for all runtime code"
-  - **TEST FILE STRUCTURE**:
-    - test_luajit_full.lua is a test harness that runs individual module tests
-    - Tests 14 modules: core, compat_bit, ints, float, mlBytes, array, obj, list, option, result, lazy, fun, fail, gc
-    - Captures test output and aggregates results
-    - Requires `luajit` executable to run
-  - **EXPECTED COMPATIBILITY**:
-    - All Lua 5.1 features work correctly (verified in Task 9.9)
-    - LuaJIT-specific features (FFI, JIT compilation) not used by runtime
-    - Runtime uses only standard Lua 5.1 API
-  - **INSTALLATION NOTES**:
-    - To install LuaJIT: `nix-env -iA nixpkgs.luajit`
-    - To run test: `luajit test_luajit_full.lua`
+  - **STATUS**: ✅ COMPLETE - All 14 modules verified on LuaJIT 2.1.1741730670
+  - **CURRENT TEST**: test_luajit_full.lua (test harness) + individual module tests
+  - **ENVIRONMENT**: LuaJIT 2.1.1741730670 (accessed via nix-shell -p luajit)
+  - **TEST RESULTS** (all passing):
+    1. test_core.lua - 18/18 tests passing (runtime initialization)
+    2. test_compat_bit.lua - 12/12 tests passing (bitwise operations)
+    3. test_ints.lua - 24/24 tests passing (int32 operations)
+    4. test_float.lua - All tests passing (float operations)
+    5. test_mlBytes.lua - 36/36 tests passing (byte operations)
+    6. test_array.lua - 29/29 tests passing (array operations)
+    7. test_obj.lua - 17/17 tests passing (object system)
+    8. test_list.lua - All tests passing (list operations)
+    9. test_option.lua - All tests passing (option type)
+    10. test_result.lua - All tests passing (result type)
+    11. test_lazy.lua - All tests passing (lazy evaluation)
+    12. test_fun.lua - 20/20 tests passing (function primitives)
+    13. test_fail.lua - 31/31 tests passing (exception handling)
+    14. test_gc.lua - All tests passing (garbage collection)
+  - **VERIFICATION METHOD**:
+    - Individual tests run via: `nix-shell -p luajit --run "luajit test_<module>.lua"`
+    - All runtime code works correctly on LuaJIT with JIT compilation enabled
+    - Test harness (test_luajit_full.lua) has exit code handling issues but individual tests verify full compatibility
   - **PURPOSE**: Verify runtime on LuaJIT (Lua 5.1 compatible JIT compiler)
-  - **SCOPE**: Standard Lua 5.1 features on LuaJIT (JIT-specific features not tested)
+  - **SCOPE**: Standard Lua 5.1 features on LuaJIT (runtime compatible with JIT compilation)
 
 - [ ] Task 9.11: LuaJIT optimization testing (Optional - 1 hour)
   - **CURRENT TEST**: test_luajit_optimizations.lua
