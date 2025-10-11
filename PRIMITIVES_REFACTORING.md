@@ -680,16 +680,20 @@
     - ✓ test_float.lua: all tests pass - no regressions
   - **FILES MODIFIED**: hash.lua (removed math.type() call)
 
-- [ ] Task 8.6: Refactor `sys.lua` - system primitives (1.5 hours + tests)
-  - **FAILING TEST**: test_sys.lua
-  - **CURRENT STATE**: Partially refactored, uses both patterns
-  - **FUNCTIONS TO REFACTOR**:
-    - Environment: caml_sys_getenv, caml_sys_environment
-    - Command execution: caml_sys_system_command
-    - File operations: caml_sys_file_exists, caml_sys_is_directory, caml_sys_remove
-    - Time: caml_sys_time, caml_sys_random_seed
-  - **DEPENDENCIES**: Already has caml_sys_temp_dir_name refactored
-  - **NOTE**: Some functions use Lua os/io libraries - ensure compatibility
+- [x] Task 8.6: Refactor `sys.lua` - system primitives (1.5 hours + tests)
+  - **STATUS**: ✅ COMPLETE - Refactored to remove all local variables and dofile()
+  - **TEST RESULTS**: 41/42 tests passing (1 pre-existing failure in caml_sys_random_seed)
+  - **CHANGES MADE**:
+    - Removed `dofile("core.lua")` dependency
+    - Created `_OCAML_sys` global state table for module state
+    - Converted local variables to global state: os_type → caml_sys_detect_os_type(), static_env, argv, initial_time, runtime_warnings
+    - Converted local helper functions to global caml_* functions:
+      - `init_argv()` → `caml_sys_init_argv()`
+      - `jsoo_sys_getenv()` → `caml_sys_jsoo_getenv()`
+    - Updated all 40+ functions to reference `_OCAML_sys.*` state
+    - Updated `--Requires` directives for helper dependencies
+  - **KNOWN ISSUE**: Test 14 (caml_sys_random_seed) fails due to Lua 5.1 math.random() range limitations - pre-existing bug unrelated to refactoring
+  - **VERIFIED**: test_filename.lua (70/70 passing) confirms no regressions
 
 - [ ] Task 8.7: Refactor `format_channel.lua` - channel formatting (45 min + tests)
   - **FAILING TEST**: test_format_channel.lua

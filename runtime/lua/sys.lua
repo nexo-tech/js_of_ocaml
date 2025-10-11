@@ -24,43 +24,43 @@
 -- - File system operations
 -- - System configuration
 
-dofile("core.lua")
+-- Global state for sys module (linker-compatible)
+_OCAML_sys = _OCAML_sys or {
+  static_env = {},
+  argv = nil,
+  initial_time = os.time(),
+  runtime_warnings = 0
+}
 
--- OS type detection
-local os_type
-if package.config:sub(1, 1) == '\\' then
-  os_type = "Win32"
-else
-  os_type = "Unix"
+--- Detect OS type (inline function for reuse)
+--Provides: caml_sys_detect_os_type
+function caml_sys_detect_os_type()
+  if package.config:sub(1, 1) == '\\' then
+    return "Win32"
+  else
+    return "Unix"
+  end
 end
 
--- Static environment variables (set by caml_set_static_env)
-local static_env = {}
-
--- Initial time for caml_sys_time
-local initial_time = os.time()
-
--- Program arguments (initialized lazily)
-local caml_argv = nil
-
 --- Initialize argv from command line arguments
-local function init_argv()
-  if caml_argv then return end
+--Provides: caml_sys_init_argv
+function caml_sys_init_argv()
+  if _OCAML_sys.argv then return _OCAML_sys.argv end
 
   local main = arg and arg[0] or "a.out"
   local args = arg or {}
 
   -- Build OCaml array: [0, program_name, arg1, arg2, ...]
   -- First element is tag 0, then program name, then arguments
-  caml_argv = {tag = 0}
-  caml_argv[1] = main
+  _OCAML_sys.argv = {tag = 0}
+  _OCAML_sys.argv[1] = main
 
   -- Add command-line arguments (starting from arg[1])
   for i = 1, #args do
-    caml_argv[i + 1] = args[i]
+    _OCAML_sys.argv[i + 1] = args[i]
   end
 
-  return caml_argv
+  return _OCAML_sys.argv
 end
 
 --- Set static environment variable
@@ -72,17 +72,18 @@ end
 function caml_set_static_env(key, value)
   local key_str = key
   local val_str = value
-  static_env[key_str] = val_str
+  _OCAML_sys.static_env[key_str] = val_str
   return caml_unit
 end
 
 --- Get environment variable (internal helper)
 -- @param name string Environment variable name (Lua string)
 -- @return string|nil Environment variable value or nil
-local function jsoo_sys_getenv(name)
+--Provides: caml_sys_jsoo_getenv
+function caml_sys_jsoo_getenv(name)
   -- Check static environment first
-  if static_env[name] then
-    return static_env[name]
+  if _OCAML_sys.static_env[name] then
+    return _OCAML_sys.static_env[name]
   end
 
   -- Check os.getenv
@@ -99,10 +100,10 @@ end
 -- @param name string|table OCaml string (environment variable name)
 -- @return string|table OCaml string (environment variable value)
 --Provides: caml_sys_getenv
---Requires: caml_raise_not_found
+--Requires: caml_raise_not_found, caml_sys_jsoo_getenv
 function caml_sys_getenv(name)
   local name_str = name
-  local value = jsoo_sys_getenv(name_str)
+  local value = caml_sys_jsoo_getenv(name_str)
 
   if value == nil then
     caml_raise_not_found()
@@ -115,9 +116,10 @@ end
 -- @param name string|table OCaml string (environment variable name)
 -- @return number|table 0 (None) or [0, value] (Some value)
 --Provides: caml_sys_getenv_opt
+--Requires: caml_sys_jsoo_getenv
 function caml_sys_getenv_opt(name)
   local name_str = name
-  local value = jsoo_sys_getenv(name_str)
+  local value = caml_sys_jsoo_getenv(name_str)
 
   if value == nil then
     return 0 -- None (represented as 0)
@@ -140,9 +142,10 @@ end
 -- @param _unit number Unit value (ignored)
 -- @return table OCaml array of strings
 --Provides: caml_sys_argv
+--Requires: caml_sys_init_argv
 function caml_sys_argv(_unit)
-  init_argv()
-  return caml_argv
+  local argv = caml_sys_init_argv()
+  return argv
 end
 
 --- Get program arguments (alternative format)
@@ -150,9 +153,10 @@ end
 -- @param _unit number Unit value (ignored)
 -- @return table Tuple of [0, name, array]
 --Provides: caml_sys_get_argv
+--Requires: caml_sys_init_argv
 function caml_sys_get_argv(_unit)
-  init_argv()
-  return {tag = 0, [1] = caml_argv[1], [2] = caml_argv}
+  local argv = caml_sys_init_argv()
+  return {tag = 0, [1] = argv[1], [2] = argv}
 end
 
 --- Modify program arguments
@@ -161,7 +165,7 @@ end
 --Provides: caml_sys_modify_argv
 --Requires: caml_unit
 function caml_sys_modify_argv(arg)
-  caml_argv = arg
+  _OCAML_sys.argv = arg
   return caml_unit
 end
 
@@ -169,9 +173,10 @@ end
 -- @param _unit number Unit value (ignored)
 -- @return string|table OCaml string
 --Provides: caml_sys_executable_name
+--Requires: caml_sys_init_argv
 function caml_sys_executable_name(_unit)
-  init_argv()
-  return caml_argv[1]
+  local argv = caml_sys_init_argv()
+  return argv[1]
 end
 
 --- Get system configuration
@@ -179,10 +184,11 @@ end
 -- @param _unit number Unit value (ignored)
 -- @return table Configuration tuple
 --Provides: caml_sys_get_config
+--Requires: caml_sys_detect_os_type
 function caml_sys_get_config(_unit)
   return {
     tag = 0,
-    [1] = os_type,
+    [1] = caml_sys_detect_os_type(),
     [2] = 32,  -- word_size (always 32 for js_of_ocaml compatibility)
     [3] = 0    -- big_endian (0 = little endian)
   }
@@ -194,7 +200,7 @@ end
 --Provides: caml_sys_time
 function caml_sys_time(_unit)
   local now = os.time()
-  return now - initial_time
+  return now - _OCAML_sys.initial_time
 end
 
 --- Get elapsed time including children processes
@@ -473,15 +479,15 @@ function caml_sys_const_max_wosize(_unit)
 end
 
 --Provides: caml_sys_const_ostype_unix
---Requires: caml_true_val, caml_false_val
+--Requires: caml_true_val, caml_false_val, caml_sys_detect_os_type
 function caml_sys_const_ostype_unix(_unit)
-  return os_type == "Unix" and caml_true_val or caml_false_val
+  return caml_sys_detect_os_type() == "Unix" and caml_true_val or caml_false_val
 end
 
 --Provides: caml_sys_const_ostype_win32
---Requires: caml_true_val, caml_false_val
+--Requires: caml_true_val, caml_false_val, caml_sys_detect_os_type
 function caml_sys_const_ostype_win32(_unit)
-  return os_type == "Win32" and caml_true_val or caml_false_val
+  return caml_sys_detect_os_type() == "Win32" and caml_true_val or caml_false_val
 end
 
 --Provides: caml_sys_const_ostype_cygwin
@@ -533,16 +539,13 @@ function caml_install_signal_handler(_sig, _action)
   return caml_unit
 end
 
---- Runtime warnings flag
-local runtime_warnings = 0
-
 --- Enable/disable runtime warnings
 -- @param bool number 0 (false) or 1 (true)
 -- @return number 0 (unit)
 --Provides: caml_ml_enable_runtime_warnings
 --Requires: caml_unit
 function caml_ml_enable_runtime_warnings(bool)
-  runtime_warnings = bool
+  _OCAML_sys.runtime_warnings = bool
   return caml_unit
 end
 
@@ -551,7 +554,7 @@ end
 -- @return number 0 (false) or 1 (true)
 --Provides: caml_ml_runtime_warnings_enabled
 function caml_ml_runtime_warnings_enabled(_unit)
-  return runtime_warnings
+  return _OCAML_sys.runtime_warnings
 end
 
 --- Get I/O buffer size (OCaml 5.4+)
@@ -566,8 +569,9 @@ end
 -- @param _unit number Unit value (ignored)
 -- @return string|table OCaml string (temp directory or empty)
 --Provides: caml_sys_temp_dir_name
+--Requires: caml_sys_detect_os_type
 function caml_sys_temp_dir_name(_unit)
-  if os_type == "Win32" then
+  if caml_sys_detect_os_type() == "Win32" then
     local tmp = os.getenv("TEMP") or os.getenv("TMP") or ""
     return tmp
   else
