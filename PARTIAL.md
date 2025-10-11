@@ -1440,36 +1440,52 @@ Stack: function at line 19803 references _V.v349 which is undefined
 3. **Result**: Same issue with different variable (`v359` instead of `v349`)
 4. **Conclusion**: Problem is fundamental to `_V` table architecture, not target-specific
 
-**Work Attempted**:
+**Work Attempted (2024-10-11)**:
+
+**Phase 1**: Initial attempts
 1. ✅ Added _V table field initialization (line 942-950)
 2. ✅ Enhanced `collect_block_variables` to collect variable REFERENCES not just assignments (line 864-893)
 3. ❌ Still failing - nested closures inherit _V but reference variables from sibling closures
 
-**Root Issue Discovered**:
-The problem is MORE complex than initially understood:
-- Parent function creates `_V` table
-- Nested closure A is created and inherits _V
-- Nested closure B is created later and assigns v359 to _V
-- But closure A was created BEFORE v359 existed, and references it
-- Current `collect_block_variables` only collects variables from THAT function's blocks
-- It does NOT collect variables referenced by nested closures OR sibling closures
-- Result: v359 is not in parent's hoisted_vars, so not initialized in _V
+**Phase 2**: Implemented recursive collection across closure tree ✅
+1. ✅ Modified `collect_expr_refs` in `collect_block_variables` to be recursive (line 869)
+2. ✅ When encountering `Code.Closure (captured, (addr, _params), _)`:
+   - Collect captured variables from parent scope
+   - Recursively call `collect_block_variables(addr)` for nested closure body
+   - Union the results - parent now knows ALL variables from descendants
+3. ✅ Added to `compiler/lib-lua/dune`: disable warning 39 (unused-rec-flag) for indirect recursion
+4. ✅ Compiled successfully
 
-**Correct Fix Requires**:
-1. Collect variables across entire closure tree (recursive collection)
-2. When function has nested closures that inherit _V, collect:
-   - Variables assigned in this function
-   - Variables referenced by ALL nested closures (recursively)
-   - Variables assigned by sibling closures
-3. Initialize ALL of these in _V table at parent function start
-4. This is essentially closure conversion analysis
+**Phase 3**: Testing revealed new issue ⚠️
+- **Progress**: "Hello from Lua_of_ocaml!" printed successfully! ✅
+- **Error**: Still fails later with `v1818` nil error at line 22248
+- **Analysis**:
+  - v1818 IS initialized to nil in module _V table (line 13475) ✓
+  - Problematic closure at line 22239 inherits _V table (no local _V) ✓
+  - All closures in call stack inherit _V (v1813, v1827, v2363) ✓
+  - Only ONE `local _V = {}` in entire generated code (module level) ✓
+  - Upvalue capture should work automatically in Lua ✓
+  - v1818 gets real values assigned at lines 22622+ (BEFORE closure called at 23309) ✓
+  - But those assignments are in block 475 which may not execute before closure runs ⚠️
 
-**Recommended Approach**:
-Given complexity, recommend either:
-- **Short term**: Collect ALL variables from entire IR program and initialize all in top-level _V (inefficient but works)
-- **Long term**: Implement proper closure conversion with escape analysis (like Generate_closure.f in JS backend)
+**Root Issue (Updated)**:
+The recursive collection IS working correctly - v1818 is initialized in the module's _V table. The problem appears to be:
+1. Variable is initialized to nil at module start
+2. Closure is created and SHOULD capture _V as upvalue
+3. Closure is called BEFORE the code that assigns v1818 a real value executes
+4. This is a control flow issue, not a variable collection issue
 
-**Next Step**: Implement short-term fix to unblock Printf, then proper closure conversion as Phase 8
+**Possible Causes**:
+- IR control flow issue where variable used before assigned
+- Missing data flow dependency in optimized IR
+- Lua upvalue capture not working as expected with `caml_make_closure` wrapper
+- Multiple execution paths where one doesn't initialize v1818
+
+**Next Steps**:
+1. Add debug output to trace _V access at runtime
+2. Check if there are missing variable assignments in certain code paths
+3. Verify Lua upvalue semantics with `caml_make_closure` wrapper
+4. Consider if initialization order in IR is incorrect
 
 **Files**: `compiler/bin-lua_of_ocaml/compile.ml`, `compiler/lib-lua/lua_generate.ml`
 

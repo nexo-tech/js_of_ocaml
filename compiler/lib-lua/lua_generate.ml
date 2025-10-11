@@ -56,6 +56,11 @@ type context =
             When true: don't create 'local _V = {}', use parent's _V as upvalue *)
   }
 
+(** {2 Debug Flags} *)
+
+(** Enable debug output for variable collection *)
+let debug_var_collect = ref false
+
 (** {2 Context Operations} *)
 
 (** Create a new variable context *)
@@ -851,8 +856,13 @@ and generate_instrs ctx instrs =
     IMPORTANT: For optimized IR with forward references, this must collect:
     1. Variables ASSIGNED in this function (Let/Assign)
     2. Variables REFERENCED in expressions (for closure capture)
+    3. Variables used by ALL descendant closures (recursive collection)
 
-    This ensures nested closures that reference parent variables will find them initialized.
+    CRITICAL CHANGE: This function is now RECURSIVE across closure boundaries.
+    When encountering nested closures, it recursively collects variables from
+    their bodies. This ensures parent functions collect ALL variables needed by
+    ANY descendant closure, solving the "sibling closure" problem where closure A
+    references variables assigned by sibling closure B.
 
     @param ctx Code generation context
     @param program Full IR program
@@ -860,8 +870,8 @@ and generate_instrs ctx instrs =
     @return Set of variable names (v_N format) that need hoisting
 *)
 and collect_block_variables ctx program start_addr =
-  (* Collect variables referenced in an expression *)
-  let collect_expr_refs acc = function
+  (* Collect variables referenced in an expression - RECURSIVE for closures *)
+  let rec collect_expr_refs acc = function
     | Code.Constant _ -> acc
     | Code.Apply { f; args; _ } ->
         let acc = StringSet.add (var_name ctx f) acc in
@@ -870,7 +880,17 @@ and collect_block_variables ctx program start_addr =
         Array.fold_left ~f:(fun a v -> StringSet.add (var_name ctx v) a) ~init:acc vars
     | Code.Field (v, _, _) ->
         StringSet.add (var_name ctx v) acc
-    | Code.Closure _ -> acc  (* Closures handled separately *)
+    | Code.Closure (captured, (addr, _params), _) ->
+        (* CRITICAL: Recursively collect from nested closure body.
+           This is THE KEY FIX for the variable scoping issue.
+           Steps:
+           1. Collect captured variables (what this closure needs from parent)
+           2. Recursively collect ALL variables from closure body (including grandchildren)
+           3. Union results - parent now knows about ALL descendant variables
+           Note: cont is (addr, params) tuple - we only need addr for recursion *)
+        let acc = List.fold_left ~f:(fun a v -> StringSet.add (var_name ctx v) a) ~init:acc captured in
+        let nested_vars = collect_block_variables ctx program addr in
+        StringSet.union acc nested_vars
     | Code.Prim (_, args) ->
         List.fold_left ~f:(fun a -> function
           | Code.Pv v -> StringSet.add (var_name ctx v) a
@@ -945,6 +965,13 @@ and collect_block_variables ctx program start_addr =
 and compile_blocks_with_labels ctx program start_addr ?(params = []) () =
   (* Collect all variables that need hoisting *)
   let hoisted_vars = collect_block_variables ctx program start_addr in
+
+  (* DEBUG: Print collected variables *)
+  if !debug_var_collect then
+    Format.eprintf "DEBUG collect_block_variables at addr %d: collected %d vars: %s@."
+      start_addr
+      (StringSet.cardinal hoisted_vars)
+      (StringSet.elements hoisted_vars |> String.concat ", ");
 
   (* Determine if we need table-based storage and set context accordingly *)
   let total_vars = StringSet.cardinal hoisted_vars in
