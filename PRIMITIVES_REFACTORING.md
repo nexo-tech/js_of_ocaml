@@ -635,15 +635,29 @@
     - ✓ test_result.lua: all tests pass - no regressions
   - **FILES MODIFIED**: compare.lua (caml_compare_val function)
 
-- [ ] Task 8.4: Refactor `float.lua` - floating point primitives (1 hour + tests)
-  - **FAILING TEST**: test_float.lua
-  - **CURRENT STATE**: Uses module pattern
-  - **FUNCTIONS TO REFACTOR**:
-    - caml_float_of_string, caml_string_of_float
-    - caml_classify_float (NaN, Inf, Zero, Normal, Subnormal)
-    - caml_copysign_float, caml_signbit
-    - Math operations: caml_modf_float, caml_frexp_float, caml_ldexp_float
-  - **IMPLEMENTATION**: Pure Lua 5.1, no bitwise operators
+- [x] Task 8.4: Refactor `float.lua` - floating point primitives (1 hour + tests) ✓
+  - **ISSUE**: float.lua had local constants (INFINITY, NAN, FP_* constants) violating runtime guidelines
+  - **ROOT CAUSE**: Linker cannot extract local constants - only global `caml_*` functions with `--Provides`
+  - **SOLUTION**: Inlined all local constants into function bodies
+    - `INFINITY` → `math.huge`
+    - `NEG_INFINITY` → `-math.huge`
+    - `NAN` → `0/0`
+    - `FP_normal` → `0`, `FP_subnormal` → `1`, `FP_zero` → `2`, `FP_infinite` → `3`, `FP_nan` → `4`
+  - **TEST FILE FIX**: Fixed Lua 5.1 negative zero literal issue
+    - `-0.0` literal doesn't preserve sign bit in Lua 5.1
+    - Changed test to use `local neg_zero = -1.0 / math.huge` instead
+    - Variable assignment required - inline expression `caml_func(1.0, -1.0 / math.huge)` fails
+  - **REFACTORED FUNCTIONS** (35 functions, already had --Provides directives):
+    - Classification: caml_classify_float, caml_is_nan, caml_is_infinite, caml_is_finite
+    - Math operations: caml_modf_float, caml_frexp_float, caml_ldexp_float, caml_copysign_float, caml_signbit_float
+    - Rounding: caml_trunc_float, caml_round_float, caml_nextafter_float
+    - Comparison: caml_float_compare, caml_float_min, caml_float_max
+    - Float arrays (16 functions): create, get, set, length, blit, fill, of_array, to_array, concat, sub, append
+    - String conversion: caml_format_float, caml_hexstring_of_float, caml_float_of_string
+  - **VERIFICATION**:
+    - ✓ test_float.lua: all tests pass (was failing with syntax error)
+    - ✓ test_compare.lua: 73/73 tests pass - no regressions
+  - **FILES MODIFIED**: float.lua (removed local constants), test_float.lua (fixed -0.0 literal)
 
 - [ ] Task 8.5: Refactor `hash.lua` - hashing primitives (1 hour + tests)
   - **FAILING TEST**: test_hash.lua
@@ -846,10 +860,9 @@ These tests validate compatibility and performance but don't require refactoring
 - Phase 6: test_lexing.lua, test_digest.lua, test_bigarray.lua
 - Marshal: test_marshal_header.lua, test_marshal_io.lua, test_marshal_int.lua, test_marshal_string.lua, test_marshal_block.lua, test_marshal_blocks.lua, test_marshal_value.lua, test_marshal_sharing.lua, test_marshal_double.lua, test_marshal_public.lua
 - I/O: test_io_marshal.lua, test_io_integration.lua
-- Core: test_compare.lua
+- Core: test_compare.lua, test_float.lua
 
-**NEEDS REFACTORING - CORE (5 files)**:
-- test_float.lua (Task 8.4)
+**NEEDS REFACTORING - CORE (4 files)**:
 - test_hash.lua (Task 8.5)
 - test_sys.lua (Task 8.6)
 - test_format_channel.lua (Task 8.7)

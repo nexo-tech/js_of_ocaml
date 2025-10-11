@@ -3,42 +3,25 @@
 --
 -- Provides OCaml float operations with proper NaN/infinity handling
 
---
--- Constants
---
-
-local INFINITY = math.huge
-local NEG_INFINITY = -math.huge
-local NAN = 0/0
-
---
--- Float Classification
---
-
-local FP_normal = 0
-local FP_subnormal = 1
-local FP_zero = 2
-local FP_infinite = 3
-local FP_nan = 4
-
 --Provides: caml_classify_float
 function caml_classify_float(x)
+  -- FP_nan = 4, FP_infinite = 3, FP_zero = 2, FP_subnormal = 1, FP_normal = 0
   if x ~= x then
-    return FP_nan
+    return 4  -- FP_nan
   end
-  if x == INFINITY or x == NEG_INFINITY then
-    return FP_infinite
+  if x == math.huge or x == -math.huge then
+    return 3  -- FP_infinite
   end
   if x == 0 then
-    return FP_zero
+    return 2  -- FP_zero
   end
   -- Lua doesn't distinguish subnormal from normal
   -- We approximate: very small numbers are subnormal
   local abs_x = math.abs(x)
   if abs_x < 2.2250738585072014e-308 then
-    return FP_subnormal
+    return 1  -- FP_subnormal
   end
-  return FP_normal
+  return 0  -- FP_normal
 end
 
 
@@ -62,9 +45,9 @@ function caml_frexp_float(x)
     return {0, 0}
   end
   if x ~= x then
-    return {NAN, 0}
+    return {0/0, 0}  -- NAN
   end
-  if x == INFINITY or x == NEG_INFINITY then
+  if x == math.huge or x == -math.huge then
     return {x, 0}
   end
 
@@ -115,7 +98,7 @@ function caml_nextafter_float(x, y)
     return x
   end
   if x ~= x or y ~= y then
-    return NAN
+    return 0/0  -- NAN
   end
 
   -- Simple approximation using epsilon
@@ -163,12 +146,12 @@ end
 
 --Provides: caml_is_infinite
 function caml_is_infinite(x)
-  return x == INFINITY or x == NEG_INFINITY
+  return x == math.huge or x == -math.huge
 end
 
 --Provides: caml_is_finite
 function caml_is_finite(x)
-  return x == x and x ~= INFINITY and x ~= NEG_INFINITY
+  return x == x and x ~= math.huge and x ~= -math.huge
 end
 
 
@@ -335,10 +318,10 @@ function caml_format_float(fmt, x)
   if x ~= x then
     return "nan"
   end
-  if x == INFINITY then
+  if x == math.huge then
     return "inf"
   end
-  if x == NEG_INFINITY then
+  if x == -math.huge then
     return "-inf"
   end
   return string.format(fmt, x)
@@ -350,10 +333,10 @@ function caml_hexstring_of_float(x)
   if x ~= x then
     return "nan"
   end
-  if x == INFINITY then
+  if x == math.huge then
     return "infinity"
   end
-  if x == NEG_INFINITY then
+  if x == -math.huge then
     return "-infinity"
   end
   if x == 0 then
@@ -395,13 +378,13 @@ end
 function caml_float_of_string(s)
   -- Parse float from string
   if s == "nan" or s == "NaN" then
-    return NAN
+    return 0/0  -- NAN
   end
   if s == "inf" or s == "infinity" or s == "+inf" or s == "+infinity" then
-    return INFINITY
+    return math.huge  -- INFINITY
   end
   if s == "-inf" or s == "-infinity" then
-    return NEG_INFINITY
+    return -math.huge  -- NEG_INFINITY
   end
 
   local num = tonumber(s)

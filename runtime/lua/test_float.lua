@@ -273,7 +273,9 @@ assert_nan(caml_nextafter_float(nan, 1.0), "nextafter with NaN")
 
 -- Zero sign handling
 assert_eq(caml_copysign_float(1.0, 0.0), 1.0, "copysign +0")
-assert_eq(caml_copysign_float(1.0, -0.0), -1.0, "copysign -0")
+-- Lua 5.1: -0.0 literal doesn't preserve sign, use -1.0 / math.huge instead
+local neg_zero = -1.0 / math.huge
+assert_eq(caml_copysign_float(1.0, neg_zero), -1.0, "copysign -0")
 
 -- Large values
 local large = 1e308
