@@ -34,7 +34,7 @@ js_of_ocaml handles this elegantly:
 ## Master Checklist
 
 ### Phase 1: Analysis and Design
-- [ ] Task 1.1: Analyze js_of_ocaml's function calling conventions
+- [x] Task 1.1: Analyze js_of_ocaml's function calling conventions
 - [ ] Task 1.2: Document OCaml function representation requirements
 - [ ] Task 1.3: Design Lua function calling strategy
 - [ ] Task 1.4: Design arity tracking system
@@ -76,7 +76,7 @@ js_of_ocaml handles this elegantly:
 
 ### Phase 1: Analysis and Design
 
-#### Task 1.1: Analyze js_of_ocaml's function calling conventions
+#### Task 1.1: Analyze js_of_ocaml's function calling conventions ✅
 **Estimated Lines**: 50 (analysis/documentation)
 **Deliverable**: Document analyzing `compiler/lib/generate.ml` function application
 
@@ -88,6 +88,102 @@ js_of_ocaml handles this elegantly:
 5. Document the conditional logic for direct vs indirect calls
 
 **Success Criteria**: Clear understanding of JS approach documented in PARTIAL.md
+
+---
+
+## Analysis Results (Task 1.1)
+
+### Function Application in js_of_ocaml
+
+**Location**: `compiler/lib/generate.ml:1048-1126` (`apply_fun_raw` function)
+
+#### Key Components:
+
+1. **The `exact` flag** (lines 1071-1096):
+   - When `exact = true`: Direct function call without arity check
+     ```javascript
+     // Generated: f(a1, a2, a3)
+     apply_directly real_closure params
+     ```
+   - When `exact = false`: Conditional call with runtime arity check
+     ```javascript
+     // Generated:
+     // (f.l >= 0 ? f.l : f.l === f.length) === params.length
+     //   ? f(a1, a2, a3)
+     //   : caml_call_gen(f, [a1, a2, a3])
+     ```
+
+2. **Function arity representation** (lines 1074-1084):
+   - Functions have a `.l` property indicating their arity
+   - Arity check logic:
+     - `f.l >= 0` → Direct arity stored
+     - `f.l === f.length` → Arity equals JS function length (fallback)
+     - Compare against `params.length`
+   - **Critical insight**: Not all functions have `.l` property! The check handles both cases.
+
+3. **When `caml_call_gen` is called** (lines 1087-1096):
+   - Called when: `exact = false` AND arity doesn't match parameter count
+   - Handles three cases:
+     - **Under-application** (partial application): fewer args than arity
+     - **Exact application**: args match arity (but took slow path)
+     - **Over-application**: more args than arity (curry then apply)
+   - Signature: `caml_call_gen(f, [arg1, arg2, ...])`
+   - CPS variant: `caml_call_gen_cps(f, [args])` when effects are enabled
+
+4. **Direct vs indirect calls** (lines 1051-1058):
+   - **Direct calls**: Simple `f(args)`
+   - **Method call workaround**: When `f` is `obj.method` or `obj[key]`:
+     ```javascript
+     f.call(null, args)  // Ensure 'this' is not bound
+     ```
+
+5. **CPS handling** (lines 1059-1111):
+   - Functions can have `.cps` property (for effect handlers)
+   - When `cps = true` and effects enabled: use `f.cps` instead of `f`
+   - Double translation mode: check if `.cps` exists at runtime
+
+6. **Trampolined calls** (lines 1112-1126):
+   - For tail call optimization with effects
+   - Check stack depth: `caml_stack_check_depth()`
+   - If deep: bounce to trampoline: `caml_trampoline_return(f, [args], is_cps)`
+   - Otherwise: regular apply
+
+### Key Patterns for Lua Implementation:
+
+1. **Three-tier strategy confirmed**:
+   - Tier 1: `exact = true` → Direct call (fastest)
+   - Tier 2: `exact = false` + arity match → Direct call after check
+   - Tier 3: `exact = false` + arity mismatch → `caml_call_gen`
+
+2. **Arity encoding flexibility**:
+   - Can use `.l` property OR function length
+   - JavaScript checks `f.l >= 0 ? f.l : f.l === f.length`
+   - Lua equivalent: check for `.l` field in function table
+
+3. **No universal wrapping**:
+   - Functions are NOT automatically wrapped in `{l=..., f=...}` tables
+   - Wrapping is selective based on need for partial application
+   - Primitives appear to be unwrapped (checking from context)
+
+4. **Runtime `caml_call_gen` contract**:
+   - Must handle variable argument count
+   - Must detect under/exact/over application
+   - Must build closures for partial application
+   - Returns result for exact/over, returns closure for under
+
+5. **Effect handler integration**:
+   - Optional `.cps` variant of functions
+   - Compile-time knowledge (`in_cps` flag) from Effects.ml pass
+   - Runtime dispatch based on `.cps` presence
+
+### Implications for Lua:
+
+1. **Don't wrap all functions** - Only wrap when needed for currying
+2. **Use table field for arity** - `{l = arity, f = function}` when wrapped
+3. **Implement arity check helper** - Conditional application needs this
+4. **Runtime `caml_call_gen` is critical** - Must handle all edge cases
+5. **Preserve `exact` flag semantics** - Optimization opportunity
+6. **Keep primitives unwrapped** - Direct Lua function calls for performance
 
 ---
 
