@@ -737,9 +737,10 @@ let rec generate_expr ctx expr =
       let arg_exprs = List.map ~f:(var_ident ctx) args in
       if exact
       then
-        (* Exact call - we know we have the right number of arguments
-           OCaml functions are wrapped as {l = arity, f = function}, so call .f *)
-        L.Call (L.Index (func_expr, L.String "f"), arg_exprs)
+        (* Direct call (exact=true) - we know we have the right number of arguments
+           OCaml functions are wrapped as {l = arity, [1] = function}
+           Call the function directly from index [1] *)
+        L.Call (L.Index (func_expr, L.Number "1"), arg_exprs)
       else
         (* Non-exact call - use caml_call_gen to handle partial application *)
         L.Call (L.Ident "caml_call_gen", [ func_expr; L.Table (List.map ~f:(fun e -> L.Array_field e) arg_exprs) ])
@@ -1091,12 +1092,13 @@ and generate_closure ctx params pc =
              Each closure gets its own _V table if needed (>180 vars) *)
           let body_stmts = compile_blocks_with_labels closure_ctx program pc ~params () in
 
-          (* Wrap the function in OCaml function format: {l = arity, f = function}
-             This allows caml_call_gen to handle partial application *)
+          (* Wrap the function in OCaml function format: {l = arity, [1] = function}
+             This allows caml_call_gen to handle partial application
+             Function is at index 1, arity is in .l property *)
           let lua_func = L.Function (param_names, false, body_stmts) in
           L.Table
             [ L.Rec_field ("l", L.Number (string_of_int (List.length params)))
-            ; L.Rec_field ("f", lua_func)
+            ; L.Array_field lua_func
             ])
 
 (** Generate argument passing code for block continuation

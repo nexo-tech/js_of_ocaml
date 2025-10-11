@@ -46,9 +46,9 @@ js_of_ocaml handles this elegantly:
 - [x] Task 2.4: Add runtime tests for partial application
 
 ### Phase 3: Code Generation - Direct Calls (Tier 1)
-- [ ] Task 3.1: Generate direct calls for exact=true
+- [x] Task 3.1: Generate direct calls for exact=true
 - [ ] Task 3.2: Never wrap primitive calls
-- [ ] Task 3.3: Add .l property to user-defined closures
+- [x] Task 3.3: Add .l property to user-defined closures
 - [ ] Task 3.4: Test direct call generation
 
 ### Phase 4: Code Generation - Conditional Calls (Tier 2)
@@ -1049,19 +1049,25 @@ end
 
 ### Phase 3: Code Generation - Direct Calls (Tier 1)
 
-#### Task 3.1: Generate direct calls for exact=true
+#### Task 3.1: Generate direct calls for exact=true ✅
 **Estimated Lines**: 100
 **Deliverable**: Direct call generation in lua_generate.ml
 
 **File**: `compiler/lib-lua/lua_generate.ml`
 
 **Actions**:
-1. In translate_expr for Apply { exact=true }, generate L.Call(f, args)
-2. No wrapping, no arity check
-3. Handle both Var and Prim cases
-4. Add comment: "Direct call (exact=true)"
+1. In translate_expr for Apply { exact=true }, generate L.Call(f[1], args) ✅
+2. No wrapping, no arity check ✅
+3. Handle both Var and Prim cases ✅
+4. Add comment: "Direct call (exact=true)" ✅
 
-**Success Criteria**: Exact calls compile to direct Lua calls
+**Implementation**:
+- Functions wrapped as `{l = arity, [1] = function}` (lua_generate.ml:1099-1101)
+- exact=true calls use `f[1](args)` for direct access (lua_generate.ml:743)
+- Runtime expects function at index 1 (fun.lua:26)
+- All 26 runtime tests passing
+
+**Success Criteria**: Exact calls compile to direct Lua calls ✅
 
 ---
 
@@ -1081,19 +1087,24 @@ end
 
 ---
 
-#### Task 3.3: Add .l property to user-defined closures
+#### Task 3.3: Add .l property to user-defined closures ✅
 **Estimated Lines**: 80
 **Deliverable**: Arity annotation on closures
 
 **File**: `compiler/lib-lua/lua_generate.ml`
 
 **Actions**:
-1. After generating L.Function, emit assignment: `closure.l = arity`
-2. Arity = List.length params from Code.Closure
-3. Use L.Assign to set property
-4. Only for non-primitive closures
+1. After generating L.Function, wrap in table: `{l = arity, [1] = function}` ✅
+2. Arity = List.length params from Code.Closure ✅
+3. Use L.Table with L.Rec_field and L.Array_field ✅
+4. Only for non-primitive closures ✅
 
-**Success Criteria**: Generated closures have .l property set
+**Implementation**:
+- Closures wrapped as `{l = arity, [1] = lua_func}` (lua_generate.ml:1099-1101)
+- Format: `L.Table [L.Rec_field ("l", L.Number arity); L.Array_field lua_func]`
+- Function stored at array index 1 (Lua 5.1 compatibility)
+
+**Success Criteria**: Generated closures have .l property set ✅
 
 ---
 
