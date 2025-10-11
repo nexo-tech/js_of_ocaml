@@ -122,122 +122,124 @@ function caml_compare_val(a, b, total)
   local stack = {}
 
   while true do
-    if not (total and a == b) then
-      local tag_a = caml_compare_tag(a)
+    -- Use repeat-until to enable breaking out and restarting the outer loop
+    repeat
+      if not (total and a == b) then
+        local tag_a = caml_compare_tag(a)
 
-      if tag_a == 250 and caml_is_ocaml_block(a) then
-        a = a[1]
-        goto continue
-      end
-
-      local tag_b = caml_compare_tag(b)
-
-      if tag_b == 250 and caml_is_ocaml_block(b) then
-        b = b[1]
-        goto continue
-      end
-
-      if tag_a ~= tag_b then
-        if tag_a < tag_b then
-          return -1
-        else
-          return 1
+        if tag_a == 250 and caml_is_ocaml_block(a) then
+          a = a[1]
+          break  -- Restart outer loop
         end
-      end
 
-      if tag_a == 1000 then
-        local result = caml_compare_numbers(a, b)
-        if result ~= 0 then
-          return result
+        local tag_b = caml_compare_tag(b)
+
+        if tag_b == 250 and caml_is_ocaml_block(b) then
+          b = b[1]
+          break  -- Restart outer loop
         end
-      elseif tag_a == 12520 then
-        if a < b then
-          return -1
-        elseif a > b then
-          return 1
+
+        if tag_a ~= tag_b then
+          if tag_a < tag_b then
+            return -1
+          else
+            return 1
+          end
         end
-      elseif tag_a == 252 then
-        if a ~= b then
-          local result = caml_compare_ocaml_strings(a, b)
+
+        if tag_a == 1000 then
+          local result = caml_compare_numbers(a, b)
           if result ~= 0 then
             return result
           end
-        end
-      elseif tag_a == 1002 then
-        if a ~= b then
-          if not a then
+        elseif tag_a == 12520 then
+          if a < b then
             return -1
-          else
+          elseif a > b then
             return 1
           end
-        end
-      elseif tag_a == 1003 then
-      elseif tag_a == 1247 then
-        error("compare: functional value")
-      elseif tag_a == 1001 or tag_a == 1004 then
-        if a < b then
-          return -1
-        elseif a > b then
-          return 1
-        elseif a ~= b then
-          if total then
-            return 1
-          else
-            error("compare: incomparable values")
+        elseif tag_a == 252 then
+          if a ~= b then
+            local result = caml_compare_ocaml_strings(a, b)
+            if result ~= 0 then
+              return result
+            end
           end
-        end
-      elseif tag_a == 248 then
-        if caml_is_ocaml_block(a) and caml_is_ocaml_block(b) then
-          local id_a = a[2] or 0
-          local id_b = b[2] or 0
-          if id_a < id_b then
-            return -1
-          elseif id_a > id_b then
-            return 1
-          end
-        end
-      else
-        if caml_is_ocaml_block(a) and caml_is_ocaml_block(b) then
-          local len_a = #a
-          local len_b = #b
-
-          if len_a ~= len_b then
-            if len_a < len_b then
+        elseif tag_a == 1002 then
+          if a ~= b then
+            if not a then
               return -1
             else
               return 1
             end
           end
-
-          if len_a > 0 then
-            if len_a > 1 then
-              table.insert(stack, {a = a, b = b, i = 2})
+        elseif tag_a == 1003 then
+        elseif tag_a == 1247 then
+          error("compare: functional value")
+        elseif tag_a == 1001 or tag_a == 1004 then
+          if a < b then
+            return -1
+          elseif a > b then
+            return 1
+          elseif a ~= b then
+            if total then
+              return 1
+            else
+              error("compare: incomparable values")
             end
-            a = a[1]
-            b = b[1]
-            goto continue
+          end
+        elseif tag_a == 248 then
+          if caml_is_ocaml_block(a) and caml_is_ocaml_block(b) then
+            local id_a = a[2] or 0
+            local id_b = b[2] or 0
+            if id_a < id_b then
+              return -1
+            elseif id_a > id_b then
+              return 1
+            end
+          end
+        else
+          if caml_is_ocaml_block(a) and caml_is_ocaml_block(b) then
+            local len_a = #a
+            local len_b = #b
+
+            if len_a ~= len_b then
+              if len_a < len_b then
+                return -1
+              else
+                return 1
+              end
+            end
+
+            if len_a > 0 then
+              if len_a > 1 then
+                table.insert(stack, {a = a, b = b, i = 2})
+              end
+              a = a[1]
+              b = b[1]
+              break  -- Restart outer loop
+            end
           end
         end
       end
-    end
 
-    if #stack == 0 then
-      return 0
-    end
+      -- If we reach here, we didn't break, so handle stack
+      if #stack == 0 then
+        return 0
+      end
 
-    local frame = table.remove(stack)
-    local parent_a = frame.a
-    local parent_b = frame.b
-    local i = frame.i
+      local frame = table.remove(stack)
+      local parent_a = frame.a
+      local parent_b = frame.b
+      local i = frame.i
 
-    if i + 1 <= #parent_a then
-      table.insert(stack, {a = parent_a, b = parent_b, i = i + 1})
-    end
+      if i + 1 <= #parent_a then
+        table.insert(stack, {a = parent_a, b = parent_b, i = i + 1})
+      end
 
-    a = parent_a[i]
-    b = parent_b[i]
-
-    ::continue::
+      a = parent_a[i]
+      b = parent_b[i]
+    until true  -- Single iteration, but allows break to restart outer loop
   end
 end
 

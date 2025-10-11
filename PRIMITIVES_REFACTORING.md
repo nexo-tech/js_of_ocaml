@@ -610,14 +610,30 @@
 
 **PREREQUISITES**: These modules need refactoring before full runtime functionality
 
-- [ ] Task 8.3: Refactor `compare.lua` - comparison primitives (1 hour + tests)
-  - **FAILING TEST**: test_compare.lua
-  - **CURRENT STATE**: Uses module pattern with require("core")
-  - **FUNCTIONS TO REFACTOR**:
-    - caml_compare, caml_equal, caml_notequal
-    - caml_lessthan, caml_lessequal, caml_greaterthan, caml_greaterequal
-    - caml_compare_val (polymorphic comparison)
-  - **IMPLEMENTATION**: Follow refactoring pattern (global functions, --Provides directives)
+- [x] Task 8.3: Refactor `compare.lua` - comparison primitives (1 hour + tests) ✓
+  - **ISSUE**: compare.lua used `goto` statements (Lua 5.2+), not compatible with Lua 5.1
+  - **ROOT CAUSE**: caml_compare_val used `goto continue` to restart main loop
+    - Lua 5.1 doesn't support goto statements (added in Lua 5.2)
+    - Test failed with "'=' expected near 'continue'" syntax error
+  - **SOLUTION**: Refactored control flow to use repeat-until pattern
+    - Wrapped main comparison logic in `repeat ... until true` loop
+    - Replaced `goto continue` with `break` to restart outer while loop
+    - Stack-popping code only executes if we don't break
+    - Maintains identical behavior, fully Lua 5.1 compatible
+  - **REFACTORED FUNCTIONS** (16 functions, already had --Provides directives):
+    - Helper functions: caml_is_ocaml_string, caml_is_ocaml_block, caml_compare_tag
+    - Comparison helpers: caml_compare_ocaml_strings, caml_compare_numbers
+    - Main comparison: caml_compare_val (refactored), caml_compare
+    - Type-specific: caml_int_compare, caml_int32_compare, caml_nativeint_compare, caml_float_compare
+    - Relational operators: caml_equal, caml_notequal, caml_lessthan, caml_lessequal, caml_greaterthan, caml_greaterequal
+    - Min/max: caml_min, caml_max
+  - **VERIFICATION**:
+    - ✓ test_compare.lua: **73/73 tests pass (100%)** (was failing with syntax error)
+    - ✓ test_array.lua: **29/29 tests pass (100%)** - no regressions
+    - ✓ test_list.lua: all tests pass - no regressions
+    - ✓ test_option.lua: all tests pass - no regressions
+    - ✓ test_result.lua: all tests pass - no regressions
+  - **FILES MODIFIED**: compare.lua (caml_compare_val function)
 
 - [ ] Task 8.4: Refactor `float.lua` - floating point primitives (1 hour + tests)
   - **FAILING TEST**: test_float.lua
@@ -830,9 +846,9 @@ These tests validate compatibility and performance but don't require refactoring
 - Phase 6: test_lexing.lua, test_digest.lua, test_bigarray.lua
 - Marshal: test_marshal_header.lua, test_marshal_io.lua, test_marshal_int.lua, test_marshal_string.lua, test_marshal_block.lua, test_marshal_blocks.lua, test_marshal_value.lua, test_marshal_sharing.lua, test_marshal_double.lua, test_marshal_public.lua
 - I/O: test_io_marshal.lua, test_io_integration.lua
+- Core: test_compare.lua
 
-**NEEDS REFACTORING - CORE (6 files)**:
-- test_compare.lua (Task 8.3)
+**NEEDS REFACTORING - CORE (5 files)**:
 - test_float.lua (Task 8.4)
 - test_hash.lua (Task 8.5)
 - test_sys.lua (Task 8.6)
