@@ -48,7 +48,7 @@
               libiconv         # for sedlex/Unicode
 
               # Lua runtime for lua_of_ocaml
-              lua5_4
+              lua5_1
 
               # Build tools
               gnumake
@@ -67,6 +67,7 @@
               jq
               ripgrep
               fd
+              just
               bat
 
               # Benchmarking tools
@@ -207,3 +208,4 @@
         };
       });
 }
+
