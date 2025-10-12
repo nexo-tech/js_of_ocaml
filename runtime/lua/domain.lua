@@ -47,18 +47,22 @@ end
 
 --Provides: caml_atomic_load
 function caml_atomic_load(ref)
-  return ref[1]
+  -- Atomic references are blocks with tag 0: {0, value}
+  -- With new array representation, ref[1] = tag, ref[2] = value
+  return ref[2]
 end
 
 --Provides: caml_atomic_load_field
 function caml_atomic_load_field(b, i)
-  return b[i + 1]
+  -- Fields are at index i+2 (1-indexed array, tag at index 1)
+  return b[i + 2]
 end
 
 --Provides: caml_atomic_cas
 function caml_atomic_cas(ref, o, n)
-  if ref[1] == o then
-    ref[1] = n
+  -- Compare-and-swap on ref[2] (the value, not the tag)
+  if ref[2] == o then
+    ref[2] = n
     return 1
   end
   return 0
@@ -66,8 +70,9 @@ end
 
 --Provides: caml_atomic_cas_field
 function caml_atomic_cas_field(b, i, o, n)
-  if b[i + 1] == o then
-    b[i + 1] = n
+  -- Field at index i+2 (skip tag at index 1)
+  if b[i + 2] == o then
+    b[i + 2] = n
     return 1
   end
   return 0
@@ -75,29 +80,33 @@ end
 
 --Provides: caml_atomic_fetch_add
 function caml_atomic_fetch_add(ref, i)
-  local old = ref[1]
-  ref[1] = ref[1] + i
+  -- Fetch-and-add on ref[2] (the value)
+  local old = ref[2]
+  ref[2] = ref[2] + i
   return old
 end
 
 --Provides: caml_atomic_fetch_add_field
 function caml_atomic_fetch_add_field(b, i, n)
-  local old = b[i + 1]
-  b[i + 1] = b[i + 1] + n
+  -- Field at index i+2
+  local old = b[i + 2]
+  b[i + 2] = b[i + 2] + n
   return old
 end
 
 --Provides: caml_atomic_exchange
 function caml_atomic_exchange(ref, v)
-  local r = ref[1]
-  ref[1] = v
+  -- Exchange value at ref[2]
+  local r = ref[2]
+  ref[2] = v
   return r
 end
 
 --Provides: caml_atomic_exchange_field
 function caml_atomic_exchange_field(b, i, v)
-  local r = b[i + 1]
-  b[i + 1] = v
+  -- Field at index i+2
+  local r = b[i + 2]
+  b[i + 2] = v
   return r
 end
 

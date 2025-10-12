@@ -40,6 +40,13 @@
  (preprocess (pps ppx_expect)))
 
 (library
+ (name test_closures)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_closures)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
  (name test_conditional_calls)
  (libraries lua_of_ocaml_compiler str)
  (modules test_conditional_calls)
@@ -306,6 +313,27 @@
  (preprocess (pps ppx_expect)))
 
 (library
+ (name test_lua_fixes)
+ (libraries lua_of_ocaml_compiler unix)
+ (modules test_lua_fixes)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_hoisting_fix)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_hoisting_fix)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_closure_handling)
+ (libraries lua_of_ocaml_compiler unix)
+ (modules test_closure_handling)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
  (name test_variable_table)
  (libraries lua_of_ocaml_compiler unix str)
  (modules test_variable_table)
@@ -348,6 +376,11 @@
  (name verify_hello_lua)
  (libraries unix str)
  (modules verify_hello_lua))
+
+(executable
+ (name verify_fixes)
+ (libraries lua_of_ocaml_compiler)
+ (modules verify_fixes))
 
 (rule
  (alias runtest)

@@ -132,3 +132,8 @@ val compile_blocks_with_labels :
     @param program OCaml IR program
     @param start_addr Starting block address
     @return List of Lua statements with hoisted variables and labeled blocks *)
+
+val generate_runtime_inline : unit -> string
+(** [generate_runtime_inline ()] generates the minimal runtime code needed for basic operations.
+    This includes core runtime functions like caml_register_global, caml_make_closure, etc.
+    @return Runtime code as a string to be prepended to generated Lua output *)

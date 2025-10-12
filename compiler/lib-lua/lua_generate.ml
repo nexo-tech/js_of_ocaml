@@ -874,50 +874,24 @@ and generate_instrs ctx instrs =
     @return Set of variable names (v_N format) that need hoisting
 *)
 and collect_block_variables ctx program start_addr =
-  (* Collect variables referenced in an expression - RECURSIVE for closures *)
-  let rec collect_expr_refs acc = function
-    | Code.Constant _ -> acc
-    | Code.Apply { f; args; _ } ->
-        let acc = StringSet.add (var_name ctx f) acc in
-        List.fold_left ~f:(fun a v -> StringSet.add (var_name ctx v) a) ~init:acc args
-    | Code.Block (_, vars, _, _) ->
-        Array.fold_left ~f:(fun a v -> StringSet.add (var_name ctx v) a) ~init:acc vars
-    | Code.Field (v, _, _) ->
-        StringSet.add (var_name ctx v) acc
-    | Code.Closure (captured, (addr, _params), _) ->
-        (* CRITICAL: Recursively collect from nested closure body.
-           This is THE KEY FIX for the variable scoping issue.
-           Steps:
-           1. Collect captured variables (what this closure needs from parent)
-           2. Recursively collect ALL variables from closure body (including grandchildren)
-           3. Union results - parent now knows about ALL descendant variables
-           Note: cont is (addr, params) tuple - we only need addr for recursion *)
-        let acc = List.fold_left ~f:(fun a v -> StringSet.add (var_name ctx v) a) ~init:acc captured in
-        let nested_vars = collect_block_variables ctx program addr in
-        StringSet.union acc nested_vars
-    | Code.Prim (_, args) ->
-        List.fold_left ~f:(fun a -> function
-          | Code.Pv v -> StringSet.add (var_name ctx v) a
-          | Code.Pc _ -> a) ~init:acc args
-    | Code.Special _ -> acc
-  in
-  (* Collect variables from a single instruction (assignments AND references) *)
-  let collect_instr_vars acc = function
-    | Code.Let (var, expr) ->
-        let acc = StringSet.add (var_name ctx var) acc in
-        collect_expr_refs acc expr
-    | Code.Assign (var, source_var) ->
-        (* Assign is var := source_var, both are variables *)
-        StringSet.add (var_name ctx var) (StringSet.add (var_name ctx source_var) acc)
-    | Code.Set_field (v1, _, _, v2) ->
-        StringSet.add (var_name ctx v1) (StringSet.add (var_name ctx v2) acc)
-    | Code.Array_set (v1, v2, v3) ->
-        let acc = StringSet.add (var_name ctx v1) acc in
-        let acc = StringSet.add (var_name ctx v2) acc in
-        StringSet.add (var_name ctx v3) acc
-    | Code.Offset_ref (v, _) ->
-        StringSet.add (var_name ctx v) acc
-    | Code.Event _ -> acc
+  (* FIXED: Only collect variables DEFINED in this function's blocks.
+     DO NOT collect:
+     - Captured variables from closures (they come from parent scope)
+     - Variables from nested closure bodies (they have their own scope)
+
+     This matches JavaScript's behavior where each function has its own scope. *)
+
+  (* Only collect variables DEFINED by instructions *)
+  let collect_defined_vars acc = function
+    | Code.Let (var, _expr) ->
+        (* Variable is defined by Let - add it *)
+        StringSet.add (var_name ctx var) acc
+    | Code.Assign (var, _source) ->
+        (* Variable is defined by assignment - add left side only *)
+        StringSet.add (var_name ctx var) acc
+    | Code.Set_field _ | Code.Array_set _ | Code.Offset_ref _ | Code.Event _ ->
+        (* These don't define new variables *)
+        acc
   in
   (* Collect all reachable blocks (reuse existing logic) *)
   let rec collect_reachable visited addr =
@@ -946,13 +920,8 @@ and collect_block_variables ctx program start_addr =
       match Code.Addr.Map.find_opt addr program.Code.blocks with
       | None -> acc
       | Some block ->
-          (* Collect from block body *)
-          let acc = List.fold_left ~f:collect_instr_vars ~init:acc block.Code.body in
-          (* Also collect from branch condition *)
-          match block.Code.branch with
-          | Code.Cond (v, _, _) | Code.Switch (v, _) | Code.Raise (v, _) | Code.Return v ->
-              StringSet.add (var_name ctx v) acc
-          | Code.Branch _ | Code.Pushtrap _ | Code.Poptrap _ | Code.Stop -> acc)
+          (* Only collect variables DEFINED in this block *)
+          List.fold_left ~f:collect_defined_vars ~init:acc block.Code.body)
     reachable
     StringSet.empty
 
@@ -1712,29 +1681,36 @@ let generate_standalone ctx program =
   (* 1. Track which primitives are used *)
   let used_primitives = collect_used_primitives program in
 
-  (* 2. Load runtime modules - find source tree runtime directory *)
+  (* 2. Load runtime modules from compile-time embedded path *)
+  (* The runtime directory path should be resolved at compile time, not runtime.
+     We use Sys.executable_name to find the compiler location and then
+     look for runtime files relative to that. *)
   let find_runtime_dir () =
-    (* Try to find the js_of_ocaml source tree by looking for dune-project *)
-    let rec find_project_root dir depth =
-      if depth > 10 then None (* Prevent infinite loop *)
-      else if Sys.file_exists (Filename.concat dir "dune-project") then
-        let runtime_dir = Filename.concat dir "runtime/lua" in
-        if Sys.file_exists runtime_dir && Sys.is_directory runtime_dir
-        then Some runtime_dir
-        else None
-      else
-        let parent = Filename.dirname dir in
-        if String.equal parent dir then None (* Reached filesystem root *)
-        else find_project_root parent (depth + 1)
-    in
-    (* Start from current working directory *)
-    find_project_root (Sys.getcwd ()) 0
+    let exe_dir = Filename.dirname Sys.executable_name in
+    (* Try multiple possible locations relative to the executable *)
+    let possible_paths = [
+      (* If running from _build directory *)
+      Filename.concat exe_dir "../../../../runtime/lua";
+      (* If installed *)
+      Filename.concat exe_dir "../share/lua_of_ocaml/runtime";
+      (* Development: direct path from project root *)
+      "runtime/lua";
+      (* Fallback: environment variable *)
+      (try Sys.getenv "LUA_OF_OCAML_RUNTIME" with Not_found -> "")
+    ] in
+    List.find_opt ~f:(fun path ->
+      not (String.equal path "") && Sys.file_exists path && Sys.is_directory path
+    ) possible_paths
   in
   let fragments =
     match find_runtime_dir () with
-    | Some runtime_dir -> Lua_link.load_runtime_dir runtime_dir
+    | Some runtime_dir ->
+        Lua_link.load_runtime_dir runtime_dir
     | None ->
-        (* Runtime directory not found - continue without runtime modules *)
+        (* Runtime directory not found - issue warning and continue *)
+        if not (StringSet.is_empty used_primitives) then
+          Printf.eprintf "Warning: Runtime directory not found. Generated code may not work.\n\
+                          Set LUA_OF_OCAML_RUNTIME environment variable to runtime/lua directory.\n";
         []
   in
 
@@ -1874,3 +1850,58 @@ let generate_module_code ~debug ~module_name program =
 let generate_to_string ~debug program =
   let lua_program = generate ~debug program in
   Lua_output.program_to_string lua_program
+
+(** Generate runtime inline code as string
+    Returns the minimal runtime needed for basic operations
+    @return Runtime code as string
+*)
+let generate_runtime_inline () =
+  (* Load runtime files from the Lua runtime directory *)
+  let runtime_dir = "runtime/lua" in
+  let fragments =
+    try Lua_link.load_runtime_dir runtime_dir
+    with _ ->
+      (* If runtime directory not found, return empty list *)
+      []
+  in
+
+  (* Create a map of fragment name to fragment *)
+  let fragment_map =
+    List.fold_left ~f:(fun acc frag ->
+      let basename = Filename.remove_extension frag.Lua_link.name in
+      StringMap.add basename frag acc
+    ) ~init:StringMap.empty fragments
+  in
+
+  (* Essential runtime modules in dependency order *)
+  let basic_runtime = [
+    "core";
+    "ints";
+    "closure";  (* Add closure for caml_make_closure *)
+    "weak";
+    "obj";
+    "array";
+    "io";
+    "sys";
+    "format";
+    "effect";
+    "trampoline";
+    "domain"
+  ] in
+
+  (* Collect runtime code for essential modules *)
+  let runtime_code =
+    List.filter_map ~f:(fun name ->
+      StringMap.find_opt name fragment_map
+    ) basic_runtime
+    |> List.map ~f:(fun fragment ->
+      Printf.sprintf "-- Runtime: %s\n%s" fragment.Lua_link.name fragment.Lua_link.code)
+    |> String.concat ~sep:"\n"
+  in
+
+  (* Get inline runtime statements and convert to string *)
+  let inline_runtime_stmts = generate_inline_runtime () in
+  let inline_runtime_str = Lua_output.program_to_string inline_runtime_stmts in
+
+  (* Combine inline runtime and module runtime *)
+  inline_runtime_str ^ "\n-- \n" ^ runtime_code

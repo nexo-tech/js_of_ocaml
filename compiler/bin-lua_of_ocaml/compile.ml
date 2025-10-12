@@ -73,6 +73,7 @@ let run { Cmd_arg.common; bytecode; output_file; params; include_dirs; linkall; 
   (* Generate Lua code with debug info if needed *)
   let lua_code = Lua_generate.generate ~debug:need_debug p in
   if times () then Format.eprintf "generation: %a@." Timer.print t;
+
   let (lua_string, source_map_info_opt) =
     if enable_source_map
     then (

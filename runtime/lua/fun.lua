@@ -18,16 +18,24 @@
 --Provides: caml_call_gen
 --Requires: caml_make_closure
 function caml_call_gen(f, args)
-  -- Get arity and actual function
-  -- f can be either a plain function (no arity info) or a table {l=arity, [...]}
+  -- Normalize f to ensure consistent handling
+  -- f can be:
+  --   1. A wrapped closure from caml_make_closure: {l=arity, [1]=fn} with __closure metatable
+  --   2. A plain function (shouldn't happen in normal operation)
+  --   3. Another table with .l property (from partial application)
+
   local n, actual_f
+
+  -- Check if f is a table with .l property (matches JavaScript f.l)
   if type(f) == "table" and f.l then
     n = f.l
-    -- Find the actual function: check if table is callable or has explicit function
+
+    -- Check if it's one of our wrapped closures or has function at [1]
     if type(f[1]) == "function" then
+      -- It has a function at [1], use it
       actual_f = f[1]
     else
-      -- Table might be callable via metatable
+      -- f itself might be callable via metatable
       local mt = getmetatable(f)
       if mt and mt.__call then
         actual_f = f
@@ -36,6 +44,7 @@ function caml_call_gen(f, args)
       end
     end
   elseif type(f) == "function" then
+    -- Plain function - shouldn't happen in normal OCaml code
     error("caml_call_gen: plain function has no arity information")
   else
     error("caml_call_gen: not a function or callable table")
@@ -56,12 +65,12 @@ function caml_call_gen(f, args)
     end
     local g = actual_f(unpack(first_args))
 
-    -- If result is not a function or callable, return it
+    -- If result is not a function or callable table, return it
     if type(g) ~= "function" and type(g) ~= "table" then
       return g
     end
 
-    -- Result is a function, apply remaining arguments recursively
+    -- Result is a function/callable, apply remaining arguments recursively
     local rest_args = {}
     for i = n + 1, argsLen do
       rest_args[#rest_args + 1] = args[i]
@@ -70,8 +79,8 @@ function caml_call_gen(f, args)
   else
     -- Under-application: not enough arguments
     -- Build a closure that captures provided args and waits for more
+    -- This matches JavaScript's partial application behavior
 
-    -- Optimize common cases: d == 1 or d == 2
     local g_fn
     if d == 1 then
       -- Need exactly 1 more argument
@@ -95,25 +104,31 @@ function caml_call_gen(f, args)
         return actual_f(unpack(nargs))
       end
     else
-      -- Need 3 or more arguments
-      -- Create vararg closure that recursively calls caml_call_gen
+      -- Need 3 or more arguments - general case
+      -- IMPORTANT FIX: We must create a new partial application closure
+      -- that will be called with the remaining arguments
       g_fn = function(...)
         local extra_args = {...}
+        -- If no args provided, JavaScript passes undefined (nil in Lua)
         if #extra_args == 0 then
-          extra_args = {nil}  -- Handle zero-arg call
+          extra_args = {nil}
         end
-        local combined = {}
+        -- Combine captured args with new args and call caml_call_gen again
+        -- BUT we need to use the ORIGINAL f with ALL accumulated args
+        local combined_args = {}
         for i = 1, argsLen do
-          combined[i] = args[i]
+          combined_args[i] = args[i]
         end
         for i = 1, #extra_args do
-          combined[argsLen + i] = extra_args[i]
+          combined_args[argsLen + i] = extra_args[i]
         end
-        return caml_call_gen(f, combined)
+        -- CRITICAL: Pass the original f (with its full arity), not the partial
+        return caml_call_gen(f, combined_args)
       end
     end
 
-    -- Return wrapped closure with arity and function
+    -- Return wrapped closure with correct arity, matching JavaScript behavior
+    -- In JavaScript: g.l = d; return g
     return caml_make_closure(d, g_fn)
   end
 end
