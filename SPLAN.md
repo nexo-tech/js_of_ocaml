@@ -121,62 +121,68 @@ let () = Printf.printf "Hello, World!\n"
 
 **KEY DISCOVERY**: The problem is NOT missing primitives! It's a code generation bug in how closure variables are initialized in the `_V` table. Must fix in `lua_generate.ml`.
 
-### Phase 2: Runtime Integration (2-4 hours)
+### Phase 2: Fix Closure Variable Initialization Bug (2-6 hours)
 
-**Goal**: Fix the connection between generated code and runtime primitives
+**Goal**: Fix the `_V` table variable initialization bug in nested closures
 
-- [ ] **Task 2.1**: Verify runtime function visibility
+**Context**: Phase 1 identified the root cause - closure variables in nested functions using `_V` table pattern are not initialized correctly. Runtime functions ARE accessible (Task 2.1 ✅), so this is a CODE GENERATION bug, not runtime integration.
+
+- [x] **Task 2.1**: Verify runtime function visibility ✅
+  - ✅ Complete: All caml_* functions are globally accessible
+  - Tested: core, array, io, format, obj, closure, fun modules
+  - Finding: Runtime is working correctly - NOT the problem!
+  - See test: `/tmp/test_runtime_complete.lua`
+
+- [ ] **Task 2.2**: Create minimal closure test case
   ```bash
-  # Test that caml_* functions are globally accessible
-  cat > /tmp/test_runtime_visibility.lua << 'EOF'
-  dofile("runtime/lua/io.lua")
-  dofile("runtime/lua/format.lua")
-  print(type(caml_ml_output_char))
-  print(type(caml_format_int))
+  # Create a minimal test that triggers the closure bug
+  cat > /tmp/test_closure_minimal.ml << 'EOF'
+  let f x =
+    let g y =
+      let h z = x + y + z in
+      h
+    in
+    g
+
+  let () = Printf.printf "%d\n" (f 1 2 3)
   EOF
-  lua /tmp/test_runtime_visibility.lua
+  just quick-test /tmp/test_closure_minimal.ml
   ```
-  - Verify: All caml_* functions are global
-  - Test: Functions can be called directly
-  - Document: Any missing or incorrectly structured functions
+  - Goal: Isolate the closure bug in simpler code than Printf
+  - Expected: Fails with nil variable error
+  - Deliverable: Minimal reproducible test case
 
-- [ ] **Task 2.2**: Test linker extraction
+- [ ] **Task 2.3**: Understand current closure generation
+  - Location: `compiler/lib-lua/lua_generate.ml`
+  - Search for: "_V", "hoisted", "closure", "captured"
+  - Understand: How `_V` table is created and populated
+  - Understand: How block arguments are passed to nested functions
+  - Compare: Generated Lua for working (print_endline) vs broken (Printf)
+  - Document: Current implementation approach
+
+- [ ] **Task 2.4**: Study js_of_ocaml closure handling
+  - Location: `compiler/lib/generate.ml`
+  - Search for: closure generation, variable capture
+  - Understand: How JS handles nested closures
+  - Compare: JS approach vs current Lua approach
+  - Document: Key differences and what Lua should do
+
+- [ ] **Task 2.5**: Implement closure initialization fix
+  - Location: `compiler/lib-lua/lua_generate.ml`
+  - Fix: Ensure `_V` table variables are initialized before use
+  - Fix: Block arguments in nested closures get correct values
+  - Fix: Initialization order respects dependencies
+  - Test: Minimal closure test case (Task 2.2)
+  - Deliverable: Closure bug fixed, minimal test passes
+
+- [ ] **Task 2.6**: Verify Printf works with fix
   ```bash
-  # Verify linker can extract caml_* functions from runtime files
-  # This tests the --Provides: parsing in lua_linker.ml
-  just inspect-lua-runtime
+  just quick-test /tmp/test_printf.ml
   ```
-  - Verify: Linker finds all --Provides: directives
-  - Check: Dependencies (--Requires:) are resolved correctly
-  - Test: Function ordering in generated code
-
-- [ ] **Task 2.3**: Fix runtime embedding in compiler
-  - Location: `compiler/lib-lua/lua_generate.ml:1328-1390`
-  - Task: Verify `embed_runtime_module` correctly extracts functions
-  - Task: Verify `generate_global_wrappers` creates proper wrappers
-  - Task: Test that generated code includes all needed primitives
-  - Deliverable: Runtime primitives properly embedded in output
-
-- [ ] **Task 2.4**: Test minimal embedded runtime
-  ```bash
-  # Compile minimal test case and verify embedded runtime
-  ocamlc -o /tmp/minimal.bc /tmp/test_minimal.ml
-  _build/default/compiler/bin-lua_of_ocaml/main_lua_of_ocaml.exe /tmp/minimal.bc -o /tmp/minimal.lua
-  # Check embedded runtime
-  grep -c "^function caml_" /tmp/minimal.lua
-  grep -c "^--Provides:" /tmp/minimal.lua
-  ```
-  - Verify: Runtime functions are embedded
-  - Count: Number of embedded primitives
-  - Test: Generated file is self-contained
-
-- [ ] **Task 2.5**: Run minimal test with embedded runtime
-  ```bash
-  lua /tmp/minimal.lua
-  ```
-  - Should print: "Hello from print_endline"
-  - If fails: Debug with `just trace-lua /tmp/minimal.lua`
-  - Deliverable: First successful OCaml→Lua execution!
+  - Should print: "Hello, World!"
+  - If fails: Debug what's still broken
+  - If works: Move to Phase 3 for any missing primitives
+  - Deliverable: Printf.printf working!
 
 ### Phase 3: Printf Primitives (2-4 hours)
 
@@ -578,7 +584,7 @@ let () = Printf.printf "Hello, World!\n"
 ### Phase Completion
 - [x] Phase 0: Environment verified ✅ (18 min)
 - [x] Phase 1: Current state assessed ✅ (45 min)
-- [ ] Phase 2: Runtime integration fixed (2-4 hours) ⬅️ **NEXT**
+- [ ] Phase 2: Fix closure variable initialization bug (2-6 hours) ⬅️ **NEXT** (Task 2.1 ✅)
 - [ ] Phase 3: Printf primitives working (2-4 hours)
 - [ ] Phase 4: I/O primitives verified (1-2 hours)
 - [ ] Phase 5: Hello world running (1-2 hours)
