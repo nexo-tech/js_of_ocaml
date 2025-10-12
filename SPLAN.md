@@ -194,22 +194,29 @@ let () = Printf.printf "Hello, World!\n"
 
   See `TASK_2_4_JS_COMPARISON.md` for complete analysis and implementation plan
 
-- [ ] **Task 2.5**: Implement closure initialization fix
-  - Location: `compiler/lib-lua/lua_generate.ml`
-  - Fix: Ensure `_V` table variables are initialized before use
-  - Fix: Block arguments in nested closures get correct values
-  - Fix: Initialization order respects dependencies
-  - Test: Minimal closure test case (Task 2.2)
-  - Deliverable: Closure bug fixed, minimal test passes
+- [x] **Task 2.5**: Implement closure initialization fix ⚠️ PARTIAL
+  - ✅ Modified `compile_blocks_with_labels` to accept `entry_args` and `func_params`
+  - ✅ Added entry block argument passing logic (lines 1141-1188)
+  - ✅ Updated `generate_closure` to pass `block_args` to hoisting logic
+  - ✅ Updated interface file (`lua_generate.mli`)
+  - ✅ Build succeeds with zero warnings
+  - ✅ Simple closures work: `test_closure_simple.ml` prints "30", `test_closure_3level.ml` works
+  - ❌ Printf still fails with different error: v270 nil instead of v273 nil
+  - See `TASK_2_5_PARTIAL_FIX.md` for detailed analysis
 
-- [ ] **Task 2.6**: Verify Printf works with fix
-  ```bash
-  just quick-test /tmp/test_printf.ml
-  ```
-  - Should print: "Hello, World!"
-  - If fails: Debug what's still broken
-  - If works: Move to Phase 3 for any missing primitives
-  - Deliverable: Printf.printf working!
+  **Success**: Entry block parameters ARE initialized correctly now!
+  **Issue**: Printf entry blocks use variables that aren't parameters
+
+- [ ] **Task 2.6**: Debug Printf-specific issue ⬅️ **REVISED**
+  - Problem: Entry block 484 uses v270 which is NOT a block parameter
+  - v270 is local variable, initialized to nil, never assigned before block 484
+  - Options:
+    1. Find correct entry block (maybe should start elsewhere?)
+    2. Initialize variables used by entry block
+    3. Investigate IR - maybe Printf IR is unusual
+  - Need to understand: Why does entry block use uninitialized variables?
+  - Compare: How does JS handle this same Printf closure?
+  - Deliverable: Understand Printf's control flow requirements
 
 ### Phase 3: Printf Primitives - ✅ PARTIAL (2 hours)
 
@@ -622,7 +629,7 @@ let () = Printf.printf "Hello, World!\n"
 ### Phase Completion
 - [x] Phase 0: Environment verified ✅ (18 min)
 - [x] Phase 1: Current state assessed ✅ (45 min)
-- [ ] Phase 2: Fix closure variable initialization bug (2-6 hours) ⬅️ **NEXT** (Tasks 2.1-2.4 ✅, 67% complete, fix identified!)
+- [ ] Phase 2: Fix closure variable initialization bug (2-6 hours) ⬅️ **IN PROGRESS** (Tasks 2.1-2.5 ✅ partial, 83% complete, Printf needs more work)
 - [ ] Phase 3: Printf primitives working (2-4 hours)
 - [ ] Phase 4: I/O primitives verified (1-2 hours)
 - [ ] Phase 5: Hello world running (1-2 hours)

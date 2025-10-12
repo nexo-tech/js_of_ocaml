@@ -1018,9 +1018,12 @@ and collect_block_variables ctx program start_addr =
     @param ctx Code generation context
     @param program Full IR program
     @param start_addr Starting block address
+    @param params Optional function parameters (for param copying to _V table)
+    @param entry_args Optional arguments to pass to entry block (for closures)
+    @param func_params Optional function parameters list (to distinguish local vs captured vars)
     @return List of Lua statements with dispatch loop
 *)
-and compile_blocks_with_labels ctx program start_addr ?(params = []) () =
+and compile_blocks_with_labels ctx program start_addr ?(params = []) ?(entry_args = []) ?(func_params = []) () =
   (* Collect all variables that need hoisting *)
   let hoisted_vars = collect_block_variables ctx program start_addr in
 
@@ -1135,6 +1138,55 @@ and compile_blocks_with_labels ctx program start_addr ?(params = []) () =
       []
   in
 
+  (* Generate entry block argument passing for closures
+     This is the FIX for the Printf bug! Entry block parameters must be
+     initialized from block_args AFTER _V table creation but BEFORE dispatch loop.
+     See TASK_2_4_JS_COMPARISON.md for full analysis. *)
+  let entry_arg_stmts =
+    if not (List.is_empty entry_args) then
+      (* Generate argument passing for entry block, similar to generate_argument_passing
+         but we do it here so it happens at the right time in the generated code *)
+      match Code.Addr.Map.find_opt start_addr program.Code.blocks with
+      | None -> []
+      | Some block ->
+          let rec build_assignments args params acc =
+            match args, params with
+            | [], [] -> List.rev acc
+            | arg_var :: rest_args, param_var :: rest_params ->
+                (* Check if arg_var is a function parameter or captured variable *)
+                let arg_name = var_name ctx arg_var in
+                let arg_expr =
+                  if List.mem ~eq:Code.Var.equal arg_var func_params
+                  then
+                    (* Function parameter - use plain local identifier *)
+                    L.Ident arg_name
+                  else
+                    (* Captured variable - use var_ident which respects _V table *)
+                    var_ident ctx arg_var
+                in
+                (* Target: use var_ident which respects use_var_table setting *)
+                let param_name = var_name ctx param_var in
+                let param_target = var_ident ctx param_var in
+                (* Add debug comment *)
+                let is_local = List.mem ~eq:Code.Var.equal arg_var func_params in
+                let source_desc = if is_local then "local param" else "captured" in
+                let debug_comment =
+                  L.Comment (Printf.sprintf "Entry block arg: %s = %s (%s)" param_name arg_name source_desc)
+                in
+                let assignment = L.Assign ([param_target], [arg_expr]) in
+                build_assignments rest_args rest_params (assignment :: debug_comment :: acc)
+            | _, _ ->
+                (* Argument count mismatch - shouldn't happen in valid IR *)
+                List.rev acc
+          in
+          let assignments = build_assignments entry_args block.Code.params [] in
+          if not (List.is_empty assignments) then
+            [ L.Comment "Initialize entry block parameters from block_args (Fix for Printf bug!)" ]
+            @ assignments
+          else []
+    else []
+  in
+
   (* Collect all reachable blocks from start *)
   let rec collect_reachable visited addr =
     if Code.Addr.Set.mem addr visited
@@ -1240,8 +1292,14 @@ and compile_blocks_with_labels ctx program start_addr ?(params = []) () =
         ]
   in
 
-  (* Return hoisted declarations + parameter copies + dispatch loop *)
-  hoist_stmts @ param_copy_stmts @ dispatch_loop
+  (* Return hoisted declarations + parameter copies + entry block args + dispatch loop
+     The order is CRITICAL (see TASK_2_4_JS_COMPARISON.md):
+     1. hoist_stmts: Create _V table and initialize vars to nil
+     2. param_copy_stmts: Copy function params to _V
+     3. entry_arg_stmts: Initialize entry block params from block_args (THE FIX!)
+     4. dispatch_loop: Execute blocks
+  *)
+  hoist_stmts @ param_copy_stmts @ entry_arg_stmts @ dispatch_loop
 
 and generate_closure ctx params pc block_args =
   match ctx.program with
@@ -1275,21 +1333,16 @@ and generate_closure ctx params pc block_args =
           (* Generate parameter names using the closure's context *)
           let param_names = List.map ~f:(var_name closure_ctx) params in
 
-          (* CRITICAL FIX: Pass block_args to entry block.
-             block_args may reference function params OR captured variables.
-             Need to pass params list to generate_argument_passing so it knows
-             which args are local params vs captured variables. *)
-          let arg_passing = generate_argument_passing closure_ctx pc block_args ~func_params:params () in
+          (* CRITICAL FIX for Printf bug (see TASK_2_4_JS_COMPARISON.md):
+             Pass block_args to compile_blocks_with_labels so entry block parameters
+             can be initialized AFTER _V table creation but BEFORE dispatch loop.
+             This matches js_of_ocaml's behavior where parallel_renaming happens
+             before block body execution. *)
+          let body_stmts = compile_blocks_with_labels closure_ctx program pc
+                             ~params ~entry_args:block_args ~func_params:params () in
 
-          (* compile_blocks_with_labels will:
-             1. Collect variables in this closure's blocks
-             2. Create _V table if needed (>180 vars) or use parent's _V
-             3. Copy function params to _V table if needed
-             4. Generate block dispatch loop *)
-          let body_stmts = compile_blocks_with_labels closure_ctx program pc ~params () in
-
-          (* Prepend argument passing before block compilation *)
-          let full_body = arg_passing @ body_stmts in
+          (* No need to prepend arg_passing - it's now handled inside compile_blocks_with_labels *)
+          let full_body = body_stmts in
 
           (* Wrap the function in OCaml function format using caml_make_closure
              Creates: {l = arity, [1] = function} with __call metatable *)

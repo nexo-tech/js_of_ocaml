@@ -124,14 +124,24 @@ val collect_block_variables : context -> Code.program -> int -> Stdlib.StringSet
     @return Set of variable names defined in reachable blocks *)
 
 val compile_blocks_with_labels :
-  context -> Code.program -> int -> ?params:Code.Var.t list -> unit -> Lua_ast.stat list
-(** [compile_blocks_with_labels ctx program start_addr ~params ()] compiles IR blocks into
-    Lua statements with variable hoisting and labeled gotos. Variables are hoisted
-    to the beginning to avoid Lua's goto/scope restrictions.
+  context ->
+  Code.program ->
+  int ->
+  ?params:Code.Var.t list ->
+  ?entry_args:Code.Var.t list ->
+  ?func_params:Code.Var.t list ->
+  unit ->
+  Lua_ast.stat list
+(** [compile_blocks_with_labels ctx program start_addr ~params ~entry_args ~func_params ()] compiles IR blocks into
+    Lua statements with variable hoisting and dispatch loop. Variables are hoisted
+    to the beginning to avoid Lua's local limit (200 locals).
     @param ctx Code generation context
     @param program OCaml IR program
     @param start_addr Starting block address
-    @return List of Lua statements with hoisted variables and labeled blocks *)
+    @param params Optional function parameters (for param copying to _V table)
+    @param entry_args Optional arguments to pass to entry block (for closures)
+    @param func_params Optional function parameters list (to distinguish local vs captured vars)
+    @return List of Lua statements with hoisted variables and dispatch loop *)
 
 val generate_runtime_inline : unit -> string
 (** [generate_runtime_inline ()] generates the minimal runtime code needed for basic operations.
