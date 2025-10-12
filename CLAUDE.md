@@ -3,6 +3,48 @@
 This project is creation of lua_of_ocaml: Ocaml -> lua compiler. Based on
 js_of_ocaml
 
+## Using Just Commands
+
+**IMPORTANT**: All development tasks should use the `just` command runner defined in `justfile`.
+
+### Quick Reference
+
+```bash
+# List all available commands
+just --list
+
+# Get help for a specific command
+just --show <command-name>
+
+# Common workflows
+just build-lua-all        # Build all lua_of_ocaml components
+just test-lua             # Run lua_of_ocaml tests only
+just test-runtime-all     # Test all runtime modules
+just clean                # Clean build artifacts
+just verify-all           # Verify environment setup
+just full-test            # Clean, build, and test everything
+
+# Development workflows
+just quick-test <file.ml>      # Compile and run OCaml file
+just compare-outputs <file.ml> # Compare Lua vs JS output
+just test-file <test_name>     # Run specific test
+just inspect-bytecode <file>   # Inspect bytecode structure
+```
+
+### Why Just?
+
+- **Single source of truth**: All commands in one place (`justfile`)
+- **Consistent interface**: Same commands work across different environments
+- **Self-documenting**: Commands include descriptions and show usage
+- **Lua-focused**: Commands skip non-lua_of_ocaml tests by default
+- **Simplified debugging**: Standard workflows for common tasks
+
+### Environment Setup
+
+See `ENV.md` for complete environment setup checklist with 8 phases of verification and testing.
+
+**DO NOT** use raw `dune`, `ocamlc`, or `lua` commands directly unless specifically required. Always prefer `just` commands.
+
 ## Development Environment
 
 **IMPORTANT - Lua 5.1 Baseline Requirement**:
@@ -36,7 +78,7 @@ js_of_ocaml
    thoroughly how js_of_ocaml solves this issue and make sure you do 1:1
    approach to fix it.
 3. **Write tests for the new stuff, since you have to be sure that your code works**: Tests go in `compiler/tests-lua/` or `lib/tests/`. Use ppx_expect patterns from existing tests. Cover complete functionality, not just happy paths.
-4. **Task completion only counts when the code compiles and contains no warnings and all tests pass**: Run `dune build @check && dune build @runtest` and ensure `dune build @all 2>&1 | grep -i warning` produces no output.
+4. **Task completion only counts when the code compiles and contains no warnings and all tests pass**: Run `just check && just test-lua && just build-strict` to verify no warnings or errors.
 5. **Once the task is completed update master checklist with `- [x]` mark to track progress in LUA.md then commit and push**:
    ```bash
    # Update LUA.md checklist
