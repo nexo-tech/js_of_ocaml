@@ -210,6 +210,7 @@ function caml_lua_string_to_ocaml(s)
   for i = 1, #s do
     result[i] = s:byte(i)
   end
+  result.length = #s
   return result
 end
 
@@ -275,6 +276,14 @@ function caml_format_int(fmt, i)
   end
 
   return caml_finish_formatting(f, s)
+end
+
+--Provides: caml_format_int_special
+--Requires: caml_lua_string_to_ocaml
+function caml_format_int_special(i)
+  -- Special fast path for integer to string conversion
+  -- Used by print_int and similar functions
+  return caml_lua_string_to_ocaml(tostring(i))
 end
 
 --Provides: caml_format_float

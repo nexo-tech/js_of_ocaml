@@ -191,18 +191,29 @@ let () = Printf.printf "Hello, World!\n"
   - If works: Move to Phase 3 for any missing primitives
   - Deliverable: Printf.printf working!
 
-### Phase 3: Printf Primitives (2-4 hours)
+### Phase 3: Printf Primitives - ✅ PARTIAL (2 hours)
 
 **Goal**: Implement missing Printf runtime primitives
 
-- [ ] **Task 3.1**: Identify missing Printf primitives
-  ```bash
-  # Try to run Printf test and capture missing primitives
-  just quick-test /tmp/test_printf.ml 2>&1 | grep "attempt to call.*nil"
-  ```
-  - List: All missing caml_* functions for Printf
-  - Priority: Order by what's needed for "Hello, World!"
-  - Document: Expected function signatures
+- [x] **Task 3.1**: Identify missing Printf primitives ✅
+  - **Found root cause**: Double-prefix bug in `lua_generate.ml:701`
+  - Inline primitive `%caml_format_int_special` → `caml_format_int_special`
+  - Bug: Line 701 added "caml_" unconditionally → `caml_caml_format_int_special` ❌
+  - **Fix Applied**: Check for "caml_" prefix before adding (lines 701-707)
+
+  **Additional Fixes Implemented**:
+  1. ✅ Implemented `caml_format_int_special` in `runtime/lua/format.lua`
+     - Converts int to string: `tostring(i)` wrapped in OCaml string
+  2. ✅ Fixed `caml_lua_string_to_ocaml` to include `length` field
+     - Was returning bare table, now includes `.length = #s`
+  3. ✅ Fixed `caml_ml_output` to handle OCaml strings (tables)
+     - Added `caml_ocaml_string_to_lua` conversion before string.sub
+
+  **Test Results**:
+  - ✅ `/tmp/test_closure_simple.ml` (print_int): **WORKS!** Prints "30"
+  - ❌ `/tmp/test_printf.ml` (Printf.printf): Still fails with v273 nil error
+
+  **Conclusion**: `print_int` works! Printf.printf has a different issue (original closure bug?)
 
 - [ ] **Task 3.2**: Review js_of_ocaml Printf implementation
   ```bash

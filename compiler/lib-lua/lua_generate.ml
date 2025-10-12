@@ -697,8 +697,14 @@ and generate_prim ctx prim args =
                   L.Number "0")
             (* Fallback for unknown inline primitives *)
             | _ ->
-                (* Generate call with caml_ prefix *)
-                L.Call (L.Ident ("caml_" ^ inline_name), args))
+                (* Generate call with caml_ prefix if not already present *)
+                let prim_name =
+                  if String.starts_with ~prefix:"caml_" inline_name then
+                    inline_name
+                  else
+                    "caml_" ^ inline_name
+                in
+                L.Call (L.Ident prim_name, args))
           else
             (* Don't add caml_ prefix if name already starts with caml_ *)
             let prim_name =

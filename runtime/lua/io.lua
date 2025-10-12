@@ -589,12 +589,17 @@ function caml_ml_output_char(chanid, c)
 end
 
 --Provides: caml_ml_output
---Requires: caml_unwrap_chanid, caml_ml_flush, caml_ml_channels, caml_io_buffer_size
+--Requires: caml_unwrap_chanid, caml_ml_flush, caml_ml_channels, caml_io_buffer_size, caml_ocaml_string_to_lua
 function caml_ml_output(chanid, str, offset, len)
   chanid = caml_unwrap_chanid(chanid)
   local chan = caml_ml_channels[chanid]
   if not chan or not chan.opened then
     error("caml_ml_output: channel is closed")
+  end
+
+  -- Convert OCaml string to Lua string if needed
+  if type(str) == "table" then
+    str = caml_ocaml_string_to_lua(str)
   end
 
   -- Extract substring (Lua strings are 1-based, OCaml offset is 0-based)
