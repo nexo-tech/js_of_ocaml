@@ -159,13 +159,22 @@ let () = Printf.printf "Hello, World!\n"
   - Failing Printf version: 24,448 lines (2x larger!)
   - Same runtime size, difference is in Printf module code
 
-- [ ] **Task 2.3**: Understand current closure generation
-  - Location: `compiler/lib-lua/lua_generate.ml`
-  - Search for: "_V", "hoisted", "closure", "captured"
-  - Understand: How `_V` table is created and populated
-  - Understand: How block arguments are passed to nested functions
-  - Compare: Generated Lua for working (print_endline) vs broken (Printf)
-  - Document: Current implementation approach
+- [x] **Task 2.3**: Understand current closure generation ✅
+  - ✅ Analyzed `compiler/lib-lua/lua_generate.ml` closure generation
+  - ✅ Understood `_V` table pattern (>180 vars → table-based storage)
+  - ✅ Understood `inherit_var_table` for nested closures
+  - ✅ Compared generated Lua: working (12,783 lines) vs failing (24,441 lines)
+  - ✅ **Found root cause**: Block 484 entry uses v273 which is never initialized
+  - ✅ Documented in `TASK_2_3_CLOSURE_ANALYSIS.md`
+
+  **Key Findings**:
+  - Printf closure starts at block 484 (not block 0)
+  - Block 484 uses v273, which is only assigned in block 482
+  - Block 482 never runs before block 484 on first entry
+  - v273 is initialized to nil, causing "attempt to index nil" error
+  - This is NOT a general closure bug, but specific to entry block dependencies
+
+  See `TASK_2_3_CLOSURE_ANALYSIS.md` for complete analysis
 
 - [ ] **Task 2.4**: Study js_of_ocaml closure handling
   - Location: `compiler/lib/generate.ml`
@@ -602,7 +611,7 @@ let () = Printf.printf "Hello, World!\n"
 ### Phase Completion
 - [x] Phase 0: Environment verified ✅ (18 min)
 - [x] Phase 1: Current state assessed ✅ (45 min)
-- [ ] Phase 2: Fix closure variable initialization bug (2-6 hours) ⬅️ **NEXT** (Task 2.1 ✅)
+- [ ] Phase 2: Fix closure variable initialization bug (2-6 hours) ⬅️ **NEXT** (Tasks 2.1-2.3 ✅, 50% complete)
 - [ ] Phase 3: Printf primitives working (2-4 hours)
 - [ ] Phase 4: I/O primitives verified (1-2 hours)
 - [ ] Phase 5: Hello world running (1-2 hours)
