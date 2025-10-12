@@ -105,41 +105,47 @@ This file provides a master checklist for setting up a complete troubleshooting 
 
 **Goal**: Verify all Lua runtime functions work correctly.
 
-- [ ] **Task 3.1**: Test closure runtime
+- [x] **Task 3.1**: Test closure runtime
   ```bash
   just test-runtime-closure
   ```
   - Tests `runtime/lua/closure.lua`
+  - ✅ Verified: closure.lua loaded successfully
 
-- [ ] **Task 3.2**: Test function call runtime
+- [x] **Task 3.2**: Test function call runtime
   ```bash
   just test-runtime-fun
   ```
   - Tests `runtime/lua/fun.lua` (caml_call_gen, partial application)
+  - ✅ Verified: fun.lua loaded successfully
 
-- [ ] **Task 3.3**: Test object runtime
+- [x] **Task 3.3**: Test object runtime
   ```bash
   just test-runtime-obj
   ```
   - Tests `runtime/lua/obj.lua` (blocks, arrays)
+  - ✅ Verified: obj.lua loaded successfully
 
-- [ ] **Task 3.4**: Test format runtime
+- [x] **Task 3.4**: Test format runtime
   ```bash
   just test-runtime-format
   ```
   - Tests `runtime/lua/format.lua` (Printf support)
+  - ✅ Verified: format.lua loaded successfully
 
-- [ ] **Task 3.5**: Test I/O runtime
+- [x] **Task 3.5**: Test I/O runtime
   ```bash
   just test-runtime-io
   ```
   - Tests `runtime/lua/io.lua` (channels, output)
+  - ✅ Verified: io.lua loaded successfully
 
-- [ ] **Task 3.6**: Run all runtime tests
+- [x] **Task 3.6**: Run all runtime tests
   ```bash
   just test-runtime-all
   ```
   - Runs all runtime test suites
+  - ✅ Verified: All runtime tests passed (6 modules tested)
 
 ### Phase 4: Code Generation Tests (< 250 lines)
 
