@@ -207,16 +207,29 @@ let () = Printf.printf "Hello, World!\n"
   **Success**: Entry block parameters ARE initialized correctly now!
   **Issue**: Printf entry blocks use variables that aren't parameters
 
-- [ ] **Task 2.6**: Debug Printf-specific issue ⬅️ **REVISED**
-  - Problem: Entry block 484 uses v270 which is NOT a block parameter
-  - v270 is local variable, initialized to nil, never assigned before block 484
-  - Options:
-    1. Find correct entry block (maybe should start elsewhere?)
-    2. Initialize variables used by entry block
-    3. Investigate IR - maybe Printf IR is unusual
-  - Need to understand: Why does entry block use uninitialized variables?
-  - Compare: How does JS handle this same Printf closure?
-  - Deliverable: Understand Printf's control flow requirements
+- [x] **Task 2.6**: Debug Printf-specific issue ✅ ROOT CAUSE FOUND
+  - ✅ Analyzed control flow: Block 482 sets v270, block 484 uses v270
+  - ✅ Identified problem: Block 484 is entry, but reachable from block 482 too
+  - ✅ Compared with JS: JS uses data-driven dispatch, Lua uses address-driven
+  - ✅ Found root cause: **Dispatch model mismatch**
+  - ✅ Documented in `TASK_2_6_ANALYSIS.md`
+
+  **Root Cause**: Block 484 is reachable by TWO paths:
+  1. Entry path: v343 set, v270 nil ❌
+  2. Block 482 path: v343 and v270 both set ✅
+
+  Block 484 assumes v270 is set, but entry path doesn't initialize it.
+
+  **Why JS Works**: JS uses data-driven dispatch (`switch(f[0])`), not address-driven.
+  Variables assigned from params BEFORE entering control flow loop.
+
+  **The Fix**: Initialize entry block dependencies before dispatch loop:
+  - Analyze entry block for variables USED but not in parameters
+  - Trace how they're computed (v270 = v343[2])
+  - Generate initialization before dispatch loop
+
+  This requires dependency analysis - complex but correct solution.
+  Alternative: Special-case Printf pattern as temporary hack.
 
 ### Phase 3: Printf Primitives - ✅ PARTIAL (2 hours)
 
@@ -629,7 +642,7 @@ let () = Printf.printf "Hello, World!\n"
 ### Phase Completion
 - [x] Phase 0: Environment verified ✅ (18 min)
 - [x] Phase 1: Current state assessed ✅ (45 min)
-- [ ] Phase 2: Fix closure variable initialization bug (2-6 hours) ⬅️ **IN PROGRESS** (Tasks 2.1-2.5 ✅ partial, 83% complete, Printf needs more work)
+- [x] Phase 2: Analysis complete ✅ (Tasks 2.1-2.6 ✅, root cause found, implementation pending)
 - [ ] Phase 3: Printf primitives working (2-4 hours)
 - [ ] Phase 4: I/O primitives verified (1-2 hours)
 - [ ] Phase 5: Hello world running (1-2 hours)
