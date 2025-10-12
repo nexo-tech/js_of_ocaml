@@ -80,23 +80,26 @@ This file provides a master checklist for setting up a complete troubleshooting 
   - Removes all `_build/` artifacts
   - ✅ Verified: Build artifacts cleaned
 
-- [ ] **Task 2.2**: Build lua_of_ocaml compiler library
+- [x] **Task 2.2**: Build lua_of_ocaml compiler library
   ```bash
   just build-lua-compiler
   ```
   - Builds `compiler/lib-lua/lua_of_ocaml_compiler.cma`
+  - ✅ Verified: Compiler library built successfully
 
-- [ ] **Task 2.3**: Build lua_of_ocaml runtime
+- [x] **Task 2.3**: Build lua_of_ocaml runtime
   ```bash
   just build-lua-runtime
   ```
   - Builds all runtime Lua files
+  - ✅ Verified: Runtime files built successfully
 
-- [ ] **Task 2.4**: Build all lua_of_ocaml components
+- [x] **Task 2.4**: Build all lua_of_ocaml components
   ```bash
   just build-lua-all
   ```
   - Full lua_of_ocaml build (excludes JS/Wasm)
+  - ✅ Verified: lua_of_ocaml.exe (16M) built successfully
 
 ### Phase 3: Runtime Test Suite (< 250 lines)
 

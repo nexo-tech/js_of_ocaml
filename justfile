@@ -63,7 +63,7 @@ build-lua-runtime:
 # Build all lua_of_ocaml components (skip JS/Wasm)
 build-lua-all:
     @echo "Building all lua_of_ocaml components..."
-    dune build -p lua_of_ocaml-compiler
+    dune build compiler/lib-lua compiler/bin-lua_of_ocaml
 
 # Build with warnings as errors
 build-strict:
