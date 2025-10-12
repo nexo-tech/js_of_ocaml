@@ -9,10 +9,15 @@ This file provides a master checklist for getting lua_of_ocaml to successfully c
 - Runtime system: 95%
 - Test coverage: Excellent
 
-**Critical Blocker**: Runtime integration incomplete
-- Compiler generates code ✅
-- Runtime functions implemented ✅
-- **Missing**: Connection between generated code and runtime primitives ❌
+**Phase 0**: ✅ Environment verified (18 min)
+**Phase 1**: ✅ Root cause identified (45 min) - See **ASSESSMENT.md** for full analysis
+
+**Critical Blocker Identified**: Closure variable initialization bug
+- `print_endline` works ✅
+- `Printf.printf` fails with nil variable error ❌
+- **Root cause**: `_V` table variable initialization broken in nested closures
+- **Fix location**: `compiler/lib-lua/lua_generate.ml`
+- **NOT missing primitives** - this is a code generation bug!
 
 ## Strategic Goal
 
@@ -107,12 +112,12 @@ let () = Printf.printf "Hello, World!\n"
   - Key difference: JS handles closure variables correctly
 
 - [x] **Task 1.6**: Document findings
-  - ✅ Complete: Created `/tmp/assessment.md`
+  - ✅ Complete: Created `ASSESSMENT.md`
   - **ROOT CAUSE IDENTIFIED**: Closure variable capture bug in `_V` table
   - When nested closures inherit `_V`, variables aren't initialized properly
   - Block arguments expect values from outer scope, but initialization order broken
   - Printf fails because it uses deeply nested closures (CPS style)
-  - See `/tmp/assessment.md` for full analysis
+  - See `ASSESSMENT.md` for full analysis
 
 **KEY DISCOVERY**: The problem is NOT missing primitives! It's a code generation bug in how closure variables are initialized in the `_V` table. Must fix in `lua_generate.ml`.
 

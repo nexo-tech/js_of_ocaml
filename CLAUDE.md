@@ -45,6 +45,28 @@ See `ENV.md` for complete environment setup checklist with 8 phases of verificat
 
 **DO NOT** use raw `dune`, `ocamlc`, or `lua` commands directly unless specifically required. Always prefer `just` commands.
 
+## 🎯 CRITICAL: Hello World Priority
+
+**SPLAN.md completion is the #1 priority for lua_of_ocaml!**
+
+- **Goal**: Get `Printf.printf "Hello, World!\n"` working
+- **Status**: Phase 1 complete - root cause identified (see `ASSESSMENT.md`)
+- **Blocker**: Closure variable initialization bug in `_V` table
+- **Fix location**: `compiler/lib-lua/lua_generate.ml`
+- **Next**: Phase 2 - Fix closure variable initialization (CRITICAL!)
+
+All other tasks are secondary until hello world works. Follow `SPLAN.md` phases:
+- Phase 0: ✅ Environment verified
+- Phase 1: ✅ Root cause identified
+- Phase 2: ⬅️ **Fix closure bug** (current priority)
+- Phase 3: Printf primitives
+- Phase 4: I/O primitives
+- Phase 5: Hello world running
+- Phase 6: Rock solid testing
+- Phase 7: Documentation
+
+See `SPLAN.md` for detailed task breakdown and `ASSESSMENT.md` for technical analysis.
+
 ## Development Environment
 
 **IMPORTANT - Lua 5.1 Baseline Requirement**:
