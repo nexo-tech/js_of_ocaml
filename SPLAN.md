@@ -231,6 +231,76 @@ let () = Printf.printf "Hello, World!\n"
   This requires dependency analysis - complex but correct solution.
   Alternative: Special-case Printf pattern as temporary hack.
 
+### Phase 2.5: Data-Driven Dispatch Refactor (NEW - 4-8 hours) ⬅️ **NEXT**
+
+**Goal**: Refactor dispatch model to match js_of_ocaml's data-driven approach
+
+**Why**: Current address-driven dispatch causes entry block dependency issues.
+JS uses data-driven dispatch where variables determine control flow, not addresses.
+
+**Approach**: Change from `_next_block = 484` to switch/if-chain on variable values
+
+- [ ] **Task 2.5.1**: Study JS dispatch patterns
+  - Analyze JS `for(;;) { switch(f[0]) { ... } }` pattern
+  - Understand how variables drive control flow
+  - Document how Printf closure works in JS (6233-6400 lines)
+  - Identify what data drives dispatch (f[0], type checks, etc.)
+  - Map JS cases to Lua blocks: which case = which block?
+
+- [ ] **Task 2.5.2**: Analyze IR control flow structure
+  - Understand `Code.last` terminators (Branch, Cond, Switch)
+  - Map terminators to JS control flow patterns
+  - Identify which variables control dispatch in each closure
+  - Document Printf closure's control flow graph
+  - Find the "dispatch variable" for each closure (like JS's `f`)
+
+- [ ] **Task 2.5.3**: Design data-driven dispatch for Lua
+  - Design new dispatch loop structure (while + if/switch)
+  - Plan how to pass "dispatch data" through blocks
+  - Design variable initialization strategy (before loop like JS)
+  - Handle trampolines, tail calls, and returns
+  - Keep _V table pattern (still needed for >180 vars)
+
+- [ ] **Task 2.5.4**: Implement prototype for simple case
+  - Create test with simple data-driven closure
+  - Implement new dispatch generation for single closure
+  - Test that simple closures still work
+  - Verify Printf pattern would work with new approach
+  - Measure code size impact (might be smaller!)
+
+- [ ] **Task 2.5.5**: Refactor compile_blocks_with_labels
+  - Modify dispatch loop generation (lines 1220-1293)
+  - Remove address-based `_next_block = N` pattern
+  - Implement data-driven dispatch (switch on variables)
+  - Update generate_last_dispatch for new model
+  - Preserve entry block parameter initialization from Task 2.5
+
+- [ ] **Task 2.5.6**: Test and verify
+  - Test simple closures still work
+  - Test Printf.printf "Hello, World!\n"
+  - Test Printf with %d, %s format specifiers
+  - Compare Lua vs JS output correctness
+  - Run full test suite: `just test-lua`
+
+- [ ] **Task 2.5.7**: Optimize and document
+  - Optimize generated code size if possible
+  - Document new dispatch model in code comments
+  - Update CLAUDE.md with dispatch architecture
+  - Create DISPATCH_MODEL.md explaining the design
+  - Commit with comprehensive documentation
+
+**Success Criteria**:
+- Printf.printf works ✅
+- Simple closures still work ✅
+- Generated code matches JS semantics ✅
+- Code size is reasonable (hopefully smaller!)
+
+**Estimated Time**: 4-8 hours (complex refactor but cleaner solution)
+
+**Risk**: High - changes core dispatch logic. But addresses root cause properly.
+
+**Alternative**: Skip this phase, implement hack in Task 2.5.8 (quick dependency init)
+
 ### Phase 3: Printf Primitives - ✅ PARTIAL (2 hours)
 
 **Goal**: Implement missing Printf runtime primitives
@@ -642,7 +712,8 @@ let () = Printf.printf "Hello, World!\n"
 ### Phase Completion
 - [x] Phase 0: Environment verified ✅ (18 min)
 - [x] Phase 1: Current state assessed ✅ (45 min)
-- [x] Phase 2: Analysis complete ✅ (Tasks 2.1-2.6 ✅, root cause found, implementation pending)
+- [x] Phase 2: Analysis complete ✅ (Tasks 2.1-2.6 ✅, root cause found)
+- [ ] Phase 2.5: Data-driven dispatch refactor (4-8 hours) ⬅️ **NEXT** (NEW: proper fix for Printf)
 - [ ] Phase 3: Printf primitives working (2-4 hours)
 - [ ] Phase 4: I/O primitives verified (1-2 hours)
 - [ ] Phase 5: Hello world running (1-2 hours)
