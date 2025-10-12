@@ -222,6 +222,14 @@ let optimize_block_construction tag fields =
   let tag_element = L.Array_field (L.Number (string_of_int tag)) in
   L.Table (tag_element :: fields)
 
+(** {2 Data-Driven Dispatch Types (Phase 2.5)} *)
+
+(** Dispatch mode for closure compilation *)
+type dispatch_mode =
+  | AddressBased  (** Current approach: dispatch on _next_block addresses *)
+  | DataDriven of Code.Var.t * (Code.Addr.t * Code.Var.t list) array
+      (** Data-driven: dispatch on variable value (dispatch_var, switch_cases) *)
+
 (** Generate Lua expression from Code constant
     @param const IR constant
     @return Lua expression
@@ -1011,9 +1019,91 @@ and collect_block_variables ctx program start_addr =
     reachable
     StringSet.empty
 
+(** {2 Data-Driven Dispatch (Phase 2.5 Refactor)} *)
+
+(** Detect dispatch mode for a closure.
+    Uses data-driven dispatch for simple Switch-based closures without loops.
+    This is a PROTOTYPE implementation for Task 2.5.4.
+
+    @param program Full IR program
+    @param entry_addr Entry block address
+    @return dispatch_mode indicating how to compile this closure
+*)
+and detect_dispatch_mode program entry_addr =
+  match Code.Addr.Map.find_opt entry_addr program.Code.blocks with
+  | None -> AddressBased
+  | Some entry_block ->
+      (* For prototype: Only use data-driven for simple Switch terminators
+         without loops or complex control flow *)
+      (match entry_block.Code.branch with
+      | Code.Switch (dispatch_var, conts) ->
+          (* Check if this is a simple switch (all cases return, no loops) *)
+          let is_simple_switch =
+            Array.for_all conts ~f:(fun (target_addr, _args) ->
+              match Code.Addr.Map.find_opt target_addr program.Code.blocks with
+              | None -> false
+              | Some target_block ->
+                  (* Simple case: block body + Return terminator *)
+                  (match target_block.Code.branch with
+                  | Code.Return _ -> true
+                  | _ -> false))
+          in
+          if is_simple_switch then
+            DataDriven (dispatch_var, conts)
+          else
+            AddressBased
+      | _ -> AddressBased)
+
+(** Compile closure using data-driven dispatch (PROTOTYPE).
+    This is a simplified implementation for Task 2.5.4.
+
+    @param ctx Code generation context
+    @param program Full IR program
+    @param entry_addr Entry block address
+    @param dispatch_var Variable to dispatch on
+    @param switch_cases Array of (target_addr, args)
+    @param params Function parameters
+    @return List of Lua statements
+*)
+and compile_data_driven_dispatch ctx program _entry_addr dispatch_var switch_cases _params =
+  (* Initialize dispatch variable from parameter *)
+  let dispatch_var_name = var_name ctx dispatch_var in
+
+  (* Generate if-elseif chain for switch cases *)
+  let rec generate_switch_cases idx =
+    if idx >= Array.length switch_cases then
+      (* No more cases - return nil or error *)
+      [ L.Return [ L.Nil ] ]
+    else
+      let (target_addr, _args) = switch_cases.(idx) in
+      match Code.Addr.Map.find_opt target_addr program.Code.blocks with
+      | None -> generate_switch_cases (idx + 1)
+      | Some target_block ->
+          (* Generate inline case: check tag, execute body, return *)
+          let condition =
+            L.BinOp (L.Eq, L.Ident dispatch_var_name, L.Number (string_of_int idx))
+          in
+          let case_body =
+            (* Generate block body *)
+            let body_stmts = generate_instrs ctx target_block.Code.body in
+            (* Generate terminator (should be Return) *)
+            let term_stmts = generate_last_dispatch ctx target_block.Code.branch in
+            body_stmts @ term_stmts
+          in
+          let else_branch = generate_switch_cases (idx + 1) in
+          [ L.If (condition, case_body, Some else_branch) ]
+  in
+
+  (* Generate the complete function body *)
+  let switch_stmt = generate_switch_cases 0 in
+  switch_stmt
+
 (** Compile all reachable blocks with dispatch loop (Lua 5.1 compatible)
     This is the single unified function that all code generation paths use.
     Uses a while loop with numeric dispatch instead of goto/labels for Lua 5.1 compatibility.
+
+    PROTOTYPE NOTE: For Task 2.5.4, this now detects dispatch mode and can use
+    data-driven dispatch for simple switches.
 
     @param ctx Code generation context
     @param program Full IR program
@@ -1024,6 +1114,22 @@ and collect_block_variables ctx program start_addr =
     @return List of Lua statements with dispatch loop
 *)
 and compile_blocks_with_labels ctx program start_addr ?(params = []) ?(entry_args = []) ?(func_params = []) () =
+  (* PROTOTYPE: Detect dispatch mode (Task 2.5.4) *)
+  let dispatch_mode = detect_dispatch_mode program start_addr in
+
+  match dispatch_mode with
+  | DataDriven (dispatch_var, switch_cases) ->
+      (* Use new data-driven dispatch for simple switches *)
+      compile_data_driven_dispatch ctx program start_addr dispatch_var switch_cases params
+
+  | AddressBased ->
+      (* Use existing address-based dispatch *)
+      compile_address_based_dispatch ctx program start_addr params entry_args func_params ()
+
+(** Compile blocks using address-based dispatch (existing approach).
+    This is the original implementation, factored out to support dispatch mode selection.
+*)
+and compile_address_based_dispatch ctx program start_addr params entry_args func_params () =
   (* Collect all variables that need hoisting *)
   let hoisted_vars = collect_block_variables ctx program start_addr in
 
