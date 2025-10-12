@@ -343,17 +343,21 @@ This file provides a master checklist for setting up a complete troubleshooting 
 
 **Goal**: Common workflows for rapid development.
 
-- [ ] **Task 8.1**: Quick test cycle
+- [x] **Task 8.1**: Quick test cycle
   ```bash
   just quick-test <file.ml>
   ```
   - Compile to Lua, run, show output (one command)
+  - ✅ Verified: Compiles OCaml → bytecode → Lua and runs in single command
+  - Example: `just quick-test /tmp/test_quick.ml` runs successfully
 
-- [ ] **Task 8.2**: Quick comparison
+- [x] **Task 8.2**: Quick comparison
   ```bash
   just quick-compare <file.ml>
   ```
   - Compile to both Lua/JS, run both, diff outputs
+  - ✅ Verified: Compiles to both targets and shows side-by-side output comparison
+  - Uses `compare-outputs` internally for consistent behavior
 
 - [ ] **Task 8.3**: Test Printf functionality
   ```bash
