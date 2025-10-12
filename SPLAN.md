@@ -176,12 +176,23 @@ let () = Printf.printf "Hello, World!\n"
 
   See `TASK_2_3_CLOSURE_ANALYSIS.md` for complete analysis
 
-- [ ] **Task 2.4**: Study js_of_ocaml closure handling
-  - Location: `compiler/lib/generate.ml`
-  - Search for: closure generation, variable capture
-  - Understand: How JS handles nested closures
-  - Compare: JS approach vs current Lua approach
-  - Document: Key differences and what Lua should do
+- [x] **Task 2.4**: Study js_of_ocaml closure handling ✅
+  - ✅ Analyzed `compiler/lib/generate.ml` closure implementation
+  - ✅ Studied `compile_closure`, `compile_branch`, `parallel_renaming` functions
+  - ✅ Compared JS (1,666 lines, works) vs Lua (24,441 lines, fails)
+  - ✅ **Found the bug**: Argument passing order is wrong!
+  - ✅ Documented in `TASK_2_4_JS_COMPARISON.md`
+
+  **Critical Discovery**:
+  - JS: `compile_argument_passing` wraps block compilation (continuation-passing style)
+  - JS: Block parameters assigned BEFORE block body via `parallel_renaming`
+  - Lua: Hoisting happens FIRST, initializes ALL vars to nil (WRONG!)
+  - Lua: `arg_passing` is outside `compile_blocks_with_labels` (TOO LATE!)
+
+  **The Fix**: Pass entry `block_args` to hoisting logic, generate param assignments
+  AFTER _V table creation but BEFORE dispatch loop. This matches JS behavior.
+
+  See `TASK_2_4_JS_COMPARISON.md` for complete analysis and implementation plan
 
 - [ ] **Task 2.5**: Implement closure initialization fix
   - Location: `compiler/lib-lua/lua_generate.ml`
@@ -611,7 +622,7 @@ let () = Printf.printf "Hello, World!\n"
 ### Phase Completion
 - [x] Phase 0: Environment verified ✅ (18 min)
 - [x] Phase 1: Current state assessed ✅ (45 min)
-- [ ] Phase 2: Fix closure variable initialization bug (2-6 hours) ⬅️ **NEXT** (Tasks 2.1-2.3 ✅, 50% complete)
+- [ ] Phase 2: Fix closure variable initialization bug (2-6 hours) ⬅️ **NEXT** (Tasks 2.1-2.4 ✅, 67% complete, fix identified!)
 - [ ] Phase 3: Printf primitives working (2-4 hours)
 - [ ] Phase 4: I/O primitives verified (1-2 hours)
 - [ ] Phase 5: Hello world running (1-2 hours)
