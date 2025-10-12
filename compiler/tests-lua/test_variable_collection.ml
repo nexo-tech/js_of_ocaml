@@ -232,7 +232,7 @@ let%expect_test "variable_hoisting_simple" =
       program
   in
   let stmts =
-    Lua_of_ocaml_compiler__Lua_generate.compile_blocks_with_labels ctx program 0
+    Lua_of_ocaml_compiler__Lua_generate.compile_blocks_with_labels ctx program 0 ()
   in
   (* Check that first statement is a comment about hoisted variables *)
   (match stmts with
@@ -262,7 +262,7 @@ let%expect_test "variable_hoisting_empty" =
       program
   in
   let stmts =
-    Lua_of_ocaml_compiler__Lua_generate.compile_blocks_with_labels ctx program 0
+    Lua_of_ocaml_compiler__Lua_generate.compile_blocks_with_labels ctx program 0 ()
   in
   Printf.printf "Statement count: %d\n" (List.length stmts);
   [%expect {| Statement count: 0 |}]
@@ -305,7 +305,7 @@ let%expect_test "variable_hoisting_complex" =
       program
   in
   let stmts =
-    Lua_of_ocaml_compiler__Lua_generate.compile_blocks_with_labels ctx program 0
+    Lua_of_ocaml_compiler__Lua_generate.compile_blocks_with_labels ctx program 0 ()
   in
   (* Check hoisted variables *)
   (match stmts with
@@ -398,7 +398,7 @@ let%expect_test "assignments_in_compiled_blocks" =
       program
   in
   let stmts =
-    Lua_of_ocaml_compiler__Lua_generate.compile_blocks_with_labels ctx program 0
+    Lua_of_ocaml_compiler__Lua_generate.compile_blocks_with_labels ctx program 0 ()
   in
   (* Count assignments in block (skip hoisting statements) *)
   let rec count_assignments = function
@@ -458,7 +458,7 @@ let%expect_test "fall_through_sequential_blocks" =
       program
   in
   let stmts =
-    Lua_of_ocaml_compiler__Lua_generate.compile_blocks_with_labels ctx program 0
+    Lua_of_ocaml_compiler__Lua_generate.compile_blocks_with_labels ctx program 0 ()
   in
   (* Count gotos - should be 0 for fall-through *)
   let rec count_gotos = function
@@ -504,7 +504,7 @@ let%expect_test "no_fall_through_non_sequential" =
       program
   in
   let stmts =
-    Lua_of_ocaml_compiler__Lua_generate.compile_blocks_with_labels ctx program 0
+    Lua_of_ocaml_compiler__Lua_generate.compile_blocks_with_labels ctx program 0 ()
   in
   (* Count gotos - should have 1 for non-sequential *)
   let rec count_gotos = function
@@ -563,7 +563,7 @@ let%expect_test "fall_through_multiple_sequential" =
       program
   in
   let stmts =
-    Lua_of_ocaml_compiler__Lua_generate.compile_blocks_with_labels ctx program 0
+    Lua_of_ocaml_compiler__Lua_generate.compile_blocks_with_labels ctx program 0 ()
   in
   (* All three blocks are sequential, so no gotos *)
   let rec count_gotos = function
@@ -607,7 +607,7 @@ let%expect_test "conditional_still_has_gotos" =
       program
   in
   let stmts =
-    Lua_of_ocaml_compiler__Lua_generate.compile_blocks_with_labels ctx program 0
+    Lua_of_ocaml_compiler__Lua_generate.compile_blocks_with_labels ctx program 0 ()
   in
   (* Conditional should generate 2 gotos (true and false branches) *)
   let rec count_gotos_in_stmt = function

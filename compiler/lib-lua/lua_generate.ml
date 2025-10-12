@@ -197,6 +197,31 @@ let var_ident ctx var =
 
 (** {2 Expression Generation} *)
 
+(** Optimize field access for block fields
+    @param ctx Code generation context
+    @param obj Object expression
+    @param idx Field index
+    @return Optimized Lua expression
+*)
+let optimize_field_access ctx obj idx =
+  if ctx.optimize_field_access
+  then
+    (* Block fields are at index idx+2 (Lua 1-indexed, tag at index 1) *)
+    L.Index (obj, L.Number (string_of_int (idx + 2)))
+  else L.Index (obj, L.Number (string_of_int (idx + 2)))
+
+(** Optimize block construction by converting to array-like table
+    @param tag Block tag (for variants/constructors)
+    @param fields List of field expressions
+    @return Lua table expression
+*)
+let optimize_block_construction tag fields =
+  (* Create array-like table with tag at index 1, matching JavaScript representation *)
+  (* In JavaScript: [tag, field1, field2, ...]
+     In Lua: {tag, field1, field2, ...} (1-indexed) *)
+  let tag_element = L.Array_field (L.Number (string_of_int tag)) in
+  L.Table (tag_element :: fields)
+
 (** Generate Lua expression from Code constant
     @param const IR constant
     @return Lua expression
@@ -245,7 +270,7 @@ let rec generate_constant const =
     @param args Primitive arguments (variables or constants)
     @return Lua expression
 *)
-let generate_prim ctx prim args =
+and generate_prim ctx prim args =
   let arg_exprs =
     List.map args ~f:(fun arg ->
         match arg with
@@ -711,24 +736,6 @@ let generate_prim ctx prim args =
     @param idx Field index
     @return Optimized Lua expression
 *)
-let optimize_field_access ctx obj idx =
-  if ctx.optimize_field_access
-  then
-    (* Block fields are at index idx+2 (Lua 1-indexed, tag at index 1) *)
-    L.Index (obj, L.Number (string_of_int (idx + 2)))
-  else L.Index (obj, L.Number (string_of_int (idx + 2)))
-
-(** Generate optimized block construction
-    @param tag Block tag
-    @param fields Field values
-    @return Lua table expression
-*)
-let optimize_block_construction tag fields =
-  (* Create array-like table with tag at index 1, matching JavaScript representation *)
-  (* In JavaScript: [tag, field1, field2, ...]
-     In Lua: {tag, field1, field2, ...} (1-indexed) *)
-  let tag_element = L.Array_field (L.Number (string_of_int tag)) in
-  L.Table (tag_element :: fields)
 
 (** {2 Expression and Statement Generation (mutually recursive with control flow)} *)
 
@@ -737,7 +744,7 @@ let optimize_block_construction tag fields =
     @param expr IR expression
     @return Lua expression
 *)
-let rec generate_expr ctx expr =
+and generate_expr ctx expr =
   match expr with
   | Code.Constant c -> generate_constant c
   | Code.Apply { f; args; exact } ->
@@ -852,6 +859,45 @@ and generate_instr ctx instr =
 and generate_instrs ctx instrs =
   List.map ~f:(generate_instr ctx) instrs
 
+(** {2 Loop Detection} *)
+
+(** Detect loop headers by finding back edges in the control flow graph.
+    A back edge is when a block jumps to a block that's already in the path to it.
+    Returns a set of loop header addresses (blocks that are jump targets of back edges).
+
+    This matches js_of_ocaml's approach in generate.ml where loops are detected
+    during traversal to handle block argument initialization properly. *)
+and detect_loop_headers program entry_addr =
+  let rec find_back_edges visited path current_addr acc =
+    if Code.Addr.Set.mem current_addr path then
+      (* Found a back edge - current_addr is a loop header *)
+      Code.Addr.Set.add current_addr acc
+    else if Code.Addr.Set.mem current_addr visited then
+      (* Already processed this block *)
+      acc
+    else
+      let visited = Code.Addr.Set.add current_addr visited in
+      match Code.Addr.Map.find_opt current_addr program.Code.blocks with
+      | None -> acc
+      | Some block ->
+          (* Add current block to path for detecting back edges *)
+          let path = Code.Addr.Set.add current_addr path in
+          (* Get successor blocks from branch instruction *)
+          let successors =
+            match block.Code.branch with
+            | Code.Return _ | Code.Raise _ | Code.Stop -> []
+            | Code.Branch (addr, _) -> [addr]
+            | Code.Cond (_, (addr1, _), (addr2, _)) -> [addr1; addr2]
+            | Code.Switch (_, cases) ->
+                List.map ~f:(fun (addr, _) -> addr) (Array.to_list cases)
+            | Code.Pushtrap ((addr1, _), _, (addr2, _)) -> [addr1; addr2]
+            | Code.Poptrap (addr, _) -> [addr]
+          in
+          List.fold_left successors ~init:acc ~f:(fun acc addr ->
+            find_back_edges visited path addr acc)
+  in
+  find_back_edges Code.Addr.Set.empty Code.Addr.Set.empty entry_addr Code.Addr.Set.empty
+
 (** {2 Unified Block Compilation with Labels} *)
 
 (** Collect all variables used in reachable blocks
@@ -938,15 +984,46 @@ and compile_blocks_with_labels ctx program start_addr ?(params = []) () =
   (* Collect all variables that need hoisting *)
   let hoisted_vars = collect_block_variables ctx program start_addr in
 
+  (* Detect loop headers to identify block arguments that need initialization *)
+  let loop_headers = detect_loop_headers program start_addr in
+
+  (* Collect block parameters from loop headers that need initialization
+     These are variables that are accessed before being defined in loops *)
+  let loop_block_params =
+    Code.Addr.Set.fold
+      (fun addr acc ->
+        match Code.Addr.Map.find_opt addr program.Code.blocks with
+        | None -> acc
+        | Some block ->
+            (* Add all block parameters from loop headers to hoisted vars *)
+            List.fold_left block.Code.params ~init:acc ~f:(fun acc param ->
+              StringSet.add (var_name ctx param) acc))
+      loop_headers
+      StringSet.empty
+  in
+
+  (* Get the entry block's parameters - these will be initialized by argument passing *)
+  let entry_block_params =
+    match Code.Addr.Map.find_opt start_addr program.Code.blocks with
+    | None -> StringSet.empty
+    | Some block ->
+        List.fold_left block.Code.params ~init:StringSet.empty ~f:(fun acc param ->
+          StringSet.add (var_name ctx param) acc)
+  in
+
+  (* Combine regular hoisted vars with loop block parameters *)
+  let all_hoisted_vars = StringSet.union hoisted_vars loop_block_params in
+
   (* DEBUG: Print collected variables *)
   if !debug_var_collect then
-    Format.eprintf "DEBUG collect_block_variables at addr %d: collected %d vars: %s@."
+    Format.eprintf "DEBUG collect_block_variables at addr %d: collected %d vars, %d loop params: %s@."
       start_addr
       (StringSet.cardinal hoisted_vars)
-      (String.concat ~sep:", " (StringSet.elements hoisted_vars));
+      (StringSet.cardinal loop_block_params)
+      (String.concat ~sep:", " (StringSet.elements all_hoisted_vars));
 
   (* Determine if we need table-based storage and set context accordingly *)
-  let total_vars = StringSet.cardinal hoisted_vars in
+  let total_vars = StringSet.cardinal all_hoisted_vars in
   let use_table =
     if ctx.inherit_var_table then
       (* If inheriting parent's _V table, keep parent's use_var_table setting *)
@@ -959,19 +1036,31 @@ and compile_blocks_with_labels ctx program start_addr ?(params = []) () =
 
   (* Generate variable declaration statements *)
   let hoist_stmts =
-    if StringSet.is_empty hoisted_vars
+    if StringSet.is_empty all_hoisted_vars
     then []
     else if use_table then
       if ctx.inherit_var_table then
-        (* Inheriting parent's _V table - don't create new one, just add comment *)
-        [ L.Comment (Printf.sprintf "Hoisted variables (%d total, using inherited _V table)" total_vars) ]
+        (* Inheriting parent's _V table - still need to initialize new variables
+           This is REQUIRED for loop block parameters and forward references
+           BUT exclude entry block params which will be initialized by argument passing *)
+        let vars_to_init = StringSet.diff all_hoisted_vars entry_block_params in
+        let init_stmts =
+          StringSet.elements vars_to_init
+          |> List.map ~f:(fun var ->
+              (* _V.var = nil - initialize in parent's table *)
+              L.Assign ([ L.Dot (L.Ident var_table_name, var) ], [ L.Nil ]))
+        in
+        L.Comment (Printf.sprintf "Hoisted variables (%d total, using inherited _V table)" total_vars)
+        :: init_stmts
       else
         (* Create new _V table for this function and initialize all fields to nil
            This is REQUIRED for optimized IR which may have forward references where
            closures are created before variables they reference are assigned.
-           See PARTIAL.md Task 6.1.2 for full analysis. *)
+           See PARTIAL.md Task 6.1.2 for full analysis.
+           BUT exclude entry block params which will be initialized by argument passing *)
+        let vars_to_init = StringSet.diff all_hoisted_vars entry_block_params in
         let init_stmts =
-          StringSet.elements hoisted_vars
+          StringSet.elements vars_to_init
           |> List.map ~f:(fun var ->
               (* _V.var = nil *)
               L.Assign ([ L.Dot (L.Ident var_table_name, var) ], [ L.Nil ]))
@@ -980,11 +1069,16 @@ and compile_blocks_with_labels ctx program start_addr ?(params = []) () =
         ; L.Local ([ var_table_name ], Some [ L.Table [] ])  (* local _V = {} *)
         ] @ init_stmts
     else
-      (* Use local declarations for ≤180 variables *)
-      let var_list = StringSet.elements hoisted_vars |> List.sort ~cmp:String.compare in
-      [ L.Comment (Printf.sprintf "Hoisted variables (%d total)" total_vars)
-      ; L.Local (var_list, None)
-      ]
+      (* Use local declarations for ≤180 variables
+         BUT exclude entry block params which will be initialized by argument passing *)
+      let vars_to_init = StringSet.diff all_hoisted_vars entry_block_params in
+      let var_list = StringSet.elements vars_to_init |> List.sort ~cmp:String.compare in
+      if StringSet.is_empty vars_to_init then
+        [ L.Comment (Printf.sprintf "Hoisted variables (%d total)" total_vars) ]
+      else
+        [ L.Comment (Printf.sprintf "Hoisted variables (%d total)" total_vars)
+        ; L.Local (var_list, None)
+        ]
   in
 
   (* Generate parameter copy statements if using _V table *)

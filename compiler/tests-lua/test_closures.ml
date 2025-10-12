@@ -10,7 +10,7 @@ open! Js_of_ocaml_compiler.Stdlib
 open Js_of_ocaml_compiler
 
 (* Helper to compile OCaml to Lua and check variable hoisting *)
-let compile_and_check_hoisting ml_code expected_hoisted_vars =
+let compile_and_check_hoisting _ml_code _expected_hoisted_vars =
   (* This would require full compilation pipeline - simplified for now *)
   (* In real test, we'd compile the ML code and verify the hoisted variables *)
   ()
@@ -18,7 +18,7 @@ let compile_and_check_hoisting ml_code expected_hoisted_vars =
 (* Test that captured variables are NOT hoisted in closures *)
 let%expect_test "simple_closure_capture" =
   (* Test code: Simple closure capturing parent variable *)
-  let code = {|
+  let _code = {|
     let x = 5 in
     let add_x y = x + y in
     add_x 10
@@ -31,7 +31,7 @@ let%expect_test "simple_closure_capture" =
 
 (* Test that nested closures don't leak variables to parent *)
 let%expect_test "nested_closures_no_leak" =
-  let code = {|
+  let _code = {|
     let x = 10 in
     let make_adder () =
       let y = 20 in
@@ -50,7 +50,7 @@ let%expect_test "nested_closures_no_leak" =
 
 (* Test forward references with proper hoisting *)
 let%expect_test "forward_reference_hoisting" =
-  let code = {|
+  let _code = {|
     let r = ref 0 in
     let get_value () = !r in
     r := 42;
@@ -81,7 +81,7 @@ let%expect_test "collect_block_variables_fix" =
   let block = {
     Code.params = [];
     Code.body = [
-      Code.Let (var_local, Code.Constant (Code.Int 42l));
+      Code.Let (var_local, Code.Constant (Code.Int (Targetint.of_int32_exn 42l)));
       Code.Let (Code.Var.fresh_n "closure",
                 Code.Closure ([var_captured], (1, []), None))
     ];
