@@ -764,9 +764,9 @@ let rec generate_expr ctx expr =
       (* Field access - optimized for efficient access *)
       let obj = var_ident ctx v in
       optimize_field_access ctx obj idx
-  | Code.Closure (params, (pc, _args), _loc) ->
-      (* Generate function closure *)
-      generate_closure ctx params pc
+  | Code.Closure (params, (pc, block_args), _loc) ->
+      (* Generate function closure with entry block arguments *)
+      generate_closure ctx params pc block_args
   | Code.Prim (prim, args) -> generate_prim ctx prim args
   | Code.Special _ ->
       (* Special forms - placeholder *)
@@ -959,7 +959,6 @@ and collect_block_variables ctx program start_addr =
     @param ctx Code generation context
     @param program Full IR program
     @param start_addr Starting block address
-    @param params Optional list of function parameters (for closures)
     @return List of Lua statements with dispatch loop
 *)
 and compile_blocks_with_labels ctx program start_addr ?(params = []) () =
@@ -1160,7 +1159,7 @@ and compile_blocks_with_labels ctx program start_addr ?(params = []) () =
     @param pc Program counter pointing to function body
     @return Lua function expression wrapped in caml_make_closure
 *)
-and generate_closure ctx params pc =
+and generate_closure ctx params pc block_args =
   match ctx.program with
   | None ->
       (* No program context - return placeholder *)
@@ -1170,68 +1169,104 @@ and generate_closure ctx params pc =
       | None ->
           (* Block not found - return placeholder *)
           L.Ident "caml_closure"
-      | Some _block ->
-          (* Generate closure: Code.Closure (params, (pc, _), _) where:
-             - params: Function parameters (same naming as js_of_ocaml/compiler/lib/code.ml:653)
-             - pc: Address of the block containing the function body
+      | Some _ ->
+          (* Generate closure following js_of_ocaml approach (generate.ml:1487-1497, 2319-2339):
 
-             This matches js_of_ocaml's generate.ml:1487-1497:
-             ```ocaml
-             | Closure (args, ((pc, _) as cont), cloc) ->
-                 ...
-                 J.fun_ (List.map args ~f:(fun v -> J.V v)) (Js_simpl.function_body clo)
-             ```
-             Where `args` (params) are used as the function parameters.
+             Code.Closure (params, (pc, block_args), _) where:
+             - params: Function parameters (function signature)
+             - pc: Entry block address
+             - block_args: Arguments to pass to entry block
+               CRITICAL: block_args can be EITHER:
+               1. Function parameters from `params` (use plain identifier)
+               2. Captured variables from outer scope (use var_ident -> _V.xxx)
+
+             In JS: compile_closure calls compile_branch with (pc, args) to pass args to block.
+             In Lua with _V table: Need to pass block_args to entry_block.params.
           *)
 
           (* Create child context for closure that inherits parent's variable mappings
-             This allows closures to capture variables from enclosing scopes as upvalues *)
+             This allows closures to capture parent _V via Lua upvalues *)
           let closure_ctx = make_child_context ctx program in
 
           (* Generate parameter names using the closure's context *)
           let param_names = List.map ~f:(var_name closure_ctx) params in
 
+          (* CRITICAL FIX: Pass block_args to entry block.
+             block_args may reference function params OR captured variables.
+             Need to pass params list to generate_argument_passing so it knows
+             which args are local params vs captured variables. *)
+          let arg_passing = generate_argument_passing closure_ctx pc block_args ~func_params:params () in
+
           (* compile_blocks_with_labels will:
              1. Collect variables in this closure's blocks
-             2. Decide independently if use_var_table should be set
-             3. Generate either `local _V = {}` or `local v0, v1, ...`
-             4. If using _V table, copy parameters into _V
-             Each closure gets its own _V table if needed (>180 vars) *)
+             2. Create _V table if needed (>180 vars) or use parent's _V
+             3. Copy function params to _V table if needed
+             4. Generate block dispatch loop *)
           let body_stmts = compile_blocks_with_labels closure_ctx program pc ~params () in
 
+          (* Prepend argument passing before block compilation *)
+          let full_body = arg_passing @ body_stmts in
+
           (* Wrap the function in OCaml function format using caml_make_closure
-             Creates: {l = arity, [1] = function} with __call metatable
-             This allows:
-             1. exact=true calls to work as f(args) via __call metatable
-             2. caml_call_gen to access arity via .l and function via [1]
-             3. Primitive functions (plain Lua functions) to work with same calling convention *)
-          let lua_func = L.Function (param_names, false, body_stmts) in
+             Creates: {l = arity, [1] = function} with __call metatable *)
+          let lua_func = L.Function (param_names, false, full_body) in
           let arity = L.Number (string_of_int (List.length params)) in
           L.Call (L.Ident "caml_make_closure", [ arity; lua_func ]))
 
 (** Generate argument passing code for block continuation
     When jumping to a block with parameters, assign the arguments to the parameters
+
+    CRITICAL: args can be EITHER function parameters (local variables) OR captured
+    variables from outer scope (_V table). We need to distinguish between them.
+
     @param ctx Code generation context
     @param addr Target block address
     @param args Arguments to pass
+    @param func_params Optional list of function parameters (for closure entry only)
     @return List of assignment statements
 *)
-and generate_argument_passing ctx addr args =
+and generate_argument_passing ctx addr args ?(func_params = []) () =
   match ctx.program with
   | None -> []
   | Some program -> (
       match Code.Addr.Map.find_opt addr program.Code.blocks with
       | None -> []
       | Some block ->
-          (* Match args with block params and generate assignments *)
+          (* Match args with block params and generate assignments
+
+             CRITICAL DISTINCTION:
+             - If arg is in func_params: it's a LOCAL function parameter -> use plain identifier
+             - If arg is NOT in func_params: it's a captured variable -> use var_ident (respects _V table)
+
+             This matches how JS handles it: function parameters are in local scope,
+             but captured variables are accessed through the appropriate scope chain.
+          *)
           let rec build_assignments args params acc =
             match args, params with
             | [], [] -> List.rev acc
             | arg_var :: rest_args, param_var :: rest_params ->
-                let arg_expr = var_ident ctx arg_var in
+                (* Source: Check if arg_var is a function parameter or captured variable *)
+                let arg_name = var_name ctx arg_var in
+                let arg_expr =
+                  if List.mem ~eq:Code.Var.equal arg_var func_params
+                  then (
+                    (* Function parameter - use plain local identifier *)
+                    L.Ident arg_name)
+                  else (
+                    (* Captured variable - use var_ident which respects _V table setting *)
+                    var_ident ctx arg_var)
+                in
+                (* Target: use var_ident which respects use_var_table setting *)
+                let param_name = var_name ctx param_var in
                 let param_target = var_ident ctx param_var in
+                (* DEBUG: Add comment showing the mapping *)
+                let is_local = List.mem ~eq:Code.Var.equal arg_var func_params in
+                let source_desc = if is_local then "local" else "captured" in
+                let debug_comment =
+                  L.Comment (Printf.sprintf "Block arg: %s = %s (%s)" param_name arg_name source_desc)
+                in
                 let assignment = L.Assign ([param_target], [arg_expr]) in
-                build_assignments rest_args rest_params (assignment :: acc)
+                build_assignments rest_args rest_params (assignment :: debug_comment :: acc)
             | _, _ ->
                 (* Argument count mismatch - this shouldn't happen in valid IR *)
                 List.rev acc
@@ -1255,14 +1290,14 @@ and generate_last_dispatch ctx last =
   | Code.Stop -> [ L.Return [ L.Nil ] ]
   | Code.Branch (addr, args) ->
       (* Generate argument passing, then set next block *)
-      let arg_passing = generate_argument_passing ctx addr args in
+      let arg_passing = generate_argument_passing ctx addr args () in
       let set_block = L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int addr)]) in
       arg_passing @ [ set_block ]
   | Code.Cond (var, (addr_true, args_true), (addr_false, args_false)) ->
       let cond_expr = var_ident ctx var in
       (* Generate argument passing for both branches *)
-      let pass_true = generate_argument_passing ctx addr_true args_true in
-      let pass_false = generate_argument_passing ctx addr_false args_false in
+      let pass_true = generate_argument_passing ctx addr_true args_true () in
+      let pass_false = generate_argument_passing ctx addr_false args_false () in
       let set_true = L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int addr_true)]) in
       let set_false = L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int addr_false)]) in
       let then_stmts = pass_true @ [ set_true ] in
@@ -1275,7 +1310,7 @@ and generate_last_dispatch ctx last =
         |> List.mapi ~f:(fun idx (addr, args) ->
             let cond = L.BinOp (L.Eq, switch_var, L.Number (string_of_int idx)) in
             (* Generate argument passing *)
-            let arg_passing = generate_argument_passing ctx addr args in
+            let arg_passing = generate_argument_passing ctx addr args () in
             let set_block = L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int addr)]) in
             let then_stmt = arg_passing @ [ set_block ] in
             (cond, then_stmt))
@@ -1291,11 +1326,11 @@ and generate_last_dispatch ctx last =
   | Code.Pushtrap ((cont_addr, args), _var, (_handler_addr, _handler_args)) ->
       (* Jump to continuation with argument passing.
          Exception handler setup is handled by runtime caml_push_trap. *)
-      let arg_passing = generate_argument_passing ctx cont_addr args in
+      let arg_passing = generate_argument_passing ctx cont_addr args () in
       let set_block = L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int cont_addr)]) in
       arg_passing @ [ set_block ]
   | Code.Poptrap (addr, args) ->
-      let arg_passing = generate_argument_passing ctx addr args in
+      let arg_passing = generate_argument_passing ctx addr args () in
       let set_block = L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int addr)]) in
       arg_passing @ [ set_block ]
 

@@ -64,14 +64,15 @@ js_of_ocaml handles this elegantly:
 - [x] Task 5.4: Confirm all tests pass with current approach (26/26 PASSING)
 
 ### Phase 6: Fix Printf/Format
-- [x] Task 6.1: Debug channel ID passing issue and Enable Optimization Passes (PARTIAL - optimization enabled, scoping blocked)
+- [x] Task 6.1: Debug channel ID passing issue and Enable Optimization Passes ✅
   - [x] Subtask 6.1.1: Enable optimization passes ✅
-  - [ ] Subtask 6.1.2: Fix variable scoping (IN PROGRESS - needs Option A or B)
+  - [x] Subtask 6.1.2: Fix variable scoping ✅ (Option B implemented - distinguish function params from captured vars)
   - [x] Subtask 6.1.3: Tested JavaScript vs Wasm target (no difference)
-  - [ ] Subtask 6.1.4: Verify Printf works end-to-end (blocked)
-- [ ] Task 6.2: Fix channel representation in I/O primitives (blocked by 6.1.2)
-- [ ] Task 6.3: Remove workarounds from runtime/lua/io.lua (blocked by 6.1.2)
-- [ ] Task 6.4: Test Printf.printf with multiple formats (blocked by 6.1.2)
+  - [ ] Subtask 6.1.4: Verify Printf works end-to-end (BLOCKED by Printf format string data flow bug)
+- [ ] Task 6.2: Fix Printf format string data flow (v2318 number vs block issue)
+- [ ] Task 6.3: Fix channel representation in I/O primitives
+- [ ] Task 6.4: Remove workarounds from runtime/lua/io.lua
+- [ ] Task 6.5: Test Printf.printf with multiple formats
 
 ### Phase 7: Integration Testing
 - [ ] Task 7.1: Run hello.ml with all Printf statements
