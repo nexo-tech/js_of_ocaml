@@ -71,7 +71,7 @@ let%expect_test "collect_block_variables_fix" =
   let ctx = L.make_context ~debug:false in
 
   (* Create a mock program with a closure *)
-  let var_parent = Code.Var.fresh_n "parent" in
+  let _var_parent = Code.Var.fresh_n "parent" in
   let var_local = Code.Var.fresh_n "local" in
   let var_captured = Code.Var.fresh_n "captured" in
 

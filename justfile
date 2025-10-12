@@ -116,27 +116,31 @@ test-runtime-all: test-runtime-closure test-runtime-fun test-runtime-obj test-ru
 # Test basic code generation
 test-codegen-basic:
     @echo "=== Testing basic code generation ==="
-    dune exec -- compiler/tests-lua/test_lua_expr_gen.exe
+    @echo "Running inline tests with ppx_expect..."
+    dune runtest compiler/tests-lua --force
 
 # Test closure generation
 test-codegen-closures:
     @echo "=== Testing closure generation ==="
-    dune exec -- compiler/tests-lua/test_closures.exe
+    @echo "Running inline tests with ppx_expect..."
+    dune runtest compiler/tests-lua --force
 
 # Test control flow generation
 test-codegen-control:
     @echo "=== Testing control flow generation ==="
-    dune exec -- compiler/tests-lua/test_lua_stmt_gen.exe
+    @echo "Running inline tests with ppx_expect..."
+    dune runtest compiler/tests-lua --force
 
 # Test entry block generation
 test-codegen-entry-blocks:
     @echo "=== Testing entry block generation ==="
-    dune exec -- compiler/tests-lua/test_entry_block_params.exe
+    @echo "Running inline tests with ppx_expect..."
+    dune runtest compiler/tests-lua --force
 
 # Run all codegen tests
 test-codegen-all:
     @echo "=== Running all code generation tests ==="
-    dune build @runtest -p lua_of_ocaml-compiler --force
+    dune runtest compiler/tests-lua --force
 
 # =============================================================================
 # Phase 5: Compilation Pipeline
