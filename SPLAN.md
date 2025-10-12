@@ -240,12 +240,26 @@ JS uses data-driven dispatch where variables determine control flow, not address
 
 **Approach**: Change from `_next_block = 484` to switch/if-chain on variable values
 
-- [ ] **Task 2.5.1**: Study JS dispatch patterns
-  - Analyze JS `for(;;) { switch(f[0]) { ... } }` pattern
-  - Understand how variables drive control flow
-  - Document how Printf closure works in JS (6233-6400 lines)
-  - Identify what data drives dispatch (f[0], type checks, etc.)
-  - Map JS cases to Lua blocks: which case = which block?
+- [x] **Task 2.5.1**: Study JS dispatch patterns ✅ COMPLETE
+  - ✅ Analyzed JS `for(;;) { switch(fmt[0]) { ... } }` pattern
+  - ✅ Understood how variables drive control flow (fmt, k, acc)
+  - ✅ Documented how Printf closure works in JS (see TASK_2_5_1_JS_DISPATCH_ANALYSIS.md)
+  - ✅ Identified dispatch data: `fmt` (tagged variant with fmt[0] as tag)
+  - ✅ Mapped JS cases to purposes (24 cases + default for format specifiers)
+
+  **Key Findings**:
+  - JS uses **data-driven dispatch**: switch on fmt[0] (tag)
+  - Variables (k, acc, fmt) initialized BEFORE loop entry
+  - Nested labeled blocks (a-l) for breaking out of loop
+  - Cases modify dispatch variables and continue loop OR return
+  - Trampoline pattern (counter >= 50) for tail call optimization
+  - **Confirmed root cause**: Address-driven vs data-driven mismatch
+
+  **Added justfile commands**:
+  - `just compile-js-pretty` - Compile to JS with pretty & debug
+  - `just analyze-printf` - Complete Printf analysis workflow
+
+  **Documentation**: `TASK_2_5_1_JS_DISPATCH_ANALYSIS.md` (comprehensive)
 
 - [ ] **Task 2.5.2**: Analyze IR control flow structure
   - Understand `Code.last` terminators (Branch, Cond, Switch)

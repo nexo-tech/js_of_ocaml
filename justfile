@@ -161,6 +161,11 @@ compile-to-js bc_file out_file:
     @echo "Compiling {{bc_file}} to {{out_file}}..."
     dune exec -- js_of_ocaml {{bc_file}} -o {{out_file}}
 
+# Compile bytecode to JS with pretty printing and debug info
+compile-js-pretty bc_file out_file:
+    @echo "Compiling {{bc_file}} to {{out_file}} (pretty with debug info)..."
+    dune exec -- js_of_ocaml compile {{bc_file}} --pretty --debuginfo --source-map -o {{out_file}}
+
 # Compile OCaml to Lua (end-to-end)
 compile-ml-to-lua ml_file out_file:
     @echo "Compiling {{ml_file}} to {{out_file}} (end-to-end)..."
@@ -296,6 +301,31 @@ test-printf:
     @echo "=== Testing Printf functionality ==="
     @printf 'let () = Printf.printf "Hello, %%s! Answer: %%d\\n" "World" 42\n' > /tmp/test_printf.ml
     @just quick-compare /tmp/test_printf.ml
+
+# Analyze Printf closure structure (for dispatch refactor)
+analyze-printf ml_file:
+    @echo "=== Analyzing Printf closure: {{ml_file}} ==="
+    @echo ""
+    @echo "Step 1: Compile to bytecode..."
+    ocamlc -g -o {{ml_file}}.bc {{ml_file}}
+    @echo ""
+    @echo "Step 2: Compile to JS (pretty with debug)..."
+    @just compile-js-pretty {{ml_file}}.bc {{ml_file}}.pretty.js
+    @echo ""
+    @echo "Step 3: Compile to Lua (with debug)..."
+    @just compile-lua-debug {{ml_file}}.bc
+    @echo ""
+    @echo "Step 4: File sizes..."
+    @ls -lh {{ml_file}}.pretty.js {{ml_file}}.bc.debug.lua
+    @echo ""
+    @echo "Step 5: Extract Printf closure from JS..."
+    @grep -n "function.*counter.*{" {{ml_file}}.pretty.js | head -5
+    @echo ""
+    @echo "Generated files:"
+    @echo "  - {{ml_file}}.bc              (bytecode)"
+    @echo "  - {{ml_file}}.pretty.js       (JS with debug info)"
+    @echo "  - {{ml_file}}.bc.debug.lua    (Lua with debug info)"
+    @echo "  - {{ml_file}}.bc.debug.lua.map (Lua source map)"
 
 # Test closure capture
 test-capture:

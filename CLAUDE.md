@@ -29,6 +29,13 @@ just quick-test <file.ml>      # Compile and run OCaml file
 just compare-outputs <file.ml> # Compare Lua vs JS output
 just test-file <test_name>     # Run specific test
 just inspect-bytecode <file>   # Inspect bytecode structure
+
+# Compilation commands
+just compile-js-pretty <bc_file> <out_file>  # Compile to JS with --pretty --debuginfo
+just compile-lua-debug <bc_file>             # Compile to Lua with debug info
+
+# Analysis commands (for dispatch refactor)
+just analyze-printf <ml_file>  # Full Printf closure analysis (JS + Lua + debug)
 ```
 
 ### Why Just?
