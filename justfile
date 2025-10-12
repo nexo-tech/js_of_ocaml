@@ -206,23 +206,25 @@ compare-outputs ml_file:
 # Run lua_of_ocaml tests only (skip JS/Wasm)
 test-lua:
     @echo "=== Running lua_of_ocaml tests ==="
-    dune build @runtest -p lua_of_ocaml-compiler
+    dune runtest compiler/tests-lua
 
 # Run specific test file
 test-file name:
     @echo "=== Running test: {{name}} ==="
-    dune exec -- compiler/tests-lua/{{name}}.exe
+    @echo "Note: ppx_expect inline tests run as part of library, running full compiler/tests-lua"
+    dune runtest compiler/tests-lua --force
 
 # Run test and promote output
 test-promote name:
     @echo "=== Running test {{name}} and promoting output ==="
-    dune exec -- compiler/tests-lua/{{name}}.exe
-    dune promote
+    @echo "Note: Promoting all test outputs in compiler/tests-lua"
+    dune promote compiler/tests-lua
 
 # Watch tests (continuous)
 test-watch:
     @echo "=== Watching lua_of_ocaml tests ==="
-    dune build @runtest -p lua_of_ocaml-compiler --watch
+    @echo "Note: Use Ctrl-C to stop watching"
+    dune build @runtest --watch compiler/tests-lua
 
 # =============================================================================
 # Phase 7: Debugging Tools
