@@ -214,35 +214,43 @@ This file provides a master checklist for setting up a complete troubleshooting 
   - Converts bytecode to JS for behavior comparison
   - ✅ Verified: Bytecode compiled to JS successfully (69K output)
 
-- [ ] **Task 5.4**: Compile OCaml to Lua (end-to-end)
+- [x] **Task 5.4**: Compile OCaml to Lua (end-to-end)
   ```bash
   just compile-ml-to-lua <file.ml> <output.lua>
   ```
   - Full pipeline: OCaml → bytecode → Lua
+  - ✅ Verified: End-to-end compilation successful (985K output)
 
-- [ ] **Task 5.5**: Compile OCaml to JS (end-to-end)
+- [x] **Task 5.5**: Compile OCaml to JS (end-to-end)
   ```bash
   just compile-ml-to-js <file.ml> <output.js>
   ```
   - Full pipeline: OCaml → bytecode → JS
+  - ✅ Verified: End-to-end compilation successful (69K output)
 
-- [ ] **Task 5.6**: Run Lua output
+- [x] **Task 5.6**: Run Lua output
   ```bash
   just run-lua <file.lua>
   ```
   - Executes Lua file with runtime loaded
+  - ✅ Verified: Lua execution works, prints "Hello from OCaml!"
+  - Note: Runtime errors expected due to missing Printf primitives (tracked in LUA.md M1)
 
-- [ ] **Task 5.7**: Run JS output (comparison)
+- [x] **Task 5.7**: Run JS output (comparison)
   ```bash
   just run-js <file.js>
   ```
   - Executes JS file with Node.js
+  - ✅ Verified: JS output runs completely with correct results
 
-- [ ] **Task 5.8**: Compare Lua and JS output
+- [x] **Task 5.8**: Compare Lua and JS output
   ```bash
   just compare-outputs <file.ml>
   ```
   - Compiles to both Lua and JS, compares outputs
+  - ✅ Verified: Comparison command works, shows differences
+  - Lua: Partial output (print_endline works, Printf.printf fails)
+  - JS: Complete output (all features work)
 
 ### Phase 6: Test Execution (< 200 lines)
 

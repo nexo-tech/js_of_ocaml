@@ -176,7 +176,7 @@ compile-ml-to-js ml_file out_file:
 # Run Lua output
 run-lua lua_file:
     @echo "Running {{lua_file}}..."
-    cd runtime/lua && lua ../../{{lua_file}}
+    lua {{lua_file}}
 
 # Run JS output (for comparison)
 run-js js_file:
