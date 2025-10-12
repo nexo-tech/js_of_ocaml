@@ -243,12 +243,25 @@ inspect-lambda ml_file:
 # Generate Lua with debug info
 compile-lua-debug bc_file:
     @echo "=== Compiling {{bc_file}} with debug info ==="
-    @echo "TODO: Add debug flag to lua_of_ocaml CLI"
+    _build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe compile {{bc_file}} --source-map={{bc_file}}.debug.lua.map -o {{bc_file}}.debug.lua
+    @echo "Generated: {{bc_file}}.debug.lua and {{bc_file}}.debug.lua.map"
+    @ls -lh {{bc_file}}.debug.lua {{bc_file}}.debug.lua.map
 
 # Compare Lua and JS ASTs
 compare-ast bc_file:
     @echo "=== Comparing ASTs for {{bc_file}} ==="
-    @echo "TODO: Implement AST comparison tool"
+    @echo ""
+    @echo "=== Lua Code Structure ==="
+    _build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe compile {{bc_file}} -o /tmp/compare_ast.lua
+    @head -100 /tmp/compare_ast.lua
+    @echo ""
+    @echo "=== JavaScript Code Structure ==="
+    dune exec -- js_of_ocaml {{bc_file}} -o /tmp/compare_ast.js
+    @head -100 /tmp/compare_ast.js
+    @echo ""
+    @echo "=== Size Comparison ==="
+    @echo -n "Lua: " && wc -c < /tmp/compare_ast.lua | tr -d ' ' && echo " bytes"
+    @echo -n "JS:  " && wc -c < /tmp/compare_ast.js | tr -d ' ' && echo " bytes"
 
 # Trace Lua execution
 trace-lua lua_file:

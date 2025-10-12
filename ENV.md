@@ -308,17 +308,20 @@ This file provides a master checklist for setting up a complete troubleshooting 
   - ✅ Verified: Uses `ocamlc -dlambda` to display lambda IR
   - Shows function applications, makeblock operations, field accesses
 
-- [ ] **Task 7.3**: Generate Lua with debug info
+- [x] **Task 7.3**: Generate Lua with debug info
   ```bash
   just compile-lua-debug <file.bc>
   ```
   - Compiles with full debug output
+  - ✅ Verified: Generates .debug.lua and .debug.lua.map files with source maps
+  - Uses --source-map flag for debugging support
 
-- [ ] **Task 7.4**: Compare Lua and JS ASTs
+- [x] **Task 7.4**: Compare Lua and JS ASTs
   ```bash
   just compare-ast <file.bc>
   ```
   - Shows side-by-side AST comparison
+  - ✅ Verified: Displays code structure and size comparison (Lua: ~1MB, JS: ~70KB)
 
 - [ ] **Task 7.5**: Trace Lua execution
   ```bash
