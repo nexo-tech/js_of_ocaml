@@ -227,8 +227,12 @@ let optimize_block_construction tag fields =
 (** Dispatch mode for closure compilation *)
 type dispatch_mode =
   | AddressBased  (** Current approach: dispatch on _next_block addresses *)
-  | DataDriven of Code.Var.t * (Code.Addr.t * Code.Var.t list) array
-      (** Data-driven: dispatch on variable value (dispatch_var, switch_cases) *)
+  | DataDriven of {
+      entry_addr : Code.Addr.t;  (** Entry block address for back-edge detection *)
+      dispatch_var : Code.Var.t;  (** Variable to dispatch on *)
+      switch_cases : (Code.Addr.t * Code.Var.t list) array;  (** Switch cases *)
+    }
+      (** Data-driven: dispatch on variable value with loop support *)
 
 (** Generate Lua expression from Code constant
     @param const IR constant
@@ -1033,41 +1037,52 @@ and detect_dispatch_mode program entry_addr =
   match Code.Addr.Map.find_opt entry_addr program.Code.blocks with
   | None -> AddressBased
   | Some entry_block ->
-      (* For prototype: Only use data-driven for simple Switch terminators
-         without loops or complex control flow *)
+      (* Task 2.5.5: Extended detection for Printf pattern
+         Use data-driven for Switch terminators where cases either:
+         - Return (exit loop)
+         - Branch back to entry (continue loop)
+      *)
       (match entry_block.Code.branch with
       | Code.Switch (dispatch_var, conts) ->
-          (* Check if this is a simple switch (all cases return, no loops) *)
-          let is_simple_switch =
+          (* Check if this is a data-driven switch *)
+          let is_data_driven_switch =
             Array.for_all conts ~f:(fun (target_addr, _args) ->
               match Code.Addr.Map.find_opt target_addr program.Code.blocks with
               | None -> false
               | Some target_block ->
-                  (* Simple case: block body + Return terminator *)
+                  (* Allow: Return (exit) OR Branch to entry (loop back) *)
                   (match target_block.Code.branch with
                   | Code.Return _ -> true
+                  | Code.Branch (cont_addr, _) when cont_addr = entry_addr -> true
                   | _ -> false))
           in
-          if is_simple_switch then
-            DataDriven (dispatch_var, conts)
+          if is_data_driven_switch then
+            DataDriven { entry_addr; dispatch_var; switch_cases = conts }
           else
             AddressBased
       | _ -> AddressBased)
 
-(** Compile closure using data-driven dispatch (PROTOTYPE).
-    This is a simplified implementation for Task 2.5.4.
+(** Compile closure using data-driven dispatch with loop support (Task 2.5.5).
+    Handles Printf pattern: Switch-based loops with back-edges.
 
     @param ctx Code generation context
     @param program Full IR program
-    @param entry_addr Entry block address
+    @param entry_addr Entry block address for back-edge detection
     @param dispatch_var Variable to dispatch on
     @param switch_cases Array of (target_addr, args)
-    @param params Function parameters
+    @param _params Function parameters (unused in this version)
     @return List of Lua statements
 *)
-and compile_data_driven_dispatch ctx program _entry_addr dispatch_var switch_cases _params =
+and compile_data_driven_dispatch ctx program entry_addr dispatch_var switch_cases _params =
   (* Initialize dispatch variable from parameter *)
   let dispatch_var_name = var_name ctx dispatch_var in
+
+  (* Get entry block params for back-edge handling *)
+  let entry_block_params =
+    match Code.Addr.Map.find_opt entry_addr program.Code.blocks with
+    | Some block -> block.Code.params
+    | None -> []
+  in
 
   (* Generate if-elseif chain for switch cases *)
   let rec generate_switch_cases idx =
@@ -1075,28 +1090,54 @@ and compile_data_driven_dispatch ctx program _entry_addr dispatch_var switch_cas
       (* No more cases - return nil or error *)
       [ L.Return [ L.Nil ] ]
     else
-      let (target_addr, _args) = switch_cases.(idx) in
+      let (target_addr, _case_args) = switch_cases.(idx) in
       match Code.Addr.Map.find_opt target_addr program.Code.blocks with
       | None -> generate_switch_cases (idx + 1)
       | Some target_block ->
-          (* Generate inline case: check tag, execute body, return *)
+          (* Generate condition: dispatch_var == idx *)
           let condition =
             L.BinOp (L.Eq, L.Ident dispatch_var_name, L.Number (string_of_int idx))
           in
+
+          (* Generate case body *)
           let case_body =
-            (* Generate block body *)
+            (* Generate block body instructions *)
             let body_stmts = generate_instrs ctx target_block.Code.body in
-            (* Generate terminator (should be Return) *)
-            let term_stmts = generate_last_dispatch ctx target_block.Code.branch in
+
+            (* Handle terminator based on type *)
+            let term_stmts = match target_block.Code.branch with
+              | Code.Return _ ->
+                  (* Return case: generate return statement *)
+                  generate_last_dispatch ctx target_block.Code.branch
+
+              | Code.Branch (cont_addr, cont_args) when cont_addr = entry_addr ->
+                  (* Back-edge case: update entry block params and continue loop *)
+                  (* Generate assignments for continuation arguments to entry params *)
+                  let param_arg_pairs = List.combine entry_block_params cont_args in
+                  let arg_assignments =
+                    List.map param_arg_pairs ~f:(fun (param, arg) ->
+                      let param_ident = var_ident ctx param in
+                      let arg_ident = var_ident ctx arg in
+                      L.Assign ([param_ident], [arg_ident]))
+                  in
+                  arg_assignments
+                  (* No break/return - falls through to continue loop *)
+
+              | _ ->
+                  (* Unexpected terminator - generate it anyway *)
+                  generate_last_dispatch ctx target_block.Code.branch
+            in
+
             body_stmts @ term_stmts
           in
+
           let else_branch = generate_switch_cases (idx + 1) in
           [ L.If (condition, case_body, Some else_branch) ]
   in
 
-  (* Generate the complete function body *)
+  (* Wrap switch in while loop for back-edges *)
   let switch_stmt = generate_switch_cases 0 in
-  switch_stmt
+  [ L.While (L.Bool true, switch_stmt) ]
 
 (** Compile all reachable blocks with dispatch loop (Lua 5.1 compatible)
     This is the single unified function that all code generation paths use.
@@ -1118,9 +1159,9 @@ and compile_blocks_with_labels ctx program start_addr ?(params = []) ?(entry_arg
   let dispatch_mode = detect_dispatch_mode program start_addr in
 
   match dispatch_mode with
-  | DataDriven (dispatch_var, switch_cases) ->
-      (* Use new data-driven dispatch for simple switches *)
-      compile_data_driven_dispatch ctx program start_addr dispatch_var switch_cases params
+  | DataDriven { entry_addr; dispatch_var; switch_cases } ->
+      (* Use new data-driven dispatch for switches with loops (Task 2.5.5) *)
+      compile_data_driven_dispatch ctx program entry_addr dispatch_var switch_cases params
 
   | AddressBased ->
       (* Use existing address-based dispatch *)

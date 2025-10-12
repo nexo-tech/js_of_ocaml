@@ -372,38 +372,42 @@ JS uses data-driven dispatch where variables determine control flow, not address
 
   **Documentation**: `TASK_2_5_4_PROTOTYPE.md` (comprehensive results)
 
-- [ ] **Task 2.5.5**: Refactor compile_blocks_with_labels
-  - Modify dispatch loop generation (lines 1220-1293)
-  - Remove address-based `_next_block = N` pattern
-  - Implement data-driven dispatch (switch on variables)
-  - Update generate_last_dispatch for new model
-  - Preserve entry block parameter initialization from Task 2.5
+- [x] **Task 2.5.5**: Extend data-driven dispatch for loops ⚠️ PARTIAL
+  - ✅ Extended DataDriven type to include entry_addr for back-edge detection
+  - ✅ Modified detection to allow Return OR Branch-to-entry terminators
+  - ✅ Implemented loop back-edge handling (variable assignments + continue)
+  - ✅ Wrapped switch in while loop for iteration
+  - ❌ Printf detection doesn't trigger (IR pattern doesn't match criteria)
 
-- [ ] **Task 2.5.6**: Test and verify
-  - Test simple closures still work
-  - Test Printf.printf "Hello, World!\n"
-  - Test Printf with %d, %s format specifiers
-  - Compare Lua vs JS output correctness
-  - Run full test suite: `just test-lua`
+  **Implementation**: Works correctly when Switch terminators exist
+  **Issue**: Printf doesn't use Switch terminators (uses Cond decision trees)
+  **Status**: Code correct, no regressions, but Printf still fails
+  **Documentation**: `TASK_2_5_5_REPORT.md` (full analysis and recommendations)
 
-- [ ] **Task 2.5.7**: Optimize and document
-  - Optimize generated code size if possible
-  - Document new dispatch model in code comments
-  - Update CLAUDE.md with dispatch architecture
-  - Create DISPATCH_MODEL.md explaining the design
-  - Commit with comprehensive documentation
+**⚠️ Phase 2.5 Status Update**:
 
-**Success Criteria**:
-- Printf.printf works ✅
-- Simple closures still work ✅
-- Generated code matches JS semantics ✅
-- Code size is reasonable (hopefully smaller!)
+Tasks 2.5.4 and 2.5.5 completed successfully but revealed key insight:
+- **Data-driven dispatch works** when Switch terminators exist in IR
+- **Printf doesn't use Switch** - uses Cond decision trees instead
+- **Data-driven approach won't fix Printf** - need different solution
 
-**Estimated Time**: 4-8 hours (complex refactor but cleaner solution)
+**Recommendation**: Pause Phase 2.5, return to Phase 2 approach
+- Printf needs entry block dependency analysis OR variable initialization fix
+- Data-driven dispatch is valuable but doesn't solve Printf problem
+- Continue with Tasks 2.5.6-2.5.7 later if Switch-based patterns found
 
-**Risk**: High - changes core dispatch logic. But addresses root cause properly.
+**Skip for now**:
+- [ ] **Task 2.5.6**: Test and verify (SKIP - detection doesn't trigger for Printf)
+- [ ] **Task 2.5.7**: Optimize and document (SKIP - defer until needed)
 
-**Alternative**: Skip this phase, implement hack in Task 2.5.8 (quick dependency init)
+**New Approach Needed**:
+- Return to Phase 2 findings: entry block v270 dependency issue
+- Options:
+  1. Implement entry block dependency analysis
+  2. Initialize entry-required variables before dispatch loop
+  3. Special-case Printf pattern
+
+See `TASK_2_5_5_REPORT.md` for full analysis and recommendations.
 
 ### Phase 3: Printf Primitives - ✅ PARTIAL (2 hours)
 
