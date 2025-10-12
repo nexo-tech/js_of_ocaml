@@ -68,64 +68,53 @@ let () = Printf.printf "Hello, World!\n"
     - `caml_direct_int_mul` (integer operations)
   - **Progress**: `Sys.word_size` test now passes (returns 32)!
 
-### Phase 1: Assess Current State (< 2 hours)
+### Phase 1: Assess Current State - ✅ COMPLETE (45 min)
 
 **Goal**: Understand exactly what's broken and why
 
-- [ ] **Task 1.1**: Create minimal test case
-  ```bash
-  cat > /tmp/test_minimal.ml << 'EOF'
-  let () = print_endline "Hello from print_endline"
-  EOF
-  just quick-test /tmp/test_minimal.ml
-  ```
-  - Captures: What works vs what fails
-  - Documents: First point of failure
+- [x] **Task 1.1**: Create minimal test case
+  - ✅ Complete: `print_endline` works perfectly!
+  - Test: `let () = print_endline "Hello from print_endline"`
+  - Result: Success - basic I/O is functional
+  - Warnings: Duplicate primitives (non-blocking)
 
-- [ ] **Task 1.2**: Test Printf.printf
-  ```bash
-  cat > /tmp/test_printf.ml << 'EOF'
-  let () = Printf.printf "Hello, World!\n"
-  EOF
-  just quick-test /tmp/test_printf.ml
-  ```
-  - Captures: Printf-specific failures
-  - Identifies: Missing Printf primitives
+- [x] **Task 1.2**: Test Printf.printf
+  - ✅ Complete: Printf.printf fails with runtime error
+  - Test: `let () = Printf.printf "Hello, World!\n"`
+  - Error: `attempt to index field 'v273' (a nil value)` at line 22538
+  - Finding: NOT missing primitive - variable initialization bug!
 
-- [ ] **Task 1.3**: Test Printf with format specifiers
-  ```bash
-  cat > /tmp/test_printf_format.ml << 'EOF'
-  let () = Printf.printf "Answer: %d\n" 42
-  EOF
-  just quick-test /tmp/test_printf_format.ml
-  ```
-  - Tests: Format string parsing
-  - Identifies: Format runtime primitives needed
+- [x] **Task 1.3**: Test Printf with format specifiers
+  - ✅ Complete: Same error pattern
+  - Test: `let () = Printf.printf "Answer: %d\n" 42`
+  - Error: `attempt to index field 'v275' (a nil value)` at line 22540
+  - Confirms: Systematic closure variable initialization issue
 
-- [ ] **Task 1.4**: Analyze generated Lua code
-  ```bash
-  just compile-ml-to-lua /tmp/test_printf.ml /tmp/test_printf.lua
-  # Inspect the generated code
-  less /tmp/test_printf.lua
-  ```
-  - Understand: What caml_* functions are generated
-  - Verify: Runtime primitives are embedded
-  - Check: Function calling conventions
+- [x] **Task 1.4**: Analyze generated Lua code
+  - ✅ Complete: Found the bug!
+  - File size: 24,427 lines (15x larger than JS!)
+  - Runtime: 12,614 lines (52%)
+  - Program: 11,813 lines (48%)
+  - Functions: 763 (vs 74 in JS - 10x more!)
+  - **Root cause**: `_V` table variables not initialized in nested closures
+  - Bug location: Block 482 assigns `v273 = _V.v206[2]`, but v206 is nil
 
-- [ ] **Task 1.5**: Compare with working JS output
-  ```bash
-  just compare-outputs /tmp/test_printf.ml
-  ```
-  - Understand: How js_of_ocaml handles same code
-  - Compare: Code structure and runtime calls
-  - Document: Differences in approach
+- [x] **Task 1.5**: Compare with working JS output
+  - ✅ Complete: JS version works perfectly
+  - JS: 1,666 lines total (Lua: 24,427 lines)
+  - JS: 74 functions (Lua: 763 functions)
+  - JS output: "Hello, World!" ✅
+  - Key difference: JS handles closure variables correctly
 
-- [ ] **Task 1.6**: Document findings
-  Create `/tmp/assessment.md` with:
-  - List of missing/broken primitives
-  - Generated code structure issues
-  - Runtime loading problems
-  - Priority order for fixes
+- [x] **Task 1.6**: Document findings
+  - ✅ Complete: Created `/tmp/assessment.md`
+  - **ROOT CAUSE IDENTIFIED**: Closure variable capture bug in `_V` table
+  - When nested closures inherit `_V`, variables aren't initialized properly
+  - Block arguments expect values from outer scope, but initialization order broken
+  - Printf fails because it uses deeply nested closures (CPS style)
+  - See `/tmp/assessment.md` for full analysis
+
+**KEY DISCOVERY**: The problem is NOT missing primitives! It's a code generation bug in how closure variables are initialized in the `_V` table. Must fix in `lua_generate.ml`.
 
 ### Phase 2: Runtime Integration (2-4 hours)
 
@@ -583,8 +572,8 @@ let () = Printf.printf "Hello, World!\n"
 
 ### Phase Completion
 - [x] Phase 0: Environment verified ✅ (18 min)
-- [ ] Phase 1: Current state assessed (< 2 hours) ⬅️ **NEXT**
-- [ ] Phase 2: Runtime integration fixed (2-4 hours)
+- [x] Phase 1: Current state assessed ✅ (45 min)
+- [ ] Phase 2: Runtime integration fixed (2-4 hours) ⬅️ **NEXT**
 - [ ] Phase 3: Printf primitives working (2-4 hours)
 - [ ] Phase 4: I/O primitives verified (1-2 hours)
 - [ ] Phase 5: Hello world running (1-2 hours)
