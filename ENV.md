@@ -292,17 +292,21 @@ This file provides a master checklist for setting up a complete troubleshooting 
 
 **Goal**: Provide utilities for troubleshooting compilation issues.
 
-- [ ] **Task 7.1**: Inspect OCaml bytecode
+- [x] **Task 7.1**: Inspect OCaml bytecode
   ```bash
   just inspect-bytecode <file.bc>
   ```
   - Shows bytecode instructions and structure
+  - ✅ Verified: Uses `ocamlobjinfo` to display bytecode metadata
+  - Shows primitives used, unit information, compilation flags
 
-- [ ] **Task 7.2**: Inspect OCaml lambda IR
+- [x] **Task 7.2**: Inspect OCaml lambda IR
   ```bash
   just inspect-lambda <file.ml>
   ```
   - Shows OCaml lambda intermediate representation
+  - ✅ Verified: Uses `ocamlc -dlambda` to display lambda IR
+  - Shows function applications, makeblock operations, field accesses
 
 - [ ] **Task 7.3**: Generate Lua with debug info
   ```bash
