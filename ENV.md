@@ -14,65 +14,71 @@ This file provides a master checklist for setting up a complete troubleshooting 
 
 **Goal**: Install the `just` command runner required for all other tasks.
 
-- [ ] **Task 0.1**: Install just via Homebrew (macOS/Linux)
+- [x] **Task 0.1**: Install just via Homebrew (macOS/Linux)
   ```bash
   brew install just
   ```
 
-- [ ] **Task 0.2**: Or install just via Cargo (if Rust is installed)
+- [x] **Task 0.2**: Or install just via Cargo (if Rust is installed)
   ```bash
   cargo install just
   ```
 
-- [ ] **Task 0.3**: Or download just binary directly
+- [x] **Task 0.3**: Or download just binary directly
   ```bash
   # See: https://github.com/casey/just#installation
   # For macOS/Linux, download from releases page
   ```
 
-- [ ] **Task 0.4**: Verify just is installed
+- [x] **Task 0.4**: Verify just is installed
   ```bash
   just --version
   ```
   - Should show: just x.x.x or higher
+  - ✅ Verified: just 1.43.0
 
 ### Phase 1: Environment Verification (< 100 lines)
 
 **Goal**: Verify all required tools are installed and accessible.
 
-- [ ] **Task 1.1**: Verify OPAM switch is active
+- [x] **Task 1.1**: Verify OPAM switch is active
   ```bash
   just verify-opam
   ```
   - Should show: `lua_of_ocaml_52` and OCaml 5.2.0
+  - ✅ Verified: lua_of_ocaml_52, OCaml 5.2.0
 
-- [ ] **Task 1.2**: Verify Lua 5.1 is installed
+- [x] **Task 1.2**: Verify Lua 5.1 is installed
   ```bash
   just verify-lua
   ```
   - Should show: Lua 5.1.x
+  - ✅ Verified: Lua 5.1.5
 
-- [ ] **Task 1.3**: Verify dune version
+- [x] **Task 1.3**: Verify dune version
   ```bash
   just verify-dune
   ```
   - Should show: dune >= 3.17
+  - ✅ Verified: dune 3.20.2
 
-- [ ] **Task 1.4**: Verify all dependencies installed
+- [x] **Task 1.4**: Verify all dependencies installed
   ```bash
   just verify-deps
   ```
   - Lists all installed OPAM packages
+  - ✅ Verified: All required packages installed
 
 ### Phase 2: Build System Setup (< 200 lines)
 
 **Goal**: Build all lua_of_ocaml components cleanly.
 
-- [ ] **Task 2.1**: Clean build artifacts
+- [x] **Task 2.1**: Clean build artifacts
   ```bash
   just clean
   ```
   - Removes all `_build/` artifacts
+  - ✅ Verified: Build artifacts cleaned
 
 - [ ] **Task 2.2**: Build lua_of_ocaml compiler library
   ```bash

@@ -274,19 +274,13 @@ quick-compare ml_file:
 # Test Printf functionality
 test-printf:
     @echo "=== Testing Printf functionality ==="
-    @cat > /tmp/test_printf.ml << 'EOF'
-let () = Printf.printf "Hello, %s! Answer: %d\n" "World" 42
-EOF
+    @printf 'let () = Printf.printf "Hello, %%s! Answer: %%d\\n" "World" 42\n' > /tmp/test_printf.ml
     @just quick-compare /tmp/test_printf.ml
 
 # Test closure capture
 test-capture:
     @echo "=== Testing closure variable capture ==="
-    @cat > /tmp/test_capture.ml << 'EOF'
-let x = 10 in
-let f () = x + 5 in
-Printf.printf "%d\n" (f ())
-EOF
+    @printf 'let x = 10 in\nlet f () = x + 5 in\nPrintf.printf "%%d\\n" (f ())\n' > /tmp/test_capture.ml
     @just quick-compare /tmp/test_capture.ml
 
 # Full rebuild and test
