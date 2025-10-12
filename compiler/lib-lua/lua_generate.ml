@@ -861,6 +861,40 @@ and generate_instrs ctx instrs =
 
 (** {2 Loop Detection} *)
 
+(** Find blocks that provide initial values for entry block parameters
+    When an entry block has parameters, we need to find where those parameters
+    get their initial values from. This is typically a block that jumps to the
+    entry with arguments.
+
+    @param program The Code.program
+    @param entry_addr The entry block address
+    @return Option of (initializer_addr, args) or None
+*)
+and find_entry_initializer program entry_addr =
+  (* Look for blocks that jump to entry_addr with arguments *)
+  Code.Addr.Map.fold (fun addr block acc ->
+    (* Skip the entry block itself *)
+    if addr = entry_addr then acc
+    else
+      match block.Code.branch with
+      | Code.Branch (target, args) when target = entry_addr && not (List.is_empty args) ->
+          (* Found a branch to entry with arguments *)
+          Some (addr, args)
+      | Code.Cond (_, (t1, args1), (t2, args2)) ->
+          if t1 = entry_addr && not (List.is_empty args1) then
+            Some (addr, args1)
+          else if t2 = entry_addr && not (List.is_empty args2) then
+            Some (addr, args2)
+          else acc
+      | Code.Switch (_, cases) ->
+          (* Check switch cases for jumps to entry with args *)
+          Array.fold_left cases ~init:acc ~f:(fun acc (target, args) ->
+            if target = entry_addr && not (List.is_empty args) then
+              Some (addr, args)
+            else acc)
+      | _ -> acc
+  ) program.Code.blocks None
+
 (** Detect loop headers by finding back edges in the control flow graph.
     A back edge is when a block jumps to a block that's already in the path to it.
     Returns a set of loop header addresses (blocks that are jump targets of back edges).
@@ -1136,9 +1170,49 @@ and compile_blocks_with_labels ctx program start_addr ?(params = []) () =
   let dispatch_loop =
     match block_cases with
     | [] -> []
-    | (first_addr, _) :: _ ->
+    | _ ->
+        (* Check if entry block has parameters that need initialization *)
+        let entry_block_opt = Code.Addr.Map.find_opt start_addr program.Code.blocks in
+        let entry_has_params =
+          match entry_block_opt with
+          | Some block -> not (List.is_empty block.Code.params)
+          | None -> false
+        in
+
+        (* Determine the actual starting block *)
+        let actual_start_addr, extra_init_stmts =
+          if entry_has_params then
+            (* Entry block has parameters - need special handling *)
+            match find_entry_initializer program start_addr with
+            | Some (init_addr, _) ->
+                (* Found an initializer block - start there instead *)
+                if !debug_var_collect then
+                  Format.eprintf "Entry block %d has params, starting at initializer block %d@."
+                    start_addr init_addr;
+                (init_addr, [])
+            | None ->
+                (* No initializer found - start at entry but initialize params to nil *)
+                if !debug_var_collect then
+                  Format.eprintf "Entry block %d has params but no initializer found, initializing to nil@."
+                    start_addr;
+                match entry_block_opt with
+                | Some block ->
+                    let param_inits = List.map block.Code.params ~f:(fun param ->
+                      let param_name = var_name ctx param in
+                      if use_table then
+                        L.Assign ([L.Dot (L.Ident var_table_name, param_name)], [L.Nil])
+                      else
+                        L.Assign ([L.Ident param_name], [L.Nil])
+                    ) in
+                    (start_addr, param_inits)
+                | None -> (start_addr, [])
+          else
+            (* Normal case - no parameters, start at entry *)
+            (start_addr, [])
+        in
+
         (* Initialize dispatch variable to start address *)
-        let init_stmt = L.Local (["_next_block"], Some [L.Number (string_of_int first_addr)]) in
+        let init_stmt = L.Local (["_next_block"], Some [L.Number (string_of_int actual_start_addr)]) in
 
         (* Build if-elseif chain for block dispatch *)
         let rec build_dispatch_chain = function
@@ -1155,7 +1229,7 @@ and compile_blocks_with_labels ctx program start_addr ?(params = []) () =
         let dispatch_body = build_dispatch_chain block_cases in
 
         (* Wrap in while true do ... end loop *)
-        [ init_stmt
+        extra_init_stmts @ [ init_stmt
         ; L.While (L.Bool true, dispatch_body)
         ]
   in
@@ -1163,69 +1237,6 @@ and compile_blocks_with_labels ctx program start_addr ?(params = []) () =
   (* Return hoisted declarations + parameter copies + dispatch loop *)
   hoist_stmts @ param_copy_stmts @ dispatch_loop
 
-(** {2 Function/Closure Generation} *)
-
-(** Generate Lua function from closure using unified block compilation
-
-    Each closure gets its own independent context to decide whether to use
-    table-based storage or locals. This allows nested functions with >180 vars
-    to use _V tables while their parents use locals (or vice versa).
-
-    {b Variable Capture with Table Storage}
-
-    Table-based storage actually SIMPLIFIES variable capture compared to locals:
-
-    - {b With locals}: Each captured variable becomes a separate upvalue
-      {[
-        -- Parent function
-        local v0, v1, v2, ...
-        local f = function()
-          return v0 + v1  -- Two separate upvalues
-        end
-      ]}
-
-    - {b With table}: The entire _V table is captured as a single upvalue
-      {[
-        -- Parent function
-        local _V = {}
-        _V.v0 = 42
-        _V.f = function()
-          return _V.v0 + _V.v1  -- Single upvalue (_V table)
-        end
-      ]}
-
-    Lua's upvalue system automatically handles capturing the parent's _V table.
-    No special code generation needed - it just works!
-
-    {b Nested Functions Example}:
-    {[
-      -- Parent: 250 vars → uses _V table
-      local _V = {}
-      _V.x = 42
-
-      -- Child: 50 vars → uses locals (independent decision)
-      _V.f = function()
-        local v0, v1, ...
-        v0 = _V.x  -- Accesses parent's _V via upvalue
-        return v0
-      end
-
-      -- Grandchild: 300 vars → uses its own _V table
-      _V.g = function()
-        local _V = {}  -- Own table, shadows parent's _V
-        _V.v0 = _V.x   -- ERROR: can't access parent's _V (shadowed)
-      end
-    ]}
-
-    Note: If a nested function uses table storage, it shadows the parent's _V.
-    The IR doesn't generate cross-function variable references (each function
-    has its own local scope), so shadowing is not an issue in practice.
-
-    @param ctx Code generation context (parent)
-    @param params Function parameters list (from Code.Closure first argument)
-    @param pc Program counter pointing to function body
-    @return Lua function expression wrapped in caml_make_closure
-*)
 and generate_closure ctx params pc block_args =
   match ctx.program with
   | None ->
@@ -1410,7 +1421,7 @@ and generate_last ctx last =
     @param block IR block
     @return List of Lua statements
 *)
-let generate_block ctx block =
+and generate_block ctx block =
   let body_stmts = generate_instrs ctx block.Code.body in
   let last_stmts = generate_last ctx block.Code.branch in
   body_stmts @ last_stmts

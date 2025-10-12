@@ -628,6 +628,21 @@ function caml_ml_output_bytes(chanid, bytes, offset, len)
   return caml_ml_output(chanid, str, 0, len)
 end
 
+--Provides: caml_ml_output_string
+--Requires: caml_ml_output
+function caml_ml_output_string(chanid, str)
+  -- OCaml strings can be either Lua strings or byte arrays
+  if type(str) == "table" then
+    -- Convert byte array to string
+    local chars = {}
+    for i = 1, #str do
+      chars[i] = string.char(str[i])
+    end
+    str = table.concat(chars)
+  end
+  return caml_ml_output(chanid, str, 0, #str)
+end
+
 --Provides: caml_ml_output_int
 --Requires: caml_unwrap_chanid, caml_ml_flush, caml_ml_channels
 function caml_ml_output_int(chanid, i)
