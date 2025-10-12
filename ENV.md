@@ -323,17 +323,21 @@ This file provides a master checklist for setting up a complete troubleshooting 
   - Shows side-by-side AST comparison
   - ✅ Verified: Displays code structure and size comparison (Lua: ~1MB, JS: ~70KB)
 
-- [ ] **Task 7.5**: Trace Lua execution
+- [x] **Task 7.5**: Trace Lua execution
   ```bash
   just trace-lua <file.lua>
   ```
   - Runs Lua with debug tracing enabled
+  - ✅ Verified: Traces function calls and returns with call depth indentation
+  - Shows function names, source files, and line numbers
 
-- [ ] **Task 7.6**: Profile Lua execution
+- [x] **Task 7.6**: Profile Lua execution
   ```bash
   just profile-lua <file.lua>
   ```
   - Profiles Lua execution performance
+  - ✅ Verified: Measures function call counts, total time, and average time per call
+  - Displays results sorted by total execution time
 
 ### Phase 8: Quick Workflows (< 150 lines)
 

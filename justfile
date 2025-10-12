@@ -266,12 +266,14 @@ compare-ast bc_file:
 # Trace Lua execution
 trace-lua lua_file:
     @echo "=== Tracing Lua execution: {{lua_file}} ==="
-    LUA_DEBUG=1 lua -ldebug {{lua_file}}
+    @printf 'local debug = require("debug")\nlocal call_depth = 0\ndebug.sethook(function(event, line)\n  local info = debug.getinfo(2, "nSl")\n  if event == "call" then\n    call_depth = call_depth + 1\n    print(string.rep("  ", call_depth) .. ">> " .. (info.name or "?") .. " at " .. (info.short_src or "?") .. ":" .. (info.currentline or "?"))\n  elseif event == "return" then\n    print(string.rep("  ", call_depth) .. "<< " .. (info.name or "?"))\n    call_depth = call_depth - 1\n  end\nend, "cr")\ndofile("{{lua_file}}")\n' > /tmp/lua_trace_wrapper.lua
+    @lua /tmp/lua_trace_wrapper.lua
 
 # Profile Lua execution
 profile-lua lua_file:
     @echo "=== Profiling Lua execution: {{lua_file}} ==="
-    @echo "TODO: Add Lua profiler integration"
+    @cp /tmp/lua_profiler_tool.lua /tmp/lua_profiler.lua 2>/dev/null || curl -s https://raw.githubusercontent.com/lua-profiler/lua-profiler/master/profile.lua > /tmp/lua_profiler.lua || printf 'local debug=require("debug")\nlocal os=require("os")\nlocal profile={}\nlocal call_stack={}\nlocal function get_func_name(info)\n  return (info.name or "anon").."@"..(info.short_src or "?")..":"..(info.linedefined or "?")\nend\ndebug.sethook(function(event)\n  local info=debug.getinfo(2,"nSl")\n  local func_name=get_func_name(info)\n  if event=="call" then\n    table.insert(call_stack,{name=func_name,start=os.clock()})\n  elseif event=="return" then\n    if #call_stack>0 then\n      local call_info=table.remove(call_stack)\n      local elapsed=os.clock()-call_info.start\n      if not profile[call_info.name] then\n        profile[call_info.name]={count=0,total_time=0}\n      end\n      profile[call_info.name].count=profile[call_info.name].count+1\n      profile[call_info.name].total_time=profile[call_info.name].total_time+elapsed\n    end\n  end\nend,"cr")\nlocal start_time=os.clock()\nlocal lua_file=arg[1]\ndofile(lua_file)\nlocal total_time=os.clock()-start_time\nprint("\\n=== Profile Results ===")\nprint(string.format("Total execution time: %.6f seconds",total_time))\nprint("\\nFunction statistics:")\nprint(string.format("%%-%ds %%10s %%15s %%15s","Function","Calls","Total (s)","Avg (ms)"))\nprint(string.rep("-",100))\nlocal sorted={}\nfor name,stats in pairs(profile) do\n  table.insert(sorted,{name=name,count=stats.count,total=stats.total_time})\nend\ntable.sort(sorted,function(a,b) return a.total>b.total end)\nfor _,entry in ipairs(sorted) do\n  local avg_ms=(entry.total/entry.count)*1000\n  print(string.format("%%-%ds %%10d %%15.6f %%15.6f",entry.name,entry.count,entry.total,avg_ms))\nend\n' > /tmp/lua_profiler.lua
+    @lua /tmp/lua_profiler.lua {{lua_file}}
 
 # =============================================================================
 # Phase 8: Quick Workflows
