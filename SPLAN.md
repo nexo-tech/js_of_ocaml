@@ -261,12 +261,35 @@ JS uses data-driven dispatch where variables determine control flow, not address
 
   **Documentation**: `TASK_2_5_1_JS_DISPATCH_ANALYSIS.md` (comprehensive)
 
-- [ ] **Task 2.5.2**: Analyze IR control flow structure
-  - Understand `Code.last` terminators (Branch, Cond, Switch)
-  - Map terminators to JS control flow patterns
-  - Identify which variables control dispatch in each closure
-  - Document Printf closure's control flow graph
-  - Find the "dispatch variable" for each closure (like JS's `f`)
+- [x] **Task 2.5.2**: Analyze IR control flow structure ✅ COMPLETE
+  - ✅ Understood `Code.last` terminators (Branch, Cond, Switch)
+  - ✅ Mapped terminators to JS control flow patterns
+  - ✅ Identified dispatch variables in Printf (fmt_tag from Switch terminator)
+  - ✅ Documented Printf closure's control flow graph
+  - ✅ Found dispatch variable identification method (Switch(v, conts) → v)
+
+  **Key Findings**:
+  - IR terminators: Branch (jump), Cond (if), Switch (switch on variable)
+  - DTree intermediate: IR → DTree → JS (optimization layer)
+  - Loop detection: Structure.is_loop_header → generates for(;;)
+  - Dispatch variable: First arg of Switch terminator (fmt_tag in Printf)
+  - Printf CFG: Entry loop header → Switch(fmt_tag) → 24 cases (some back-edge)
+
+  **Control Flow Pattern**:
+  ```
+  Block_entry (loop header):
+    params: [counter, k, acc, fmt]
+    body: [extract fmt_tag from fmt[0]]
+    branch: Switch(fmt_tag, cases_0_to_23_plus_default)
+  ```
+
+  **Implications for Lua**:
+  - Must initialize dispatch variables BEFORE dispatch loop
+  - Dispatch on variable VALUES (fmt_tag), not block addresses
+  - Each Switch case becomes if-elseif branch in Lua
+  - Preserve loop semantics (back edges = continue loop)
+
+  **Documentation**: `TASK_2_5_2_IR_ANALYSIS.md` (comprehensive with CFG)
 
 - [ ] **Task 2.5.3**: Design data-driven dispatch for Lua
   - Design new dispatch loop structure (while + if/switch)
