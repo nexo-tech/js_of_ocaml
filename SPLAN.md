@@ -133,24 +133,31 @@ let () = Printf.printf "Hello, World!\n"
   - Finding: Runtime is working correctly - NOT the problem!
   - See test: `/tmp/test_runtime_complete.lua`
 
-- [ ] **Task 2.2**: Create minimal closure test case
-  ```bash
-  # Create a minimal test that triggers the closure bug
-  cat > /tmp/test_closure_minimal.ml << 'EOF'
-  let f x =
-    let g y =
-      let h z = x + y + z in
-      h
-    in
-    g
+- [x] **Task 2.2**: Create minimal closure test case ✅
+  - ✅ Created multiple test cases to isolate the bug
+  - **CRITICAL DISCOVERY**: Basic closures work perfectly!
 
-  let () = Printf.printf "%d\n" (f 1 2 3)
-  EOF
-  just quick-test /tmp/test_closure_minimal.ml
-  ```
-  - Goal: Isolate the closure bug in simpler code than Printf
-  - Expected: Fails with nil variable error
-  - Deliverable: Minimal reproducible test case
+  Test Results:
+  - ✅ 2-level closure (no Printf): **WORKS** (`/tmp/test_closure_pure.ml`)
+  - ✅ 3-level closure (no Printf): **WORKS** (`/tmp/test_closure_3level.ml`)
+  - ❌ 3-level closure WITH Printf.printf: **FAILS** (`/tmp/test_closure_minimal.ml`)
+  - ❌ Simple closure WITH string_of_int: **FAILS** (missing `caml_caml_format_int_special`)
+
+  **Key Finding**: The bug is NOT in general closure handling!
+  - Closure variable capture works correctly
+  - Nested closures (3+ levels) work fine
+  - The problem is SPECIFIC to Printf and format functions
+  - Missing primitive: `caml_caml_format_int_special`
+
+  **New Hypothesis**: The "closure bug" from Phase 1 might actually be:
+  1. Missing Printf primitives causing early failures
+  2. OR Printf's specific CPS pattern triggering a rare edge case
+  3. OR interaction between Printf format compilation and closure generation
+
+  Generated code comparison:
+  - Working 3-level closure: 12,769 lines
+  - Failing Printf version: 24,448 lines (2x larger!)
+  - Same runtime size, difference is in Printf module code
 
 - [ ] **Task 2.3**: Understand current closure generation
   - Location: `compiler/lib-lua/lua_generate.ml`
