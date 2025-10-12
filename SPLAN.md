@@ -291,12 +291,62 @@ JS uses data-driven dispatch where variables determine control flow, not address
 
   **Documentation**: `TASK_2_5_2_IR_ANALYSIS.md` (comprehensive with CFG)
 
-- [ ] **Task 2.5.3**: Design data-driven dispatch for Lua
-  - Design new dispatch loop structure (while + if/switch)
-  - Plan how to pass "dispatch data" through blocks
-  - Design variable initialization strategy (before loop like JS)
-  - Handle trampolines, tail calls, and returns
-  - Keep _V table pattern (still needed for >180 vars)
+- [x] **Task 2.5.3**: Design data-driven dispatch for Lua ✅ COMPLETE
+  - ✅ Designed new dispatch loop structure (while true + if-elseif on dispatch var)
+  - ✅ Planned dispatch data passing (inline cases, back edges assign and continue)
+  - ✅ Designed variable initialization (dispatch vars as locals before loop)
+  - ✅ Handled trampolines (use Lua tail call optimization, no explicit trampolines)
+  - ✅ Kept _V table pattern (dispatch vars local, hoisted vars in _V if >180)
+
+  **Core Design**:
+  - **Mode detection**: Use data-driven only for Switch-based loop headers
+  - **Variable init**: Dispatch variables initialized from parameters before loop
+  - **Switch transformation**: Inline case blocks into if-elseif chain
+  - **Back edges**: Assign new values to dispatch vars, continue loop
+  - **_V table**: Dispatch vars local (fast), hoisted vars in _V (if >180)
+
+  **Lua Structure**:
+  ```lua
+  function closure(counter, k_param, acc_param, fmt_param)
+    -- 1. Hoist variables to _V if needed
+    local _V = {}
+    _V.v100 = nil  -- ...
+
+    -- 2. Initialize dispatch variables (NEW!)
+    local k = k_param
+    local acc = acc_param
+    local fmt = fmt_param
+
+    -- 3. Data-driven dispatch loop (NEW!)
+    while true do
+      if type(fmt) == "number" then return caml_call1(k, acc) end
+      local fmt_tag = fmt[1]
+      if fmt_tag == 0 then
+        -- Case 0 inlined
+        return value
+      elseif fmt_tag == 10 then
+        -- Case 10: back edge
+        acc = {7, acc}
+        fmt = fmt[2]
+        -- Continue loop
+      end
+    end
+  end
+  ```
+
+  **Key Design Decisions**:
+  - Incremental adoption: Only change Switch-based loops, keep address-based for simple cases
+  - Inline cases: Embed target block bodies into switch cases (no labels needed)
+  - Local dispatch vars: Fast access for frequently modified variables
+  - No trampolines: Rely on Lua's tail call optimization
+
+  **Implementation Functions** (to add in lua_generate.ml):
+  - `detect_dispatch_mode`: Detect if closure needs data-driven dispatch
+  - `compile_data_driven_dispatch`: Generate new dispatch structure
+  - `generate_switch_case`: Inline one case block
+  - `is_back_edge`: Check if continuation loops back
+
+  **Documentation**: `TASK_2_5_3_LUA_DISPATCH_DESIGN.md` (comprehensive 40+ sections)
 
 - [ ] **Task 2.5.4**: Implement prototype for simple case
   - Create test with simple data-driven closure
