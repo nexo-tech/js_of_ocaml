@@ -154,8 +154,7 @@ make-bytecode file:
 # Compile bytecode to Lua
 compile-to-lua bc_file out_file:
     @echo "Compiling {{bc_file}} to {{out_file}}..."
-    @echo "TODO: Implement lua_of_ocaml CLI wrapper"
-    @echo "For now, use manual compilation flow"
+    _build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe compile {{bc_file}} -o {{out_file}}
 
 # Compile bytecode to JS (for comparison)
 compile-to-js bc_file out_file:

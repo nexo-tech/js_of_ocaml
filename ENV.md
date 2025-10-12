@@ -192,23 +192,27 @@ This file provides a master checklist for setting up a complete troubleshooting 
 
 **Goal**: Test end-to-end OCaml → Lua compilation.
 
-- [ ] **Task 5.1**: Generate OCaml bytecode for analysis
+- [x] **Task 5.1**: Generate OCaml bytecode for analysis
   ```bash
   just make-bytecode <file.ml>
   ```
   - Compiles OCaml source to bytecode for inspection
+  - ✅ Verified: test_simple.ml compiled to bytecode (158K)
 
-- [ ] **Task 5.2**: Compile bytecode to Lua
+- [x] **Task 5.2**: Compile bytecode to Lua
   ```bash
   just compile-to-lua <file.bc> <output.lua>
   ```
   - Converts OCaml bytecode to Lua code
+  - ✅ Verified: Bytecode compiled to Lua successfully (985K output)
+  - Compiler generates standalone Lua with embedded runtime
 
-- [ ] **Task 5.3**: Compile bytecode to JS (comparison)
+- [x] **Task 5.3**: Compile bytecode to JS (comparison)
   ```bash
   just compile-to-js <file.bc> <output.js>
   ```
   - Converts bytecode to JS for behavior comparison
+  - ✅ Verified: Bytecode compiled to JS successfully (69K output)
 
 - [ ] **Task 5.4**: Compile OCaml to Lua (end-to-end)
   ```bash
