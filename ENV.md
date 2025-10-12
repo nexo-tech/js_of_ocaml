@@ -359,23 +359,32 @@ This file provides a master checklist for setting up a complete troubleshooting 
   - ✅ Verified: Compiles to both targets and shows side-by-side output comparison
   - Uses `compare-outputs` internally for consistent behavior
 
-- [ ] **Task 8.3**: Test Printf functionality
+- [x] **Task 8.3**: Test Printf functionality
   ```bash
   just test-printf
   ```
   - Specific test for Printf.printf edge cases
+  - ✅ Verified: Generates test code and compares Lua vs JS output
+  - Lua fails (missing Printf primitives), JS works correctly: "Hello, World! Answer: 42"
+  - Command already implemented in justfile
 
-- [ ] **Task 8.4**: Test closure capture
+- [x] **Task 8.4**: Test closure capture
   ```bash
   just test-capture
   ```
   - Specific test for variable capture issues
+  - ✅ Verified: Tests closure variable capture with Printf output
+  - Lua fails (missing Printf primitives), JS works correctly: outputs "15"
+  - Command already implemented in justfile
 
-- [ ] **Task 8.5**: Full rebuild and test
+- [x] **Task 8.5**: Full rebuild and test
   ```bash
   just full-test
   ```
   - Clean, build, run all lua tests
+  - ✅ Verified: Cleans build artifacts, rebuilds lua_of_ocaml (16M), runs test suite
+  - Tests run but have expected failures due to missing runtime primitives
+  - Command already implemented in justfile
 
 ## Usage Notes
 
