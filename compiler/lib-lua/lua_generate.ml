@@ -230,13 +230,14 @@ let rec generate_constant const =
       (* NativeInt is Int32 on all backends *)
       L.Number (Int32.to_string i)
   | Code.Tuple (tag, arr, _array_or_not) ->
-      (* Generate table with tag and fields *)
-      let tag_field = L.Rec_field ("tag", L.Number (string_of_int tag)) in
+      (* Generate array-like table with tag at index 1 *)
+      (* Matching JavaScript: [tag, field1, field2, ...] *)
+      let tag_element = L.Array_field (L.Number (string_of_int tag)) in
       let fields =
         Array.to_list arr
         |> List.map ~f:(fun c -> L.Array_field (generate_constant c))
       in
-      L.Table (tag_field :: fields)
+      L.Table (tag_element :: fields)
 
 (** Generate Lua expression from Code prim operation
     @param ctx Code generation context
@@ -664,9 +665,10 @@ let generate_prim ctx prim args =
                   [ L.BinOp (L.Div, e1, L.BinOp (L.Pow, L.Number "2", e2)) ])
             (* Direct object operations *)
             | "direct_obj_tag", [ e ] ->
-                (* Get tag from object: obj.tag or 0 if not a table *)
+                (* Get tag from block: block[1] or 0 if not a block *)
+                (* Blocks are arrays with tag at index 1 *)
                 L.BinOp (L.Or,
-                  L.Dot (e, "tag"),
+                  L.Index (e, L.Number "1"),
                   L.Number "0")
             (* Fallback for unknown inline primitives *)
             | _ ->
@@ -712,9 +714,9 @@ let generate_prim ctx prim args =
 let optimize_field_access ctx obj idx =
   if ctx.optimize_field_access
   then
-    (* Use direct array indexing (Lua arrays are 1-indexed) *)
-    L.Index (obj, L.Number (string_of_int (idx + 1)))
-  else L.Index (obj, L.Number (string_of_int (idx + 1)))
+    (* Block fields are at index idx+2 (Lua 1-indexed, tag at index 1) *)
+    L.Index (obj, L.Number (string_of_int (idx + 2)))
+  else L.Index (obj, L.Number (string_of_int (idx + 2)))
 
 (** Generate optimized block construction
     @param tag Block tag
@@ -722,9 +724,11 @@ let optimize_field_access ctx obj idx =
     @return Lua table expression
 *)
 let optimize_block_construction tag fields =
-  (* Always use tag field for efficient variant discrimination *)
-  let tag_field = L.Rec_field ("tag", L.Number (string_of_int tag)) in
-  L.Table (tag_field :: fields)
+  (* Create array-like table with tag at index 1, matching JavaScript representation *)
+  (* In JavaScript: [tag, field1, field2, ...]
+     In Lua: {tag, field1, field2, ...} (1-indexed) *)
+  let tag_element = L.Array_field (L.Number (string_of_int tag)) in
+  L.Table (tag_element :: fields)
 
 (** {2 Expression and Statement Generation (mutually recursive with control flow)} *)
 
