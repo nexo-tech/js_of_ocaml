@@ -477,80 +477,88 @@ Tasks 2.5.4 and 2.5.5 completed successfully but revealed key insight:
 
 See `TASK_2_5_5_REPORT.md` for full analysis and recommendations.
 
-### Phase 3: Printf Primitives - ✅ PARTIAL (2 hours)
+### Phase 3: Printf Primitives & Runtime Issues (2-4 hours)
 
-**Goal**: Implement missing Printf runtime primitives
+**Status Update (Post Task 2.8)**: Phase 2 dispatch bug is FIXED! Printf now enters Phase 3.
 
-- [x] **Task 3.1**: Identify missing Printf primitives ✅
-  - **Found root cause**: Double-prefix bug in `lua_generate.ml:701`
-  - Inline primitive `%caml_format_int_special` → `caml_format_int_special`
-  - Bug: Line 701 added "caml_" unconditionally → `caml_caml_format_int_special` ❌
-  - **Fix Applied**: Check for "caml_" prefix before adding (lines 701-707)
+**Current Error**:
+```
+lua: test_simple_printf.lua:1318: attempt to index local 's' (a nil value)
+stack traceback:
+	test_simple_printf.lua:1318: in function <test_simple_printf.lua:1314>
+```
 
-  **Additional Fixes Implemented**:
-  1. ✅ Implemented `caml_format_int_special` in `runtime/lua/format.lua`
-     - Converts int to string: `tostring(i)` wrapped in OCaml string
-  2. ✅ Fixed `caml_lua_string_to_ocaml` to include `length` field
-     - Was returning bare table, now includes `.length = #s`
-  3. ✅ Fixed `caml_ml_output` to handle OCaml strings (tables)
-     - Added `caml_ocaml_string_to_lua` conversion before string.sub
+Line 1318 is in `caml_ml_bytes_length(s)` which does `return s.length`. The `s` parameter is nil.
 
-  **Test Results**:
-  - ✅ `/tmp/test_closure_simple.ml` (print_int): **WORKS!** Prints "30"
-  - ❌ `/tmp/test_printf.ml` (Printf.printf): Still fails with v273 nil error
+**Goal**: Fix Printf runtime primitives and calling conventions
 
-  **Conclusion**: `print_int` works! Printf.printf has a different issue (original closure bug?)
+- [ ] **Task 3.1 (revised)**: Debug caml_ml_bytes_length nil parameter ⬅️ **NEXT**
 
-- [ ] **Task 3.2**: Review js_of_ocaml Printf implementation
+  **Problem**: `caml_ml_bytes_length` is called with `s = nil` instead of an OCaml string.
+
+  **Investigation needed**:
+  1. Where is `caml_ml_bytes_length` called from? (trace stack)
+  2. What should be passed? (an OCaml string table with `.length` field)
+  3. Why is it nil? (missing initialization, wrong calling convention, or return value issue)
+  4. Compare with js_of_ocaml: How does JS version handle this?
+
+  **Approach**:
   ```bash
-  # Study how js_of_ocaml implements Printf
-  cat runtime/js/format.js | less
-  ```
-  - Understand: Format string parsing
-  - Understand: Type-safe formatting
-  - Document: Which parts are already in runtime/lua/format.lua
+  # Find the call site
+  grep -n "caml_ml_bytes_length" test_simple_printf.lua
 
-- [ ] **Task 3.3**: Implement missing format primitives
+  # Check runtime implementation
+  cat runtime/lua/string.lua | grep -A 10 "caml_ml_bytes_length"
+
+  # Compare with JS
+  cat runtime/js/string.js | grep -A 10 "caml_ml_bytes_length"
+  ```
+
+  **Expected outcome**: Identify root cause (calling convention vs missing init vs primitive bug)
+
+- [ ] **Task 3.2**: Fix caml_ml_bytes_length issue
+
+  **Based on Task 3.1 findings**: Implement the fix
+  - Could be: Fix calling convention (ensure OCaml strings passed correctly)
+  - Could be: Fix primitive implementation (handle nil gracefully or fix caller)
+  - Could be: Fix code generation (ensure strings initialized properly)
+
+  **Steps**:
+  1. Apply fix based on root cause from Task 3.1
+  2. Build and test
+  3. Verify Printf gets past this error
+
+- [ ] **Task 3.3**: Test Printf.printf "Hello, World!\n"
+  ```bash
+  cat > /tmp/test_hello_printf.ml << 'EOF'
+  let () = Printf.printf "Hello, World!\n"
+  EOF
+  ocamlc -o test_hello_printf.bc test_hello_printf.ml
+  lua_of_ocaml compile test_hello_printf.bc -o test_hello_printf.lua
+  lua test_hello_printf.lua
+  ```
+  - Expected: "Hello, World!"
+  - Success criteria: No errors, correct output
+  - **This is the SPLAN.md goal!**
+
+- [ ] **Task 3.4**: Test Printf with format specifiers
+  ```bash
+  # Test %s
+  let () = Printf.printf "Name: %s\n" "OCaml"
+
+  # Test %d
+  let () = Printf.printf "Answer: %d\n" 42
+
+  # Test %f
+  let () = Printf.printf "Pi: %.2f\n" 3.14159
+  ```
+  - Verifies: Format string parsing works
+  - Verifies: Type-safe formatting works
+
+- [ ] **Task 3.5**: Review and fix any remaining Printf primitives
   - Location: `runtime/lua/format.lua`
   - Reference: `runtime/js/format.js` for behavior
-  - Pattern: Global functions with --Provides: directives
-  - Test: Each primitive with unit tests in `lib/tests/test_format.ml`
-
-  Required primitives (based on LUA.md analysis):
-  - `caml_format_int` (likely already exists)
-  - `caml_format_float` (likely already exists)
-  - `caml_format_string` (likely already exists)
-  - Others as discovered in Task 3.1
-
-- [ ] **Task 3.4**: Test Printf.printf with %s
-  ```bash
-  cat > /tmp/test_printf_string.ml << 'EOF'
-  let () = Printf.printf "Message: %s\n" "Hello"
-  EOF
-  just quick-test /tmp/test_printf_string.ml
-  ```
-  - Should print: "Message: Hello"
-  - Tests: String formatting
-
-- [ ] **Task 3.5**: Test Printf.printf with %d
-  ```bash
-  cat > /tmp/test_printf_int.ml << 'EOF'
-  let () = Printf.printf "Number: %d\n" 42
-  EOF
-  just quick-test /tmp/test_printf_int.ml
-  ```
-  - Should print: "Number: 42"
-  - Tests: Integer formatting
-
-- [ ] **Task 3.6**: Test Printf.printf with multiple format specifiers
-  ```bash
-  cat > /tmp/test_printf_multi.ml << 'EOF'
-  let () = Printf.printf "%s: %d\n" "Answer" 42
-  EOF
-  just quick-test /tmp/test_printf_multi.ml
-  ```
-  - Should print: "Answer: 42"
-  - Tests: Multiple arguments
+  - Add missing primitives as discovered during testing
 
 ### Phase 4: I/O Primitives (1-2 hours)
 
