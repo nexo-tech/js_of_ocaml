@@ -1565,7 +1565,16 @@ and setup_hoisted_variables ctx program start_addr =
             L.Assign ([ L.Dot (L.Ident var_table_name, var) ], [ L.Nil ]))
       in
       if ctx.inherit_var_table then
-        L.Comment (Printf.sprintf "Hoisted variables (%d total, using inherited _V table)" total_vars) :: init_stmts
+        (* Task 3.3.4: Create new _V table with metatable for lexical scope (like JS) *)
+        [ L.Comment (Printf.sprintf "Hoisted variables (%d total, using own _V table for closure scope)" total_vars)
+        ; L.Local ([ "parent_V" ], Some [ L.Ident var_table_name ])
+        ; L.Local ([ var_table_name ], Some [
+            L.Call (L.Ident "setmetatable",
+              [ L.Table []
+              ; L.Table [ L.Rec_field ("__index", L.Ident "parent_V") ]
+              ])
+          ])
+        ] @ init_stmts
       else
         [ L.Comment (Printf.sprintf "Hoisted variables (%d total, using table due to Lua's 200 local limit)" total_vars)
         ; L.Local ([ var_table_name ], Some [ L.Table [] ])
@@ -1652,25 +1661,6 @@ and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt
   (* Task 3.3.1: Initialize entry block arguments *)
   let entry_arg_stmts = setup_entry_block_arguments ctx program entry_addr entry_args func_params in
 
-  (* Task 3.3: For Cond-based patterns, generate tag extraction before loop *)
-  let setup_stmts, switch_var_name = match tag_var_opt with
-    | Some tag_var ->
-        (* Cond-based: Extract tag from dispatch_var before loop *)
-        let tag_var_name = var_name ctx tag_var in
-        let dispatch_var_ident = var_ident ctx dispatch_var in
-        (* Generate: local tag = dispatch_var[1] or 0 *)
-        let tag_init = L.Local ([tag_var_name], Some [
-          L.BinOp (L.Or,
-            L.Index (dispatch_var_ident, L.Number "1"),
-            L.Number "0")
-        ]) in
-        ([tag_init], tag_var_name)
-    | None ->
-        (* Switch-based: Use dispatch_var directly *)
-        let dispatch_var_name = var_name ctx dispatch_var in
-        ([], dispatch_var_name)
-  in
-
   (* Get entry block params for back-edge handling *)
   let entry_block_params =
     match Code.Addr.Map.find_opt entry_addr program.Code.blocks with
@@ -1678,11 +1668,94 @@ and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt
     | None -> []
   in
 
+  (* Task 3.3.3: Determine switch variable for dispatch pattern *)
+  let switch_var = match tag_var_opt with
+    | Some tag_var -> tag_var
+    | None -> dispatch_var
+  in
+
+  (* Task 3.3.3: Generate entry block logic and dispatcher (matches js_of_ocaml)
+     For Cond-based patterns:
+     - Entry block has Cond (type check) → true: return block, false: dispatcher
+     - Dispatcher block has body (tag extraction) + Switch terminator
+     Structure:
+       while true do
+         -- Entry block body
+         -- Entry block Cond (type check)
+         if <condition> then <true_branch> return end
+         -- Dispatcher block body (tag extraction)
+         -- Switch on tag (switch_cases)
+  *)
+  let generate_entry_and_dispatcher_logic () =
+    match tag_var_opt with
+    | Some _tag_var ->
+        (* Cond-based: Include entry block logic (Task 3.3.3) *)
+        (match Code.Addr.Map.find_opt entry_addr program.Code.blocks with
+        | None -> []
+        | Some entry_block ->
+            (* Generate entry block body instructions *)
+            let entry_body_stmts = generate_instrs ctx entry_block.Code.body in
+
+            (* Generate entry block Cond terminator *)
+            (match entry_block.Code.branch with
+            | Code.Cond (cond_var, (true_addr, true_args), (false_addr, false_args)) ->
+                (* Generate condition expression *)
+                let cond_expr = var_ident ctx cond_var in
+
+                (* Generate true branch (usually return for integer case) *)
+                let true_branch_stmts =
+                  match Code.Addr.Map.find_opt true_addr program.Code.blocks with
+                  | None -> []
+                  | Some true_block ->
+                      (* Generate argument passing if needed *)
+                      let arg_stmts =
+                        if not (List.is_empty true_args) && not (List.is_empty true_block.Code.params) then
+                          List.map2 true_args true_block.Code.params ~f:(fun arg param ->
+                            L.Assign ([var_ident ctx param], [var_ident ctx arg]))
+                        else []
+                      in
+                      (* Generate block body and terminator *)
+                      let body_stmts = generate_instrs ctx true_block.Code.body in
+                      let term_stmts = generate_last_dispatch ctx true_block.Code.branch in
+                      arg_stmts @ body_stmts @ term_stmts
+                in
+
+                (* Generate false branch (dispatcher block body - tag extraction) *)
+                let false_branch_stmts =
+                  match Code.Addr.Map.find_opt false_addr program.Code.blocks with
+                  | None -> []
+                  | Some false_block ->
+                      (* Generate argument passing if needed *)
+                      let arg_stmts =
+                        if not (List.is_empty false_args) && not (List.is_empty false_block.Code.params) then
+                          List.map2 false_args false_block.Code.params ~f:(fun arg param ->
+                            L.Assign ([var_ident ctx param], [var_ident ctx arg]))
+                        else []
+                      in
+                      (* Generate dispatcher block body (includes tag extraction) *)
+                      let body_stmts = generate_instrs ctx false_block.Code.body in
+                      arg_stmts @ body_stmts
+                in
+
+                (* Combine: entry body + Cond if-then + dispatcher body *)
+                entry_body_stmts @ [ L.If (cond_expr, true_branch_stmts, None) ] @ false_branch_stmts
+
+            | _ ->
+                (* Entry block doesn't have Cond - shouldn't happen for Cond-based dispatch *)
+                entry_body_stmts))
+
+    | None ->
+        (* Switch-based: No entry block logic needed *)
+        []
+  in
+
+  let entry_dispatcher_stmts = generate_entry_and_dispatcher_logic () in
+
   (* Generate if-elseif chain for switch cases *)
   let rec generate_switch_cases idx =
     if idx >= Array.length switch_cases then
-      (* No more cases - return nil or error *)
-      [ L.Return [ L.Nil ] ]
+      (* No more cases - for back-edge cases, let while loop restart *)
+      []
     else
       let (target_addr, _case_args) = switch_cases.(idx) in
       match Code.Addr.Map.find_opt target_addr program.Code.blocks with
@@ -1690,7 +1763,7 @@ and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt
       | Some target_block ->
           (* Generate condition: switch_var == idx *)
           let condition =
-            L.BinOp (L.Eq, L.Ident switch_var_name, L.Number (string_of_int idx))
+            L.BinOp (L.Eq, var_ident ctx switch_var, L.Number (string_of_int idx))
           in
 
           (* Generate case body *)
@@ -1729,9 +1802,10 @@ and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt
           [ L.If (condition, case_body, Some else_branch) ]
   in
 
-  (* Wrap switch in while loop for back-edges *)
+  (* Task 3.3.3: Wrap everything in while loop with entry block logic first *)
   let switch_stmt = generate_switch_cases 0 in
-  let dispatch_loop_stmts = setup_stmts @ [ L.While (L.Bool true, switch_stmt) ] in
+  let loop_body = entry_dispatcher_stmts @ switch_stmt in
+  let dispatch_loop_stmts = [ L.While (L.Bool true, loop_body) ] in
 
   (* Task 3.3.1: Combine in correct order (matches compile_address_based_dispatch) *)
   hoist_stmts @ param_copy_stmts @ entry_arg_stmts @ dispatch_loop_stmts
