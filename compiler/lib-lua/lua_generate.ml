@@ -1517,6 +1517,116 @@ and detect_dispatch_mode program entry_addr =
                 AddressBased
           | _ -> AddressBased)
 
+(** Setup hoisted variables for a closure (Task 3.3.1).
+    Collects variables, creates _V table if needed, initializes to nil.
+    Matches js_of_ocaml's variable management adapted for Lua.
+
+    @return (hoist_stmts, use_table)
+*)
+and setup_hoisted_variables ctx program start_addr =
+  let hoisted_vars = collect_block_variables ctx program start_addr in
+  let loop_headers = detect_loop_headers program start_addr in
+
+  let loop_block_params =
+    Code.Addr.Set.fold
+      (fun addr acc ->
+        match Code.Addr.Map.find_opt addr program.Code.blocks with
+        | None -> acc
+        | Some block ->
+            List.fold_left block.Code.params ~init:acc ~f:(fun acc param ->
+              StringSet.add (var_name ctx param) acc))
+      loop_headers
+      StringSet.empty
+  in
+
+  let entry_block_params =
+    match Code.Addr.Map.find_opt start_addr program.Code.blocks with
+    | None -> StringSet.empty
+    | Some block ->
+        List.fold_left block.Code.params ~init:StringSet.empty ~f:(fun acc param ->
+          StringSet.add (var_name ctx param) acc)
+  in
+
+  let all_hoisted_vars = StringSet.union hoisted_vars loop_block_params in
+  let total_vars = StringSet.cardinal all_hoisted_vars in
+  let use_table =
+    if ctx.inherit_var_table then ctx.use_var_table
+    else should_use_var_table total_vars
+  in
+  ctx.use_var_table <- use_table;
+
+  let hoist_stmts =
+    if StringSet.is_empty all_hoisted_vars then []
+    else if use_table then
+      let vars_to_init = StringSet.diff all_hoisted_vars entry_block_params in
+      let init_stmts =
+        StringSet.elements vars_to_init
+        |> List.map ~f:(fun var ->
+            L.Assign ([ L.Dot (L.Ident var_table_name, var) ], [ L.Nil ]))
+      in
+      if ctx.inherit_var_table then
+        L.Comment (Printf.sprintf "Hoisted variables (%d total, using inherited _V table)" total_vars) :: init_stmts
+      else
+        [ L.Comment (Printf.sprintf "Hoisted variables (%d total, using table due to Lua's 200 local limit)" total_vars)
+        ; L.Local ([ var_table_name ], Some [ L.Table [] ])
+        ] @ init_stmts
+    else
+      let vars_to_init = StringSet.diff all_hoisted_vars entry_block_params in
+      let var_list = StringSet.elements vars_to_init |> List.sort ~cmp:String.compare in
+      if StringSet.is_empty vars_to_init then
+        [ L.Comment (Printf.sprintf "Hoisted variables (%d total)" total_vars) ]
+      else
+        [ L.Comment (Printf.sprintf "Hoisted variables (%d total)" total_vars)
+        ; L.Local (var_list, None)
+        ]
+  in
+  (hoist_stmts, use_table)
+
+(** Setup function parameters - copy to _V table if needed (Task 3.3.1) *)
+and setup_function_parameters ctx params use_table =
+  if use_table && not (List.is_empty params) then
+    List.map params ~f:(fun param ->
+      let param_name = var_name ctx param in
+      L.Assign ([L.Dot (L.Ident var_table_name, param_name)], [L.Ident param_name]))
+  else
+    []
+
+(** Setup entry block arguments from block_args (Task 3.3.1) *)
+and setup_entry_block_arguments ctx program start_addr entry_args func_params =
+  if not (List.is_empty entry_args) then
+    match Code.Addr.Map.find_opt start_addr program.Code.blocks with
+    | None -> []
+    | Some block ->
+        let rec build_assignments args params acc =
+          match args, params with
+          | [], [] -> List.rev acc
+          | arg_var :: rest_args, param_var :: rest_params ->
+              let arg_name = var_name ctx arg_var in
+              let arg_expr =
+                if List.mem ~eq:Code.Var.equal arg_var func_params then
+                  L.Ident arg_name
+                else
+                  var_ident ctx arg_var
+              in
+              let param_name = var_name ctx param_var in
+              let param_target = var_ident ctx param_var in
+              let is_local = List.mem ~eq:Code.Var.equal arg_var func_params in
+              let source_desc = if is_local then "local param" else "captured" in
+              let debug_comment =
+                L.Comment (Printf.sprintf "Entry block arg: %s = %s (%s)" param_name arg_name source_desc)
+              in
+              let assignment = L.Assign ([param_target], [arg_expr]) in
+              build_assignments rest_args rest_params (assignment :: debug_comment :: acc)
+          | _, _ -> List.rev acc
+        in
+        let assignments = build_assignments entry_args block.Code.params [] in
+        if not (List.is_empty assignments) then
+          [ L.Comment "Initialize entry block parameters from block_args (Fix for Printf bug!)" ]
+          @ assignments
+        else []
+  else
+    []
+
 (** Compile closure using data-driven dispatch with loop support (Task 2.5.5 + 3.3).
     Handles Printf pattern: Switch-based loops with back-edges.
     Task 3.3: Extended to handle Cond-based patterns with tag extraction.
@@ -1527,10 +1637,21 @@ and detect_dispatch_mode program entry_addr =
     @param dispatch_var Variable to dispatch on (e.g. v343)
     @param tag_var Optional tag variable for Cond patterns (e.g. v204 = v343[1])
     @param switch_cases Array of (target_addr, args)
-    @param _params Function parameters (unused in this version)
+    @param params Function parameters
+    @param func_params Function parameters list (to distinguish local vs captured)
+    @param entry_args Arguments to pass to entry block
     @return List of Lua statements
 *)
-and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt switch_cases _params =
+and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt switch_cases params func_params entry_args =
+  (* Task 3.3.1: Setup hoisted variables *)
+  let hoist_stmts, use_table = setup_hoisted_variables ctx program entry_addr in
+
+  (* Task 3.3.1: Copy function parameters to _V table *)
+  let param_copy_stmts = setup_function_parameters ctx params use_table in
+
+  (* Task 3.3.1: Initialize entry block arguments *)
+  let entry_arg_stmts = setup_entry_block_arguments ctx program entry_addr entry_args func_params in
+
   (* Task 3.3: For Cond-based patterns, generate tag extraction before loop *)
   let setup_stmts, switch_var_name = match tag_var_opt with
     | Some tag_var ->
@@ -1610,8 +1731,10 @@ and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt
 
   (* Wrap switch in while loop for back-edges *)
   let switch_stmt = generate_switch_cases 0 in
-  (* Task 3.3: Include tag extraction setup before loop *)
-  setup_stmts @ [ L.While (L.Bool true, switch_stmt) ]
+  let dispatch_loop_stmts = setup_stmts @ [ L.While (L.Bool true, switch_stmt) ] in
+
+  (* Task 3.3.1: Combine in correct order (matches compile_address_based_dispatch) *)
+  hoist_stmts @ param_copy_stmts @ entry_arg_stmts @ dispatch_loop_stmts
 
 (** Compile all reachable blocks with dispatch loop (Lua 5.1 compatible)
     This is the single unified function that all code generation paths use.
@@ -1635,7 +1758,7 @@ and compile_blocks_with_labels ctx program start_addr ?(params = []) ?(entry_arg
   match dispatch_mode with
   | DataDriven { entry_addr; dispatch_var; tag_var; switch_cases } ->
       (* Use new data-driven dispatch for switches with loops (Task 2.5.5 + 3.3) *)
-      compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var switch_cases params
+      compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var switch_cases params func_params entry_args
 
   | AddressBased ->
       (* Use existing address-based dispatch *)

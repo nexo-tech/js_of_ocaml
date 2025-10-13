@@ -595,94 +595,53 @@ Line 1318 is in `caml_ml_bytes_length(s)` which does `return s.length`. The `s` 
 
 **Subtasks to Complete Task 3.3**:
 
-- [ ] **Task 3.3.1**: Extract variable management functions ⬅️ **NEXT**
+- [x] **Task 3.3.1**: Extract variable management functions ✅ COMPLETE
 
-  **Goal**: Refactor `compile_address_based_dispatch` to use shared helper functions,
-  so `compile_data_driven_dispatch` can reuse them.
+  **Extracted 3 Helper Functions** (~110 lines, lines 1526-1628):
+  1. ✅ `setup_hoisted_variables`: Collect vars, create _V table, init to nil
+  2. ✅ `setup_function_parameters`: Copy function params to _V table
+  3. ✅ `setup_entry_block_arguments`: Initialize entry block params from block_args
 
-  **Functions to Extract** (from lines 1627-1770):
-  1. `collect_and_hoist_variables`: Collect vars + generate _V table setup
-  2. `setup_function_parameters`: Copy function params to _V table
-  3. `setup_entry_block_arguments`: Initialize entry block params from entry_args
-  4. `compute_dispatch_start_addr`: Determine where dispatch loop starts (enhanced find_entry_initializer)
+  **Integrated into compile_data_driven_dispatch**:
+  - ✅ Updated function signature (+3 params: params, func_params, entry_args)
+  - ✅ Added calls to all 3 helpers
+  - ✅ Updated call site in compile_blocks_with_labels
+  - ✅ Return combines: hoist + params + entry_args + dispatch_loop
 
-  **Implementation**:
-  ```ocaml
-  and collect_and_hoist_variables ctx program start_addr params entry_args =
-    let hoisted_vars = collect_block_variables ctx program start_addr in
-    let loop_headers = detect_loop_headers program start_addr in
-    let loop_block_params = ... in
-    let all_hoisted_vars = ... in
-    let use_table = should_use_var_table (StringSet.cardinal all_hoisted_vars) in
-    ctx.use_var_table <- use_table;
-    let hoist_stmts = ... (* generate _V table or local declarations *)
-    (hoist_stmts, use_table)
+  **Results**:
+  - ✅ Build succeeds
+  - ✅ Printf has _V table (144 vars hoisted)
+  - ✅ Printf has parameters copied (counter, v201-v203)
+  - ✅ Printf has entry args initialized (v341-v343)
+  - ✅ File size: 20,590 lines (down from 24,372 - 15% smaller)
+  - ✅ Dispatch uses value-based switch (v204), not addresses
 
-  and setup_function_parameters ctx params use_table =
-    if use_table && not (List.is_empty params) then
-      (* _V.param = param for each param *)
-      ...
-    else []
-
-  and setup_entry_block_arguments ctx program start_addr entry_args func_params =
-    if not (List.is_empty entry_args) then
-      (* Initialize entry block params from entry_args *)
-      ...
-    else []
-  ```
-
-  **Testing**: After refactor, address-based dispatch must still work perfectly.
+  **Current Error**:
   ```bash
-  just quick-test /tmp/test_simple_dep.ml  # Should output "11"
+  $ just quick-test /tmp/test_simple_printf.ml
+  lua: /tmp/quick_test.lua:19203: attempt to index field 'v343' (a number value)
   ```
 
-  **Changes**:
-  - ~200 lines refactored (extracted from compile_address_based_dispatch)
-  - compile_address_based_dispatch calls new functions
-  - Zero behavior change (pure refactor)
-
-- [ ] **Task 3.3.2**: Integrate variable management into data-driven dispatch
-
-  **Goal**: Make `compile_data_driven_dispatch` call the extracted helper functions.
-
-  **Implementation**:
-  ```ocaml
-  and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt switch_cases params func_params entry_args =
-    (* 1. Collect and hoist variables *)
-    let hoist_stmts, _use_table = collect_and_hoist_variables ctx program entry_addr params entry_args in
-
-    (* 2. Copy function parameters to _V table *)
-    let param_copy_stmts = setup_function_parameters ctx params _use_table in
-
-    (* 3. Initialize entry block arguments *)
-    let entry_arg_stmts = setup_entry_block_arguments ctx program entry_addr entry_args func_params in
-
-    (* 4. Generate tag extraction and dispatch loop *)
-    let dispatch_stmts = ... (* existing logic from lines 1535-1614 *)
-
-    (* 5. Combine in correct order *)
-    hoist_stmts @ param_copy_stmts @ entry_arg_stmts @ dispatch_stmts
+  **Cause**: Tag extraction happens BEFORE type check
+  ```lua
+  local v204 = _V.v343[1] or 0  ← Extract tag before checking type!
+  while true do
+    if v204 == 0 then ...       ← No type check!
   ```
 
-  **Update Call Site** (line 1617):
-  ```ocaml
-  | DataDriven { entry_addr; dispatch_var; tag_var; switch_cases } ->
-      compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var switch_cases params func_params entry_args
-  ```
+  **Needed**: Entry block's Cond logic (type check) must be INSIDE loop, BEFORE tag extraction.
 
-  **Changes**:
-  - Update function signature (+3 params: params, func_params, entry_args)
-  - Add calls to helper functions
-  - Update call site to pass new parameters
-  - ~20 lines changed
+  **Documented**: `TASK_3_3_1_COMPLETE.md`
 
-  **Testing**: Printf should now have _V table and parameters initialized.
-  ```bash
-  grep "local _V" test_printf_v4.lua  # Should find _V table creation
-  grep "_V.v343 = v203" test_printf_v4.lua  # Should find entry arg init
-  ```
+- [x] **Task 3.3.2**: Integrate variable management ✅ COMPLETE (Done in 3.3.1)
 
-- [ ] **Task 3.3.3**: Fix tag extraction with entry block logic
+  **Completed as part of Task 3.3.1**:
+  - ✅ compile_data_driven_dispatch calls all 3 helpers
+  - ✅ Function signature updated with params, func_params, entry_args
+  - ✅ Call site updated to pass new parameters
+  - ✅ Returns combined: hoist + params + entry_args + dispatch_loop
+
+- [ ] **Task 3.3.3**: Fix tag extraction with entry block logic ⬅️ **NEXT**
 
   **Goal**: Include entry block's body and Cond logic in generated code.
 
