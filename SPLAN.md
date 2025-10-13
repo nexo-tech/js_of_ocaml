@@ -763,26 +763,88 @@ breaks for data-driven. **Fix**: Share variable management between both dispatch
 
 ---
 
-- [ ] **Task 3.4**: Test Printf.printf "Hello, World!\n" (After Task 3.3 complete)
+- [x] **Task 3.4**: Test Printf.printf "Hello, World!\n" ✅ COMPLETE
   ```bash
-  cat > /tmp/test_hello_printf.ml << 'EOF'
-  let () = Printf.printf "Hello, World!\n"
-  EOF
-  ocamlc -o test_hello_printf.bc test_hello_printf.ml
-  lua_of_ocaml compile test_hello_printf.bc -o test_hello_printf.lua
-  lua test_hello_printf.lua
+  just quick-test /tmp/test_hello_world.ml
+  # Output: Hello, World!
   ```
-  - Expected: "Hello, World!"
-  - Success criteria: No errors, correct output
-  - **This is the SPLAN.md goal!**
-  - Depends on: Task 3.3 (value-based dispatch)
+  - ✅ Works perfectly!
+  - ✅ **SPLAN.md goal achieved!** 🎉
+  - Fixed by: Tasks 3.3.4-3.3.6 (_V table metatable scoping)
 
-- [ ] **Task 3.5**: Test Printf with format specifiers
+- [ ] **Task 3.7**: Fix Printf.printf "%d" infinite loop ⚠️ IN PROGRESS
+
+  **Problem Identified**: Printf with %d format specifier causes infinite loop/stack overflow
+
+  **Root Cause Analysis** (via `just analyze-printf /tmp/test_printf_int.ml`):
+  - JS: 6 `caml_call_gen` calls, 345K file
+  - Lua: 39 `caml_call_gen` calls, 683K file (2x larger!)
+  - **Issue**: Lua generates `caml_call_gen` for ALL non-exact applies
+  - **JS approach**: Runtime arity check + conditional direct call (generate.ml:1075-1086)
+
+  **JS Strategy** (generate.ml:1071-1096):
+  ```javascript
+  if (exact) {
+    return f(args);  // Direct call
+  } else {
+    // Runtime arity check
+    return (f.l === args.length)
+      ? f(args)              // Direct call if arity matches
+      : caml_call_gen(f, args);  // Curry if arity doesn't match
+  }
+  ```
+
+  **Current Lua** (lua_generate.ml:814-832):
+  ```lua
+  if exact then
+    f(args)  -- Direct call
+  else
+    caml_call_gen(f, {args})  -- ALWAYS use caml_call_gen (conservative)
+  end
+  ```
+
+  **Fix Strategy** - Option A (Recommended): Match JS conditional approach
+  ```lua
+  if exact then
+    return f(args)
+  else
+    -- Runtime arity check (like JS)
+    if type(f) == "table" and f.l == #args then
+      return f(unpack(args))  -- Direct call
+    else
+      return caml_call_gen(f, args)  -- Curry/over-apply
+    end
+  end
+  ```
+
+  **Fix Strategy** - Option B (Alternative): Improve IR exact flag accuracy
+  - Check if `specialize.ml` can mark more calls as exact=true
+  - Less invasive but may not solve all cases
+
+  **Implementation Steps**:
+  1. Cross-reference: Read `compiler/lib/generate.ml:1071-1096` (JS conditional logic)
+  2. Update: `compiler/lib-lua/lua_generate.ml:814-832` (Add runtime arity check)
+  3. Test: `just quick-test /tmp/test_printf_int.ml` → should output "Int: 42"
+  4. Verify: No regression on `just quick-test /tmp/test_hello_world.ml`
+  5. Compare: `just compare-outputs /tmp/test_printf_int.ml` → should match JS
+
+  **Files to Modify**:
+  - `compiler/lib-lua/lua_generate.ml` (lines 814-832: Add conditional arity check)
+  - Possibly `compiler/lib-lua/lua_mlvalue.ml` (lines 296-311: Similar pattern)
+
+  **Success Criteria**:
+  - ✅ `Printf.printf "Int: %d\n" 42` outputs "Int: 42"
+  - ✅ No infinite loop or stack overflow
+  - ✅ Lua and JS outputs match
+  - ✅ File size closer to JS (currently 2x larger)
+  - ✅ `caml_call_gen` count closer to JS (6 vs 39)
+
+- [ ] **Task 3.5**: Test Printf with all format specifiers (After 3.7)
   ```bash
-  # Test %s
-  let () = Printf.printf "Name: %s\n" "OCaml"
+  # Test %s - ✅ WORKS
+  just quick-test /tmp/test_printf_format.ml  # "Test: hello"
 
-  # Test %d
+  # Test %d - ⚠️ BROKEN (Task 3.7)
   let () = Printf.printf "Answer: %d\n" 42
 
   # Test %f
@@ -790,7 +852,7 @@ breaks for data-driven. **Fix**: Share variable management between both dispatch
   ```
   - Verifies: Format string parsing works
   - Verifies: Type-safe formatting works
-  - Depends on: Task 3.4
+  - Depends on: Task 3.7
 
 - [ ] **Task 3.6**: Review and fix any remaining Printf primitives
   - Location: `runtime/lua/format.lua`
