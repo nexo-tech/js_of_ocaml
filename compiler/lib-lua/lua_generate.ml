@@ -1969,6 +1969,11 @@ and compile_blocks_with_labels ctx program start_addr ?(params = []) ?(entry_arg
   (* PROTOTYPE: Detect dispatch mode (Task 2.5.4) *)
   let dispatch_mode = detect_dispatch_mode program start_addr in
 
+  (if !debug_var_collect then
+    match dispatch_mode with
+    | DataDriven _ -> Format.eprintf "  → Using DATA-DRIVEN dispatch for entry=%d@." start_addr
+    | AddressBased -> Format.eprintf "  → Using ADDRESS-BASED dispatch for entry=%d@." start_addr);
+
   match dispatch_mode with
   | DataDriven { entry_addr; dispatch_var; tag_var; switch_cases } ->
       (* Use new data-driven dispatch for switches with loops (Task 2.5.5 + 3.3) *)

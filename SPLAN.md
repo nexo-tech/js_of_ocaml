@@ -1554,32 +1554,64 @@ breaks for data-driven. **Fix**: Share variable management between both dispatch
 
     Both have `block_args=0`, so simple heuristic can't distinguish them!
 
-  - [ ] **Task 3.6.5.6**: Develop better fix strategy
+  - [x] **Task 3.6.5.6**: Root cause fully understood ✅
 
-    **Options**:
-    1. **Dead parameter analysis**: Check if params are actually used in closure body
-       - Pro: Precise
-       - Con: Complex, needs control flow analysis
+    **Investigation Results**:
+    1. ✅ Data-driven dispatch EXISTS and WORKS (detected for entries 1, 19, 37, 799, 167, 225)
+    2. ✅ Detection properly triggers: "TRIGGERED Cond-based data-driven dispatch!"
+    3. ✅ Code is compiled with data-driven dispatch (confirmed with debug output)
+    4. ❌ BUT still creates closures even with data-driven dispatch!
 
-    2. **PC-specific adjustment**: Hardcode fix for known-bad PC ranges
-       - Pro: Simple, targeted
-       - Con: Fragile, not general
+    **Why closures still created**:
+    - Data-driven dispatch generates inline `if/elseif` chains ✅
+    - But line 1912 calls `generate_instrs(target_block.Code.body)`
+    - This processes ALL IR instructions in the block
+    - If block contains `Code.Let (v, Code.Closure(...))` → generates `caml_make_closure`
+    - **Data-driven dispatch inlines blocks but doesn't prevent closure generation**
 
-    3. **IR-level fix**: Patch OCaml compiler or add pre-processing pass
-       - Pro: Fixes root cause
-       - Con: Out of scope for lua_of_ocaml
+    **Fundamental JS vs Lua IR difference**:
+    - **JS** (test_printf_d.ml.pretty.js:7545-7560):
+      ```javascript
+      case 10:  // Flush
+        var rest$9 = fmt[1], acc$0 = [7, acc];
+        acc = acc$0; fmt = rest$9;
+        break;  // ← No closure creation!
+      ```
+    - **Lua IR** (blocks 499-509 in bytecode):
+      ```ocaml
+      Let (v349, Closure([v351, v350], (499, []), ...))  // ← Creates closure!
+      ```
 
-    4. **Alternative calling convention**: Handle arity mismatch at runtime
-       - Pro: Robust
-       - Con: Performance impact, complex
+    **The IR itself contains different instructions!**
 
-    5. **Compare with JS**: Understand why JS doesn't have this problem
-       - Tag 10/11 don't create closures in JS - they're loop cases!
-       - Lua generates different IR structure?
+    **Debug evidence** (from compilation):
+    - Lua: 21,578 lines, creates 89 closures
+    - JS: 8,326 lines (2.6x smaller)
+    - pc=499: ADDRESS-BASED dispatch (leaf closure, not optimized)
+    - Parent creates closures via `Code.Closure` IR instructions
 
-    **Recommendation**: Option 5 first - understand IR difference between JS and Lua
+  - [ ] **Task 3.6.5.7**: Implement solution - DECISION NEEDED
 
-  - [ ] **Task 3.6.5.7**: Investigate IR generation differences
+    **Option A**: Closure inlining during data-driven dispatch
+    - Detect simple closures in case bodies
+    - Inline their logic instead of generating `caml_make_closure`
+    - Pro: Matches JS, fixes arity issues
+    - Con: Complex, needs pattern matching on closure structure
+
+    **Option B**: Fix arity at runtime (simpler)
+    - Keep closures but adjust `caml_call_gen` to handle arity mismatch gracefully
+    - When calling arity-2 closure with 1 arg, check if 2nd param is unused
+    - Pro: Simple, localized fix
+    - Con: Runtime overhead, doesn't reduce code size
+
+    **Option C**: Post-process IR to eliminate closures (like js_of_ocaml might do)
+    - Add optimization pass before code generation
+    - Detect single-use closures that just wrap a call
+    - Replace with inline call
+    - Pro: General solution
+    - Con: Most complex, needs IR manipulation
+
+    **DECISION**: Start with Option B (runtime fix) as proof-of-concept, then Option A if needed
 
   - [ ] **Task 3.6.5.5**: Test Printf %d after fix
     - Test: `just quick-test /tmp/test_printf_d.ml`
