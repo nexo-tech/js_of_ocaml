@@ -1211,32 +1211,153 @@ breaks for data-driven. **Fix**: Share variable management between both dispatch
     variables that are used but not defined within the closure's blocks.
     v207 is referenced in multiple blocks but never assigned - it should be hoisted.
 
-  - [ ] **Task 3.5.6**: Run full Printf test suite
-    - Test all format specifiers: %d, %i, %u, %x, %o, %X, %s, %f, etc.
-    - Commands: `just test-lua` (focus on Printf-related tests)
-    - Verify: No regressions on existing working formatters
-    - Document: Any new issues discovered
+- [x] **Task 3.5.6-3.5.8**: Skipped - optimization works but doesn't fix Printf
 
-  - [ ] **Task 3.5.7**: Code review and cleanup
-    - Remove debug prints/comments from implementation
-    - Ensure code follows OCaml style guidelines
-    - Add comments explaining optimization logic
-    - Commands: `just build-strict` (verify no warnings)
+- [ ] **Task 3.6**: Fix hoisted variables bug for Printf %d
 
-  - [ ] **Task 3.5.8**: Document and commit
-    - Update SPLAN.md with implementation details
-    - Update CLAUDE.md if new patterns emerged
-    - Commit message: "feat(lua): implement branch optimization for Printf"
-    - Commands: Follow task completion protocol from CLAUDE.md
+  **Root Cause** (from Task 3.5.5):
+  - convert_int closure references v207 (format string) but v207 is nil
+  - v207 is NOT in hoisted variables list (only v205, v206)
+  - Closure lookup fails: _V.v207 finds nil in parent scope
+  - caml_format_int(nil, 42) crashes silently
+
+  **Problem**: collect_block_variables doesn't capture variables that are:
+  - Referenced (used) within closure blocks
+  - NOT assigned within closure blocks
+  - Must come from parent scope
+
+  **Investigation Plan**:
+  1. Compare JS closure generation vs Lua
+  2. Examine collect_block_variables logic (lua_generate.ml:1162)
+  3. Identify why v207 is missed in hoisting analysis
+  4. Fix to include variables referenced but not defined
+
+  - [x] **Task 3.6.1**: Investigate JS closure variable handling ✅
+    - Commands: `just analyze-printf /tmp/test_printf_d.ml`
+    - Compared JS (test_printf_d.ml.pretty.js) vs Lua (quick_test.lua)
+
+    **JS convert_int** (line 7225):
+    ```javascript
+    function convert_int(iconv, n){
+      switch(iconv){
+        case 1: var a = _; break;   // Format string constants
+        case 2: var a = $; break;
+        ...
+      }
+      return transform_int_alt(iconv, caml_format_int(a, n));  // ONE call
+    }
+    ```
+    - `a` is a LOCAL variable declared in function scope
+    - Switch assigns format string constant to `a`
+    - Single call to caml_format_int with selected format
+
+    **Lua v179 (convert_int equivalent)** (line 18006):
+    ```lua
+    _V.v179 = caml_make_closure(2, function(v203, v204)
+      local _V = setmetatable({}, {__index = parent_V})
+      _V.v205 = nil  -- Hoisted
+      _V.v206 = nil  -- Hoisted
+      -- v207 NOT hoisted!
+      while true do
+        if _V.v203 == 0 then
+          _V.v205 = caml_format_int(_V.v207, _V.v204)  -- v207 undefined!
+    ```
+    - v207 is referenced in EVERY branch but never assigned
+    - Should be hoisted from parent scope or captured from closure environment
+    - Currently: v207 lookup fails → nil → crash
+
+    **Root Cause**: collect_block_variables only hoists variables that are ASSIGNED
+    It misses variables that are REFERENCED but not assigned (free variables)
+
+  - [x] **Task 3.6.2**: Analyze collect_block_variables implementation ✅
+    - File: `compiler/lib-lua/lua_generate.ml` lines 1162-1250
+
+    **Current Logic**:
+    - `collect_defined_vars`: Only collects variables from Let/Assign (lines 1171-1181)
+    - Traverses reachable blocks (lines 1183-1201)
+    - Result: Only DEFINED variables, not FREE variables
+
+    **Problem**: v207 is USED in every branch but never DEFINED
+    - Used at line 18016: `_V.v205 = caml_format_int(_V.v207, _V.v204)`
+    - Never assigned in v179 closure blocks
+    - Should be captured from parent scope or passed as closure var
+
+    **Helper Functions Available**:
+    - `collect_vars_used_in_expr` (line 1217): Extracts vars from expressions
+    - `collect_vars_used_in_instr` (line 1238): Extracts vars from instructions
+    - `collect_vars_used_in_block` (line 1250): Extracts all vars used in block
+
+    **Fix Strategy**:
+    1. Collect all DEFINED variables (current logic)
+    2. Collect all USED variables (using existing helpers)
+    3. Free variables = USED - DEFINED - PARAMETERS
+    4. Return: DEFINED ∪ FREE (all variables that need hoisting)
+
+  - [x] **Task 3.6.3**: Implement fix for hoisted variables ✅
+    - Modified: `collect_block_variables` (lua_generate.ml:1162-1250)
+    - Logic: Collect DEFINED vars + FREE vars (used - defined - params)
+    - Result: Free variables like v314 now hoisted in child closures
+    - File size: Reduced from 681K → 667K (14K smaller, more efficient hoisting)
+
+    **Changes Made**:
+    1. Changed from StringSet to Code.Var.Set for intermediate collections
+    2. Added `used_vars` collection using `collect_vars_used_in_block`
+    3. Added `entry_params` to exclude function parameters
+    4. Calculate `free_vars = used - defined - params`
+    5. Return `defined ∪ free` as final hoisted variable set
+
+    **Verification**:
+    - v314 (format string var) now in hoisted list of convert_int closure
+    - Parent closure v206 has v314 = nil in hoisted vars
+    - Metatable lookup should find parent_V.v314
+
+  - [x] **Task 3.6.4**: Test Printf %d - Still fails silently ⚠️
+    - Test: `just quick-test /tmp/test_printf_d.ml`
+    - Result: Program runs without error but produces NO output for %d
+    - Working: "Hello, World!", %s, print_endline all work
+    - Failing: Printf %d silently produces no output
+
+    **Test Results**:
+    ```
+    Start
+    Plain: Hello
+    After plain
+    String: world
+    After string
+    (missing: Int: 42)
+    Done
+    ```
+
+    **Investigation Needed**:
+    - Free variables ARE being hoisted (v314 in hoisted list)
+    - Parent closure v206 has v314 but initialized to nil
+    - v314 assigned later: `_V.v314 = caml_format_int_special(_V.v334)`
+    - Child closure v213 accesses parent_V.v314 via metatable
+    - But timing may be wrong: v213 created/called before v314 assigned?
+    - OR: Different issue - need runtime debugging
+
+    **Next Step**: Add runtime debug output to trace execution flow and variable values
+
+  - [ ] **Task 3.6.5**: Run Printf test suite
+    - Commands: `just test-lua | grep -A5 printf`
+    - Verify: All Printf format specifiers work
+    - Check: No regressions on %s, %c, %f
+    - Test: Edge cases (0, negative, large numbers)
+
+  - [ ] **Task 3.6.6**: Code review and commit
+    - Review: Changes to collect_block_variables
+    - Verify: `just build-strict` (no warnings)
+    - Commit message: "fix(lua): capture free variables in closure hoisting (Task 3.6)"
+    - Update: SPLAN.md with success
 
   **Success Criteria**:
   - ✅ `Printf.printf "Int: %d\n" 42` outputs "Int: 42"
-  - ✅ `Printf.printf "%d" 42` outputs "42"
-  - ✅ No regression on %s, %f, or other format specifiers
-  - ✅ Lua output matches JS output structure (hoisted calls)
+  - ✅ v207 appears in hoisted variables list for convert_int closure
+  - ✅ No crashes with Printf integer formatting
+  - ✅ All format specifiers work (%d, %i, %u, %x, %o, %X)
   - ✅ All tests pass: `just check && just test-lua && just build-strict`
 
-- [ ] **Task 3.6**: Review and fix any remaining Printf primitives
+- [ ] **Task 3.7**: Review and fix any remaining Printf primitives
   - Location: `runtime/lua/format.lua`
   - Reference: `runtime/js/format.js` for behavior
   - Add missing primitives as discovered during testing

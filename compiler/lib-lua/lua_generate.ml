@@ -1160,26 +1160,28 @@ and detect_loop_headers program entry_addr =
     @return Set of variable names (v_N format) that need hoisting
 *)
 and collect_block_variables ctx program start_addr =
-  (* FIXED: Only collect variables DEFINED in this function's blocks.
-     DO NOT collect:
-     - Captured variables from closures (they come from parent scope)
-     - Variables from nested closure bodies (they have their own scope)
+  (* Collect variables that need to be hoisted in this closure.
+     This includes:
+     1. Variables DEFINED in the closure (Let/Assign)
+     2. FREE variables (used but not defined - must come from parent scope)
 
-     This matches JavaScript's behavior where each function has its own scope. *)
+     Task 3.6.3: Fixed to capture free variables like v207 in Printf convert_int closure.
+  *)
 
-  (* Only collect variables DEFINED by instructions *)
+  (* Collect variables DEFINED by instructions *)
   let collect_defined_vars acc = function
     | Code.Let (var, _expr) ->
         (* Variable is defined by Let - add it *)
-        StringSet.add (var_name ctx var) acc
+        Code.Var.Set.add var acc
     | Code.Assign (var, _source) ->
         (* Variable is defined by assignment - add left side only *)
-        StringSet.add (var_name ctx var) acc
+        Code.Var.Set.add var acc
     | Code.Set_field _ | Code.Array_set _ | Code.Offset_ref _ | Code.Event _ ->
         (* These don't define new variables *)
         acc
   in
-  (* Collect all reachable blocks (reuse existing logic) *)
+
+  (* Collect all reachable blocks *)
   let rec collect_reachable visited addr =
     if Code.Addr.Set.mem addr visited
     then visited
@@ -1199,16 +1201,52 @@ and collect_block_variables ctx program start_addr =
           in
           List.fold_left ~f:collect_reachable ~init:visited successors
   in
+
   let reachable = collect_reachable Code.Addr.Set.empty start_addr in
-  (* Collect variables from all reachable blocks (body AND branch) *)
-  Code.Addr.Set.fold
-    (fun addr acc ->
-      match Code.Addr.Map.find_opt addr program.Code.blocks with
-      | None -> acc
-      | Some block ->
-          (* Only collect variables DEFINED in this block *)
-          List.fold_left ~f:collect_defined_vars ~init:acc block.Code.body)
-    reachable
+
+  (* Collect DEFINED variables from all reachable blocks *)
+  let defined_vars =
+    Code.Addr.Set.fold
+      (fun addr acc ->
+        match Code.Addr.Map.find_opt addr program.Code.blocks with
+        | None -> acc
+        | Some block ->
+            List.fold_left ~f:collect_defined_vars ~init:acc block.Code.body)
+      reachable
+      Code.Var.Set.empty
+  in
+
+  (* Collect USED variables from all reachable blocks (Task 3.6.3) *)
+  let used_vars =
+    Code.Addr.Set.fold
+      (fun addr acc ->
+        match Code.Addr.Map.find_opt addr program.Code.blocks with
+        | None -> acc
+        | Some block ->
+            Code.Var.Set.union acc (collect_vars_used_in_block block))
+      reachable
+      Code.Var.Set.empty
+  in
+
+  (* Get entry block parameters to exclude from free vars *)
+  let entry_params =
+    match Code.Addr.Map.find_opt start_addr program.Code.blocks with
+    | None -> Code.Var.Set.empty
+    | Some block ->
+        List.fold_left block.Code.params ~init:Code.Var.Set.empty ~f:(fun acc p ->
+          Code.Var.Set.add p acc)
+  in
+
+  (* Free variables = USED - DEFINED - PARAMETERS *)
+  let free_vars =
+    Code.Var.Set.diff (Code.Var.Set.diff used_vars defined_vars) entry_params
+  in
+
+  (* Return DEFINED ∪ FREE as StringSet *)
+  let all_vars = Code.Var.Set.union defined_vars free_vars in
+  Code.Var.Set.fold
+    (fun var acc -> StringSet.add (var_name ctx var) acc)
+    all_vars
     StringSet.empty
 
 (** {2 Entry Block Dependency Analysis (Phase 2 - Task 2.7)} *)
