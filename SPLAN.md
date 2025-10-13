@@ -492,41 +492,79 @@ Line 1318 is in `caml_ml_bytes_length(s)` which does `return s.length`. The `s` 
 
 **Goal**: Fix Printf runtime primitives and calling conventions
 
-- [ ] **Task 3.1 (revised)**: Debug caml_ml_bytes_length nil parameter ⬅️ **NEXT**
+- [x] **Task 3.1 (revised)**: Debug caml_ml_bytes_length nil parameter ✅ COMPLETE
 
-  **Problem**: `caml_ml_bytes_length` is called with `s = nil` instead of an OCaml string.
+  **Root Cause**: Task 2.8's fix is incomplete. Dispatch starts at entry block (800), but this
+  skips initializer blocks like 475 that set variables like v247. Block 601 uses v247[3],
+  causing nil errors.
 
-  **Investigation needed**:
-  1. Where is `caml_ml_bytes_length` called from? (trace stack)
-  2. What should be passed? (an OCaml string table with `.length` field)
-  3. Why is it nil? (missing initialization, wrong calling convention, or return value issue)
-  4. Compare with js_of_ocaml: How does JS version handle this?
+  **Call Chain**:
+  1. Block 601: `v228 = v247[3]` → nil (v247 never initialized)
+  2. Block 601: `v143(v201, v228)` → calls with nil arg
+  3. Inside v143: `caml_ml_string_length(v202)` → v202 is nil
+  4. `caml_ml_string_length` → calls `caml_ml_bytes_length(s)` with nil
+  5. `caml_ml_bytes_length` → `return s.length` → ERROR!
 
-  **Approach**:
-  ```bash
-  # Find the call site
-  grep -n "caml_ml_bytes_length" test_simple_printf.lua
+  **Control Flow Issue**:
+  ```
+  Current: Start at 800 → ... → Block 601 (uses v247) ❌ v247 nil
 
-  # Check runtime implementation
-  cat runtime/lua/string.lua | grep -A 10 "caml_ml_bytes_length"
-
-  # Compare with JS
-  cat runtime/js/string.js | grep -A 10 "caml_ml_bytes_length"
+  Needed:  Start at 475 → Set v247 → Branch to 800 → ... → Block 601 ✅
   ```
 
-  **Expected outcome**: Identify root cause (calling convention vs missing init vs primitive bug)
+  **JS Comparison**: ✅ `node test_simple_printf_js.js` outputs "Hello" correctly
 
-- [ ] **Task 3.2**: Fix caml_ml_bytes_length issue
+  **Task 2.8 Limitation**:
+  - Fixed: Don't start at back-edge block 484 ✅
+  - Introduced: Skip initializer blocks like 475 ❌
 
-  **Based on Task 3.1 findings**: Implement the fix
-  - Could be: Fix calling convention (ensure OCaml strings passed correctly)
-  - Could be: Fix primitive implementation (handle nil gracefully or fix caller)
-  - Could be: Fix code generation (ensure strings initialized properly)
+  **Why Task 2.7 Didn't Fix**: v247 depends on v343 (block parameter that changes).
+  Pre-initialization unsafe - would use wrong value.
+
+  **Solution**: Distinguish back-edges from true initializers. Start at initializer blocks
+  like 475, not entry block 800.
+
+  **Documented**: `TASK_3_1_FINDINGS.md`
+
+- [ ] **Task 3.2**: Fix dispatch start - distinguish back-edges from initializers ⬅️ **NEXT**
+
+  **Goal**: Enhance `find_entry_initializer` to filter out back-edges, find true initializer blocks.
+
+  **Approach**: Use loop detection to distinguish:
+  - **Back-edges**: Blocks that branch to entry AND are inside the loop (reachable from entry)
+  - **True initializers**: Blocks that branch to entry from OUTSIDE the loop (not reachable from entry)
+
+  **Implementation** (in `lua_generate.ml`):
+  1. Enhance `find_entry_initializer` to accept `loop_headers` parameter
+  2. If entry block is a loop header, collect blocks that branch to it
+  3. Build reachable set from entry block (forward reachability)
+  4. Filter: Keep blocks that branch to entry but are NOT in reachable set (outside loop)
+  5. Return first outside block as true initializer
+
+  **Example (Printf)**:
+  - Entry block: 800 (loop header - target of back-edges)
+  - Block 475: Branches to 800, NOT reachable from 800 → **True initializer** ✅
+  - Block 484: Branches to 800, IS reachable from 800 (via 462→...→484) → Back-edge ❌
+  - Result: Start at 475, not 800
+
+  **Expected Result**:
+  ```lua
+  local _next_block = 475  -- Start at initializer
+  while true do
+    if _next_block == 475 then
+      _V.v247 = _V.v343[3]  -- Initialize v247
+      _next_block = 800      -- Branch to entry/loop header
+    ...
+    if _next_block == 601 then
+      _V.v228 = _V.v247[3]  -- v247 is now set! ✅
+  ```
 
   **Steps**:
-  1. Apply fix based on root cause from Task 3.1
-  2. Build and test
-  3. Verify Printf gets past this error
+  1. Modify `find_entry_initializer` with loop-aware filtering
+  2. Update dispatch start logic to use enhanced detection
+  3. Build and test Printf
+  4. Verify v247 nil error is fixed
+  5. Test simple closures for regressions
 
 - [ ] **Task 3.3**: Test Printf.printf "Hello, World!\n"
   ```bash
