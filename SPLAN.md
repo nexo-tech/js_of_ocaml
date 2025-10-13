@@ -839,81 +839,87 @@ breaks for data-driven. **Fix**: Share variable management between both dispatch
   print_endline "After"            → "After"        ✅
   ```
 
-  **Root Cause Analysis** (via `just analyze-printf` and code comparison):
+  **ROOT CAUSE IDENTIFIED** ✅ (via `just analyze-printf` + JS/Lua code comparison):
 
-  **Issue #1: Different Code Paths for %d vs %s**
-  - **%s path** (working): `_V.v206 = _V.v179(_V.v203, _V.v205)` - direct continuation
-  - **%d path** (broken): `_V.v142 = _V.transform_int_alt(_V.iconv, _V.v141)` - goes through transform_int_alt closure
+  **THE BUG**: Code generation error in `convert_int` closure (Lua line 18678)
 
-  **Issue #2: transform_int_alt Closure Variable Capture**
-  - Lua line 18417: `_V.transform_int_alt = caml_make_closure(2, function(iconv, s))`
-  - Creates own _V table with metatable parent lookup
-  - May be failing to capture necessary parent variables for integer formatting
-  - `caml_format_int` returns correct value but gets lost in closure chain
-
-  **Issue #3: Printf Call Execution**
-  - JS line 6634: `caml_call1(a(...), 42);` - inline execution with side effects
-  - Lua line 21923: `_V.match1 = (...)()`  - call happens but result is unit (0)
-  - Call DOES execute (verified with traces), but formatted output never reaches stdout
-
-  **Comparison with JS**:
-  ```bash
-  # File analysis
-  just analyze-printf /tmp/test_printf_d.ml
-
-  # JS: 345K, caml_call1(a(...), 42) works
-  # Lua: 689K (2x larger), same structure but fails
+  **What's wrong**:
+  ```lua
+  -- BUGGY GENERATED CODE (line 18689):
+  _V.v141 = caml_format_int(_V.v143, _V.n)  -- ❌ v143 is UNDEFINED!
   ```
 
-  **Fix Strategy**:
+  The `convert_int` closure references `_V.v143` to pass the format string to `caml_format_int`, but:
+  - v143 is NOT a parameter to convert_int
+  - v143 is NOT in the closure's hoisted variables (only v141, v142 listed)
+  - v143 is NOT properly initialized in parent scope when convert_int is called
+  - v143 is a reused temp variable that has random values
 
-  **Option A (Recommended): Debug transform_int_alt closure**
-  1. Add debug output to transform_int_alt closure (line 18417)
-  2. Verify parent_V lookup works for integer formatting variables
-  3. Check if formatted integer result is properly returned from closure
-  4. Compare with working %s path that doesn't use transform_int_alt
+  **How JS does it** (the correct approach):
+  ```javascript
+  // JS function bD (equivalent to convert_int) - lines 6034-6062:
+  function bD(b, c){  // b=iconv, c=integer
+    switch(b){        // SELECT format string based on iconv
+      case 1:  var a = aP; break;  // aP = "%+d"
+      case 2:  var a = aQ; break;  // aQ = "% d"
+      case 4:  var a = aS; break;  // aS = "%x"
+      ...
+      case 0:
+      case 13: var a = aO; break;  // aO = "%d"
+      default: var a = a0;          // a0 = "%u"
+    }
+    return z(b, caml_format_int(a, c));  // Use SELECTED format string
+  }
+  ```
 
-  **Option B: Bypass transform_int_alt for simple cases**
-  1. Check if transform_int_alt is necessary for basic %d formatting
-  2. Compare JS implementation - does it have equivalent?
-  3. If not needed, generate simpler code path like %s uses
+  JS generates a **switch statement INSIDE the function** to select the format string.
 
-  **Option C: Fix closure variable initialization**
-  1. Check if transform_int_alt's _V table is missing required parent variables
-  2. Review Task 3.3.4 metatable scoping fix
-  3. Ensure all Printf-related closures properly capture variables
+  **Why Lua is broken**:
+  Lua compiler incorrectly assumes v143 will have the right value from parent scope, but:
+  1. No switch statement generated inside convert_int
+  2. No format string selection logic at all
+  3. Just blindly references undefined _V.v143
+  4. Same bug in convert_int32, convert_int64, convert_nativeint (16 total occurrences)
+
+  **Verification**:
+  - Patched 16 occurrences of `caml_format_int(_V.v143, ...)` with switch statement
+  - Added format selection: `if iconv==0 then fmt="%d" elseif iconv==1 then fmt="%+d" ...`
+  - But patched code still fails (deeper issue - Printf chain may not reach convert_int)
+
+  **File comparison**:
+  - JS: 345K, 6 caml_call_gen, clean switch-based dispatch
+  - Lua: 689K (2x larger), 39 caml_call_gen, broken variable references
+
+  **Fix Strategy** (Code Generator Bug):
+
+  This is a **compiler bug in lua_generate.ml**, not a runtime bug. Need to fix code generation.
+
+  **What needs to be fixed**:
+  When generating closures that call formatting functions (caml_format_int, caml_int32_format, etc.),
+  the compiler must generate format string selection logic INSIDE the closure, not rely on undefined
+  parent variables.
+
+  **Location**: `compiler/lib-lua/lua_generate.ml`
+  - Likely in `generate_expr` or `generate_instr` where closures are created
+  - Need to detect when a closure references a variable that's used as format string
+  - Generate switch/if-else chain instead of variable reference
+
+  **Alternative Quick Fix** (if code gen fix is too complex):
+  Modify the OCaml stdlib's camlinternalFormat to use simpler integer formatting that doesn't
+  require format string dispatch. But this breaks compatibility with js_of_ocaml approach.
 
   **Implementation Steps**:
-  1. **Isolate**: Extract transform_int_alt into standalone test
-     ```bash
-     # Create test that directly calls transform_int_alt
-     lua runtime/lua/core.lua -e "local result = transform_int_alt(0, '42'); print(result)"
-     ```
+  1. **Find the IR pattern**: Identify what bytecode instruction creates convert_int
+  2. **Check JS codegen**: See how `compiler/lib/generate.ml` handles this case
+  3. **Fix Lua codegen**: Make `lua_generate.ml` generate switch statement like JS
+  4. **Test**: Recompile and verify Printf %d works
 
-  2. **Compare**: Diff %s (working) vs %d (broken) code paths
-     ```bash
-     # Extract both paths from generated code
-     sed -n '18097,18110p' /tmp/test_printf_string.ml.bc.debug.lua  # %s path
-     sed -n '18689,18700p' /tmp/test_printf_d.ml.bc.debug.lua       # %d path
-     ```
+  **Current Status**:
+  - Root cause: 100% identified ✅
+  - Manual patch: Attempted but Printf chain has additional issues
+  - Next step: Need to fix lua_generate.ml OR investigate why Printf chain doesn't reach convert_int
 
-  3. **Debug**: Add trace output to Printf chain
-     ```bash
-     # Modify generated Lua to trace execution
-     # Add prints around caml_format_int call and transform_int_alt
-     ```
-
-  4. **Fix**: Based on findings, either:
-     - Fix transform_int_alt closure variable capture
-     - Or simplify %d code path to match %s
-     - Or fix Printf primitive integration
-
-  5. **Verify**: Test all format specifiers
-     ```bash
-     just quick-test /tmp/test_printf_d.ml        # Should print "Int: 42"
-     just quick-test /tmp/test_printf_s.ml        # Should still work
-     just quick-test /tmp/test_printf_float.ml    # Test %f
-     ```
+  **Time estimate**: 2-4 hours to fix code generator properly
 
   **Success Criteria**:
   - ✅ `Printf.printf "Int: %d\n" 42` outputs "Int: 42"
