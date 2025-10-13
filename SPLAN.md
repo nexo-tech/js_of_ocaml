@@ -526,47 +526,98 @@ Line 1318 is in `caml_ml_bytes_length(s)` which does `return s.length`. The `s` 
 
   **Documented**: `TASK_3_1_FINDINGS.md`
 
-- [ ] **Task 3.2**: Fix dispatch start - distinguish back-edges from initializers ⬅️ **NEXT**
+- [x] **Task 3.2**: Investigate dispatch start with back-edge filtering ⚠️ INCOMPLETE
 
-  **Goal**: Enhance `find_entry_initializer` to filter out back-edges, find true initializer blocks.
+  **Implemented**: Reachability-based back-edge filtering (~100 lines)
+  - ✅ Added `compute_reachable_blocks` for forward reachability analysis
+  - ✅ Enhanced `find_entry_initializer` to filter blocks reachable from entry
+  - ✅ Updated dispatch logic to use enhanced detection with fallback
+  - ❌ Printf still fails - address-based dispatch is insufficient
 
-  **Approach**: Use loop detection to distinguish:
-  - **Back-edges**: Blocks that branch to entry AND are inside the loop (reachable from entry)
-  - **True initializers**: Blocks that branch to entry from OUTSIDE the loop (not reachable from entry)
+  **Finding**: ALL blocks (474-476, 481, 483, 484) are reachable from entry (800).
+  They're all inside the loop - no "external" initializers exist.
 
-  **Implementation** (in `lua_generate.ml`):
-  1. Enhance `find_entry_initializer` to accept `loop_headers` parameter
-  2. If entry block is a loop header, collect blocks that branch to it
-  3. Build reachable set from entry block (forward reachability)
-  4. Filter: Keep blocks that branch to entry but are NOT in reachable set (outside loop)
-  5. Return first outside block as true initializer
+  **Catch-22**:
+  - Start at 800 (entry): v247 nil error (block 601 needs 475)
+  - Start at 484 (fallback): v270 nil error (block 484 needs 482)
 
-  **Example (Printf)**:
-  - Entry block: 800 (loop header - target of back-edges)
-  - Block 475: Branches to 800, NOT reachable from 800 → **True initializer** ✅
-  - Block 484: Branches to 800, IS reachable from 800 (via 462→...→484) → Back-edge ❌
-  - Result: Start at 475, not 800
+  **Root Cause**: Address-based dispatch (`while _next_block`) can't handle Printf's
+  block interdependencies. Blocks have ordering requirements that can't be satisfied
+  by picking a single start address.
 
-  **Expected Result**:
-  ```lua
-  local _next_block = 475  -- Start at initializer
-  while true do
-    if _next_block == 475 then
-      _V.v247 = _V.v343[3]  -- Initialize v247
-      _next_block = 800      -- Branch to entry/loop header
-    ...
-    if _next_block == 601 then
-      _V.v228 = _V.v247[3]  -- v247 is now set! ✅
+  **How JS Works**: Value-based dispatch
+  ```js
+  for(;;) {
+    switch(fmt[0]) {  ← Switch on data, not addresses
+      case 0: ...     ← Direct code execution
+      case 11: v247 = fmt[3]; ...  ← Variables set naturally
+    }
+  }
   ```
 
-  **Steps**:
-  1. Modify `find_entry_initializer` with loop-aware filtering
-  2. Update dispatch start logic to use enhanced detection
-  3. Build and test Printf
-  4. Verify v247 nil error is fixed
-  5. Test simple closures for regressions
+  **Why Detection Doesn't Work**: Printf entry (800) has **Cond** terminator (decision tree),
+  not **Switch** (our detection only triggers for Switch). IR optimizations convert large
+  switches to balanced decision trees.
 
-- [ ] **Task 3.3**: Test Printf.printf "Hello, World!\n"
+  **Conclusion**: Address-based dispatch is fundamentally wrong for Printf. Need value-based
+  dispatch like JS uses.
+
+  **Documented**: `TASK_3_2_INVESTIGATION.md`
+
+- [ ] **Task 3.3**: Implement value-based dispatch for Cond patterns ⬅️ **NEXT** (THE REAL FIX)
+
+  **Goal**: Extend data-driven dispatch detection to recognize Cond decision tree patterns,
+  not just Switch terminators. This makes Lua match JS's value-based dispatch.
+
+  **Approach**:
+  1. Enhance `detect_dispatch_mode` to detect Cond-based dispatch patterns
+  2. Recognize when entry/successor blocks use Cond on same variable (like v343[1])
+  3. Extract dispatch variable and case mapping from Cond tree
+  4. Generate value-based dispatch (if-elseif on variable, not _next_block)
+  5. Inline case bodies directly (no address jumps)
+
+  **Detection Pattern** (for Printf):
+  - Entry block 800: Cond on v343 type → blocks 462/463
+  - Block 462: Extract v204 = v343[1], then Cond chain on v204 → blocks 464-485
+  - Pattern: Decision tree on v343[1] with 20+ cases
+  - Treat as: `switch(v343[1])` dispatch
+
+  **Generated Code (target)**:
+  ```lua
+  local fmt = v343  -- Dispatch variable
+  while true do
+    local tag = fmt[1] or 0
+    if tag == 0 then
+      -- Case 0 code (block 464 body)
+      ...
+    elseif tag == 11 then
+      -- Case 11 code (block 475 body)
+      v247 = fmt[3]  -- Naturally set before later cases!
+      fmt = v247     -- Update dispatch var
+      -- Continue loop
+    elseif tag == X then
+      -- Later case that uses v247
+      v228 = v247[3]  -- v247 is set! ✅
+    end
+  end
+  ```
+
+  **Benefits**:
+  - Matches JS behavior exactly
+  - Variables set in natural execution order
+  - No block dependency issues
+  - Cleaner, more readable code
+
+  **Implementation**:
+  1. Add `detect_cond_dispatch_pattern` to recognize decision trees
+  2. Extract dispatch variable from Cond chain
+  3. Build case mapping (tag value → block address)
+  4. Modify `compile_data_driven_dispatch` to handle Cond-derived cases
+  5. Test Printf - should work!
+
+  **Complexity**: Medium (50-100 lines), reuses Phase 2.5 infrastructure
+
+- [ ] **Task 3.4**: Test Printf.printf "Hello, World!\n"
   ```bash
   cat > /tmp/test_hello_printf.ml << 'EOF'
   let () = Printf.printf "Hello, World!\n"
@@ -578,8 +629,9 @@ Line 1318 is in `caml_ml_bytes_length(s)` which does `return s.length`. The `s` 
   - Expected: "Hello, World!"
   - Success criteria: No errors, correct output
   - **This is the SPLAN.md goal!**
+  - Depends on: Task 3.3 (value-based dispatch)
 
-- [ ] **Task 3.4**: Test Printf with format specifiers
+- [ ] **Task 3.5**: Test Printf with format specifiers
   ```bash
   # Test %s
   let () = Printf.printf "Name: %s\n" "OCaml"
@@ -592,8 +644,9 @@ Line 1318 is in `caml_ml_bytes_length(s)` which does `return s.length`. The `s` 
   ```
   - Verifies: Format string parsing works
   - Verifies: Type-safe formatting works
+  - Depends on: Task 3.4
 
-- [ ] **Task 3.5**: Review and fix any remaining Printf primitives
+- [ ] **Task 3.6**: Review and fix any remaining Printf primitives
   - Location: `runtime/lua/format.lua`
   - Reference: `runtime/js/format.js` for behavior
   - Add missing primitives as discovered during testing

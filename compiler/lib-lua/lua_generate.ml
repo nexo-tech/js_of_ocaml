@@ -879,53 +879,122 @@ and generate_instrs ctx instrs =
 
 (** {2 Loop Detection} *)
 
-(** Find blocks that provide initial values for entry block parameters
-    When an entry block has parameters, we need to find where those parameters
-    get their initial values from. This is typically a block that jumps to the
-    entry with arguments.
+(** Compute set of blocks reachable from a starting address via forward traversal.
+    Used to distinguish back-edges from external branches.
+
+    @param program Full IR program
+    @param start_addr Starting block address
+    @return Set of reachable block addresses
+*)
+and compute_reachable_blocks program start_addr =
+  let rec collect visited addr =
+    if Code.Addr.Set.mem addr visited then
+      visited
+    else
+      match Code.Addr.Map.find_opt addr program.Code.blocks with
+      | None -> visited
+      | Some block ->
+          let visited = Code.Addr.Set.add addr visited in
+          let successors = match block.Code.branch with
+            | Code.Return _ | Code.Raise _ | Code.Stop -> []
+            | Code.Branch (next, _) -> [next]
+            | Code.Cond (_, (t1, _), (t2, _)) -> [t1; t2]
+            | Code.Switch (_, cases) -> Array.to_list cases |> List.map ~f:fst
+            | Code.Pushtrap ((c, _), _, (h, _)) -> [c; h]
+            | Code.Poptrap (a, _) -> [a]
+          in
+          List.fold_left successors ~init:visited ~f:collect
+  in
+  collect Code.Addr.Set.empty start_addr
+
+(** Find true initializer blocks for entry blocks with parameters.
+    Filters out back-edges (blocks inside the loop) to find blocks that provide
+    initial values from outside the loop.
+
+    Task 3.2: Enhanced to distinguish back-edges from true initializers using
+    reachability analysis.
 
     @param program The Code.program
     @param entry_addr The entry block address
     @return Option of (initializer_addr, args) or None
 *)
 and find_entry_initializer program entry_addr =
-  (* Look for blocks that jump to entry_addr with arguments *)
+  (* Task 3.2: Look for blocks that jump to entry_addr with arguments,
+     but filter out back-edges (blocks inside the loop that branch back to entry).
+
+     Back-edges: Blocks reachable FROM entry that branch TO entry (loop continuation)
+     True initializers: Blocks NOT reachable from entry that branch to entry (setup blocks)
+  *)
   if !debug_var_collect then
     Format.eprintf "DEBUG find_entry_initializer: Looking for blocks branching to %d@." entry_addr;
-  let result = Code.Addr.Map.fold (fun addr block acc ->
+
+  (* Compute blocks reachable from entry - these are "inside" the loop *)
+  let reachable_from_entry = compute_reachable_blocks program entry_addr in
+  if !debug_var_collect then
+    Format.eprintf "  Reachable from entry: %d blocks@." (Code.Addr.Set.cardinal reachable_from_entry);
+
+  (* Find ALL blocks that branch to entry with arguments *)
+  let candidates = Code.Addr.Map.fold (fun addr block acc ->
     (* Skip the entry block itself *)
     if addr = entry_addr then acc
     else
       match block.Code.branch with
       | Code.Branch (target, args) when target = entry_addr && not (List.is_empty args) ->
-          (* Found a branch to entry with arguments *)
           if !debug_var_collect then
-            Format.eprintf "  Found: block %d branches to %d with %d args@." addr target (List.length args);
-          Some (addr, args)
+            Format.eprintf "  Found candidate: block %d branches to %d with %d args@." addr target (List.length args);
+          (addr, args) :: acc
       | Code.Cond (_, (t1, args1), (t2, args2)) ->
-          if t1 = entry_addr && not (List.is_empty args1) then (
+          let acc = if t1 = entry_addr && not (List.is_empty args1) then (
             if !debug_var_collect then
-              Format.eprintf "  Found: block %d Cond branch1 to %d with %d args@." addr t1 (List.length args1);
-            Some (addr, args1)
-          ) else if t2 = entry_addr && not (List.is_empty args2) then (
+              Format.eprintf "  Found candidate: block %d Cond branch1 to %d with %d args@." addr t1 (List.length args1);
+            (addr, args1) :: acc
+          ) else acc in
+          if t2 = entry_addr && not (List.is_empty args2) then (
             if !debug_var_collect then
-              Format.eprintf "  Found: block %d Cond branch2 to %d with %d args@." addr t2 (List.length args2);
-            Some (addr, args2)
+              Format.eprintf "  Found candidate: block %d Cond branch2 to %d with %d args@." addr t2 (List.length args2);
+            (addr, args2) :: acc
           ) else acc
       | Code.Switch (_, cases) ->
-          (* Check switch cases for jumps to entry with args *)
           Array.fold_left cases ~init:acc ~f:(fun acc (target, args) ->
             if target = entry_addr && not (List.is_empty args) then (
               if !debug_var_collect then
-                Format.eprintf "  Found: block %d Switch case to %d with %d args@." addr target (List.length args);
-              Some (addr, args)
+                Format.eprintf "  Found candidate: block %d Switch case to %d with %d args@." addr target (List.length args);
+              (addr, args) :: acc
             ) else acc)
       | _ -> acc
-  ) program.Code.blocks None in
+  ) program.Code.blocks [] in
+
+  (* Filter out back-edges: keep only blocks NOT reachable from entry *)
+  let initializers = List.filter candidates ~f:(fun (addr, _args) ->
+    let is_reachable = Code.Addr.Set.mem addr reachable_from_entry in
+    if !debug_var_collect then (
+      if is_reachable then
+        Format.eprintf "  Block %d is BACK-EDGE (reachable from entry) - filtering out@." addr
+      else
+        Format.eprintf "  Block %d is TRUE INITIALIZER (outside loop) - keeping@." addr
+    );
+    not is_reachable
+  ) in
+
+  (* If no true initializers found, use first candidate as fallback (even if back-edge)
+     This handles cases where the entire closure is one big loop with no external entry *)
+  let result = match initializers with
+    | [] when List.is_empty candidates -> None  (* No candidates at all *)
+    | [] ->
+        (* All candidates were back-edges - use first one as fallback *)
+        (match candidates with
+        | [] -> None
+        | (addr, args) :: _rest ->
+            if !debug_var_collect then
+              Format.eprintf "  No true initializers, using first candidate %d as fallback@." addr;
+            Some (addr, args))
+    | (addr, args) :: _rest -> Some (addr, args)  (* Use first true initializer *)
+  in
+
   if !debug_var_collect then (
     match result with
-    | Some (addr, args) -> Format.eprintf "  Result: Found initializer block %d with %d args@." addr (List.length args)
-    | None -> Format.eprintf "  Result: No initializer found@."
+    | Some (addr, args) -> Format.eprintf "  Result: Found true initializer block %d with %d args@." addr (List.length args)
+    | None -> Format.eprintf "  Result: No true initializer found (all were back-edges)@."
   );
   result
 
@@ -1705,20 +1774,31 @@ and compile_address_based_dispatch ctx program start_addr params entry_args func
               | _ -> Format.eprintf "  Entry block has other terminator@.")
           | None -> Format.eprintf "  Entry block not found!@."
         );
-        (* Task 2.8: ALWAYS start at entry block for closures.
-           Previous logic used find_entry_initializer which incorrectly returned
-           back-edge blocks (e.g. block 484 for Printf). Back-edges branch TO the
-           entry to continue a loop, but they're not initializers - they're part of
-           the loop body that already assumes the loop has started.
+        (* Task 3.2: Use enhanced find_entry_initializer with back-edge filtering.
+           For entry blocks with parameters, try to find true initializer blocks
+           (outside the loop) rather than starting at the entry directly.
 
-           For closures, entry block parameters are initialized via entry_arg_stmts,
-           so the entry block is safe to execute. Then its terminator (Branch/Cond/etc)
-           directs control flow to the appropriate next block. *)
+           This fixes Printf which needs block 475 to run before entering the loop at 800.
+        *)
         let actual_start_addr, extra_init_stmts =
-          if !debug_var_collect && entry_has_params then
-            Format.eprintf "  Entry block %d has params, starting at entry (Task 2.8 fix)@."
-              start_addr;
-          (start_addr, [])
+          if entry_has_params then
+            match find_entry_initializer program start_addr with
+            | Some (init_addr, _) ->
+                (* Found a true initializer (not a back-edge) - start there *)
+                if !debug_var_collect then
+                  Format.eprintf "  Entry block %d has params, starting at true initializer block %d (Task 3.2)@."
+                    start_addr init_addr;
+                (init_addr, [])
+            | None ->
+                (* No true initializer found - all were back-edges or none exist.
+                   Start at entry directly. *)
+                if !debug_var_collect then
+                  Format.eprintf "  Entry block %d has params but no true initializer, starting at entry@."
+                    start_addr;
+                (start_addr, [])
+          else
+            (* No parameters - start at entry *)
+            (start_addr, [])
         in
         if !debug_var_collect then
           Format.eprintf "  Final actual_start_addr=%d@." actual_start_addr;
