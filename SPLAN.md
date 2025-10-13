@@ -1338,11 +1338,189 @@ breaks for data-driven. **Fix**: Share variable management between both dispatch
 
     **Next Step**: Add runtime debug output to trace execution flow and variable values
 
-  - [ ] **Task 3.6.5**: Run Printf test suite
-    - Commands: `just test-lua | grep -A5 printf`
-    - Verify: All Printf format specifiers work
-    - Check: No regressions on %s, %c, %f
-    - Test: Edge cases (0, negative, large numbers)
+- [ ] **Task 3.6.5**: Debug Printf %d runtime behavior
+
+  **Goal**: Trace execution to find why Printf %d produces no output
+
+  **Hypothesis**: Free variables are captured but:
+  - Timing issue: child closure called before parent initializes variable?
+  - Metatable lookup failing for some reason?
+  - Silent error in caml_format_int when fmt is nil?
+  - Different code path than expected?
+
+  **Investigation Strategy**:
+  1. Add runtime debug to trace Printf execution
+  2. Check when v314 is assigned vs when convert_int is called
+  3. Verify metatable lookup finds parent_V.v314
+  4. Compare Lua execution with JS execution flow
+  5. Find exact point of failure
+
+  - [x] **Task 3.6.5.1**: Add runtime debug output ✅ - ROOT CAUSE FOUND!
+    - Added debug to Printf call sites
+    - Tested both %s and %d format specifiers
+    - Commands: Python scripts to instrument /tmp/quick_test.lua
+
+    **CRITICAL DISCOVERY**:
+    - Printf %s: v310.l = 1 (arity 1) → Calls directly, prints "String: world" ✅
+    - Printf %d: v311.l = 2 (arity 2) → Wrong arity! Returns partial application ❌
+    - When v311(42) is called with 1 arg but expects 2 → Returns closure, doesn't print
+    - `caml_call_gen(_V.v311, {42})` returns a table (partial application)
+    - No side effect (printing) happens
+
+  - [x] **Task 3.6.5.2**: Root cause identified ✅
+    - Problem: Convert_int closure has WRONG ARITY
+    - Should be: arity 1 (takes integer, returns formatted string)
+    - Actually is: arity 2 (exposed both iconv AND integer parameters)
+    - Result: Printf thinks it needs 2 args, only gets 1, returns partial closure
+
+    **Why this happens**:
+    - convert_int internally takes 2 params: (iconv, n)
+    - iconv should be CAPTURED from parent scope (format string selection)
+    - n should be the PUBLIC parameter (the integer to format)
+    - But code generator is exposing BOTH as public parameters
+    - This creates arity 2 instead of arity 1
+
+  - [x] **Task 3.6.5.3**: Compare with JS execution ✅ - DEEPER ISSUE FOUND!
+
+    **Key Finding**: The arity mismatch is NOT in convert_int itself, but in the closure returned by make_int_padding_precision!
+
+    **JS Behavior** (test_printf_d.ml.pretty.js:8103-8111):
+    ```javascript
+    function make_int_padding_precision(k, acc, fmt, pad, prec, trans, iconv){
+      if(typeof prec === "number" && !prec)  // prec === 0
+        return function(x){  // ← ARITY 1 closure
+          var str = caml_call2(trans, iconv, x);  // Calls trans with both iconv and x
+          return make_printf(k, [4, acc, str], fmt);
+        }
+    }
+    ```
+
+    **Lua Behavior** (test_printf_d.ml.bc.debug.lua:20849):
+    ```lua
+    _V.v318 = caml_make_closure(1, function(v319)  -- ← ARITY 1 closure (correct!)
+      _V.v350 = (function()
+        if type(_V.v257) == "table" and _V.v257.l and _V.v257.l == 2 then
+          return _V.v257(_V.v256, _V.v319)  -- Calls convert_int with both iconv and x
+        else
+          return caml_call_gen(_V.v257, {_V.v256, _V.v319})
+        end
+      end)()
+    ```
+
+    **Both create arity-1 closures!** So why does v311 have arity 2?
+
+    **Call site comparison**:
+    - JS: `make_int_padding_precision(k, acc, rest$3, pad$1, prec, convert_int, iconv)` (line 7508)
+    - Lua: `_V.v236(_V.v479, _V.v480, _V.v333, _V.v335, _V.v334, _V.v213, _V.v336)` (line 19608)
+
+    **Both pass convert_int and iconv separately!** And both should return arity-1 when prec=0.
+
+    **The Real Question**: Why does `_V.v273(_V.v287)` return a closure with arity 2 when it should return arity 1?
+    - v273 = Printf.fprintf
+    - v287 = format descriptor for "Int: %d\n" with prec=0
+    - Expected: v273 calls v236 (make_int_padding_precision) with prec=0 → returns arity-1 closure
+    - Actual: v311.l = 2 (wrong!)
+
+    **Hypothesis**: The issue might be:
+    1. v273 is returning the WRONG closure (maybe returning convert_int directly instead of the wrapper?)
+    2. Or there's a different code path that doesn't go through make_int_padding_precision
+    3. Or v287 format descriptor is malformed (prec not actually 0)
+
+  - [x] **Task 3.6.5.3b**: Deeper analysis ✅ - v235 RETURNS WRONG ARITY!
+
+    **Runtime Trace Results**:
+    ```
+    === v235 call (format processor) ===
+      v330 (continuation): table l=1
+      v329 (acc): 0
+      v328 (format tree) tag: 11
+      Result for %s: table, arity=1  ✅
+      Result for %d: table, arity=2  ❌
+    === END v235 ===
+    ```
+
+    **Key Discovery**: v235 (format processor) is directly returning different arities:
+    - When processing %s format: returns closure with arity=1 (correct)
+    - When processing %d format: returns closure with arity=2 (wrong!)
+
+    **Both formats start with tag=11 (Char_literal)**, but nested format differs:
+    - %s: {11, "String: ", {3, 0, {12, 10, 0}}} → tag 3 (String)
+    - %d: {11, "Int: ", {4, 0, 0, 0, {12, 10, 0}}} → tag 4 (Int_d)
+
+    **Code Structure**:
+    - Tag 11 handler (line 20449): Creates closure with arity 1 that calls v236 with nested format
+    - Tag 4 handler (line 20265): Creates closure with arity 1 that calls v236 with params
+    - But tag 4 handler is NOT being executed (instrumentation confirmed)!
+
+    **Hypothesis**: There's a DIFFERENT code path for %d that:
+    1. Returns a closure with arity 2 directly (not going through tag 4 handler)
+    2. OR v236 itself returns arity 2 for integer formats
+    3. OR the closure composition is wrong (nested closures with wrong arity)
+
+  - [x] **Task 3.6.5.4**: ROOT CAUSE FOUND! ✅
+
+    **The Bug**: Line 20423 in generated Lua creates arity-2 closure when it should be arity-1
+
+    ```lua
+    -- BUG: Tag 10 handler (line 20421-20445)
+    if _V.v374 == 10 then
+      _V.v363 = caml_make_closure(2, function(v365, v364)  -- ❌ ARITY 2 (WRONG!)
+        _V.v380 = _V.v236(_V.v246, _V.v245, _V.v362, _V.v243)
+        return _V.v380
+      end)
+      return _V.v363
+    end
+
+    -- CORRECT: Tag 11 handler (line 20447-20470)
+    if _V.v374 == 11 then
+      _V.v367 = caml_make_closure(1, function(v368)  -- ✅ ARITY 1 (CORRECT!)
+        _V.v380 = _V.v236(_V.v246, _V.v245, _V.v366, _V.v243)
+        return _V.v380
+      end)
+      return _V.v367
+    end
+    ```
+
+    **Both handlers have IDENTICAL bodies** but different arities! This is the bug.
+
+    **Confirmed via runtime tracing**:
+    - Closure #21 (the buggy one) is created at line 20423 during Printf %d call
+    - v235 returns closure #21 with arity=2
+    - Calling code expects arity=1, calls caml_call_gen with 1 arg
+    - caml_call_gen returns partial application (arity=1 closure)
+    - Partial application is never invoked, so nothing prints
+
+    **Root Cause**: `lua_generate.ml` computes wrong arity for this closure
+    - Tag 10 and tag 11 closures should both have arity 1
+    - Both take single argument and call v236 with captured context
+    - But code generator assigns arity 2 to tag 10 closure
+
+  - [ ] **Task 3.6.5.4b**: Find arity computation bug in lua_generate.ml
+    - Check bytecode to see what arity is specified for Printf %d formatter
+    - Compare JS bytecode vs Lua bytecode for same source
+    - Identify WHERE the arity-2 closure is created in the IR
+    - Options to investigate:
+      1. Is convert_int itself being returned (arity 2) instead of wrapper (arity 1)?
+      2. Is make_int_padding_precision returning wrong arity?
+      3. Is there a partial application bug in the compiler?
+    - Use: `just inspect-bytecode /tmp/test_printf_d.ml.bc`
+    - Compare: Generated Lua vs JS for closure creation
+
+  - [ ] **Task 3.6.5.5**: Identify and fix root cause
+    - Based on IR/bytecode analysis
+    - Likely fix locations:
+      1. Closure arity computation in `lua_generate.ml`
+      2. Partial application handling
+      3. Printf-specific code generation
+    - Implement: Targeted fix based on evidence
+
+  - [ ] **Task 3.6.5.5**: Test Printf %d after fix
+    - Test: `just quick-test /tmp/test_printf_d.ml`
+    - Expected: "Int: 42" appears in output
+    - Test additional formats: %i, %u, %x, %o
+    - Verify: No regressions on %s, %c, hello world
+
+- [ ] **Task 3.6.6**: Run full Printf test suite
 
   - [ ] **Task 3.6.6**: Code review and commit
     - Review: Changes to collect_block_variables
