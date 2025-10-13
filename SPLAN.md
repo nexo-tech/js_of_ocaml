@@ -818,7 +818,7 @@ breaks for data-driven. **Fix**: Share variable management between both dispatch
 
   **Next Steps**: Task 3.5/3.6 to fix integer formatting primitive
 
-- [ ] **Task 3.5**: Debug Printf %d silent failure ⚠️ NEEDS INVESTIGATION
+- [ ] **Task 3.5**: Debug Printf %d silent failure ⚠️ READY TO FIX
 
   **Status After Task 3.7**: Printf.printf "%d" no longer hangs but silently fails (no output)
 
@@ -832,20 +832,94 @@ breaks for data-driven. **Fix**: Share variable management between both dispatch
   # Silently fails - no output
   Printf.printf "%d" 42            → (nothing)      ❌
   Printf.printf "Int: %d\n" 42     → (nothing)      ❌
+
+  # Execution trace confirms call happens
+  print_endline "Before"           → "Before"       ✅
+  Printf.printf "Int: %d\n" 42     → (nothing)      ❌
+  print_endline "After"            → "After"        ✅
   ```
 
-  **Investigation Findings**:
-  - `caml_format_int` primitive works correctly in isolation (verified)
-  - `print_int` works correctly (uses different code path)
-  - Issue is in Printf formatting chain, not integer formatting primitive
-  - Generated code calls `caml_format_int` correctly
-  - Formatted result gets passed through closure chain but doesn't reach output
+  **Root Cause Analysis** (via `just analyze-printf` and code comparison):
 
-  **Next Steps**:
-  1. Compare JS vs Lua Printf implementation in generated code
-  2. Trace the Printf formatting chain execution
-  3. Check if closure variable passing breaks with %d but works with %s
-  4. Possibly related to runtime arity checks or closure scope issues
+  **Issue #1: Different Code Paths for %d vs %s**
+  - **%s path** (working): `_V.v206 = _V.v179(_V.v203, _V.v205)` - direct continuation
+  - **%d path** (broken): `_V.v142 = _V.transform_int_alt(_V.iconv, _V.v141)` - goes through transform_int_alt closure
+
+  **Issue #2: transform_int_alt Closure Variable Capture**
+  - Lua line 18417: `_V.transform_int_alt = caml_make_closure(2, function(iconv, s))`
+  - Creates own _V table with metatable parent lookup
+  - May be failing to capture necessary parent variables for integer formatting
+  - `caml_format_int` returns correct value but gets lost in closure chain
+
+  **Issue #3: Printf Call Execution**
+  - JS line 6634: `caml_call1(a(...), 42);` - inline execution with side effects
+  - Lua line 21923: `_V.match1 = (...)()`  - call happens but result is unit (0)
+  - Call DOES execute (verified with traces), but formatted output never reaches stdout
+
+  **Comparison with JS**:
+  ```bash
+  # File analysis
+  just analyze-printf /tmp/test_printf_d.ml
+
+  # JS: 345K, caml_call1(a(...), 42) works
+  # Lua: 689K (2x larger), same structure but fails
+  ```
+
+  **Fix Strategy**:
+
+  **Option A (Recommended): Debug transform_int_alt closure**
+  1. Add debug output to transform_int_alt closure (line 18417)
+  2. Verify parent_V lookup works for integer formatting variables
+  3. Check if formatted integer result is properly returned from closure
+  4. Compare with working %s path that doesn't use transform_int_alt
+
+  **Option B: Bypass transform_int_alt for simple cases**
+  1. Check if transform_int_alt is necessary for basic %d formatting
+  2. Compare JS implementation - does it have equivalent?
+  3. If not needed, generate simpler code path like %s uses
+
+  **Option C: Fix closure variable initialization**
+  1. Check if transform_int_alt's _V table is missing required parent variables
+  2. Review Task 3.3.4 metatable scoping fix
+  3. Ensure all Printf-related closures properly capture variables
+
+  **Implementation Steps**:
+  1. **Isolate**: Extract transform_int_alt into standalone test
+     ```bash
+     # Create test that directly calls transform_int_alt
+     lua runtime/lua/core.lua -e "local result = transform_int_alt(0, '42'); print(result)"
+     ```
+
+  2. **Compare**: Diff %s (working) vs %d (broken) code paths
+     ```bash
+     # Extract both paths from generated code
+     sed -n '18097,18110p' /tmp/test_printf_string.ml.bc.debug.lua  # %s path
+     sed -n '18689,18700p' /tmp/test_printf_d.ml.bc.debug.lua       # %d path
+     ```
+
+  3. **Debug**: Add trace output to Printf chain
+     ```bash
+     # Modify generated Lua to trace execution
+     # Add prints around caml_format_int call and transform_int_alt
+     ```
+
+  4. **Fix**: Based on findings, either:
+     - Fix transform_int_alt closure variable capture
+     - Or simplify %d code path to match %s
+     - Or fix Printf primitive integration
+
+  5. **Verify**: Test all format specifiers
+     ```bash
+     just quick-test /tmp/test_printf_d.ml        # Should print "Int: 42"
+     just quick-test /tmp/test_printf_s.ml        # Should still work
+     just quick-test /tmp/test_printf_float.ml    # Test %f
+     ```
+
+  **Success Criteria**:
+  - ✅ `Printf.printf "Int: %d\n" 42` outputs "Int: 42"
+  - ✅ `Printf.printf "%d" 42` outputs "42"
+  - ✅ No regression on %s, %f, or other format specifiers
+  - ✅ Lua output matches JS output exactly
 
 - [ ] **Task 3.6**: Review and fix any remaining Printf primitives
   - Location: `runtime/lua/format.lua`
