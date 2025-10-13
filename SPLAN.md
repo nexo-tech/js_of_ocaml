@@ -1533,13 +1533,53 @@ breaks for data-driven. **Fix**: Share variable management between both dispatch
     - **Action**: Inspect actual bytecode to see what IR specifies
     - **Action**: Compare with js_of_ocaml handling of same IR
 
-  - [ ] **Task 3.6.5.5**: Implement fix
-    - Based on IR/bytecode analysis
-    - Likely fix locations:
-      1. Closure arity computation in `lua_generate.ml`
-      2. Partial application handling
-      3. Printf-specific code generation
-    - Implement: Targeted fix based on evidence
+  - [x] **Task 3.6.5.5**: Fix attempt - TOO AGGRESSIVE ❌
+
+    **Attempted Fix**: Adjust arity when `block_args=0` but `params>0`
+    ```ocaml
+    let arity_int =
+      if block_args_len < params_len && block_args_len = 0
+      then 1  (* Force arity 1 *)
+      else params_len in
+    ```
+
+    **Results**:
+    - ✅ Fixed pc=499 (tag 10 handler): arity 2→1
+    - ❌ Broke pc=632 (convert_int): arity 2→1 (should stay 2!)
+    - ❌ Runtime error: format string becomes nil
+
+    **Problem**: Heuristic too broad - many closures have `block_args=0` but still need arity>1:
+    - convert_int: genuinely needs 2 params (iconv, n)
+    - tag 10 handler: only needs 1 param (but IR says 2)
+
+    Both have `block_args=0`, so simple heuristic can't distinguish them!
+
+  - [ ] **Task 3.6.5.6**: Develop better fix strategy
+
+    **Options**:
+    1. **Dead parameter analysis**: Check if params are actually used in closure body
+       - Pro: Precise
+       - Con: Complex, needs control flow analysis
+
+    2. **PC-specific adjustment**: Hardcode fix for known-bad PC ranges
+       - Pro: Simple, targeted
+       - Con: Fragile, not general
+
+    3. **IR-level fix**: Patch OCaml compiler or add pre-processing pass
+       - Pro: Fixes root cause
+       - Con: Out of scope for lua_of_ocaml
+
+    4. **Alternative calling convention**: Handle arity mismatch at runtime
+       - Pro: Robust
+       - Con: Performance impact, complex
+
+    5. **Compare with JS**: Understand why JS doesn't have this problem
+       - Tag 10/11 don't create closures in JS - they're loop cases!
+       - Lua generates different IR structure?
+
+    **Recommendation**: Option 5 first - understand IR difference between JS and Lua
+
+  - [ ] **Task 3.6.5.7**: Investigate IR generation differences
 
   - [ ] **Task 3.6.5.5**: Test Printf %d after fix
     - Test: `just quick-test /tmp/test_printf_d.ml`
