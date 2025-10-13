@@ -699,17 +699,19 @@ Line 1318 is in `caml_ml_bytes_length(s)` which does `return s.length`. The `s` 
 
   **Documented**: `TASK_3_3_4_COMPLETE.md`, `TASK_3_3_4_PLAN.md`
 
-- [ ] **Task 3.3.5**: Test Printf with complete fix (after 3.3.4)
+- [x] **Task 3.3.5**: Test Printf with complete fix (after 3.3.4) ✅ COMPLETE
 
-  **Test Cases**:
-  1. `Printf.printf "Hello\n"` → Should output "Hello"
-  2. `Printf.printf "Hello, World!\n"` → Should output "Hello, World!" (THE GOAL!)
-  3. `Printf.printf "Test: %s\n" "hello"` → Should output "Test: hello"
+  **Test Results**:
+  1. ✅ `Printf.printf "Hello\n"` → Outputs "Hello"
+  2. ✅ `Printf.printf "Hello, World!\n"` → Outputs "Hello, World!" (THE GOAL!)
+  3. ✅ `Printf.printf "Test: %s\n" "hello"` → Outputs "Test: hello"
 
-  **Debug if Needed**:
-  - Check generated Lua structure matches expected
-  - Compare with JS output: `just compare-outputs /tmp/test_printf_simple.ml`
-  - Verify each closure has own _V table
+  **Additional Fix Applied**:
+  - Fixed `compile_address_based_dispatch` (lines 1903-1922) to use metatables
+  - ALL closures now use proper lexical scoping (0 "inherited _V table" remaining)
+  - Committed in fix(scope): apply metatable fix to address-based dispatch
+
+  **Note**: %d format specifier has separate issue (infinite loop) - not part of this task
 
 - [ ] **Task 3.3.6**: Verify no regressions and run test suite
 
