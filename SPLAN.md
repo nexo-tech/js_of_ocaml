@@ -257,30 +257,47 @@ let () = Printf.printf "Hello, World!\n"
   while true do
   ```
 
-- [ ] **Task 2.8**: Fix dispatch entry point detection ⬅️ **NEXT**
+- [x] **Task 2.8**: Fix dispatch entry point detection ✅ COMPLETE (THE FIX!)
+  - ✅ Analyzed Printf IR structure: closure entry 800, dispatch mistakenly started at 484
+  - ✅ Added debug output to trace dispatch start detection
+  - ✅ Found root cause: `find_entry_initializer(800)` returned block 484 (a back-edge!)
+  - ✅ Blocks 483, 484 branch TO 800 to continue loop (back-edges, not initializers)
+  - ✅ Fixed: Always start at closure entry (`start_addr`), not "initializer" block
+  - ✅ Removed ~30 lines of incorrect logic using `find_entry_initializer`
+  - ✅ Build succeeds, Printf gets past dispatch (no more v270/v279 errors!)
+  - ✅ Simple closures work - no regressions
+  - ✅ Documented in `TASK_2_8_COMPLETE.md`
 
-  **Problem**: Current logic detects block 484 as dispatch start, but it's unsafe to enter directly.
-  Block 484 requires block 482 to run first (to set v270 from v343).
+  **Root Cause**: `find_entry_initializer` searched for blocks branching to entry (800) and found:
+  - Blocks 474, 475, 476, 481: External callers (legitimate)
+  - Blocks 483, 484: Loop back-edges (branches back to continue loop)
 
-  **Root Cause**: Entry point detection finds where `_next_block = 484` is set, but doesn't
-  verify that block is safe to enter without prior initialization.
+  It returned block 484, which is INSIDE the loop and requires v270 to be set.
+  Starting there caused immediate nil errors.
 
-  **Hypothesis**: Need to find "true entry block" - reachable from closure entry (800) that:
-  1. Has NO entry dependencies (all used vars are in parameters), OR
-  2. Is the block that DOES the initialization (block 482?), OR
-  3. Restructure to start at closure entry and let control flow naturally
+  **The Fix**: For closures, ALWAYS start at `start_addr` (entry block). Entry block parameters
+  are initialized via `entry_arg_stmts` (Task 2.5), so entry is safe. Entry's terminator
+  (Branch/Cond/etc) directs control flow to appropriate next block.
 
-  **Approach**:
-  1. Analyze Printf IR: closure entry 800 → find path to block 484
-  2. Check if there's a block between 800 and 484 that initializes dependencies
-  3. Use that block as dispatch start instead of 484
-  4. If no such block, may need to generate bridge code
+  **Results**:
+  - ✅ Dispatch now starts at block 800 (entry), not 484 (back-edge)
+  - ✅ Printf: No more v270/v279 nil errors!
+  - ✅ Printf: Now fails in `caml_ml_bytes_length` (Phase 3 runtime primitive issue)
+  - ✅ Simple closures: Work perfectly (output "11")
 
-  **Investigation needed**:
-  - What does block 800 do? (closure entry with 4 params)
-  - What's the path from 800 to 484?
-  - Where does v270 = v343[2] happen? (block 482?)
-  - Can we start at 482 instead of 484?
+  **Generated Code (before)**:
+  ```lua
+  _V.v343 = v203
+  local _next_block = 484  -- WRONG!
+  ```
+
+  **Generated Code (after)**:
+  ```lua
+  _V.v343 = v203
+  local _next_block = 800  -- CORRECT!
+  ```
+
+  **Impact**: Phase 2 (dispatch bug) is COMPLETE! Printf moves to Phase 3 (primitives).
 
 ### Phase 2.5: Data-Driven Dispatch Refactor (NEW - 4-8 hours) ⚠️ **PAUSED**
 

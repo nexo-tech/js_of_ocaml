@@ -890,28 +890,44 @@ and generate_instrs ctx instrs =
 *)
 and find_entry_initializer program entry_addr =
   (* Look for blocks that jump to entry_addr with arguments *)
-  Code.Addr.Map.fold (fun addr block acc ->
+  if !debug_var_collect then
+    Format.eprintf "DEBUG find_entry_initializer: Looking for blocks branching to %d@." entry_addr;
+  let result = Code.Addr.Map.fold (fun addr block acc ->
     (* Skip the entry block itself *)
     if addr = entry_addr then acc
     else
       match block.Code.branch with
       | Code.Branch (target, args) when target = entry_addr && not (List.is_empty args) ->
           (* Found a branch to entry with arguments *)
+          if !debug_var_collect then
+            Format.eprintf "  Found: block %d branches to %d with %d args@." addr target (List.length args);
           Some (addr, args)
       | Code.Cond (_, (t1, args1), (t2, args2)) ->
-          if t1 = entry_addr && not (List.is_empty args1) then
+          if t1 = entry_addr && not (List.is_empty args1) then (
+            if !debug_var_collect then
+              Format.eprintf "  Found: block %d Cond branch1 to %d with %d args@." addr t1 (List.length args1);
             Some (addr, args1)
-          else if t2 = entry_addr && not (List.is_empty args2) then
+          ) else if t2 = entry_addr && not (List.is_empty args2) then (
+            if !debug_var_collect then
+              Format.eprintf "  Found: block %d Cond branch2 to %d with %d args@." addr t2 (List.length args2);
             Some (addr, args2)
-          else acc
+          ) else acc
       | Code.Switch (_, cases) ->
           (* Check switch cases for jumps to entry with args *)
           Array.fold_left cases ~init:acc ~f:(fun acc (target, args) ->
-            if target = entry_addr && not (List.is_empty args) then
+            if target = entry_addr && not (List.is_empty args) then (
+              if !debug_var_collect then
+                Format.eprintf "  Found: block %d Switch case to %d with %d args@." addr target (List.length args);
               Some (addr, args)
-            else acc)
+            ) else acc)
       | _ -> acc
-  ) program.Code.blocks None
+  ) program.Code.blocks None in
+  if !debug_var_collect then (
+    match result with
+    | Some (addr, args) -> Format.eprintf "  Result: Found initializer block %d with %d args@." addr (List.length args)
+    | None -> Format.eprintf "  Result: No initializer found@."
+  );
+  result
 
 (** Detect loop headers by finding back edges in the control flow graph.
     A back edge is when a block jumps to a block that's already in the path to it.
@@ -1675,36 +1691,37 @@ and compile_address_based_dispatch ctx program start_addr params entry_args func
         in
 
         (* Determine the actual starting block *)
+        if !debug_var_collect then (
+          Format.eprintf "DEBUG dispatch start detection: closure entry=%d, has_params=%b@."
+            start_addr entry_has_params;
+          match entry_block_opt with
+          | Some block ->
+              (match block.Code.branch with
+              | Code.Branch (target, args) ->
+                  Format.eprintf "  Entry block branches to %d with %d args@." target (List.length args)
+              | Code.Return _ -> Format.eprintf "  Entry block returns@."
+              | Code.Cond _ -> Format.eprintf "  Entry block has Cond@."
+              | Code.Switch _ -> Format.eprintf "  Entry block has Switch@."
+              | _ -> Format.eprintf "  Entry block has other terminator@.")
+          | None -> Format.eprintf "  Entry block not found!@."
+        );
+        (* Task 2.8: ALWAYS start at entry block for closures.
+           Previous logic used find_entry_initializer which incorrectly returned
+           back-edge blocks (e.g. block 484 for Printf). Back-edges branch TO the
+           entry to continue a loop, but they're not initializers - they're part of
+           the loop body that already assumes the loop has started.
+
+           For closures, entry block parameters are initialized via entry_arg_stmts,
+           so the entry block is safe to execute. Then its terminator (Branch/Cond/etc)
+           directs control flow to the appropriate next block. *)
         let actual_start_addr, extra_init_stmts =
-          if entry_has_params then
-            (* Entry block has parameters - need special handling *)
-            match find_entry_initializer program start_addr with
-            | Some (init_addr, _) ->
-                (* Found an initializer block - start there instead *)
-                if !debug_var_collect then
-                  Format.eprintf "Entry block %d has params, starting at initializer block %d@."
-                    start_addr init_addr;
-                (init_addr, [])
-            | None ->
-                (* No initializer found - start at entry but initialize params to nil *)
-                if !debug_var_collect then
-                  Format.eprintf "Entry block %d has params but no initializer found, initializing to nil@."
-                    start_addr;
-                match entry_block_opt with
-                | Some block ->
-                    let param_inits = List.map block.Code.params ~f:(fun param ->
-                      let param_name = var_name ctx param in
-                      if use_table then
-                        L.Assign ([L.Dot (L.Ident var_table_name, param_name)], [L.Nil])
-                      else
-                        L.Assign ([L.Ident param_name], [L.Nil])
-                    ) in
-                    (start_addr, param_inits)
-                | None -> (start_addr, [])
-          else
-            (* Normal case - no parameters, start at entry *)
-            (start_addr, [])
+          if !debug_var_collect && entry_has_params then
+            Format.eprintf "  Entry block %d has params, starting at entry (Task 2.8 fix)@."
+              start_addr;
+          (start_addr, [])
         in
+        if !debug_var_collect then
+          Format.eprintf "  Final actual_start_addr=%d@." actual_start_addr;
 
         (* Initialize dispatch variable to start address *)
         let init_stmt = L.Local (["_next_block"], Some [L.Number (string_of_int actual_start_addr)]) in
