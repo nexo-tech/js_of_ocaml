@@ -230,6 +230,7 @@ type dispatch_mode =
   | DataDriven of {
       entry_addr : Code.Addr.t;  (** Entry block address for back-edge detection *)
       dispatch_var : Code.Var.t;  (** Variable to dispatch on *)
+      tag_var : Code.Var.t option;  (** Tag variable for Cond-based patterns *)
       switch_cases : (Code.Addr.t * Code.Var.t list) array;  (** Switch cases *)
     }
       (** Data-driven: dispatch on variable value with loop support *)
@@ -1320,57 +1321,234 @@ and collect_transitive_inits program initial_deps entry_addr param_set assigned_
 
 (** {2 Data-Driven Dispatch (Phase 2.5 Refactor)} *)
 
+(** Extract tag-to-block mapping from nested Cond chain (Task 3.3).
+    Recognizes pattern: if tag==0 goto A, else if tag==1 goto B, else ...
+
+    @param program Full IR program
+    @param tag_var Variable being compared (e.g. v204)
+    @param terminator The terminator to analyze
+    @param current_tag Current tag value being checked
+    @return List of (tag_value, block_addr, args)
+*)
+and extract_cond_cases program tag_var terminator current_tag =
+  match terminator with
+  | Code.Cond (cond_var, (true_target, true_args), (false_target, _false_args)) ->
+      (* Check if this is a tag comparison: tag_var == current_tag *)
+      if Code.Var.equal cond_var tag_var then
+        (* This case: tag_var == current_tag → true_target, else → continue chain *)
+        let current_case = (current_tag, true_target, true_args) in
+        (* Recursively extract from false branch *)
+        let rest_cases = match Code.Addr.Map.find_opt false_target program.Code.blocks with
+          | None -> []
+          | Some false_block ->
+              extract_cond_cases program tag_var false_block.Code.branch (current_tag + 1)
+        in
+        current_case :: rest_cases
+      else
+        [] (* Not the expected pattern *)
+  | Code.Branch (default_target, default_args) ->
+      (* End of chain - this is the default case *)
+      [(current_tag, default_target, default_args)]
+  | _ -> []
+
+(** Detect Cond-based dispatch pattern (Task 3.3).
+    Printf pattern:
+    - Entry: Cond (type check) → dispatcher_block / return_block
+    - Dispatcher: Let tag = fmt[idx]; Cond chain on tag → case blocks
+
+    @param program Full IR program
+    @param entry_addr Entry block address
+    @return Option of dispatch_mode
+*)
+and detect_cond_dispatch_pattern program entry_addr =
+  if !debug_var_collect then
+    Format.eprintf "DEBUG detect_cond_dispatch_pattern: entry=%d@." entry_addr;
+  match Code.Addr.Map.find_opt entry_addr program.Code.blocks with
+  | None ->
+      if !debug_var_collect then Format.eprintf "  Entry block not found@.";
+      None
+  | Some entry_block ->
+      (* Check for pattern: Cond → dispatcher_block / other *)
+      (match entry_block.Code.branch with
+      | Code.Cond (_type_check_var, (true_addr, _), (false_addr, _)) ->
+          if !debug_var_collect then
+            Format.eprintf "  Entry has Cond, true=%d, false=%d@." true_addr false_addr;
+          (* Try both branches - one might be the dispatcher *)
+          let try_dispatcher dispatcher_addr =
+            if !debug_var_collect then
+              Format.eprintf "  Checking block %d as dispatcher@." dispatcher_addr;
+            match Code.Addr.Map.find_opt dispatcher_addr program.Code.blocks with
+            | None ->
+                if !debug_var_collect then Format.eprintf "    Block not found@.";
+                None
+            | Some dispatcher_block ->
+                (* Look for: Let tag_var = Field(dispatch_var, idx, _) in the body *)
+                if !debug_var_collect then
+                  Format.eprintf "    Dispatcher block %d has %d body instructions@."
+                    dispatcher_addr (List.length dispatcher_block.Code.body);
+                let tag_extraction = List.find_map dispatcher_block.Code.body ~f:(fun instr ->
+                  match instr with
+                  | Code.Let (tag_var, Code.Field (dispatch_var, _idx, _)) ->
+                      if !debug_var_collect then
+                        Format.eprintf "      Found Field: v%d = v%d[%d]@."
+                          (Code.Var.idx tag_var) (Code.Var.idx dispatch_var) _idx;
+                      Some (tag_var, dispatch_var)
+                  | Code.Let (tag_var, Code.Prim (prim, args)) ->
+                      (* Check if this is a tag extraction primitive *)
+                      if !debug_var_collect then (
+                        let prim_name = match prim with
+                          | Code.Extern name -> name
+                          | _ -> "(internal)"
+                        in
+                        Format.eprintf "      Let v%d = Prim(%s, %d args)@."
+                          (Code.Var.idx tag_var) prim_name (List.length args)
+                      );
+                      (match prim, args with
+                      | Code.Extern "%int_of_tag", [Code.Pv dispatch_var]
+                      | Code.Extern "caml_get_tag", [Code.Pv dispatch_var]
+                      | Code.Extern "%field0", [Code.Pv dispatch_var]
+                      | Code.Extern "%field1", [Code.Pv dispatch_var]
+                      | Code.Extern "%direct_obj_tag", [Code.Pv dispatch_var] ->
+                          if !debug_var_collect then
+                            Format.eprintf "        → TAG EXTRACTION MATCHED!@.";
+                          Some (tag_var, dispatch_var)
+                      | _ -> None)
+                  | Code.Let (tag_var, expr) ->
+                      if !debug_var_collect then (
+                        Format.eprintf "      Let v%d = " (Code.Var.idx tag_var);
+                        (match expr with
+                        | Code.Constant _ -> Format.eprintf "Constant@."
+                        | Code.Apply _ -> Format.eprintf "Apply@."
+                        | Code.Block _ -> Format.eprintf "Block@."
+                        | Code.Field _ -> Format.eprintf "Field (but pattern didn't match)@."
+                        | Code.Prim _ -> Format.eprintf "Prim (checked above)@."
+                        | _ -> Format.eprintf "Other@.")
+                      );
+                      None
+                  | _ ->
+                      if !debug_var_collect then Format.eprintf "      Other instruction@.";
+                      None)
+                in
+                (match tag_extraction with
+                | None ->
+                    if !debug_var_collect then
+                      Format.eprintf "    No tag extraction found@.";
+                    None
+                | Some (tag_var, dispatch_var) ->
+                    if !debug_var_collect then
+                      Format.eprintf "    Found tag extraction: v%d = v%d[idx]@."
+                        (Code.Var.idx tag_var) (Code.Var.idx dispatch_var);
+                    (* Found tag extraction! Now check terminator type *)
+                    (match dispatcher_block.Code.branch with
+                    | Code.Switch (switch_var, switch_cases) when Code.Var.equal switch_var tag_var ->
+                        (* Perfect! Dispatcher has Switch on the tag variable *)
+                        if !debug_var_collect then
+                          Format.eprintf "    Dispatcher has Switch on tag_var with %d cases@."
+                            (Array.length switch_cases);
+                        if Array.length switch_cases >= 5 then (
+                          if !debug_var_collect then
+                            Format.eprintf "    TRIGGERED Cond-based data-driven dispatch (Switch variant)!@.";
+                          Some (DataDriven { entry_addr; dispatch_var; tag_var = Some tag_var; switch_cases })
+                        ) else
+                          None
+                    | Code.Cond (cond_var, _, _) ->
+                        (* Dispatcher has Cond chain - try to extract cases *)
+                        if !debug_var_collect then
+                          Format.eprintf "    Dispatcher has Cond on v%d (tag_var is v%d)@."
+                            (Code.Var.idx cond_var) (Code.Var.idx tag_var);
+                        let cases = extract_cond_cases program tag_var dispatcher_block.Code.branch 0 in
+                        if !debug_var_collect then
+                          Format.eprintf "    Extracted %d cases from Cond chain@." (List.length cases);
+                        if List.length cases >= 5 then (
+                          if !debug_var_collect then
+                            Format.eprintf "    TRIGGERED Cond-based data-driven dispatch (Cond variant)!@.";
+                          let switch_cases = Array.of_list (List.map cases ~f:(fun (_tag, addr, args) ->
+                            (addr, args)))
+                          in
+                          Some (DataDriven { entry_addr; dispatch_var; tag_var = Some tag_var; switch_cases })
+                        ) else
+                          None
+                    | _ ->
+                        if !debug_var_collect then
+                          Format.eprintf "    Dispatcher terminator not Switch or Cond@.";
+                        None))
+          in
+          (* Try false branch first (more likely to be dispatcher), then true branch *)
+          (match try_dispatcher false_addr with
+          | Some result -> Some result
+          | None -> try_dispatcher true_addr)
+      | _ ->
+          if !debug_var_collect then Format.eprintf "  Entry doesn't have Cond terminator@.";
+          None)
+
 (** Detect dispatch mode for a closure.
-    Uses data-driven dispatch for simple Switch-based closures without loops.
-    This is a PROTOTYPE implementation for Task 2.5.4.
+    Task 3.3: Extended to detect both Switch and Cond-based dispatch patterns.
 
     @param program Full IR program
     @param entry_addr Entry block address
     @return dispatch_mode indicating how to compile this closure
 *)
 and detect_dispatch_mode program entry_addr =
-  match Code.Addr.Map.find_opt entry_addr program.Code.blocks with
-  | None -> AddressBased
-  | Some entry_block ->
-      (* Task 2.5.5: Extended detection for Printf pattern
-         Use data-driven for Switch terminators where cases either:
-         - Return (exit loop)
-         - Branch back to entry (continue loop)
-      *)
-      (match entry_block.Code.branch with
-      | Code.Switch (dispatch_var, conts) ->
-          (* Check if this is a data-driven switch *)
-          let is_data_driven_switch =
-            Array.for_all conts ~f:(fun (target_addr, _args) ->
-              match Code.Addr.Map.find_opt target_addr program.Code.blocks with
-              | None -> false
-              | Some target_block ->
-                  (* Allow: Return (exit) OR Branch to entry (loop back) *)
-                  (match target_block.Code.branch with
-                  | Code.Return _ -> true
-                  | Code.Branch (cont_addr, _) when cont_addr = entry_addr -> true
-                  | _ -> false))
-          in
-          if is_data_driven_switch then
-            DataDriven { entry_addr; dispatch_var; switch_cases = conts }
-          else
-            AddressBased
-      | _ -> AddressBased)
+  (* Task 3.3: First try Cond-based detection (Printf pattern with decision trees) *)
+  match detect_cond_dispatch_pattern program entry_addr with
+  | Some mode -> mode
+  | None ->
+      (* Fall back to Switch-based detection (Task 2.5.5) *)
+      match Code.Addr.Map.find_opt entry_addr program.Code.blocks with
+      | None -> AddressBased
+      | Some entry_block ->
+          (match entry_block.Code.branch with
+          | Code.Switch (dispatch_var, conts) ->
+              (* Check if this is a data-driven switch *)
+              let is_data_driven_switch =
+                Array.for_all conts ~f:(fun (target_addr, _args) ->
+                  match Code.Addr.Map.find_opt target_addr program.Code.blocks with
+                  | None -> false
+                  | Some target_block ->
+                      (* Allow: Return (exit) OR Branch to entry (loop back) *)
+                      (match target_block.Code.branch with
+                      | Code.Return _ -> true
+                      | Code.Branch (cont_addr, _) when cont_addr = entry_addr -> true
+                      | _ -> false))
+              in
+              if is_data_driven_switch then
+                DataDriven { entry_addr; dispatch_var; tag_var = None; switch_cases = conts }
+              else
+                AddressBased
+          | _ -> AddressBased)
 
-(** Compile closure using data-driven dispatch with loop support (Task 2.5.5).
+(** Compile closure using data-driven dispatch with loop support (Task 2.5.5 + 3.3).
     Handles Printf pattern: Switch-based loops with back-edges.
+    Task 3.3: Extended to handle Cond-based patterns with tag extraction.
 
     @param ctx Code generation context
     @param program Full IR program
     @param entry_addr Entry block address for back-edge detection
-    @param dispatch_var Variable to dispatch on
+    @param dispatch_var Variable to dispatch on (e.g. v343)
+    @param tag_var Optional tag variable for Cond patterns (e.g. v204 = v343[1])
     @param switch_cases Array of (target_addr, args)
     @param _params Function parameters (unused in this version)
     @return List of Lua statements
 *)
-and compile_data_driven_dispatch ctx program entry_addr dispatch_var switch_cases _params =
-  (* Initialize dispatch variable from parameter *)
-  let dispatch_var_name = var_name ctx dispatch_var in
+and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt switch_cases _params =
+  (* Task 3.3: For Cond-based patterns, generate tag extraction before loop *)
+  let setup_stmts, switch_var_name = match tag_var_opt with
+    | Some tag_var ->
+        (* Cond-based: Extract tag from dispatch_var before loop *)
+        let tag_var_name = var_name ctx tag_var in
+        let dispatch_var_ident = var_ident ctx dispatch_var in
+        (* Generate: local tag = dispatch_var[1] or 0 *)
+        let tag_init = L.Local ([tag_var_name], Some [
+          L.BinOp (L.Or,
+            L.Index (dispatch_var_ident, L.Number "1"),
+            L.Number "0")
+        ]) in
+        ([tag_init], tag_var_name)
+    | None ->
+        (* Switch-based: Use dispatch_var directly *)
+        let dispatch_var_name = var_name ctx dispatch_var in
+        ([], dispatch_var_name)
+  in
 
   (* Get entry block params for back-edge handling *)
   let entry_block_params =
@@ -1389,9 +1567,9 @@ and compile_data_driven_dispatch ctx program entry_addr dispatch_var switch_case
       match Code.Addr.Map.find_opt target_addr program.Code.blocks with
       | None -> generate_switch_cases (idx + 1)
       | Some target_block ->
-          (* Generate condition: dispatch_var == idx *)
+          (* Generate condition: switch_var == idx *)
           let condition =
-            L.BinOp (L.Eq, L.Ident dispatch_var_name, L.Number (string_of_int idx))
+            L.BinOp (L.Eq, L.Ident switch_var_name, L.Number (string_of_int idx))
           in
 
           (* Generate case body *)
@@ -1432,7 +1610,8 @@ and compile_data_driven_dispatch ctx program entry_addr dispatch_var switch_case
 
   (* Wrap switch in while loop for back-edges *)
   let switch_stmt = generate_switch_cases 0 in
-  [ L.While (L.Bool true, switch_stmt) ]
+  (* Task 3.3: Include tag extraction setup before loop *)
+  setup_stmts @ [ L.While (L.Bool true, switch_stmt) ]
 
 (** Compile all reachable blocks with dispatch loop (Lua 5.1 compatible)
     This is the single unified function that all code generation paths use.
@@ -1454,9 +1633,9 @@ and compile_blocks_with_labels ctx program start_addr ?(params = []) ?(entry_arg
   let dispatch_mode = detect_dispatch_mode program start_addr in
 
   match dispatch_mode with
-  | DataDriven { entry_addr; dispatch_var; switch_cases } ->
-      (* Use new data-driven dispatch for switches with loops (Task 2.5.5) *)
-      compile_data_driven_dispatch ctx program entry_addr dispatch_var switch_cases params
+  | DataDriven { entry_addr; dispatch_var; tag_var; switch_cases } ->
+      (* Use new data-driven dispatch for switches with loops (Task 2.5.5 + 3.3) *)
+      compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var switch_cases params
 
   | AddressBased ->
       (* Use existing address-based dispatch *)

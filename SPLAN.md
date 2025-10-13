@@ -564,58 +564,216 @@ Line 1318 is in `caml_ml_bytes_length(s)` which does `return s.length`. The `s` 
 
   **Documented**: `TASK_3_2_INVESTIGATION.md`
 
-- [ ] **Task 3.3**: Implement value-based dispatch for Cond patterns ⬅️ **NEXT** (THE REAL FIX)
+- [x] **Task 3.3**: Implement value-based dispatch for Cond patterns ⚠️ PARTIAL (Detection Working)
 
-  **Goal**: Extend data-driven dispatch detection to recognize Cond decision tree patterns,
-  not just Switch terminators. This makes Lua match JS's value-based dispatch.
+  **Detection: ✅ COMPLETE**
+  - ✅ Implemented `detect_cond_dispatch_pattern` (117 lines)
+  - ✅ Recognizes entry Cond → dispatcher with tag extraction → Switch
+  - ✅ Handles %direct_obj_tag, %int_of_tag, %field0/1 primitives
+  - ✅ Extended DataDriven type to include tag_var field
+  - ✅ Integrated with detect_dispatch_mode (tries Cond first, falls back to Switch)
+  - ✅ **Printf detection triggers successfully!** (25 cases)
+  - ✅ File size: 24,372 → 19,249 lines (21% reduction)
 
-  **Approach**:
-  1. Enhance `detect_dispatch_mode` to detect Cond-based dispatch patterns
-  2. Recognize when entry/successor blocks use Cond on same variable (like v343[1])
-  3. Extract dispatch variable and case mapping from Cond tree
-  4. Generate value-based dispatch (if-elseif on variable, not _next_block)
-  5. Inline case bodies directly (no address jumps)
+  **Code Generation: ❌ INCOMPLETE**
+  - ❌ No variable hoisting (_V table not created)
+  - ❌ No parameter initialization (counter, v201-v203 not copied)
+  - ❌ No entry block args (v341-v343 not initialized)
+  - ❌ Tag variable undefined (v204 never declared)
+  - ❌ Wrong variables in generated code (_V.v204 instead of _V.v343)
 
-  **Detection Pattern** (for Printf):
-  - Entry block 800: Cond on v343 type → blocks 462/463
-  - Block 462: Extract v204 = v343[1], then Cond chain on v204 → blocks 464-485
-  - Pattern: Decision tree on v343[1] with 20+ cases
-  - Treat as: `switch(v343[1])` dispatch
-
-  **Generated Code (target)**:
-  ```lua
-  local fmt = v343  -- Dispatch variable
-  while true do
-    local tag = fmt[1] or 0
-    if tag == 0 then
-      -- Case 0 code (block 464 body)
-      ...
-    elseif tag == 11 then
-      -- Case 11 code (block 475 body)
-      v247 = fmt[3]  -- Naturally set before later cases!
-      fmt = v247     -- Update dispatch var
-      -- Continue loop
-    elseif tag == X then
-      -- Later case that uses v247
-      v228 = v247[3]  -- v247 is set! ✅
-    end
-  end
+  **Test Result**:
+  ```bash
+  $ lua test_printf_datadriven.lua
+  Exit code: 0  # No error, no output (silent failure)
   ```
 
-  **Benefits**:
-  - Matches JS behavior exactly
-  - Variables set in natural execution order
-  - No block dependency issues
-  - Cleaner, more readable code
+  **Root Cause**: `compile_data_driven_dispatch` is Task 2.5.5 prototype - only generates
+  dispatch loop, missing all variable management that `compile_address_based_dispatch` has.
+
+  **Documented**: `TASK_3_3_PARTIAL.md`
+
+**Subtasks to Complete Task 3.3**:
+
+- [ ] **Task 3.3.1**: Extract variable management functions ⬅️ **NEXT**
+
+  **Goal**: Refactor `compile_address_based_dispatch` to use shared helper functions,
+  so `compile_data_driven_dispatch` can reuse them.
+
+  **Functions to Extract** (from lines 1627-1770):
+  1. `collect_and_hoist_variables`: Collect vars + generate _V table setup
+  2. `setup_function_parameters`: Copy function params to _V table
+  3. `setup_entry_block_arguments`: Initialize entry block params from entry_args
+  4. `compute_dispatch_start_addr`: Determine where dispatch loop starts (enhanced find_entry_initializer)
 
   **Implementation**:
-  1. Add `detect_cond_dispatch_pattern` to recognize decision trees
-  2. Extract dispatch variable from Cond chain
-  3. Build case mapping (tag value → block address)
-  4. Modify `compile_data_driven_dispatch` to handle Cond-derived cases
-  5. Test Printf - should work!
+  ```ocaml
+  and collect_and_hoist_variables ctx program start_addr params entry_args =
+    let hoisted_vars = collect_block_variables ctx program start_addr in
+    let loop_headers = detect_loop_headers program start_addr in
+    let loop_block_params = ... in
+    let all_hoisted_vars = ... in
+    let use_table = should_use_var_table (StringSet.cardinal all_hoisted_vars) in
+    ctx.use_var_table <- use_table;
+    let hoist_stmts = ... (* generate _V table or local declarations *)
+    (hoist_stmts, use_table)
 
-  **Complexity**: Medium (50-100 lines), reuses Phase 2.5 infrastructure
+  and setup_function_parameters ctx params use_table =
+    if use_table && not (List.is_empty params) then
+      (* _V.param = param for each param *)
+      ...
+    else []
+
+  and setup_entry_block_arguments ctx program start_addr entry_args func_params =
+    if not (List.is_empty entry_args) then
+      (* Initialize entry block params from entry_args *)
+      ...
+    else []
+  ```
+
+  **Testing**: After refactor, address-based dispatch must still work perfectly.
+  ```bash
+  just quick-test /tmp/test_simple_dep.ml  # Should output "11"
+  ```
+
+  **Changes**:
+  - ~200 lines refactored (extracted from compile_address_based_dispatch)
+  - compile_address_based_dispatch calls new functions
+  - Zero behavior change (pure refactor)
+
+- [ ] **Task 3.3.2**: Integrate variable management into data-driven dispatch
+
+  **Goal**: Make `compile_data_driven_dispatch` call the extracted helper functions.
+
+  **Implementation**:
+  ```ocaml
+  and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt switch_cases params func_params entry_args =
+    (* 1. Collect and hoist variables *)
+    let hoist_stmts, _use_table = collect_and_hoist_variables ctx program entry_addr params entry_args in
+
+    (* 2. Copy function parameters to _V table *)
+    let param_copy_stmts = setup_function_parameters ctx params _use_table in
+
+    (* 3. Initialize entry block arguments *)
+    let entry_arg_stmts = setup_entry_block_arguments ctx program entry_addr entry_args func_params in
+
+    (* 4. Generate tag extraction and dispatch loop *)
+    let dispatch_stmts = ... (* existing logic from lines 1535-1614 *)
+
+    (* 5. Combine in correct order *)
+    hoist_stmts @ param_copy_stmts @ entry_arg_stmts @ dispatch_stmts
+  ```
+
+  **Update Call Site** (line 1617):
+  ```ocaml
+  | DataDriven { entry_addr; dispatch_var; tag_var; switch_cases } ->
+      compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var switch_cases params func_params entry_args
+  ```
+
+  **Changes**:
+  - Update function signature (+3 params: params, func_params, entry_args)
+  - Add calls to helper functions
+  - Update call site to pass new parameters
+  - ~20 lines changed
+
+  **Testing**: Printf should now have _V table and parameters initialized.
+  ```bash
+  grep "local _V" test_printf_v4.lua  # Should find _V table creation
+  grep "_V.v343 = v203" test_printf_v4.lua  # Should find entry arg init
+  ```
+
+- [ ] **Task 3.3.3**: Fix tag extraction with entry block logic
+
+  **Goal**: Include entry block's body and Cond logic in generated code.
+
+  **Current (Wrong)**:
+  ```lua
+  while true do
+    local tag = v343[1] or 0  ← Missing type check!
+    if tag == 0 then ...
+  ```
+
+  **Needed (Matches JS)**:
+  ```lua
+  while true do
+    -- Entry block body instructions
+    ... (execute entry block body) ...
+
+    -- Entry block Cond (type check)
+    if type(_V.v343) == "number" and _V.v343 % 1 == 0 then
+      ... (block 463 code - true branch)
+      return ...
+    end
+
+    -- Dispatcher block code (false branch = block 462)
+    local tag = _V.v343[1] or 0  ← Now in correct context
+
+    -- Switch on tag
+    if tag == 0 then ...
+  ```
+
+  **Implementation**:
+  1. Get entry block from entry_addr
+  2. Generate entry block body instructions
+  3. Generate entry block Cond terminator:
+     - True branch: Generate block code + return
+     - False branch: Continue to dispatcher (tag extraction + switch)
+  4. Wrap in while loop
+
+  **Changes**:
+  - Modify compile_data_driven_dispatch to handle entry block logic
+  - ~30 lines changed in dispatch generation
+
+- [ ] **Task 3.3.4**: Test Printf with complete data-driven dispatch
+
+  **Test Cases**:
+  1. `Printf.printf "Hello\n"` → Should output "Hello"
+  2. `Printf.printf "Hello, World!\n"` → Should output "Hello, World!" (THE GOAL!)
+  3. `Printf.printf "Test: %s\n" "hello"` → Should output "Test: hello"
+
+  **Debug if Needed**:
+  - Check generated Lua structure matches expected
+  - Compare with JS output (node test_simple_printf_js.js)
+  - Add debug output if variables are still nil
+
+- [ ] **Task 3.3.5**: Verify no regressions and run test suite
+
+  **Tests**:
+  ```bash
+  # Simple closures
+  just quick-test /tmp/test_simple_dep.ml  # Should output "11"
+
+  # Full test suite
+  just test-lua  # Should pass with no new failures
+
+  # Check some improved tests
+  # (Sys.word_size, String.index already improved in earlier tasks)
+  ```
+
+  **Success Criteria**:
+  - All previous passing tests still pass
+  - No new failures introduced
+  - Data-driven dispatch improves code quality (smaller files)
+
+## Estimated Effort
+
+- **Task 3.3.1** (Extract helpers): 1-2 hours (pure refactor, careful testing)
+- **Task 3.3.2** (Integrate): 30min-1 hour (straightforward)
+- **Task 3.3.3** (Fix tag extraction): 1-2 hours (match JS exactly)
+- **Task 3.3.4** (Test Printf): 30min-1 hour (debugging)
+- **Task 3.3.5** (Regressions): 30min (run tests)
+
+**Total**: 4-7 hours remaining for Task 3.3 completion
+
+## Key Insight
+
+js_of_ocaml uses `compile_branch` with **continuation-passing style** - all setup happens
+as part of compiling the branch. Our approach separates variable management from dispatch
+logic, which works for address-based but breaks for data-driven.
+
+**The fix**: Share variable management code between both dispatch modes, only differ in
+dispatch loop generation (while _next_block vs while true with value-based switch).
+
 
 - [ ] **Task 3.4**: Test Printf.printf "Hello, World!\n"
   ```bash
