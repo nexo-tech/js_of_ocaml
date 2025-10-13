@@ -1495,18 +1495,45 @@ breaks for data-driven. **Fix**: Share variable management between both dispatch
     - Both take single argument and call v236 with captured context
     - But code generator assigns arity 2 to tag 10 closure
 
-  - [ ] **Task 3.6.5.4b**: Find arity computation bug in lua_generate.ml
-    - Check bytecode to see what arity is specified for Printf %d formatter
-    - Compare JS bytecode vs Lua bytecode for same source
-    - Identify WHERE the arity-2 closure is created in the IR
-    - Options to investigate:
-      1. Is convert_int itself being returned (arity 2) instead of wrapper (arity 1)?
-      2. Is make_int_padding_precision returning wrong arity?
-      3. Is there a partial application bug in the compiler?
-    - Use: `just inspect-bytecode /tmp/test_printf_d.ml.bc`
-    - Compare: Generated Lua vs JS for closure creation
+  - [x] **Task 3.6.5.4b**: Arity computation found ✅
 
-  - [ ] **Task 3.6.5.5**: Identify and fix root cause
+    **Location**: `lua_generate.ml:2408`
+    ```ocaml
+    let arity = L.Number (string_of_int (List.length params)) in
+    ```
+
+    Arity = length of `params` list from IR's `Code.Closure` instruction.
+
+    **Critical Discovery**: Tag 10 closure has UNUSED/DEAD parameters!
+    ```lua
+    -- Tag 10 (arity 2) - BROKEN
+    caml_make_closure(2, function(v365, v364)
+      _V.v365 = v365  -- Copy to _V
+      _V.v364 = v364  -- But NEVER referenced again!
+      _V.v380 = _V.v236(_V.v246, _V.v245, _V.v362, _V.v243)
+      return _V.v380
+    end)
+
+    -- Tag 11 (arity 1) - WORKS
+    caml_make_closure(1, function(v368)
+      _V.v368 = v368  -- Copy to _V, also not used
+      _V.v380 = _V.v236(_V.v246, _V.v245, _V.v366, _V.v243)
+      return _V.v380
+    end)
+    ```
+
+    Both have dead parameters but different counts! This suggests:
+    - OCaml IR has closures with unused parameters (optimization artifact?)
+    - Arity should exclude dead parameters OR there's IR-level bug
+
+  - [ ] **Task 3.6.5.4c**: Next steps - identify root cause
+    - Option 1: OCaml compiler generates wrong IR (arity 2 instead of 1)
+    - Option 2: lua_of_ocaml should filter dead parameters
+    - Option 3: Calling convention mismatch (currying/partial application)
+    - **Action**: Inspect actual bytecode to see what IR specifies
+    - **Action**: Compare with js_of_ocaml handling of same IR
+
+  - [ ] **Task 3.6.5.5**: Implement fix
     - Based on IR/bytecode analysis
     - Likely fix locations:
       1. Closure arity computation in `lua_generate.ml`
