@@ -1023,6 +1023,216 @@ and collect_block_variables ctx program start_addr =
     reachable
     StringSet.empty
 
+(** {2 Entry Block Dependency Analysis (Phase 2 - Task 2.7)} *)
+
+(** Collect variables used in an expression *)
+and collect_vars_used_in_expr expr =
+  match expr with
+  | Code.Constant _ -> Code.Var.Set.empty
+  | Code.Apply { f; args; _ } ->
+      List.fold_left args ~init:(Code.Var.Set.singleton f) ~f:(fun acc v ->
+        Code.Var.Set.add v acc)
+  | Code.Block (_, vars, _, _) ->
+      Array.fold_left vars ~init:Code.Var.Set.empty ~f:(fun acc v ->
+        Code.Var.Set.add v acc)
+  | Code.Field (v, _, _) -> Code.Var.Set.singleton v
+  | Code.Closure (vars, _, _) ->
+      List.fold_left vars ~init:Code.Var.Set.empty ~f:(fun acc v ->
+        Code.Var.Set.add v acc)
+  | Code.Prim (_, args) ->
+      List.fold_left args ~init:Code.Var.Set.empty ~f:(fun acc arg ->
+        match arg with
+        | Code.Pv v -> Code.Var.Set.add v acc
+        | Code.Pc _ -> acc)
+  | Code.Special _ -> Code.Var.Set.empty
+
+(** Collect variables used in an instruction *)
+and collect_vars_used_in_instr instr =
+  match instr with
+  | Code.Let (_, expr) -> collect_vars_used_in_expr expr
+  | Code.Assign (_, source) -> Code.Var.Set.singleton source
+  | Code.Set_field (obj, _, _, value) ->
+      Code.Var.Set.add value (Code.Var.Set.singleton obj)
+  | Code.Offset_ref (v, _) -> Code.Var.Set.singleton v
+  | Code.Array_set (arr, idx, value) ->
+      Code.Var.Set.add value (Code.Var.Set.add idx (Code.Var.Set.singleton arr))
+  | Code.Event _ -> Code.Var.Set.empty
+
+(** Collect variables used in a block's body *)
+and collect_vars_used_in_block block =
+  List.fold_left block.Code.body ~init:Code.Var.Set.empty ~f:(fun acc instr ->
+    Code.Var.Set.union acc (collect_vars_used_in_instr instr))
+
+(** Analyze entry block to find variables used but not in parameters.
+    These variables need initialization before dispatch loop.
+
+    @param program Full IR program
+    @param entry_addr Entry block address
+    @return Set of variables that need initialization
+*)
+and analyze_entry_block_deps program entry_addr =
+  match Code.Addr.Map.find_opt entry_addr program.Code.blocks with
+  | None ->
+      if !debug_var_collect then
+        Format.eprintf "DEBUG analyze_entry_block_deps: Entry block %d not found@." entry_addr;
+      Code.Var.Set.empty
+  | Some entry_block ->
+      let used_vars = collect_vars_used_in_block entry_block in
+      let param_set =
+        List.fold_left entry_block.Code.params ~init:Code.Var.Set.empty ~f:(fun acc p ->
+          Code.Var.Set.add p acc)
+      in
+      let deps = Code.Var.Set.diff used_vars param_set in
+      if !debug_var_collect then (
+        Format.eprintf "DEBUG analyze_entry_block_deps: Entry block %d@." entry_addr;
+        Format.eprintf "  Used vars: %d, Params: %d, Deps: %d@."
+          (Code.Var.Set.cardinal used_vars)
+          (Code.Var.Set.cardinal param_set)
+          (Code.Var.Set.cardinal deps);
+        if not (Code.Var.Set.is_empty deps) then
+          Code.Var.Set.iter (fun v ->
+            Format.eprintf "  Dep var: v%d@." (Code.Var.idx v)
+          ) deps
+      );
+      deps
+
+(** Find initialization expression for a variable by scanning predecessor blocks.
+    Returns the instruction that initializes the variable, if found.
+
+    @param program Full IR program
+    @param var Variable to find initialization for
+    @param entry_addr Entry block address (to find predecessors)
+    @return Option of initializing instruction
+*)
+and find_var_initialization program var entry_addr =
+  if !debug_var_collect then
+    Format.eprintf "DEBUG find_var_initialization: Looking for v%d initialization before block %d@."
+      (Code.Var.idx var) entry_addr;
+  (* Scan all blocks to find where var is assigned *)
+  let result = Code.Addr.Map.fold
+    (fun addr block acc ->
+      match acc with
+      | Some _ -> acc  (* Already found *)
+      | None ->
+          (* Check if this block's branch goes to entry *)
+          let branches_to_entry = match block.Code.branch with
+            | Code.Branch (target, _) when target = entry_addr -> true
+            | Code.Cond (_, (t1, _), (t2, _)) -> t1 = entry_addr || t2 = entry_addr
+            | Code.Switch (_, cases) ->
+                Array.exists cases ~f:(fun (target, _) -> target = entry_addr)
+            | _ -> false
+          in
+          if not branches_to_entry then acc
+          else (
+            if !debug_var_collect then
+              Format.eprintf "  Checking block %d (branches to entry)@." addr;
+            (* This block can reach entry - check if it assigns var *)
+            List.find_map block.Code.body ~f:(fun instr ->
+              match instr with
+              | Code.Let (target, expr) when Code.Var.equal target var ->
+                  if !debug_var_collect then
+                    Format.eprintf "    Found! v%d = expr in block %d@." (Code.Var.idx target) addr;
+                  Some (target, expr)
+              | _ -> None)
+          ))
+    program.Code.blocks
+    None
+  in
+  if !debug_var_collect then (
+    match result with
+    | Some _ -> Format.eprintf "  Result: Found initialization@."
+    | None -> Format.eprintf "  Result: NOT FOUND@."
+  );
+  result
+
+(** Collect variables that are assigned in ALL blocks of the closure.
+    These variables can't be safely pre-initialized because they change during dispatch.
+    In address-based dispatch, blocks aren't connected via successors (they use Return),
+    so we must check ALL blocks in the program, not just reachable ones.
+    Also includes block parameters, as they get "assigned" when branching to the block.
+
+    @param program Full IR program
+    @return Set of variables assigned in any block
+*)
+and collect_assigned_vars program =
+  let assigned_vars = Code.Addr.Map.fold
+    (fun _addr block acc ->
+      (* Collect vars assigned in this block (Let/Assign instructions) *)
+      let acc = List.fold_left block.Code.body ~init:acc ~f:(fun acc instr ->
+        match instr with
+        | Code.Let (target, _) -> Code.Var.Set.add target acc
+        | Code.Assign (target, _) -> Code.Var.Set.add target acc
+        | _ -> acc)
+      in
+      (* Also collect block parameters - they get "assigned" when branched to *)
+      List.fold_left block.Code.params ~init:acc ~f:(fun acc param ->
+        Code.Var.Set.add param acc))
+    program.Code.blocks
+    Code.Var.Set.empty
+  in
+  if !debug_var_collect then
+    Format.eprintf "  Collected %d assigned vars across all blocks (includes block params)@." (Code.Var.Set.cardinal assigned_vars);
+  assigned_vars
+
+(** Collect transitive dependencies: for each var, find its init and recursively
+    collect vars that init depends on. Returns list of (var, expr) in dependency order.
+    Filters out unsafe dependencies (those using variables modified in dispatch loop).
+
+    @param program Full IR program
+    @param initial_deps Initial set of dependent variables
+    @param entry_addr Entry block address
+    @param param_set Parameters that don't need initialization
+    @param assigned_vars Variables assigned in dispatch loop (unsafe to use)
+    @return List of (var, init_expr) in dependency order
+*)
+and collect_transitive_inits program initial_deps entry_addr param_set assigned_vars =
+  let rec collect_one var (acc_inits, acc_vars) =
+    if Code.Var.Set.mem var acc_vars || Code.Var.Set.mem var param_set then
+      (* Already processed or is a parameter - skip *)
+      (acc_inits, acc_vars)
+    else
+      match find_var_initialization program var entry_addr with
+      | None ->
+          (* Can't find initialization - skip this var *)
+          if !debug_var_collect then
+            Format.eprintf "    Transitive: v%d has no init found@." (Code.Var.idx var);
+          (acc_inits, acc_vars)
+      | Some (_target, expr) ->
+          (* Find vars this expr depends on *)
+          let expr_deps = collect_vars_used_in_expr expr in
+          (* Check if any dependency is modified in dispatch loop - UNSAFE to pre-init *)
+          let uses_modified_var = Code.Var.Set.exists (fun dep_var ->
+            Code.Var.Set.mem dep_var assigned_vars
+          ) expr_deps in
+          if uses_modified_var then (
+            if !debug_var_collect then
+              Format.eprintf "    Transitive: v%d uses modified variable, SKIPPING (unsafe)@." (Code.Var.idx var);
+            (acc_inits, acc_vars)
+          ) else (
+            if !debug_var_collect then
+              Format.eprintf "    Transitive: v%d found, checking its deps@." (Code.Var.idx var);
+            (* Mark as processed *)
+            let acc_vars = Code.Var.Set.add var acc_vars in
+            (* Recursively process dependencies FIRST (depth-first) *)
+            let (acc_inits, acc_vars) = Code.Var.Set.fold
+              (fun dep_var acc -> collect_one dep_var acc)
+              expr_deps
+              (acc_inits, acc_vars)
+            in
+            (* THEN add this var's init (ensures dependency order) *)
+            let acc_inits = (var, expr) :: acc_inits in
+            (acc_inits, acc_vars)
+          )
+  in
+  (* Process each initial dependency *)
+  let (init_list, _processed_vars) = Code.Var.Set.fold
+    (fun var acc -> collect_one var acc)
+    initial_deps
+    ([], Code.Var.Set.empty)
+  in
+  (* Reverse to get correct dependency order (deps before dependents) *)
+  List.rev init_list
+
 (** {2 Data-Driven Dispatch (Phase 2.5 Refactor)} *)
 
 (** Detect dispatch mode for a closure.
@@ -1334,6 +1544,86 @@ and compile_address_based_dispatch ctx program start_addr params entry_args func
     else []
   in
 
+  (* Task 2.7: Compute actual dispatch start address
+     This is the block where _next_block is initialized to *)
+  let entry_block_opt = Code.Addr.Map.find_opt start_addr program.Code.blocks in
+  let entry_has_params =
+    match entry_block_opt with
+    | Some block -> not (List.is_empty block.Code.params)
+    | None -> false
+  in
+  let actual_start_addr =
+    if entry_has_params then
+      match find_entry_initializer program start_addr with
+      | Some (init_addr, _) -> init_addr
+      | None -> start_addr
+    else
+      start_addr
+  in
+
+  (* Task 2.7: Generate initialization code for dispatch start block dependencies
+     This fixes the Printf bug where dispatch start block uses variables not in its parameters.
+     Example: Block 484 uses v270, but v270 is only set if coming from Block 482.
+     Solution: Initialize such variables before dispatch loop, including transitive dependencies. *)
+  let entry_dep_stmts =
+    if !debug_var_collect then
+      Format.eprintf "DEBUG entry_dep_stmts: Starting for dispatch start block %d (closure entry: %d)@."
+        actual_start_addr start_addr;
+    let dep_vars = analyze_entry_block_deps program actual_start_addr in
+    if Code.Var.Set.is_empty dep_vars then (
+      if !debug_var_collect then
+        Format.eprintf "  No dependencies found, skipping@.";
+      []
+    ) else (
+      if !debug_var_collect then
+        Format.eprintf "  Found %d direct dependencies, collecting transitive deps@." (Code.Var.Set.cardinal dep_vars);
+      (* Get entry block params to exclude from transitive search *)
+      let param_set = match Code.Addr.Map.find_opt actual_start_addr program.Code.blocks with
+        | Some block -> List.fold_left block.Code.params ~init:Code.Var.Set.empty ~f:(fun acc p ->
+            Code.Var.Set.add p acc)
+        | None -> Code.Var.Set.empty
+      in
+      (* Collect variables assigned anywhere in closure - unsafe to use in pre-initialization *)
+      let assigned_vars = collect_assigned_vars program in
+      (* Debug: Check if any deps use assigned vars *)
+      if !debug_var_collect then (
+        Format.eprintf "  Total assigned vars: %d@." (Code.Var.Set.cardinal assigned_vars);
+        Code.Var.Set.iter (fun dep_var ->
+          Format.eprintf "  Checking dep v%d...@." (Code.Var.idx dep_var);
+          match find_var_initialization program dep_var actual_start_addr with
+          | None -> Format.eprintf "    No init found@."
+          | Some (_target, expr) ->
+              let expr_deps = collect_vars_used_in_expr expr in
+              Format.eprintf "    Init uses %d vars: " (Code.Var.Set.cardinal expr_deps);
+              Code.Var.Set.iter (fun v -> Format.eprintf "v%d " (Code.Var.idx v)) expr_deps;
+              Format.eprintf "@.";
+              let any_modified = Code.Var.Set.exists (fun v -> Code.Var.Set.mem v assigned_vars) expr_deps in
+              Format.eprintf "    Any modified: %b@." any_modified
+        ) dep_vars
+      );
+      (* Collect all transitive dependencies in dependency order, filtering unsafe ones *)
+      let transitive_inits = collect_transitive_inits program dep_vars actual_start_addr param_set assigned_vars in
+      if List.is_empty transitive_inits then (
+        if !debug_var_collect then
+          Format.eprintf "  No initializations found (all deps skipped)@.";
+        []
+      ) else (
+        if !debug_var_collect then
+          Format.eprintf "  Collected %d transitive initializations@." (List.length transitive_inits);
+        (* Generate initialization statements in dependency order *)
+        let init_stmts = List.map transitive_inits ~f:(fun (var, expr) ->
+          if !debug_var_collect then
+            Format.eprintf "  Generating init for v%d@." (Code.Var.idx var);
+          let var_target = var_ident ctx var in
+          let init_expr = generate_expr ctx expr in
+          L.Assign ([var_target], [init_expr])
+        ) in
+        [ L.Comment "Initialize entry block dependencies (Task 2.7 - Fix for Printf v270 bug)" ]
+        @ init_stmts
+      )
+    )
+  in
+
   (* Collect all reachable blocks from start *)
   let rec collect_reachable visited addr =
     if Code.Addr.Set.mem addr visited
@@ -1444,9 +1734,10 @@ and compile_address_based_dispatch ctx program start_addr params entry_args func
      1. hoist_stmts: Create _V table and initialize vars to nil
      2. param_copy_stmts: Copy function params to _V
      3. entry_arg_stmts: Initialize entry block params from block_args (THE FIX!)
-     4. dispatch_loop: Execute blocks
+     4. entry_dep_stmts: Initialize entry block dependencies (Task 2.7 - Fix v270 bug!)
+     5. dispatch_loop: Execute blocks
   *)
-  hoist_stmts @ param_copy_stmts @ entry_arg_stmts @ dispatch_loop
+  hoist_stmts @ param_copy_stmts @ entry_arg_stmts @ entry_dep_stmts @ dispatch_loop
 
 and generate_closure ctx params pc block_args =
   match ctx.program with

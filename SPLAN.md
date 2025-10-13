@@ -231,7 +231,58 @@ let () = Printf.printf "Hello, World!\n"
   This requires dependency analysis - complex but correct solution.
   Alternative: Special-case Printf pattern as temporary hack.
 
-### Phase 2.5: Data-Driven Dispatch Refactor (NEW - 4-8 hours) ⬅️ **NEXT**
+- [x] **Task 2.7**: Implement entry block dependency analysis ✅ COMPLETE (Conservative)
+  - ✅ Implemented variable usage collection for expressions, instructions, blocks
+  - ✅ Implemented entry block dependency detection (used but not in params)
+  - ✅ Implemented initialization finder (scans predecessor blocks)
+  - ✅ Implemented assigned variable collection (ALL blocks + block parameters)
+  - ✅ Implemented transitive dependency tracking with safety filtering
+  - ✅ Integration: generates init code before dispatch loop (only safe deps)
+  - ✅ Build succeeds, simple closures work
+  - ❌ Printf still fails (expected - dependencies are unsafe)
+  - ✅ No incorrect initialization generated (conservative is correct)
+  - ✅ Documented in `TASK_2_7_COMPLETE.md`
+
+  **Key Finding**: Printf's v270 dependency uses v343, which IS modified in dispatch loop
+  (v343 is a block parameter - reassigned on every branch). Pre-initialization would be
+  **incorrect** even if no nil error, because it would use wrong value of v343.
+
+  **Conclusion**: Entry block dependency pre-initialization **cannot fix Printf**.
+  Dependencies are unsafe. Need different approach.
+
+  **Generated Code**: No initialization for unsafe deps (correctly filtered)
+  ```lua
+  _V.v343 = v203
+  local _next_block = 484  -- No v270 init (correctly skipped as unsafe)
+  while true do
+  ```
+
+- [ ] **Task 2.8**: Fix dispatch entry point detection ⬅️ **NEXT**
+
+  **Problem**: Current logic detects block 484 as dispatch start, but it's unsafe to enter directly.
+  Block 484 requires block 482 to run first (to set v270 from v343).
+
+  **Root Cause**: Entry point detection finds where `_next_block = 484` is set, but doesn't
+  verify that block is safe to enter without prior initialization.
+
+  **Hypothesis**: Need to find "true entry block" - reachable from closure entry (800) that:
+  1. Has NO entry dependencies (all used vars are in parameters), OR
+  2. Is the block that DOES the initialization (block 482?), OR
+  3. Restructure to start at closure entry and let control flow naturally
+
+  **Approach**:
+  1. Analyze Printf IR: closure entry 800 → find path to block 484
+  2. Check if there's a block between 800 and 484 that initializes dependencies
+  3. Use that block as dispatch start instead of 484
+  4. If no such block, may need to generate bridge code
+
+  **Investigation needed**:
+  - What does block 800 do? (closure entry with 4 params)
+  - What's the path from 800 to 484?
+  - Where does v270 = v343[2] happen? (block 482?)
+  - Can we start at 482 instead of 484?
+
+### Phase 2.5: Data-Driven Dispatch Refactor (NEW - 4-8 hours) ⚠️ **PAUSED**
 
 **Goal**: Refactor dispatch model to match js_of_ocaml's data-driven approach
 
