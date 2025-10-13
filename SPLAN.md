@@ -914,12 +914,60 @@ breaks for data-driven. **Fix**: Share variable management between both dispatch
   3. **Fix Lua codegen**: Make `lua_generate.ml` generate switch statement like JS
   4. **Test**: Recompile and verify Printf %d works
 
-  **Current Status**:
+  **Current Status** (after deep investigation):
   - Root cause: 100% identified ✅
-  - Manual patch: Attempted but Printf chain has additional issues
-  - Next step: Need to fix lua_generate.ml OR investigate why Printf chain doesn't reach convert_int
+  - Code structure difference found between JS and Lua
+  - Manual patch attempted but deeper structural issue exists
 
-  **Time estimate**: 2-4 hours to fix code generator properly
+  **Key Finding**: Different Code Structures
+
+  **JS Structure** (works correctly):
+  ```javascript
+  function bD(b, c){  // b=iconv, c=integer
+    switch(b){
+      case 0:  var a = aO; break;  // aO = "%d"
+      case 1:  var a = aP; break;  // aP = "%+d"
+      ...
+    }
+    return z(b, caml_format_int(a, c));  // ONE call after switch
+  }
+  ```
+
+  **Lua Structure** (broken):
+  ```lua
+  _V.convert_int = caml_make_closure(2, function(iconv, n)
+    while true do
+      if _V.iconv == 0 then
+        _V.v141 = caml_format_int(_V.v143, _V.n)  -- MULTIPLE calls
+        ...
+      else if _V.iconv == 1 then
+        _V.v141 = caml_format_int(_V.v143, _V.n)  -- Same undefined v143!
+        ...
+    end
+  end)
+  ```
+
+  **The Problem**:
+  - Lua has MULTIPLE caml_format_int calls (one per branch) all using undefined _V.v143
+  - JS has ONE caml_format_int call after switch, using properly selected format string
+  - This is a FUNDAMENTAL code structure difference, not just a missing variable
+
+  **Why This Happens**:
+  Likely the OCaml bytecode IR has different representations, and the code generators
+  handle them differently. JS collapses the branches into a switch, Lua replicates the call.
+
+  **The Fix** (requires compiler knowledge):
+  1. Find where Lua generates the if-else chain for iconv checking (likely in generate_last_dispatch)
+  2. Detect when multiple branches have identical calls differing only in one variable
+  3. Hoist that variable selection BEFORE the branches (like JS does)
+  4. Or: Add special handling for format string selection in generate_prim
+
+  **Alternative Workaround** (simpler but hacky):
+  Detect the pattern `caml_format_int(_V.vXXX, _V.n)` where vXXX is undefined,
+  and replace it with inline format string selection based on parent iconv parameter.
+
+  **Time estimate**: 4-8 hours for proper fix (requires deep compiler understanding)
+                      OR 1-2 hours for hacky workaround patch
 
   **Success Criteria**:
   - ✅ `Printf.printf "Int: %d\n" 42` outputs "Int: 42"
