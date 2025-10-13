@@ -262,6 +262,61 @@ type dispatch_mode =
     }
       (** Data-driven: dispatch on variable value with loop support *)
 
+(** Group switch cases by continuation address and arguments.
+    This optimization reduces code duplication by merging cases that jump to the same target.
+    Used by generate_last_dispatch for Code.Switch optimization (Task 3.5.4).
+
+    @param conts Array of (address * var list) continuations
+    @return List of (address * var list * int list) where int list contains case indices
+
+    Example: [|(5, []); (5, []); (7, [])|] → [(5, [], [0;1]); (7, [], [2])]
+*)
+let group_by_continuation conts =
+  (* Convert array to indexed list *)
+  let indexed = Array.to_list conts |> List.mapi ~f:(fun i x -> (i, x)) in
+
+  (* Helper: Check if two argument lists are equal *)
+  let args_equal args1 args2 =
+    List.length args1 = List.length args2
+    && List.for_all2 args1 args2 ~f:(fun v1 v2 -> Code.Var.compare v1 v2 = 0)
+  in
+
+  (* Group by (addr, args) keeping indices in order *)
+  let rec group acc = function
+    | [] -> List.rev acc
+    | (idx, (addr, args)) :: rest ->
+        (* Find if we already have a group for this (addr, args) combination *)
+        let found, updated_acc =
+          List.fold_left acc ~init:(false, []) ~f:(fun (found, new_acc) (a, ar, indices) ->
+            if not found && a = addr && args_equal ar args
+            then (true, (a, ar, indices @ [idx]) :: new_acc)
+            else (found, (a, ar, indices) :: new_acc))
+        in
+        if found
+        then group (List.rev updated_acc) rest
+        else group ((addr, args, [idx]) :: acc) rest
+  in
+  group [] indexed
+
+(** Build Lua condition for multiple switch cases using OR.
+    Generates: var == i1 or var == i2 or ...
+    Used by generate_last_dispatch for Code.Switch optimization (Task 3.5.4).
+
+    @param var Lua expression for switch variable
+    @param indices List of case indices to match
+    @return Lua expression for combined condition
+*)
+let build_multi_case_condition var indices =
+  match indices with
+  | [] -> assert false (* Should never happen *)
+  | [i] -> L.BinOp (L.Eq, var, L.Number (string_of_int i))
+  | first :: rest ->
+      List.fold_left rest
+        ~init:(L.BinOp (L.Eq, var, L.Number (string_of_int first)))
+        ~f:(fun acc idx ->
+          let cond = L.BinOp (L.Eq, var, L.Number (string_of_int idx)) in
+          L.BinOp (L.Or, acc, cond))
+
 (** Generate Lua expression from Code constant
     @param const IR constant
     @return Lua expression
@@ -2407,10 +2462,12 @@ and generate_last_dispatch ctx last =
       [ L.If (cond_expr, then_stmts, Some else_stmts) ]
   | Code.Switch (var, conts) ->
       let switch_var = var_ident ctx var in
+      (* Group cases by continuation to reduce code duplication (Task 3.5.4) *)
+      let grouped = group_by_continuation conts in
       let cases =
-        Array.to_list conts
-        |> List.mapi ~f:(fun idx (addr, args) ->
-            let cond = L.BinOp (L.Eq, switch_var, L.Number (string_of_int idx)) in
+        List.map grouped ~f:(fun (addr, args, indices) ->
+            (* Build condition for all indices: var == i1 or var == i2 or ... *)
+            let cond = build_multi_case_condition switch_var indices in
             (* Generate argument passing *)
             let arg_passing = generate_argument_passing ctx addr args () in
             let set_block = L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int addr)]) in
