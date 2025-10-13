@@ -755,7 +755,7 @@ Line 1318 is in `caml_ml_bytes_length(s)` which does `return s.length`. The `s` 
   - No new failures introduced
   - Data-driven dispatch improves code quality (smaller files)
 
-## Estimated Effort
+### Estimated Effort for Task 3.3 Completion
 
 - **Task 3.3.1** (Extract helpers): 1-2 hours (pure refactor, careful testing)
 - **Task 3.3.2** (Integrate): 30min-1 hour (straightforward)
@@ -763,19 +763,24 @@ Line 1318 is in `caml_ml_bytes_length(s)` which does `return s.length`. The `s` 
 - **Task 3.3.4** (Test Printf): 30min-1 hour (debugging)
 - **Task 3.3.5** (Regressions): 30min (run tests)
 
-**Total**: 4-7 hours remaining for Task 3.3 completion
+**Total**: 4-7 hours remaining
 
-## Key Insight
+### Complete Refactor Plan
 
-js_of_ocaml uses `compile_branch` with **continuation-passing style** - all setup happens
-as part of compiling the branch. Our approach separates variable management from dispatch
-logic, which works for address-based but breaks for data-driven.
+See `REFACTOR_PLAN.md` for detailed implementation guide including:
+- How js_of_ocaml works (compile_branch, compile_switch, parallel_renaming)
+- Our current vs needed implementation
+- Detailed code structure comparison
+- Step-by-step refactor instructions
+- Testing strategy for each subtask
 
-**The fix**: Share variable management code between both dispatch modes, only differ in
-dispatch loop generation (while _next_block vs while true with value-based switch).
+**Key Insight**: js_of_ocaml uses continuation-passing style where setup happens naturally.
+Our approach separates variable management from dispatch, which works for address-based but
+breaks for data-driven. **Fix**: Share variable management between both dispatch modes.
 
+---
 
-- [ ] **Task 3.4**: Test Printf.printf "Hello, World!\n"
+- [ ] **Task 3.4**: Test Printf.printf "Hello, World!\n" (After Task 3.3 complete)
   ```bash
   cat > /tmp/test_hello_printf.ml << 'EOF'
   let () = Printf.printf "Hello, World!\n"
