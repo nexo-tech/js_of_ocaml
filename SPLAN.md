@@ -818,20 +818,34 @@ breaks for data-driven. **Fix**: Share variable management between both dispatch
 
   **Next Steps**: Task 3.5/3.6 to fix integer formatting primitive
 
-- [ ] **Task 3.5**: Test Printf with all format specifiers (After 3.7)
+- [ ] **Task 3.5**: Debug Printf %d silent failure ⚠️ NEEDS INVESTIGATION
+
+  **Status After Task 3.7**: Printf.printf "%d" no longer hangs but silently fails (no output)
+
+  **Test Results**:
   ```bash
-  # Test %s - ✅ WORKS
-  just quick-test /tmp/test_printf_format.ml  # "Test: hello"
+  # Works - plain text and strings
+  Printf.printf "Hello\n"          → "Hello"        ✅
+  Printf.printf "Test: %s\n" "hi"  → "Test: hi"     ✅
+  print_int 42                     → "42"           ✅
 
-  # Test %d - ⚠️ BROKEN (Task 3.7)
-  let () = Printf.printf "Answer: %d\n" 42
-
-  # Test %f
-  let () = Printf.printf "Pi: %.2f\n" 3.14159
+  # Silently fails - no output
+  Printf.printf "%d" 42            → (nothing)      ❌
+  Printf.printf "Int: %d\n" 42     → (nothing)      ❌
   ```
-  - Verifies: Format string parsing works
-  - Verifies: Type-safe formatting works
-  - Depends on: Task 3.7
+
+  **Investigation Findings**:
+  - `caml_format_int` primitive works correctly in isolation (verified)
+  - `print_int` works correctly (uses different code path)
+  - Issue is in Printf formatting chain, not integer formatting primitive
+  - Generated code calls `caml_format_int` correctly
+  - Formatted result gets passed through closure chain but doesn't reach output
+
+  **Next Steps**:
+  1. Compare JS vs Lua Printf implementation in generated code
+  2. Trace the Printf formatting chain execution
+  3. Check if closure variable passing breaks with %d but works with %s
+  4. Possibly related to runtime arity checks or closure scope issues
 
 - [ ] **Task 3.6**: Review and fix any remaining Printf primitives
   - Location: `runtime/lua/format.lua`
