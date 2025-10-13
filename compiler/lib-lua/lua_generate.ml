@@ -1901,18 +1901,25 @@ and compile_address_based_dispatch ctx program start_addr params entry_args func
     then []
     else if use_table then
       if ctx.inherit_var_table then
-        (* Inheriting parent's _V table - still need to initialize new variables
+        (* Task 3.3.4: Create new _V table with metatable for lexical scope (like JS)
            This is REQUIRED for loop block parameters and forward references
            BUT exclude entry block params which will be initialized by argument passing *)
         let vars_to_init = StringSet.diff all_hoisted_vars entry_block_params in
         let init_stmts =
           StringSet.elements vars_to_init
           |> List.map ~f:(fun var ->
-              (* _V.var = nil - initialize in parent's table *)
+              (* _V.var = nil - initialize in local _V table *)
               L.Assign ([ L.Dot (L.Ident var_table_name, var) ], [ L.Nil ]))
         in
-        L.Comment (Printf.sprintf "Hoisted variables (%d total, using inherited _V table)" total_vars)
-        :: init_stmts
+        [ L.Comment (Printf.sprintf "Hoisted variables (%d total, using own _V table for closure scope)" total_vars)
+        ; L.Local ([ "parent_V" ], Some [ L.Ident var_table_name ])
+        ; L.Local ([ var_table_name ], Some [
+            L.Call (L.Ident "setmetatable",
+              [ L.Table []
+              ; L.Table [ L.Rec_field ("__index", L.Ident "parent_V") ]
+              ])
+          ])
+        ] @ init_stmts
       else
         (* Create new _V table for this function and initialize all fields to nil
            This is REQUIRED for optimized IR which may have forward references where
