@@ -43,6 +43,33 @@
 open! Stdlib
 module L = Lua_ast
 
+(** {2 Helper Functions} *)
+
+(** Generate a conditional expression using IIFE pattern.
+    Since Lua has no ternary operator, we use: (function() if cond then return a else return b end end)()
+
+    Task 3.7: Used for runtime arity checking in non-exact Apply calls.
+
+    @param condition Boolean expression
+    @param then_expr Expression to evaluate if condition is true
+    @param else_expr Expression to evaluate if condition is false
+    @return Call expression that returns the appropriate value
+*)
+let cond_expr condition then_expr else_expr =
+  L.Call (
+    L.Function (
+      [],  (* no params *)
+      false,  (* no vararg *)
+      [ L.If (
+          condition,
+          [ L.Return [ then_expr ] ],
+          Some [ L.Return [ else_expr ] ]
+        )
+      ]
+    ),
+    []  (* no arguments *)
+  )
+
 (** Literal values for common OCaml constants *)
 
 let zero = L.Number "0"
@@ -293,7 +320,7 @@ module Closure = struct
 
   (** Call an OCaml function.
       For exact arity, generates direct call: func.f(args...)
-      For non-exact arity, uses caml_call_gen for currying.
+      For non-exact arity, uses runtime arity check (Task 3.7).
 
       @param func Function expression
       @param args List of argument expressions
@@ -306,9 +333,21 @@ module Closure = struct
       (* Direct call: func.f(args...) *)
       L.Call (L.Dot (func, "f"), args)
     else
-      (* Use caml_call_gen for currying: caml_call_gen(func, {args...}) *)
+      (* Task 3.7: Runtime arity check (like JS - generate.ml:1075-1086)
+         Check arity at runtime: if matches, direct call; else caml_call_gen *)
+      let args_len = List.length args in
       let args_array = L.Table (List.map args ~f:(fun arg -> L.Array_field arg)) in
-      L.Call (L.Ident "caml_call_gen", [ func; args_array ])
+      cond_expr
+        (* Condition: type(func) == "table" and func.l and func.l == #args *)
+        ( L.BinOp ( L.And
+            , L.BinOp ( L.And
+                , L.BinOp (L.Eq, L.Call (L.Ident "type", [ func ]), L.String "table")
+                , L.Dot (func, "l") )
+            , L.BinOp (L.Eq, L.Dot (func, "l"), L.Number (string_of_int args_len)) ) )
+        (* Then: Direct call if arity matches *)
+        ( L.Call (func, args) )
+        (* Else: Use caml_call_gen for currying *)
+        ( L.Call (L.Ident "caml_call_gen", [ func; args_array ]) )
 
   (** Get the arity of a function.
       Generates: func.l

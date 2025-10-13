@@ -27,6 +27,33 @@ open! Stdlib
 
 module L = Lua_ast
 
+(** {2 Helper Functions} *)
+
+(** Generate a conditional expression using IIFE pattern.
+    Since Lua has no ternary operator, we use: (function() if cond then return a else return b end end)()
+
+    Task 3.7: Used for runtime arity checking in non-exact Apply calls.
+
+    @param condition Boolean expression
+    @param then_expr Expression to evaluate if condition is true
+    @param else_expr Expression to evaluate if condition is false
+    @return Call expression that returns the appropriate value
+*)
+let cond_expr condition then_expr else_expr =
+  L.Call (
+    L.Function (
+      [],  (* no params *)
+      false,  (* no vararg *)
+      [ L.If (
+          condition,
+          [ L.Return [ then_expr ] ],
+          Some [ L.Return [ else_expr ] ]
+        )
+      ]
+    ),
+    []  (* no arguments *)
+  )
+
 (** {2 Code Generation Context} *)
 
 (** Variable mapping context
@@ -779,10 +806,21 @@ and generate_expr ctx expr =
            - Primitive runtime functions: plain Lua functions callable as f(args) *)
         L.Call (func_expr, arg_exprs)
       else
-        (* Non-exact call - use caml_call_gen to handle partial application
-           Note: Conditional optimization (Tier 2) is handled at statement level
-           in generate_instr for Let instructions *)
-        L.Call (L.Ident "caml_call_gen", [ func_expr; L.Table (List.map ~f:(fun e -> L.Array_field e) arg_exprs) ])
+        (* Task 3.7: Runtime arity check (like JS - generate.ml:1075-1086)
+           Non-exact call: check arity at runtime and direct call if it matches
+           This avoids unnecessary caml_call_gen calls which caused infinite loops *)
+        let args_len = List.length args in
+        cond_expr
+          (* Condition: type(f) == "table" and f.l and f.l == #args *)
+          ( L.BinOp ( L.And
+              , L.BinOp ( L.And
+                  , L.BinOp (L.Eq, L.Call (L.Ident "type", [ func_expr ]), L.String "table")
+                  , L.Dot (func_expr, "l") )
+              , L.BinOp (L.Eq, L.Dot (func_expr, "l"), L.Number (string_of_int args_len)) ) )
+          (* Then: Direct call if arity matches *)
+          ( L.Call (func_expr, arg_exprs) )
+          (* Else: Use caml_call_gen for currying/partial application *)
+          ( L.Call (L.Ident "caml_call_gen", [ func_expr; L.Table (List.map ~f:(fun e -> L.Array_field e) arg_exprs) ]) )
   | Code.Block (tag, arr, _array_or_not, _mutability) ->
       (* Block construction - create table with tag (optimized) *)
       let fields =
@@ -812,25 +850,34 @@ and generate_expr ctx expr =
 and generate_instr ctx instr =
   match instr with
   | Code.Let (var, Code.Apply { f; args; exact = false }) ->
-      (* Non-exact Apply: always use caml_call_gen
+      (* Task 3.7: Non-exact Apply with runtime arity check (like JS)
 
-         The "fast path" optimization (caml_call1/2/3) doesn't work because
-         the IR sometimes has argument order issues where blocks/channels are
-         passed instead of functions. caml_call_gen handles all cases correctly
-         including currying, under-application, and over-application.
+         Previously: Always used caml_call_gen (conservative, but causes infinite loops)
+         Now: Runtime arity check - direct call if arity matches, else caml_call_gen
 
-         Note: JS backend can use caml_callN because it has different IR processing.
-         For Lua, conservative approach is safer until IR issues are resolved.
+         This matches js_of_ocaml (generate.ml:1075-1086) which checks:
+           if (f.l === args.length) { direct_call } else { caml_call_gen }
       *)
       let target = var_ident ctx var in
       let func_expr = var_ident ctx f in
       let arg_exprs = List.map ~f:(var_ident ctx) args in
+      let args_len = List.length args in
 
-      (* Always use caml_call_gen for safety *)
+      (* Generate conditional: runtime arity check → direct call OR caml_call_gen *)
       let call_expr =
-        L.Call
-          ( L.Ident "caml_call_gen"
-          , [ func_expr; L.Table (List.map ~f:(fun e -> L.Array_field e) arg_exprs) ] )
+        cond_expr
+          (* Condition: type(f) == "table" and f.l and f.l == #args *)
+          ( L.BinOp ( L.And
+              , L.BinOp ( L.And
+                  , L.BinOp (L.Eq, L.Call (L.Ident "type", [ func_expr ]), L.String "table")
+                  , L.Dot (func_expr, "l") )
+              , L.BinOp (L.Eq, L.Dot (func_expr, "l"), L.Number (string_of_int args_len)) ) )
+          (* Then: Direct call if arity matches *)
+          ( L.Call (func_expr, arg_exprs) )
+          (* Else: Use caml_call_gen for currying/partial application *)
+          ( L.Call
+              ( L.Ident "caml_call_gen"
+              , [ func_expr; L.Table (List.map ~f:(fun e -> L.Array_field e) arg_exprs) ] ) )
       in
       L.Assign ([ target ], [ call_expr ])
   | Code.Let (var, expr) ->

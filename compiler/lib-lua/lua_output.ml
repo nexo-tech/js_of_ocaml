@@ -274,7 +274,13 @@ and output_unop ctx prec op e =
 
 (** Output function call *)
 and output_call ctx f args =
-  output_expr ctx 100 f;
+  (* Task 3.7: Wrap function expressions in parens for IIFE pattern *)
+  (match f with
+   | Function _ ->
+       output_char ctx '(';
+       output_expr ctx 0 f;
+       output_char ctx ')'
+   | _ -> output_expr ctx 100 f);
   output_char ctx '(';
   output_expr_list ctx args;
   output_char ctx ')'
