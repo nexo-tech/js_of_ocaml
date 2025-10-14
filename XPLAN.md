@@ -125,14 +125,17 @@ Lua likely missing equivalent of `parallel_renaming` or not generating parameter
 - Expected: Printf with %d works, nested closures work, no regressions
 - Generated code: "Hoisted variables (5 total: 3 defined, 2 free)" with only defined vars initialized
 
-### Phase 4: Fix Implementation - [ ]
-- [ ] Task 4.1: Implement parameter passing fix in lua_generate.ml
-- [ ] Task 4.2: Test fix with simple closure test
-- [ ] Task 4.3: Test fix with Printf simple string
-- [ ] Task 4.4: Test fix with Printf %d format specifier
-- [ ] Task 4.5: Fix any remaining issues found in testing
+### Phase 4: Fix Implementation - [~] IMPLEMENTED BUT NEEDS DEBUGGING
+- [x] Task 4.1: Implement parameter passing fix in lua_generate.ml
+- [~] Task 4.2: Test fix with simple closure test - HANGS
+- [~] Task 4.3: Test fix with Printf simple string - print_endline WORKS
+- [~] Task 4.4: Test fix with Printf %d format specifier - HANGS
+- [ ] Task 4.5: Debug why programs hang despite fix being applied
 - [ ] Task 4.6: Run full test suite
-- [ ] Task 4.7: Document fix implementation
+- [x] Task 4.7: Document fix implementation
+
+**Status**: Fix implemented in both code paths, compiles successfully, but programs with closures hang.
+See `XPLAN_PHASE4_IMPLEMENTATION.md` for details.
 
 ### Phase 5: Validation & Polish - [ ]
 - [ ] Task 5.1: Test all Printf format specifiers (%d, %s, %f, etc.)

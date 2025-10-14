@@ -114,14 +114,17 @@ val collect_used_primitives : Code.program -> Stdlib.StringSet.t
     @param program OCaml IR program
     @return Set of primitive names (with caml_ prefix) *)
 
-val collect_block_variables : context -> Code.program -> int -> Stdlib.StringSet.t
+val collect_block_variables : context -> Code.program -> int -> Stdlib.StringSet.t * Stdlib.StringSet.t
 (** [collect_block_variables ctx program start_addr] collects all variables
-    defined in reachable blocks starting from start_addr. This is used for
-    variable hoisting to avoid Lua goto/scope violations.
+    used in reachable blocks starting from start_addr, separating them into
+    defined and free variables. This is used for variable hoisting to avoid
+    Lua goto/scope violations and prevent variable shadowing in nested closures.
     @param ctx Code generation context
     @param program OCaml IR program
     @param start_addr Starting block address
-    @return Set of variable names defined in reachable blocks *)
+    @return Tuple of (defined_vars, free_vars) where:
+            - defined_vars: variables assigned/defined in this closure
+            - free_vars: variables used but not defined (captured from parent) *)
 
 val compile_blocks_with_labels :
   context ->

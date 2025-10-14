@@ -1157,7 +1157,10 @@ and detect_loop_headers program entry_addr =
     @param ctx Code generation context
     @param program Full IR program
     @param start_addr Starting block address
-    @return Set of variable names (v_N format) that need hoisting
+    @return Tuple of (defined_vars, free_vars) where:
+            - defined_vars: variables assigned/defined in this closure
+            - free_vars: variables used but not defined (captured from parent)
+            Separating these prevents variable shadowing in nested closures.
 *)
 and collect_block_variables ctx program start_addr =
   (* Collect variables that need to be hoisted in this closure.
@@ -1242,12 +1245,20 @@ and collect_block_variables ctx program start_addr =
     Code.Var.Set.diff (Code.Var.Set.diff used_vars defined_vars) entry_params
   in
 
-  (* Return DEFINED ∪ FREE as StringSet *)
-  let all_vars = Code.Var.Set.union defined_vars free_vars in
-  Code.Var.Set.fold
-    (fun var acc -> StringSet.add (var_name ctx var) acc)
-    all_vars
-    StringSet.empty
+  (* Return (DEFINED, FREE) as separate StringSets to prevent variable shadowing in nested closures *)
+  let defined_names =
+    Code.Var.Set.fold
+      (fun var acc -> StringSet.add (var_name ctx var) acc)
+      defined_vars
+      StringSet.empty
+  in
+  let free_names =
+    Code.Var.Set.fold
+      (fun var acc -> StringSet.add (var_name ctx var) acc)
+      free_vars
+      StringSet.empty
+  in
+  (defined_names, free_names)
 
 (** {2 Entry Block Dependency Analysis (Phase 2 - Task 2.7)} *)
 
@@ -1664,7 +1675,8 @@ and detect_dispatch_mode program entry_addr =
     @return (hoist_stmts, use_table)
 *)
 and setup_hoisted_variables ctx program start_addr =
-  let hoisted_vars = collect_block_variables ctx program start_addr in
+  (* Get defined and free vars separately to prevent variable shadowing *)
+  let (defined_vars, free_vars) = collect_block_variables ctx program start_addr in
   let loop_headers = detect_loop_headers program start_addr in
 
   let loop_block_params =
@@ -1687,7 +1699,9 @@ and setup_hoisted_variables ctx program start_addr =
           StringSet.add (var_name ctx param) acc)
   in
 
-  let all_hoisted_vars = StringSet.union hoisted_vars loop_block_params in
+  (* All hoisted vars = defined + free + loop params *)
+  let all_hoisted_vars =
+    StringSet.union (StringSet.union defined_vars free_vars) loop_block_params in
   let total_vars = StringSet.cardinal all_hoisted_vars in
   let use_table =
     if ctx.inherit_var_table then ctx.use_var_table
@@ -1698,15 +1712,29 @@ and setup_hoisted_variables ctx program start_addr =
   let hoist_stmts =
     if StringSet.is_empty all_hoisted_vars then []
     else if use_table then
-      let vars_to_init = StringSet.diff all_hoisted_vars entry_block_params in
+      (* CRITICAL FIX: Different logic for nested vs top-level closures *)
+      let vars_to_init =
+        if ctx.inherit_var_table then
+          (* NESTED CLOSURE: Only initialize DEFINED vars + loop params
+             Exclude FREE vars - they'll be captured from parent via __index *)
+          let local_vars = StringSet.union defined_vars loop_block_params in
+          StringSet.diff local_vars entry_block_params
+        else
+          (* TOP-LEVEL: Initialize all vars (no parent to capture from) *)
+          StringSet.diff all_hoisted_vars entry_block_params
+      in
       let init_stmts =
         StringSet.elements vars_to_init
         |> List.map ~f:(fun var ->
             L.Assign ([ L.Dot (L.Ident var_table_name, var) ], [ L.Nil ]))
       in
       if ctx.inherit_var_table then
-        (* Task 3.3.4: Create new _V table with metatable for lexical scope (like JS) *)
-        [ L.Comment (Printf.sprintf "Hoisted variables (%d total, using own _V table for closure scope)" total_vars)
+        (* Create new _V table with metatable for lexical scope (like JS) *)
+        [ L.Comment (Printf.sprintf "Hoisted variables (%d total: %d defined, %d free, %d loop params)"
+            total_vars
+            (StringSet.cardinal defined_vars)
+            (StringSet.cardinal free_vars)
+            (StringSet.cardinal loop_block_params))
         ; L.Local ([ "parent_V" ], Some [ L.Ident var_table_name ])
         ; L.Local ([ var_table_name ], Some [
             L.Call (L.Ident "setmetatable",
@@ -1716,16 +1744,27 @@ and setup_hoisted_variables ctx program start_addr =
           ])
         ] @ init_stmts
       else
-        [ L.Comment (Printf.sprintf "Hoisted variables (%d total, using table due to Lua's 200 local limit)" total_vars)
+        [ L.Comment (Printf.sprintf "Hoisted variables (%d total)" total_vars)
         ; L.Local ([ var_table_name ], Some [ L.Table [] ])
         ] @ init_stmts
     else
-      let vars_to_init = StringSet.diff all_hoisted_vars entry_block_params in
+      (* Not using _V table - use local variables *)
+      let vars_to_init =
+        if ctx.inherit_var_table then
+          (* NESTED: Only define local vars, free vars come from outer scope *)
+          StringSet.diff defined_vars entry_block_params
+        else
+          (* TOP-LEVEL: Define all *)
+          StringSet.diff all_hoisted_vars entry_block_params
+      in
       let var_list = StringSet.elements vars_to_init |> List.sort ~cmp:String.compare in
       if StringSet.is_empty vars_to_init then
         [ L.Comment (Printf.sprintf "Hoisted variables (%d total)" total_vars) ]
       else
-        [ L.Comment (Printf.sprintf "Hoisted variables (%d total)" total_vars)
+        [ L.Comment (Printf.sprintf "Hoisted variables (%d total: %d defined, %d free)"
+            total_vars
+            (StringSet.cardinal defined_vars)
+            (StringSet.cardinal free_vars))
         ; L.Local (var_list, None)
         ]
   in
@@ -1988,7 +2027,8 @@ and compile_blocks_with_labels ctx program start_addr ?(params = []) ?(entry_arg
 *)
 and compile_address_based_dispatch ctx program start_addr params entry_args func_params () =
   (* Collect all variables that need hoisting *)
-  let hoisted_vars = collect_block_variables ctx program start_addr in
+  let (defined_vars, free_vars) = collect_block_variables ctx program start_addr in
+  let hoisted_vars = StringSet.union defined_vars free_vars in
 
   (* Detect loop headers to identify block arguments that need initialization *)
   let loop_headers = detect_loop_headers program start_addr in
@@ -2022,9 +2062,10 @@ and compile_address_based_dispatch ctx program start_addr params entry_args func
 
   (* DEBUG: Print collected variables *)
   if !debug_var_collect then
-    Format.eprintf "DEBUG collect_block_variables at addr %d: collected %d vars, %d loop params: %s@."
+    Format.eprintf "DEBUG collect_block_variables at addr %d: %d defined, %d free, %d loop params: %s@."
       start_addr
-      (StringSet.cardinal hoisted_vars)
+      (StringSet.cardinal defined_vars)
+      (StringSet.cardinal free_vars)
       (StringSet.cardinal loop_block_params)
       (String.concat ~sep:", " (StringSet.elements all_hoisted_vars));
 
@@ -2045,18 +2086,29 @@ and compile_address_based_dispatch ctx program start_addr params entry_args func
     if StringSet.is_empty all_hoisted_vars
     then []
     else if use_table then
+      (* CRITICAL FIX: Different logic for nested vs top-level closures *)
+      let vars_to_init =
+        if ctx.inherit_var_table then
+          (* NESTED CLOSURE: Only initialize DEFINED vars + loop params
+             Exclude FREE vars - they'll be captured from parent via __index *)
+          let local_vars = StringSet.union defined_vars loop_block_params in
+          StringSet.diff local_vars entry_block_params
+        else
+          (* TOP-LEVEL: Initialize all vars (no parent to capture from) *)
+          StringSet.diff all_hoisted_vars entry_block_params
+      in
+      let init_stmts =
+        StringSet.elements vars_to_init
+        |> List.map ~f:(fun var ->
+            L.Assign ([ L.Dot (L.Ident var_table_name, var) ], [ L.Nil ]))
+      in
       if ctx.inherit_var_table then
-        (* Task 3.3.4: Create new _V table with metatable for lexical scope (like JS)
-           This is REQUIRED for loop block parameters and forward references
-           BUT exclude entry block params which will be initialized by argument passing *)
-        let vars_to_init = StringSet.diff all_hoisted_vars entry_block_params in
-        let init_stmts =
-          StringSet.elements vars_to_init
-          |> List.map ~f:(fun var ->
-              (* _V.var = nil - initialize in local _V table *)
-              L.Assign ([ L.Dot (L.Ident var_table_name, var) ], [ L.Nil ]))
-        in
-        [ L.Comment (Printf.sprintf "Hoisted variables (%d total, using own _V table for closure scope)" total_vars)
+        (* Create new _V table with metatable for lexical scope (like JS) *)
+        [ L.Comment (Printf.sprintf "Hoisted variables (%d total: %d defined, %d free, %d loop params)"
+            total_vars
+            (StringSet.cardinal defined_vars)
+            (StringSet.cardinal free_vars)
+            (StringSet.cardinal loop_block_params))
         ; L.Local ([ "parent_V" ], Some [ L.Ident var_table_name ])
         ; L.Local ([ var_table_name ], Some [
             L.Call (L.Ident "setmetatable",
@@ -2066,30 +2118,28 @@ and compile_address_based_dispatch ctx program start_addr params entry_args func
           ])
         ] @ init_stmts
       else
-        (* Create new _V table for this function and initialize all fields to nil
-           This is REQUIRED for optimized IR which may have forward references where
-           closures are created before variables they reference are assigned.
-           See PARTIAL.md Task 6.1.2 for full analysis.
-           BUT exclude entry block params which will be initialized by argument passing *)
-        let vars_to_init = StringSet.diff all_hoisted_vars entry_block_params in
-        let init_stmts =
-          StringSet.elements vars_to_init
-          |> List.map ~f:(fun var ->
-              (* _V.var = nil *)
-              L.Assign ([ L.Dot (L.Ident var_table_name, var) ], [ L.Nil ]))
-        in
-        [ L.Comment (Printf.sprintf "Hoisted variables (%d total, using table due to Lua's 200 local limit)" total_vars)
-        ; L.Local ([ var_table_name ], Some [ L.Table [] ])  (* local _V = {} *)
+        (* Create new _V table for top-level function *)
+        [ L.Comment (Printf.sprintf "Hoisted variables (%d total)" total_vars)
+        ; L.Local ([ var_table_name ], Some [ L.Table [] ])
         ] @ init_stmts
     else
-      (* Use local declarations for ≤180 variables
-         BUT exclude entry block params which will be initialized by argument passing *)
-      let vars_to_init = StringSet.diff all_hoisted_vars entry_block_params in
+      (* Use local declarations for ≤180 variables *)
+      let vars_to_init =
+        if ctx.inherit_var_table then
+          (* NESTED: Only define local vars, free vars come from outer scope *)
+          StringSet.diff defined_vars entry_block_params
+        else
+          (* TOP-LEVEL: Define all *)
+          StringSet.diff all_hoisted_vars entry_block_params
+      in
       let var_list = StringSet.elements vars_to_init |> List.sort ~cmp:String.compare in
       if StringSet.is_empty vars_to_init then
         [ L.Comment (Printf.sprintf "Hoisted variables (%d total)" total_vars) ]
       else
-        [ L.Comment (Printf.sprintf "Hoisted variables (%d total)" total_vars)
+        [ L.Comment (Printf.sprintf "Hoisted variables (%d total: %d defined, %d free)"
+            total_vars
+            (StringSet.cardinal defined_vars)
+            (StringSet.cardinal free_vars))
         ; L.Local (var_list, None)
         ]
   in
