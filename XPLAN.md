@@ -33,6 +33,17 @@ SPLAN.md made partial progress but:
 
 ---
 
+## Plan Revision (2025-10-14)
+
+**Original Plan**: 7 phases, 42 tasks, systematic study of all components
+**Revised Plan**: 5 phases, 31 tasks, focused on critical finding
+
+**Why Revised**: Phase 2 Tasks 2.1-2.2 identified the critical function (`parallel_renaming` in JS generator) that ensures parameters are declared before block execution. No need for remaining generic JS study - directly compare with Lua generator and implement fix.
+
+**Focus**: Find equivalent in `compiler/lib-lua/lua_generate.ml` or implement it
+
+---
+
 ## Master Checklist
 
 ### Phase 1: Baseline Verification - [x] COMPLETE
@@ -53,21 +64,17 @@ SPLAN.md made partial progress but:
 **Root Cause Identified**:
 Printf with format specifiers hangs because `caml_format_int(fmt, i)` receives `fmt=nil`. The partial application in `runtime/lua/fun.lua` does not correctly capture/pass the format string through Printf's CPS closure chain.
 
-### Phase 2: js_of_ocaml Deep Study - [ ] IN PROGRESS (2/7 tasks)
+### Phase 2: js_of_ocaml Deep Study - [x] COMPLETE (Critical findings obtained)
 - [x] Task 2.1: Study JavaScript runtime structure
 - [x] Task 2.2: Study JavaScript code generation
-- [ ] Task 2.3: Study JavaScript closure handling
-- [ ] Task 2.4: Study JavaScript Printf implementation
-- [ ] Task 2.5: Study JavaScript block/variable handling
-- [ ] Task 2.6: Study JavaScript function compilation
-- [ ] Task 2.7: Document js_of_ocaml patterns
+- [~] Task 2.3-2.7: SKIPPED (Critical function found, no need for generic study)
 
 **Results**: See `XPLAN_PHASE2_TASK1.md` and `XPLAN_PHASE2_TASK2.md`
 
 **Key Discoveries**:
 - JS runtime has only 2 Printf functions vs Lua's 18 - different architecture
 - JS inlines stdlib formatting code (caml_format_int) vs Lua puts it in runtime
-- **CRITICAL**: `parallel_renaming` function in JS generator declares parameters BEFORE block execution
+- **CRITICAL**: `parallel_renaming` function (compiler/lib/generate.ml:981) declares parameters BEFORE block execution
 - This ensures all arguments are available when closure body executes
 - Format strings are captured in closures through JavaScript's lexical scoping
 - Printf uses CPS with closures that capture format string + formatting function
@@ -75,45 +82,34 @@ Printf with format specifiers hangs because `caml_format_int(fmt, i)` receives `
 **Root Cause Confirmed**:
 Lua likely missing equivalent of `parallel_renaming` or not generating parameter declarations before block body. This causes format string parameter to be undefined/nil when `caml_format_int` is called.
 
-### Phase 3: lua_of_ocaml Component Verification - [ ]
-- [ ] Task 3.1: Verify runtime module structure
-- [ ] Task 3.2: Verify runtime function accessibility
-- [ ] Task 3.3: Verify code generation structure
-- [ ] Task 3.4: Verify closure generation
-- [ ] Task 3.5: Verify block compilation
-- [ ] Task 3.6: Verify variable initialization
-- [ ] Task 3.7: Document all discrepancies
+### Phase 3: Direct Lua/JS Code Generator Comparison - [ ] (REVISED)
+- [ ] Task 3.1: Find parameter passing in lua_generate.ml
+- [ ] Task 3.2: Compare with JS parallel_renaming pattern
+- [ ] Task 3.3: Identify exact discrepancy
+- [ ] Task 3.4: Generate comparison examples (simple closure)
+- [ ] Task 3.5: Generate comparison examples (Printf %d)
+- [ ] Task 3.6: Document root cause with code evidence
+- [ ] Task 3.7: Design fix based on JS pattern
 
-### Phase 4: Systematic Comparison - [ ]
-- [ ] Task 4.1: Compare simple program (print_endline)
-- [ ] Task 4.2: Compare simple closure
-- [ ] Task 4.3: Compare nested closure
-- [ ] Task 4.4: Compare Printf simple string
-- [ ] Task 4.5: Compare Printf with format specifier
-- [ ] Task 4.6: Document compilation differences
-- [ ] Task 4.7: Identify root causes
+### Phase 4: Fix Implementation - [ ]
+- [ ] Task 4.1: Implement parameter passing fix in lua_generate.ml
+- [ ] Task 4.2: Test fix with simple closure test
+- [ ] Task 4.3: Test fix with Printf simple string
+- [ ] Task 4.4: Test fix with Printf %d format specifier
+- [ ] Task 4.5: Fix any remaining issues found in testing
+- [ ] Task 4.6: Run full test suite
+- [ ] Task 4.7: Document fix implementation
 
-### Phase 5: Fix Implementation - [ ]
-- [ ] Task 5.1: Fix highest priority issue
-- [ ] Task 5.2: Verify fix with minimal test
-- [ ] Task 5.3: Fix next priority issue
-- [ ] Task 5.4: Iterative fixing until Printf works
-- [ ] Task 5.5: Document all fixes
+### Phase 5: Validation & Polish - [ ]
+- [ ] Task 5.1: Test all Printf format specifiers (%d, %s, %f, etc.)
+- [ ] Task 5.2: Test complex Printf patterns
+- [ ] Task 5.3: Verify no regressions in existing tests
+- [ ] Task 5.4: Run performance comparison
+- [ ] Task 5.5: Clean up any workarounds (e.g., fun.lua Task 3.6.5.7)
+- [ ] Task 5.6: Update documentation
+- [ ] Task 5.7: Final commit and push
 
-### Phase 6: Validation - [ ]
-- [ ] Task 6.1: Test Printf "Hello, World!\n"
-- [ ] Task 6.2: Test Printf with format specifiers
-- [ ] Task 6.3: Test Printf with multiple arguments
-- [ ] Task 6.4: Test complex Printf patterns
-- [ ] Task 6.5: Run full test suite
-- [ ] Task 6.6: Verify no regressions
-
-### Phase 7: Documentation - [ ]
-- [ ] Task 7.1: Document root causes found
-- [ ] Task 7.2: Document fixes implemented
-- [ ] Task 7.3: Update CLAUDE.md if needed
-- [ ] Task 7.4: Update LUA.md checklist
-- [ ] Task 7.5: Commit and push
+**Total Tasks**: 31 (reduced from 42 by consolidating and focusing)
 
 ---
 
