@@ -199,14 +199,44 @@ $ just quick-test test.ml
 
 See `XPLAN_PHASE4_IMPLEMENTATION.md`, `XPLAN_PHASE4_FIX.md`, `XPLAN_PHASE4_DEBUGGING.md`, `XPLAN_PHASE4_ARITY_BUG.md`, `XPLAN_PHASE4_TRUTHINESS_BUG.md`, `XPLAN_PHASE4_FORMAT_STRING_BUG.md`, `XPLAN_PHASE4_FORMAT_FIX_PLAN.md`, and `XPLAN_PHASE4_FORMAT_FIX_INVESTIGATION.md`.
 
-### Phase 5: Validation & Polish - [ ]
-- [ ] Task 5.1: Test all Printf format specifiers (%d, %s, %f, etc.)
-- [ ] Task 5.2: Test complex Printf patterns
+### Phase 5: Validation & Polish - IN PROGRESS
+- [x] Task 5.1: Test all Printf format specifiers (%d, %s, %f, etc.) - **PARTIAL**
+- [x] Task 5.2: Test complex Printf patterns - **PARTIAL**
 - [ ] Task 5.3: Verify no regressions in existing tests
 - [ ] Task 5.4: Run performance comparison
 - [ ] Task 5.5: Clean up any workarounds (e.g., fun.lua Task 3.6.5.7)
 - [ ] Task 5.6: Update documentation
 - [ ] Task 5.7: Final commit and push
+
+**Task 5.1 Results**:
+✅ Integer formats: %d, %i, %x, %X, %o, %u all work correctly
+✅ String format: %s works correctly
+✅ Char format: %c works correctly
+⚠️ Float formats: %f, %e, %g cause infinite loop/hang
+
+**Float Format Investigation**:
+- Symptom: Program hangs (times out) with Printf "%f"
+- JS Output: Works correctly - "Float %f: 3.140000"
+- Lua Behavior: Infinite loop in format string construction
+- Root Cause: Float format uses complex closure dispatch (v154) to build format string
+- Unlike integers: No simple switch/constant mapping, uses dynamic construction
+- Next Steps: Requires deeper investigation of format closure dispatch logic
+- Workaround: Float formats not yet supported, integers/strings/chars work fine
+
+**Task 5.2 Results** (Complex Printf Patterns):
+✅ Multiple formats: `Printf.printf "%d %s %c %x\n" 42 "hello" 'A' 255` → "42 hello A ff"
+✅ Sign forcing: %+d, % d work correctly
+✅ Alternate form: %#x, %#o work correctly
+⚠️ Width formatting: Has length calculation bug
+
+**Width Formatting Bug**:
+- Symptom: `Printf.printf "|%5d|\n" 42` outputs `|    4|` instead of `|   42|`
+- JS Output: `|   42|` (correct - 5 chars, right-aligned)
+- Lua Output: `|    4|` (wrong - missing digit '2')
+- Investigation: caml_finish_formatting works correctly in isolation
+- Root Cause: caml_ml_string_length returns wrong value OR formatted string corrupted
+- Next Steps: Debug why formatted string loses digits when width > number length
+- Workaround: Simple formats without width work fine
 
 **Total Tasks**: 31 (reduced from 42 by consolidating and focusing)
 
