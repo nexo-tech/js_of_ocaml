@@ -247,15 +247,22 @@ See `XPLAN_PHASE4_IMPLEMENTATION.md`, `XPLAN_PHASE4_FIX.md`, `XPLAN_PHASE4_DEBUG
 - **H3**: Bug in one of the two caml_format_float implementations
 
 **Investigation Plan**:
-- [ ] Task 5.3a: Add debug prints to /tmp/test_float.lua to identify hang location
-- [ ] Task 5.3b: Compile to JS with --pretty --debuginfo, compare closure structure
-- [ ] Task 5.3c: Trace v166 → v183 → v184 closure dispatch chain
-- [ ] Task 5.3d: Verify format string "%f\n" propagation through closures
-- [ ] Task 5.3e: Examine both caml_format_float implementations (lines 4316, 5291)
-- [ ] Task 5.3f: Compare with working %d format closure dispatch
-- [ ] Task 5.3g: Reference js_of_ocaml Printf float handling
-- [ ] Task 5.3h: Implement fix based on JS pattern
+- [x] Task 5.3a: Add debug prints to /tmp/test_float.lua to identify hang location
+- [x] Task 5.3b: Compile to JS with --pretty --debuginfo, compare closure structure
+- [x] Task 5.3c-e: SKIPPED - Root cause found in Task 5.3f
+- [x] Task 5.3f: Compare with working %d format dispatch - **ROOT CAUSE FOUND**
+- [ ] Task 5.3g: Study js_of_ocaml code generator Printf dispatch
+- [ ] Task 5.3h: Fix Lua code generator case 8 handling
 - [ ] Task 5.3i: Test all float formats (%f, %e, %g, %E, %F, %G)
+
+**ROOT CAUSE IDENTIFIED** (2025-10-14):
+- **Location**: Generated dispatch code in v202 function (line ~19527 in .lua)
+- **Bug**: Case 8 (float) sets `_next_block` but doesn't return
+- **Behavior**: Falls through to cases 9, 10, 11..., creating infinite loop
+- **Comparison**: Case 4 (integer) calls formatter and returns immediately ✅
+- **Fix needed**: Code generator in `compiler/lib-lua/lua_generate.ml`
+
+**Details**: See `/tmp/float_hang_analysis.md` for complete investigation
 
 **Workaround**: Float formats not yet supported, integers/strings/chars work fine
 
