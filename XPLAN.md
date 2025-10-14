@@ -255,8 +255,10 @@ See `XPLAN_PHASE4_IMPLEMENTATION.md`, `XPLAN_PHASE4_FIX.md`, `XPLAN_PHASE4_DEBUG
 - [x] Task 5.3h: Analyze Lua code generator - **BLOCKS 572/573 DON'T EXIST**
 - [x] Task 5.3i: IR analysis - **BLOCKS MISSING FROM GENERATED CODE** (gap 562→588)
 - [x] Task 5.3j: Implementation analysis - **DEFERRED** (6-12hr effort, see plan)
-- [ ] Task 5.3k: Implement float fix (when ready - see /tmp/float_fix_implementation_plan.md)
-- [ ] Task 5.3l: Test all float formats (%f, %e, %g, %E, %F, %G)
+- [x] Task 5.3k: Debug investigation - **ROOT CAUSE FOUND!** (data-driven dispatch bug)
+- [ ] Task 5.3k.1: Include continuation blocks in data-driven dispatch loop
+- [ ] Task 5.3k.2: Test float formats (%f, %e, %g, %E, %F, %G)
+- [ ] Task 5.3k.3: Verify all Printf patterns still work
 
 **ROOT CAUSE CONFIRMED** (2025-10-14 - Tasks 5.3a-i complete):
 - **Location**: Generated dispatch code in v202 function (line ~19527 in .lua)
@@ -336,11 +338,41 @@ Studied JS float formatting implementation. Key findings:
 - Extensive testing needed (8 format types × precision × width × sign variations)
 - Current workaround sufficient: Use %d/%s/%c formats (all work perfectly)
 
-**When Ready**: See `/tmp/float_fix_implementation_plan.md` for detailed implementation guide
+**ACTUAL ROOT CAUSE IDENTIFIED** (Task 5.3k - 2025-10-14):
+
+Added debug output to Lua code generator, discovered:
+1. **Blocks 572/573 ARE referenced in IR** - A Cond terminator branches to them
+2. **But blocks 572/573 are NOT in the IR blocks map** - They don't exist!
+3. **The reference comes from data-driven Printf dispatch** - Not address-based
+4. **Problem**: Data-driven dispatch generates code for dispatcher blocks, one has `Cond → 572/573`
+5. **Generator produces**: `_next_block = 572/573` but those blocks aren't in the dispatch loop
+6. **Result**: Infinite loop trying to dispatch to non-existent blocks
+
+**The REAL Fix** (Much Simpler!):
+- Data-driven dispatch needs to recursively include continuation blocks (572/573)
+- When collecting blocks for data-driven loop, follow Cond/Switch terminators
+- Include all transitively reachable blocks, not just the main dispatch cases
+- This is a ~10-20 line fix in block collection logic!
+
+**Fix Plan**:
+```
+Task 5.3k.1: Modify `compile_data_driven_dispatch` block collection
+- After collecting switch_cases blocks, recursively collect their continuations
+- Add helper: collect_block_continuations(program, block) → Set.t
+- For each block in loop, collect all blocks reachable from its terminator
+- Add those to the dispatch loop's block set
+```
+
+**Files to Modify**:
+- `compiler/lib-lua/lua_generate.ml` lines 1800-2100 (data-driven dispatch)
+- Specifically: Block collection logic around line 1950-2000
+
+**Estimated Fix Time**: 30-60 minutes (not 6-12 hours!)
 
 **Analysis Files**:
-- `/tmp/float_hang_analysis.md` - Root cause investigation
-- `/tmp/float_fix_analysis.md` - Task 5.3g findings (JS vs Lua patterns)
+- `/tmp/float_hang_analysis.md` - Initial root cause investigation
+- `/tmp/float_fix_analysis.md` - JS vs Lua patterns (Task 5.3g)
+- `/tmp/float_fix_implementation_plan.md` - OBSOLETE (wrong direction)
 
 **Workaround**: Float formats not yet supported, integers/strings/chars work fine
 
