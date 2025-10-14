@@ -229,14 +229,48 @@ See `XPLAN_PHASE4_IMPLEMENTATION.md`, `XPLAN_PHASE4_FIX.md`, `XPLAN_PHASE4_DEBUG
 ✅ Alternate form: %#x, %#o work correctly
 ⚠️ Width formatting: Has length calculation bug
 
-**Width Formatting Bug**:
+**Width Formatting Bug** - DEEP INVESTIGATION COMPLETE:
 - Symptom: `Printf.printf "|%5d|\n" 42` outputs `|    4|` instead of `|   42|`
 - JS Output: `|   42|` (correct - 5 chars, right-aligned)
-- Lua Output: `|    4|` (wrong - missing digit '2')
-- Investigation: caml_finish_formatting works correctly in isolation
-- Root Cause: caml_ml_string_length returns wrong value OR formatted string corrupted
-- Next Steps: Debug why formatted string loses digits when width > number length
-- Workaround: Simple formats without width work fine
+- Lua Output: `|    4|` (wrong - digit '2' is lost)
+
+**Root Cause Identified**:
+- OCaml uses 0-based string indexing (s[0] = first byte)
+- Lua tables naturally use 1-based indexing (t[1] = first element)
+- Runtime has INCONSISTENT indexing strategy:
+  - `caml_bytes_unsafe_get(b, i)` does `b[i]` (expects 0-based tables)
+  - `caml_lua_string_to_ocaml` creates tables with `result[i] = ...` where i=1..n (1-based!)
+  - `caml_finish_formatting` creates tables with `result[i] = ...` where i=1..n (1-based!)
+
+**The Mismatch**:
+```lua
+-- Creation (1-based):
+for i = 1, #s do
+  result[i] = s:byte(i)  -- Creates {[1]=52, [2]=50} for "42"
+end
+
+-- Reading (0-based):
+return b[i] or 0  -- OCaml get(s, 0) → Lua b[0] → nil!
+```
+
+**Why Digit Loss Occurs**:
+- String "  42" stored as {[1]=32, [2]=32, [3]=32, [4]=52, [5]=50}
+- OCaml code reads: get(s,0)→nil, get(s,1)→32, get(s,2)→32, get(s,3)→32, get(s,4)→52
+- Result: "    4" (lost digit '2')
+
+**Fix Complexity**:
+- Simple fix: Change table creation to 0-based (result[i-1] = ...)
+- Problem: Lua's # operator breaks with 0-indexed tables
+- Side effects: Basic Printf broke when attempted (outputs "2" instead of "42")
+- Requires: Comprehensive audit of ALL string/bytes creation + rely on .length field
+- Scope: ~10+ runtime functions need coordinated changes
+
+**Next Steps**:
+- Task 5.3a: Audit all OCaml string/bytes creation in runtime
+- Task 5.3b: Systematically convert to 0-based indexing
+- Task 5.3c: Ensure all code uses .length field, never #table
+- Task 5.3d: Add runtime tests for string operations
+- Workaround: Simple formats without width work fine for now
 
 **Total Tasks**: 31 (reduced from 42 by consolidating and focusing)
 
