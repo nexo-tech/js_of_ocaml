@@ -253,10 +253,11 @@ See `XPLAN_PHASE4_IMPLEMENTATION.md`, `XPLAN_PHASE4_FIX.md`, `XPLAN_PHASE4_DEBUG
 - [x] Task 5.3f: Compare with working %d format dispatch - **ROOT CAUSE FOUND**
 - [x] Task 5.3g: Study js_of_ocaml Printf dispatch - **JS PATTERN IDENTIFIED**
 - [x] Task 5.3h: Analyze Lua code generator - **BLOCKS 572/573 DON'T EXIST**
-- [ ] Task 5.3i: Implement fix (deferred - requires deeper IR analysis)
-- [ ] Task 5.3j: Test all float formats (%f, %e, %g, %E, %F, %G)
+- [x] Task 5.3i: IR analysis - **BLOCKS MISSING FROM GENERATED CODE** (gap 562→588)
+- [ ] Task 5.3j: Implement fix - requires float runtime functions + code generator changes
+- [ ] Task 5.3k: Test all float formats (%f, %e, %g, %E, %F, %G)
 
-**ROOT CAUSE IDENTIFIED** (2025-10-14 - Tasks 5.3a-f complete):
+**ROOT CAUSE CONFIRMED** (2025-10-14 - Tasks 5.3a-i complete):
 - **Location**: Generated dispatch code in v202 function (line ~19527 in .lua)
 - **Bug**: Case 8 (float) sets `_next_block = 572/573` but these blocks don't exist
 - **Behavior**: Falls through to cases 9, 10, 11..., creating infinite loop
@@ -287,21 +288,29 @@ if _V.v405 == 8 then
 end
 ```
 
-**The Real Problem**:
-- JS uses labeled breaks to jump to continuation code
-- Lua sets _next_block to non-existent blocks (572/573)
-- Highest block numbers in generated code: ~836
-- Blocks 572/573 simply don't exist → infinite loop
-- This is a **bytecode structure issue** the Lua generator doesn't handle
+**The Real Problem** (Task 5.3i - IR Analysis):
+- **CONFIRMED**: Blocks 572/573 are MISSING from generated Lua code
+- Block gap analysis: Generated code has gap from block 562 → 588 (26 blocks missing!)
+- Blocks 572/573 fall in this gap → they don't exist as `if _next_block == 572` entries
+- **Why missing**: Block collection logic skips blocks not reachable from entry point
+- Float continuation blocks only "reachable" via Switch to 572/573, but they're never collected
+- JS handles this differently: Uses labeled break + inline continuation (no separate blocks)
 
-**Fix Complexity**: MODERATE-HIGH
-- Requires understanding Printf bytecode continuation structure
-- Options:
-  1. Inline float handler (like JS after label 'd')
-  2. Fix block generation to include 572/573
-  3. Runtime detection and fallback
-- Recommended: Study IR blocks to find where 572/573 should come from
-- May need significant code generator changes
+**Fix Strategy** (Task 5.3j):
+**Recommended approach**: Make case 8 behave like cases 4-7
+1. Remove `_next_block = 572/573` assignment
+2. Call float formatting function directly (like integer cases call v169)
+3. Add `return` statement (like integer cases)
+
+**Requirements**:
+- Implement Lua runtime float formatting functions (equivalent to JS `o()` and `l()`)
+- Modify code generator to recognize float format pattern
+- Generate direct call instead of continuation jump
+
+**Fix Complexity**: MODERATE
+- Runtime: Implement float formatting (precision, padding, conversion)
+- Code generator: Small change to case 8 generation logic
+- Testing: Verify all float formats (%f, %e, %g, %E, %F, %G)
 
 **Analysis Files**:
 - `/tmp/float_hang_analysis.md` - Root cause investigation
