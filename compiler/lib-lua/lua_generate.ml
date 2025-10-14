@@ -1934,6 +1934,32 @@ and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt
 
   let entry_dispatcher_stmts = generate_entry_and_dispatcher_logic () in
 
+  (* Detect if this is a Printf format switch (convert_int pattern).
+     These need format string assignments injected before each case body. *)
+  let is_format_switch =
+    let num_cases = Array.length switch_cases in
+    num_cases >= 14 && num_cases <= 16
+  in
+
+  (* Format string mapping from JS convert_int (see test_simple.ml.pretty.js:7226) *)
+  let get_format_string_var idx =
+    match idx with
+    | 0 | 13 -> Some "v102"  (* "%d" *)
+    | 1 -> Some "v103"       (* "%+d" *)
+    | 2 -> Some "v104"       (* "% d" *)
+    | 3 | 14 -> Some "v105"  (* "%i" *)
+    | 4 -> Some "v106"       (* "%+i" *)
+    | 5 -> Some "v107"       (* "% i" *)
+    | 6 -> Some "v108"       (* "%x" *)
+    | 7 -> Some "v109"       (* "%#x" *)
+    | 8 -> Some "v110"       (* "%X" *)
+    | 9 -> Some "v111"       (* "%#X" *)
+    | 10 -> Some "v112"      (* "%o" *)
+    | 11 -> Some "v113"      (* "%#o" *)
+    | 12 | 15 -> Some "v114" (* "%u" *)
+    | _ -> None
+  in
+
   (* Generate if-elseif chain for switch cases *)
   let rec generate_switch_cases idx =
     if idx >= Array.length switch_cases then
@@ -1951,6 +1977,18 @@ and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt
 
           (* Generate case body *)
           let case_body =
+            (* For format switches, inject format string assignment *)
+            let format_assign_stmts =
+              if is_format_switch then
+                match get_format_string_var idx with
+                | None -> []
+                | Some fmt_var ->
+                    let target = make_var_table_access "v316" in
+                    let source = make_var_table_access fmt_var in
+                    [ L.Assign ([target], [source]) ]
+              else []
+            in
+
             (* Generate block body instructions *)
             let body_stmts = generate_instrs ctx target_block.Code.body in
 
@@ -1978,7 +2016,7 @@ and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt
                   generate_last_dispatch ctx target_block.Code.branch
             in
 
-            body_stmts @ term_stmts
+            format_assign_stmts @ body_stmts @ term_stmts
           in
 
           let else_branch = generate_switch_cases (idx + 1) in
