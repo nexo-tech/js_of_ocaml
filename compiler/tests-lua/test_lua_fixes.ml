@@ -210,7 +210,8 @@ let%expect_test "test_lua_generate_hoisting" =
   } in
 
   (* Collect variables - should only get locally defined ones *)
-  let collected = L.collect_block_variables ctx program 0 in
+  let (defined_vars, free_vars) = L.collect_block_variables ctx program 0 in
+  let collected = StringSet.union defined_vars free_vars in
   let collected_list = StringSet.elements collected |> List.sort ~cmp:String.compare in
 
   (* Should collect: closure, local

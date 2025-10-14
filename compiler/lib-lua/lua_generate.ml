@@ -1642,11 +1642,17 @@ and detect_cond_dispatch_pattern program entry_addr =
 and detect_dispatch_mode program entry_addr =
   (* Task 3.3: First try Cond-based detection (Printf pattern with decision trees) *)
   match detect_cond_dispatch_pattern program entry_addr with
-  | Some mode -> mode
+  | Some mode ->
+      if !debug_var_collect then
+        Format.eprintf "[DISPATCH-MODE] Entry %d: Cond-based dispatch detected@." entry_addr;
+      mode
   | None ->
       (* Fall back to Switch-based detection (Task 2.5.5) *)
       match Code.Addr.Map.find_opt entry_addr program.Code.blocks with
-      | None -> AddressBased
+      | None ->
+          if !debug_var_collect then
+            Format.eprintf "[DISPATCH-MODE] Entry %d: AddressBased (no entry block)@." entry_addr;
+          AddressBased
       | Some entry_block ->
           (match entry_block.Code.branch with
           | Code.Switch (dispatch_var, conts) ->
@@ -1662,11 +1668,19 @@ and detect_dispatch_mode program entry_addr =
                       | Code.Branch (cont_addr, _) when cont_addr = entry_addr -> true
                       | _ -> false))
               in
-              if is_data_driven_switch then
+              if is_data_driven_switch then (
+                if !debug_var_collect then
+                  Format.eprintf "[DISPATCH-MODE] Entry %d: DataDriven (Switch-based)@." entry_addr;
                 DataDriven { entry_addr; dispatch_var; tag_var = None; switch_cases = conts }
-              else
+              ) else (
+                if !debug_var_collect then
+                  Format.eprintf "[DISPATCH-MODE] Entry %d: AddressBased (complex switch)@." entry_addr;
                 AddressBased
-          | _ -> AddressBased)
+              )
+          | _ ->
+              if !debug_var_collect then
+                Format.eprintf "[DISPATCH-MODE] Entry %d: AddressBased (not switch)@." entry_addr;
+              AddressBased)
 
 (** Setup hoisted variables for a closure (Task 3.3.1).
     Collects variables, creates _V table if needed, initializes to nil.
@@ -1835,27 +1849,60 @@ and setup_entry_block_arguments ctx program start_addr entry_args func_params =
     @return List of Lua statements
 *)
 and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt switch_cases params func_params entry_args =
+  if !debug_var_collect then
+    Format.eprintf "[DATA-DISPATCH] Starting data-driven dispatch for entry=%d, switch_cases count=%d@."
+      entry_addr (Array.length switch_cases);
   (* Task 5.3k.1: Collect all blocks needed for dispatch loop (including continuations).
      Float format case (case 8) has blocks with Cond terminators that reference
      continuation blocks (572/573). These must be included in the dispatch loop! *)
   let rec collect_continuation_blocks visited addrs_to_visit =
     match addrs_to_visit with
-    | [] -> visited
+    | [] ->
+        if !debug_var_collect then
+          Format.eprintf "[COLLECT] Done. Total blocks collected: %d@." (Code.Addr.Set.cardinal visited);
+        visited
     | addr :: rest ->
-        if Code.Addr.Set.mem addr visited then
+        if Code.Addr.Set.mem addr visited then (
+          if !debug_var_collect then
+            Format.eprintf "[COLLECT] Block %d: already visited@." addr;
           collect_continuation_blocks visited rest
-        else
+        ) else
           match Code.Addr.Map.find_opt addr program.Code.blocks with
-          | None -> collect_continuation_blocks visited rest
+          | None ->
+              if !debug_var_collect then
+                Format.eprintf "[COLLECT] Block %d: NOT IN IR@." addr;
+              collect_continuation_blocks visited rest
           | Some block ->
+              if !debug_var_collect then
+                Format.eprintf "[COLLECT] Block %d: visiting...@." addr;
               let visited = Code.Addr.Set.add addr visited in
               let successors = match block.Code.branch with
-                | Code.Return _ | Code.Raise _ | Code.Stop -> []
-                | Code.Branch (next, _) -> [next]
-                | Code.Cond (_, (t, _), (f, _)) -> [t; f]
-                | Code.Switch (_, conts) -> Array.to_list conts |> List.map ~f:fst
-                | Code.Pushtrap ((c, _), _, (h, _)) -> [c; h]
-                | Code.Poptrap (a, _) -> [a]
+                | Code.Return _ | Code.Raise _ | Code.Stop ->
+                    if !debug_var_collect then
+                      Format.eprintf "[COLLECT]   → terminal@.";
+                    []
+                | Code.Branch (next, _) ->
+                    if !debug_var_collect then
+                      Format.eprintf "[COLLECT]   → Branch to %d@." next;
+                    [next]
+                | Code.Cond (_, (t, _), (f, _)) ->
+                    if !debug_var_collect then
+                      Format.eprintf "[COLLECT]   → Cond to %d,%d@." t f;
+                    [t; f]
+                | Code.Switch (_, conts) ->
+                    let targets = Array.to_list conts |> List.map ~f:fst in
+                    if !debug_var_collect then
+                      Format.eprintf "[COLLECT]   → Switch to [%s]@."
+                        (String.concat ~sep:"," (List.map ~f:string_of_int targets));
+                    targets
+                | Code.Pushtrap ((c, _), _, (h, _)) ->
+                    if !debug_var_collect then
+                      Format.eprintf "[COLLECT]   → Pushtrap to %d,%d@." c h;
+                    [c; h]
+                | Code.Poptrap (a, _) ->
+                    if !debug_var_collect then
+                      Format.eprintf "[COLLECT]   → Poptrap to %d@." a;
+                    [a]
               in
               collect_continuation_blocks visited (successors @ rest)
   in

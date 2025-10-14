@@ -96,7 +96,8 @@ let%expect_test "collect_block_variables_fix" =
   } in
 
   (* Call collect_block_variables *)
-  let collected = L.collect_block_variables ctx program 0 in
+  let (defined_vars, free_vars) = L.collect_block_variables ctx program 0 in
+  let collected = StringSet.union defined_vars free_vars in
 
   (* Should only collect var_local and closure (defined here)
      Should NOT collect var_captured (from parent scope) *)

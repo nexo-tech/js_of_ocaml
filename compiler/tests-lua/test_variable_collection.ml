@@ -42,9 +42,10 @@ let%expect_test "collect_block_variables_simple" =
       ~debug:false
       program
   in
-  let vars =
+  let (defined_vars, free_vars) =
     Lua_of_ocaml_compiler__Lua_generate.collect_block_variables ctx program 0
   in
+  let vars = StringSet.union defined_vars free_vars in
   Printf.printf "Collected %d variables\n" (StringSet.cardinal vars);
   (* Print variables in sorted order *)
   let sorted_vars = vars |> StringSet.elements |> List.sort ~cmp:String.compare in
@@ -65,9 +66,10 @@ let%expect_test "collect_block_variables_empty" =
       ~debug:false
       program
   in
-  let vars =
+  let (defined_vars, free_vars) =
     Lua_of_ocaml_compiler__Lua_generate.collect_block_variables ctx program 0
   in
+  let vars = StringSet.union defined_vars free_vars in
   Printf.printf "Collected %d variables\n" (StringSet.cardinal vars);
   [%expect {| Collected 0 variables |}]
 
@@ -94,9 +96,10 @@ let%expect_test "collect_block_variables_assignments" =
       ~debug:false
       program
   in
-  let vars =
+  let (defined_vars, free_vars) =
     Lua_of_ocaml_compiler__Lua_generate.collect_block_variables ctx program 0
   in
+  let vars = StringSet.union defined_vars free_vars in
   Printf.printf "Collected %d variables\n" (StringSet.cardinal vars);
   let sorted_vars = vars |> StringSet.elements |> List.sort ~cmp:String.compare in
   List.iter ~f:(fun v -> Printf.printf "  %s\n" v) sorted_vars;
