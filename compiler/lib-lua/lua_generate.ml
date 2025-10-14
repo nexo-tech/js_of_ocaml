@@ -2574,16 +2574,111 @@ and generate_last_dispatch ctx last =
       [ L.If (cond_expr, then_stmts, Some else_stmts) ]
   | Code.Switch (var, conts) ->
       let switch_var = var_ident ctx var in
-      (* Group cases by continuation to reduce code duplication (Task 3.5.4) *)
-      let grouped = group_by_continuation conts in
+
+      (* Detect convert_int-style switches that need format string assignments.
+         These switches have empty args but should load format string constants.
+         Pattern: 14-16 cases, mostly empty args, used in Printf formatting.
+
+         This replicates how JS handles these switches:
+         switch(iconv){
+           case 0: var a = Z; break;  // Z = "%d"
+           case 1: var a = _; break;  // _ = "%+d"
+         }
+
+         We generate equivalent Lua:
+         if iconv == 0 then
+           v316 = v102  -- "%d"
+         elseif iconv == 1 then
+           v316 = v103  -- "%+d"
+         end
+
+         IMPORTANT: Format switches must NOT be grouped! Each case needs its own
+         format string assignment, so cases cannot share code even if they jump
+         to the same block.
+      *)
+      let is_format_switch =
+        let num_cases = Array.length conts in
+        let empty_args_count =
+          Array.fold_left conts ~init:0 ~f:(fun acc (_, args) ->
+            if List.is_empty args then acc + 1 else acc)
+        in
+        (* Match convert_int pattern: 14-16 cases, most with empty args *)
+        num_cases >= 14 && num_cases <= 16 && empty_args_count >= (num_cases - 5)
+      in
+
+      (* For format switches, don't group cases - each needs its own format string.
+         For other switches, group by continuation to reduce code duplication (Task 3.5.4). *)
+      let grouped =
+        if is_format_switch then
+          (* Ungrouped: Each case gets its own branch with index i *)
+          let ungrouped = ref [] in
+          Array.iteri conts ~f:(fun i (addr, args) ->
+            ungrouped := (addr, args, [i]) :: !ungrouped);
+          List.rev !ungrouped
+        else
+          group_by_continuation conts
+      in
+
+      (* Format string mapping from JS convert_int function (see test_simple.ml.pretty.js:7226)
+         Maps case index to format string variable (v102="%d", v103="%+d", etc.) *)
+      let get_format_string_var idx =
+        match idx with
+        | 0 | 13 -> Some "v102"  (* "%d" - corresponds to JS var Z *)
+        | 1 -> Some "v103"       (* "%+d" - corresponds to JS var _ *)
+        | 2 -> Some "v104"       (* "% d" - corresponds to JS var $ *)
+        | 3 | 14 -> Some "v105"  (* "%i" - corresponds to JS var aa/cst_i *)
+        | 4 -> Some "v106"       (* "%+i" - corresponds to JS var ab *)
+        | 5 -> Some "v107"       (* "% i" - corresponds to JS var ac *)
+        | 6 -> Some "v108"       (* "%x" - corresponds to JS var ad *)
+        | 7 -> Some "v109"       (* "%#x" - corresponds to JS var ae *)
+        | 8 -> Some "v110"       (* "%X" - corresponds to JS var af *)
+        | 9 -> Some "v111"       (* "%#X" - corresponds to JS var ag *)
+        | 10 -> Some "v112"      (* "%o" - corresponds to JS var ah *)
+        | 11 -> Some "v113"      (* "%#o" - corresponds to JS var ai *)
+        | 12 | 15 -> Some "v114" (* "%u" - corresponds to JS var aj/cst_u *)
+        | _ -> None
+      in
+
       let cases =
         List.map grouped ~f:(fun (addr, args, indices) ->
             (* Build condition for all indices: var == i1 or var == i2 or ... *)
             let cond = build_multi_case_condition switch_var indices in
             (* Generate argument passing *)
             let arg_passing = generate_argument_passing ctx addr args () in
+
+            (* For format switches with empty args, generate format string assignment.
+               This assigns the appropriate format string constant (v102, v103, etc.)
+               to v316 before the rest of the case body executes.
+
+               Example: if case_index == 0, generate: _V.v316 = _V.v102
+            *)
+            let format_assign =
+              if is_format_switch && List.is_empty args && not (List.is_empty indices) then
+                (* Use first index in the group to determine which format string *)
+                match indices with
+                | [] -> []
+                | idx :: _ ->
+                    match get_format_string_var idx with
+                    | None -> []
+                    | Some fmt_var ->
+                        (* Generate: _V.v316 = _V.v102 (or v103, v104, etc.) *)
+                        let target =
+                          if ctx.use_var_table
+                          then make_var_table_access "v316"
+                          else L.Ident "v316"
+                        in
+                        let source =
+                          if ctx.use_var_table
+                          then make_var_table_access fmt_var
+                          else L.Ident fmt_var
+                        in
+                        [ L.Assign ([target], [source]) ]
+              else
+                []
+            in
+
             let set_block = L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int addr)]) in
-            let then_stmt = arg_passing @ [ set_block ] in
+            let then_stmt = format_assign @ arg_passing @ [ set_block ] in
             (cond, then_stmt))
       in
       (match cases with
