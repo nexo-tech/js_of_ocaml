@@ -1910,6 +1910,29 @@ and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt
   let initial_addrs = Array.to_list switch_cases |> List.map ~f:fst in
   let all_dispatch_blocks = collect_continuation_blocks Code.Addr.Set.empty initial_addrs in
 
+  (* DEBUG: Verify all referenced blocks were collected *)
+  if !debug_var_collect then (
+    Printf.eprintf "[COLLECTION COMPLETE] Collected %d blocks\n%!" (Code.Addr.Set.cardinal all_dispatch_blocks);
+    (* Check each collected block's successors *)
+    Code.Addr.Set.iter (fun addr ->
+      match Code.Addr.Map.find_opt addr program.Code.blocks with
+      | None -> ()
+      | Some block ->
+          let successors = match block.Code.branch with
+            | Code.Return _ | Code.Raise _ | Code.Stop -> []
+            | Code.Branch (next, _) -> [next]
+            | Code.Cond (_, (t, _), (f, _)) -> [t; f]
+            | Code.Switch (_, conts) -> Array.to_list conts |> List.map ~f:fst
+            | Code.Pushtrap ((c, _), _, (h, _)) -> [c; h]
+            | Code.Poptrap (a, _) -> [a]
+          in
+          List.iter successors ~f:(fun succ ->
+            if not (Code.Addr.Set.mem succ all_dispatch_blocks) then
+              Printf.eprintf "[WARNING] Block %d references block %d which was NOT collected!\n%!" addr succ
+          )
+    ) all_dispatch_blocks
+  );
+
   (* Task 3.3.1: Setup hoisted variables *)
   let hoist_stmts, use_table = setup_hoisted_variables ctx program entry_addr in
 
