@@ -125,7 +125,7 @@ Lua likely missing equivalent of `parallel_renaming` or not generating parameter
 - Expected: Printf with %d works, nested closures work, no regressions
 - Generated code: "Hoisted variables (5 total: 3 defined, 2 free)" with only defined vars initialized
 
-### Phase 4: Fix Implementation - [~] MAJOR PROGRESS - Truthiness bug fixed!
+### Phase 4: Fix Implementation - [~] MAJOR PROGRESS - Truthiness fixed, format string bug identified!
 - [x] Task 4.1: Implement parameter passing fix in lua_generate.ml
 - [x] Task 4.2: Test fix with simple closure test - ✅ WORKS
 - [x] Task 4.3: Test fix with Printf simple string - ✅ WORKS
@@ -135,27 +135,34 @@ Lua likely missing equivalent of `parallel_renaming` or not generating parameter
 - [x] Task 4.7: Document fix implementation
 - [x] Task 4.8: Fixed Lua vs JS truthiness bug - **MAJOR FIX!**
 - [x] Task 4.9: Printf %d now executes formatter (new bug found)
+- [x] Task 4.10: Identified format string root cause - **CRITICAL FINDING!**
 
-**Status**: THREE bugs fixed, Printf %d makes major progress:
+**Status**: THREE bugs fixed, fourth bug ROOT CAUSE IDENTIFIED:
 1. ✅ Variable shadowing in nested closures - FIXED (Task 4.1)
 2. ✅ Loop block parameters misclassified as free - FIXED (Task 4.5)
 3. ✅ **Lua vs JS truthiness** - FIXED (Task 4.8) **CRITICAL FIX!**
-4. ❌ Format string parameter nil - NEW BUG DISCOVERED
+4. 🎯 **Format string selection bug** - ROOT CAUSE FOUND (Task 4.10)
 
-**Truthiness Fix Details**:
+**Truthiness Fix Details** (Task 4.8):
 - **Root Cause**: Lua treats 0 as truthy, JS treats 0 as falsy
 - **Impact**: Printf width=0 check took wrong branch (arity-2 vs arity-1)
 - **Fix**: Generate inline check: `v ~= false and v ~= nil and v ~= 0 and v ~= ""`
 - **Result**: Printf now returns arity-1 closure and executes formatting code!
 
+**Format String Bug** (Task 4.10):
+- **Root Cause**: Lua doesn't generate switch to select format strings based on conversion type
+- **JS**: `convert_int` switches on `iconv` to select format ("%d", "%+d", "% d", etc.)
+- **Lua**: v157 closure uses same `v316` for ALL cases, but v316 is nil!
+- **Fix Needed**: Generate switch/if-chain to select format string constants (v102, v103, v104, etc.)
+
 **Working**: print_endline, print_int, simple closures, Printf simple strings, Printf arity selection
-**Broken**: Printf format string parameter is nil in `caml_format_int`
+**Broken**: Printf format string selection - code generator doesn't generate the switch logic
 
-**New Error**: `attempt to get length of local 's' (a nil value)` in `caml_ocaml_string_to_lua`
+**Error**: `attempt to get length of local 's' (a nil value)` in `caml_format_int(nil, 42)`
 
-**Progress**: No longer hanging! Printf formatter actually executes but format string param is nil.
+**Progress**: Three major bugs fixed! Printf executes correctly up to format string selection. Just need to fix format string constant selection logic in code generator.
 
-See `XPLAN_PHASE4_IMPLEMENTATION.md`, `XPLAN_PHASE4_FIX.md`, `XPLAN_PHASE4_DEBUGGING.md`, `XPLAN_PHASE4_ARITY_BUG.md`, and `XPLAN_PHASE4_TRUTHINESS_BUG.md`.
+See `XPLAN_PHASE4_IMPLEMENTATION.md`, `XPLAN_PHASE4_FIX.md`, `XPLAN_PHASE4_DEBUGGING.md`, `XPLAN_PHASE4_ARITY_BUG.md`, `XPLAN_PHASE4_TRUTHINESS_BUG.md`, and `XPLAN_PHASE4_FORMAT_STRING_BUG.md`.
 
 ### Phase 5: Validation & Polish - [ ]
 - [ ] Task 5.1: Test all Printf format specifiers (%d, %s, %f, etc.)
