@@ -53,14 +53,27 @@ SPLAN.md made partial progress but:
 **Root Cause Identified**:
 Printf with format specifiers hangs because `caml_format_int(fmt, i)` receives `fmt=nil`. The partial application in `runtime/lua/fun.lua` does not correctly capture/pass the format string through Printf's CPS closure chain.
 
-### Phase 2: js_of_ocaml Deep Study - [ ]
-- [ ] Task 2.1: Study JavaScript runtime structure
-- [ ] Task 2.2: Study JavaScript code generation
+### Phase 2: js_of_ocaml Deep Study - [ ] IN PROGRESS (2/7 tasks)
+- [x] Task 2.1: Study JavaScript runtime structure
+- [x] Task 2.2: Study JavaScript code generation
 - [ ] Task 2.3: Study JavaScript closure handling
 - [ ] Task 2.4: Study JavaScript Printf implementation
 - [ ] Task 2.5: Study JavaScript block/variable handling
 - [ ] Task 2.6: Study JavaScript function compilation
 - [ ] Task 2.7: Document js_of_ocaml patterns
+
+**Results**: See `XPLAN_PHASE2_TASK1.md` and `XPLAN_PHASE2_TASK2.md`
+
+**Key Discoveries**:
+- JS runtime has only 2 Printf functions vs Lua's 18 - different architecture
+- JS inlines stdlib formatting code (caml_format_int) vs Lua puts it in runtime
+- **CRITICAL**: `parallel_renaming` function in JS generator declares parameters BEFORE block execution
+- This ensures all arguments are available when closure body executes
+- Format strings are captured in closures through JavaScript's lexical scoping
+- Printf uses CPS with closures that capture format string + formatting function
+
+**Root Cause Confirmed**:
+Lua likely missing equivalent of `parallel_renaming` or not generating parameter declarations before block body. This causes format string parameter to be undefined/nil when `caml_format_int` is called.
 
 ### Phase 3: lua_of_ocaml Component Verification - [ ]
 - [ ] Task 3.1: Verify runtime module structure
