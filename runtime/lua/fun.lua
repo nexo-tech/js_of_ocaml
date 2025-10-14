@@ -81,25 +81,6 @@ function caml_call_gen(f, args)
     -- Build a closure that captures provided args and waits for more
     -- This matches JavaScript's partial application behavior
 
-    -- Task 3.6.5.7 Option B: For d==1, try calling with nil first (dead param workaround)
-    -- This handles Printf format closures where the second param is never used
-    if d == 1 and argsLen == 1 then
-      -- Build arg list with nil for missing arg
-      local nargs = {}
-      for i = 1, argsLen do
-        nargs[i] = args[i]
-      end
-      nargs[argsLen + 1] = nil  -- Missing argument as nil
-
-      -- Try calling with the nil argument
-      local ok, result = pcall(actual_f, unpack(nargs, 1, n))
-      if ok then
-        -- Success! Return the result directly
-        return result
-      end
-      -- Failed, fall through to partial application
-    end
-
     local g_fn
     if d == 1 then
       -- Need exactly 1 more argument
