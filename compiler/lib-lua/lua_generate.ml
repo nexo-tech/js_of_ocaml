@@ -1960,6 +1960,28 @@ and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt
     | _ -> None
   in
 
+  (* Detect which variable is used as format string in caml_format_int calls.
+     Scans block instructions for: Let (_, Prim (Extern "caml_format_int", [Pv format_var; ...]))
+     Uses ctx.vars.var_map to get the actual Lua variable name that will be generated. *)
+  let find_format_variable ctx block =
+    let rec scan_instrs instrs =
+      match instrs with
+      | [] -> None
+      | Code.Let (result_var, Code.Prim (Code.Extern "caml_format_int", args)) :: _ ->
+          (match args with
+           | Code.Pv format_var :: _ ->
+               (* Use var_name to get the actual Lua variable name after mapping *)
+               let lua_var_name = var_name ctx format_var in
+               if false then
+                 Format.eprintf "[FORMAT FIX] Block contains caml_format_int: result=v%d, format_arg_IR=v%d, format_arg_Lua=%s@."
+                   (Code.Var.idx result_var) (Code.Var.idx format_var) lua_var_name;
+               Some lua_var_name
+           | _ -> None)
+      | _ :: rest -> scan_instrs rest
+    in
+    scan_instrs block.Code.body
+  in
+
   (* Generate if-elseif chain for switch cases *)
   let rec generate_switch_cases idx =
     if idx >= Array.length switch_cases then
@@ -1980,12 +2002,16 @@ and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt
             (* For format switches, inject format string assignment *)
             let format_assign_stmts =
               if is_format_switch then
-                match get_format_string_var idx with
+                (* Detect which variable is used for format string in this block *)
+                match find_format_variable ctx target_block with
                 | None -> []
-                | Some fmt_var ->
-                    let target = make_var_table_access "v316" in
-                    let source = make_var_table_access fmt_var in
-                    [ L.Assign ([target], [source]) ]
+                | Some format_var_name ->
+                    match get_format_string_var idx with
+                    | None -> []
+                    | Some fmt_const_var ->
+                        let target = make_var_table_access format_var_name in
+                        let source = make_var_table_access fmt_const_var in
+                        [ L.Assign ([target], [source]) ]
               else []
             in
 

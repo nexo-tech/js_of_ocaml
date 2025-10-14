@@ -139,8 +139,9 @@ Lua likely missing equivalent of `parallel_renaming` or not generating parameter
 - [x] Task 4.11: Analyzed format string bug in detail - **FIX PLAN READY!**
 - [x] Task 4.12: IR investigation confirms bug is in code generation
 - [x] Task 4.13: Fixed format string bug in data-driven dispatch - **PRINTF %d WORKS!**
+- [x] Task 4.14: Fixed format variable detection for multi-format cases - **ALL FORMATS WORK!**
 
-**Status**: FOUR bugs fixed! Printf %d outputs "42" successfully! ✅
+**Status**: FOUR bugs fixed! Printf integer formats work correctly! ✅
 1. ✅ Variable shadowing in nested closures - FIXED (Task 4.1)
 2. ✅ Loop block parameters misclassified as free - FIXED (Task 4.5)
 3. ✅ **Lua vs JS truthiness** - FIXED (Task 4.8) **CRITICAL FIX!**
@@ -161,13 +162,21 @@ Lua likely missing equivalent of `parallel_renaming` or not generating parameter
 - **Lua Fix**: Inject format assignments in `generate_switch_cases` before block inlining
 - **Solution**: Modified data-driven dispatch to detect format switches and inject assignments
 
-**Implementation** (Task 4.13):
+**Implementation** (Tasks 4.13-4.14):
 1. Detect format switches: 14-16 cases in data-driven dispatch
-2. Map case index to format string variable (v102="%d", v103="%+d", etc.)
-3. Inject `_V.v316 = _V.v102` before each case body in `generate_switch_cases`
-4. Generated code: `if v260 == 0 then v316 = v102; ... caml_format_int(v316, n)`
+2. Map case index to format string variable (v102="%d", v103="%+d", v108="%x", etc.)
+3. Scan block IR for caml_format_int call to detect actual format variable
+4. Use ctx.vars.var_map to get Lua variable name (IR v9366 → Lua v319)
+5. Inject format assignment dynamically: `_V.v319 = _V.v102` before each case body
+6. Generated code: `if v263 == 0 then v319 = v102; ... caml_format_int(v319, n)`
 
-**Result**: Printf %d outputs "42" successfully! ✅
+**Variable Mapping Fix** (Task 4.14):
+- **Issue**: Hardcoded v316 didn't work for multi-format Printf (used v319 instead)
+- **Root Cause**: Different Printf patterns generate different variable names
+- **Solution**: Dynamically detect format variable from IR + use var_name() for mapping
+- **Result**: Works for ALL Printf integer formats (%d, %i, %x, %o, %u)!
+
+**Result**: Printf integer formats output correctly! %d → "42", %x → "ff", etc. ✅
 
 **Working**: print_endline, print_int, simple closures, Printf simple strings, Printf arity selection, **Printf %d format!**
 
