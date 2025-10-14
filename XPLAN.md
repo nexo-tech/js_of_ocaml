@@ -125,27 +125,37 @@ Lua likely missing equivalent of `parallel_renaming` or not generating parameter
 - Expected: Printf with %d works, nested closures work, no regressions
 - Generated code: "Hoisted variables (5 total: 3 defined, 2 free)" with only defined vars initialized
 
-### Phase 4: Fix Implementation - [~] PARTIAL SUCCESS - Printf %d completes silently
+### Phase 4: Fix Implementation - [~] MAJOR PROGRESS - Truthiness bug fixed!
 - [x] Task 4.1: Implement parameter passing fix in lua_generate.ml
 - [x] Task 4.2: Test fix with simple closure test - ✅ WORKS
 - [x] Task 4.3: Test fix with Printf simple string - ✅ WORKS
-- [~] Task 4.4: Test fix with Printf %d format specifier - ❌ NO OUTPUT
+- [~] Task 4.4: Test fix with Printf %d format specifier - ❌ Format string nil error
 - [x] Task 4.5: Fixed loop block parameter classification bug
 - [x] Task 4.6: Debugged Printf %d - NOT hanging, completes silently!
 - [x] Task 4.7: Document fix implementation
+- [x] Task 4.8: Fixed Lua vs JS truthiness bug - **MAJOR FIX!**
+- [x] Task 4.9: Printf %d now executes formatter (new bug found)
 
-**Status**: Two bugs fixed, Printf %d mystery discovered:
-1. ✅ Variable shadowing in nested closures - FIXED
-2. ✅ Loop block parameters misclassified as free - FIXED
-3. 🔍 Printf %d completes but produces NO OUTPUT (not hanging!)
+**Status**: THREE bugs fixed, Printf %d makes major progress:
+1. ✅ Variable shadowing in nested closures - FIXED (Task 4.1)
+2. ✅ Loop block parameters misclassified as free - FIXED (Task 4.5)
+3. ✅ **Lua vs JS truthiness** - FIXED (Task 4.8) **CRITICAL FIX!**
+4. ❌ Format string parameter nil - NEW BUG DISCOVERED
 
-**Working**: print_endline, print_int, simple closures, Printf simple strings
-**Broken**: Printf with format specifiers (%d, %s, etc.) - completes silently (no output)
+**Truthiness Fix Details**:
+- **Root Cause**: Lua treats 0 as truthy, JS treats 0 as falsy
+- **Impact**: Printf width=0 check took wrong branch (arity-2 vs arity-1)
+- **Fix**: Generate inline check: `v ~= false and v ~= nil and v ~= 0 and v ~= ""`
+- **Result**: Printf now returns arity-1 closure and executes formatting code!
 
-**Key Insight**: Printf %d is NOT hanging - it completes (exit 0) but produces no output.
-This is a different class of bug: output is being lost or suppressed somewhere.
+**Working**: print_endline, print_int, simple closures, Printf simple strings, Printf arity selection
+**Broken**: Printf format string parameter is nil in `caml_format_int`
 
-See `XPLAN_PHASE4_IMPLEMENTATION.md`, `XPLAN_PHASE4_FIX.md`, and `XPLAN_PHASE4_DEBUGGING.md`.
+**New Error**: `attempt to get length of local 's' (a nil value)` in `caml_ocaml_string_to_lua`
+
+**Progress**: No longer hanging! Printf formatter actually executes but format string param is nil.
+
+See `XPLAN_PHASE4_IMPLEMENTATION.md`, `XPLAN_PHASE4_FIX.md`, `XPLAN_PHASE4_DEBUGGING.md`, `XPLAN_PHASE4_ARITY_BUG.md`, and `XPLAN_PHASE4_TRUTHINESS_BUG.md`.
 
 ### Phase 5: Validation & Polish - [ ]
 - [ ] Task 5.1: Test all Printf format specifiers (%d, %s, %f, etc.)

@@ -69,6 +69,11 @@ function caml_lua_bool(ml_bool)
   return ml_bool ~= 0
 end
 
+--Provides: caml_js_to_bool
+function caml_js_to_bool(v)
+  return v ~= false and v ~= nil and v ~= 0 and v ~= ""
+end
+
 --Provides: caml_some
 function caml_some(x)
   return { tag = 0, [1] = x }

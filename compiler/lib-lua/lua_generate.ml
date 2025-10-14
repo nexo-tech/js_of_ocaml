@@ -2552,7 +2552,18 @@ and generate_last_dispatch ctx last =
       let set_block = L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int addr)]) in
       arg_passing @ [ set_block ]
   | Code.Cond (var, (addr_true, args_true), (addr_false, args_false)) ->
-      let cond_expr = var_ident ctx var in
+      let cond_var_expr = var_ident ctx var in
+      (* Convert to boolean using JS semantics: 0, "", nil, false are falsy
+         Generate inline check: (v ~= false and v ~= nil and v ~= 0 and v ~= "") *)
+      let cond_expr =
+        L.BinOp (L.And,
+          L.BinOp (L.And,
+            L.BinOp (L.And,
+              L.BinOp (L.Neq, cond_var_expr, L.Bool false),
+              L.BinOp (L.Neq, cond_var_expr, L.Nil)),
+            L.BinOp (L.Neq, cond_var_expr, L.Number "0")),
+          L.BinOp (L.Neq, cond_var_expr, L.String ""))
+      in
       (* Generate argument passing for both branches *)
       let pass_true = generate_argument_passing ctx addr_true args_true () in
       let pass_false = generate_argument_passing ctx addr_false args_false () in
