@@ -136,8 +136,9 @@ Lua likely missing equivalent of `parallel_renaming` or not generating parameter
 - [x] Task 4.8: Fixed Lua vs JS truthiness bug - **MAJOR FIX!**
 - [x] Task 4.9: Printf %d now executes formatter (new bug found)
 - [x] Task 4.10: Identified format string root cause - **CRITICAL FINDING!**
+- [x] Task 4.11: Analyzed format string bug in detail - **FIX PLAN READY!**
 
-**Status**: THREE bugs fixed, fourth bug ROOT CAUSE IDENTIFIED:
+**Status**: THREE bugs fixed, fourth bug ROOT CAUSE + FIX PLAN DOCUMENTED:
 1. ✅ Variable shadowing in nested closures - FIXED (Task 4.1)
 2. ✅ Loop block parameters misclassified as free - FIXED (Task 4.5)
 3. ✅ **Lua vs JS truthiness** - FIXED (Task 4.8) **CRITICAL FIX!**
@@ -149,11 +150,14 @@ Lua likely missing equivalent of `parallel_renaming` or not generating parameter
 - **Fix**: Generate inline check: `v ~= false and v ~= nil and v ~= 0 and v ~= ""`
 - **Result**: Printf now returns arity-1 closure and executes formatting code!
 
-**Format String Bug** (Task 4.10):
-- **Root Cause**: Lua doesn't generate switch to select format strings based on conversion type
-- **JS**: `convert_int` switches on `iconv` to select format ("%d", "%+d", "% d", etc.)
-- **Lua**: v157 closure uses same `v316` for ALL cases, but v316 is nil!
-- **Fix Needed**: Generate switch/if-chain to select format string constants (v102, v103, v104, etc.)
+**Format String Bug** (Tasks 4.10-4.11):
+- **Root Cause**: Switch cases don't load format string constants into v316 before calling caml_format_int
+- **JS**: Each case does `var a = Z;` to load "%d", then uses `a` after switch
+- **Lua**: Each case calls `caml_format_int(v316, ...)` but v316 is never assigned!
+- **Missing**: `_V.v316 = _V.v102` (or v103, v104, etc.) at start of each case
+- **Fix Plan**: Add load instruction generation in lua_generate.ml for switch cases
+- **Constants**: v102="%d", v103="%+d", v104="% d", etc. are already defined (line 13085)
+- **Location**: test_simple.lua:18121 (v157 closure), lua_generate.ml:2575 (switch compilation)
 
 **Working**: print_endline, print_int, simple closures, Printf simple strings, Printf arity selection
 **Broken**: Printf format string selection - code generator doesn't generate the switch logic
@@ -162,7 +166,7 @@ Lua likely missing equivalent of `parallel_renaming` or not generating parameter
 
 **Progress**: Three major bugs fixed! Printf executes correctly up to format string selection. Just need to fix format string constant selection logic in code generator.
 
-See `XPLAN_PHASE4_IMPLEMENTATION.md`, `XPLAN_PHASE4_FIX.md`, `XPLAN_PHASE4_DEBUGGING.md`, `XPLAN_PHASE4_ARITY_BUG.md`, `XPLAN_PHASE4_TRUTHINESS_BUG.md`, and `XPLAN_PHASE4_FORMAT_STRING_BUG.md`.
+See `XPLAN_PHASE4_IMPLEMENTATION.md`, `XPLAN_PHASE4_FIX.md`, `XPLAN_PHASE4_DEBUGGING.md`, `XPLAN_PHASE4_ARITY_BUG.md`, `XPLAN_PHASE4_TRUTHINESS_BUG.md`, `XPLAN_PHASE4_FORMAT_STRING_BUG.md`, and `XPLAN_PHASE4_FORMAT_FIX_PLAN.md`.
 
 ### Phase 5: Validation & Polish - [ ]
 - [ ] Task 5.1: Test all Printf format specifiers (%d, %s, %f, etc.)
