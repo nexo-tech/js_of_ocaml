@@ -125,23 +125,27 @@ Lua likely missing equivalent of `parallel_renaming` or not generating parameter
 - Expected: Printf with %d works, nested closures work, no regressions
 - Generated code: "Hoisted variables (5 total: 3 defined, 2 free)" with only defined vars initialized
 
-### Phase 4: Fix Implementation - [~] PARTIAL SUCCESS - Printf format specifiers still hang
+### Phase 4: Fix Implementation - [~] PARTIAL SUCCESS - Printf %d completes silently
 - [x] Task 4.1: Implement parameter passing fix in lua_generate.ml
 - [x] Task 4.2: Test fix with simple closure test - ✅ WORKS
 - [x] Task 4.3: Test fix with Printf simple string - ✅ WORKS
-- [~] Task 4.4: Test fix with Printf %d format specifier - ❌ HANGS
+- [~] Task 4.4: Test fix with Printf %d format specifier - ❌ NO OUTPUT
 - [x] Task 4.5: Fixed loop block parameter classification bug
-- [ ] Task 4.6: Debug Printf format specifier hanging issue
+- [x] Task 4.6: Debugged Printf %d - NOT hanging, completes silently!
 - [x] Task 4.7: Document fix implementation
 
-**Status**: Two bugs fixed:
+**Status**: Two bugs fixed, Printf %d mystery discovered:
 1. ✅ Variable shadowing in nested closures - FIXED
 2. ✅ Loop block parameters misclassified as free - FIXED
+3. 🔍 Printf %d completes but produces NO OUTPUT (not hanging!)
 
-**Working**: print_endline, simple closures, Printf without format specifiers
-**Still Broken**: Printf with format specifiers (%d, %s, etc.) - hangs in infinite loop
+**Working**: print_endline, print_int, simple closures, Printf simple strings
+**Broken**: Printf with format specifiers (%d, %s, etc.) - completes silently (no output)
 
-See `XPLAN_PHASE4_IMPLEMENTATION.md` and `XPLAN_PHASE4_FIX.md` for details.
+**Key Insight**: Printf %d is NOT hanging - it completes (exit 0) but produces no output.
+This is a different class of bug: output is being lost or suppressed somewhere.
+
+See `XPLAN_PHASE4_IMPLEMENTATION.md`, `XPLAN_PHASE4_FIX.md`, and `XPLAN_PHASE4_DEBUGGING.md`.
 
 ### Phase 5: Validation & Polish - [ ]
 - [ ] Task 5.1: Test all Printf format specifiers (%d, %s, %f, etc.)
