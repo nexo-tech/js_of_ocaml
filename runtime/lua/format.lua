@@ -189,6 +189,7 @@ function caml_finish_formatting(f, rawbuffer)
   for i = 1, #buffer do
     result[i] = buffer:byte(i)
   end
+  result.length = #buffer  -- Set length field for OCaml string compatibility
   return result
 end
 

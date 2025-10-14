@@ -140,12 +140,14 @@ Lua likely missing equivalent of `parallel_renaming` or not generating parameter
 - [x] Task 4.12: IR investigation confirms bug is in code generation
 - [x] Task 4.13: Fixed format string bug in data-driven dispatch - **PRINTF %d WORKS!**
 - [x] Task 4.14: Fixed format variable detection for multi-format cases - **ALL FORMATS WORK!**
+- [x] Task 4.15: Fixed runtime caml_finish_formatting missing length field - **I/O BUG FIXED!**
 
-**Status**: FOUR bugs fixed! Printf integer formats work correctly! ✅
+**Status**: FIVE bugs fixed! Printf integer formats fully working! ✅
 1. ✅ Variable shadowing in nested closures - FIXED (Task 4.1)
 2. ✅ Loop block parameters misclassified as free - FIXED (Task 4.5)
 3. ✅ **Lua vs JS truthiness** - FIXED (Task 4.8) **CRITICAL FIX!**
-4. ✅ **Format string selection bug** - FIXED (Task 4.13) **PRINTF WORKS!**
+4. ✅ **Format string selection bug** - FIXED (Tasks 4.13-4.14) **PRINTF WORKS!**
+5. ✅ **Runtime format result missing length** - FIXED (Task 4.15) **I/O WORKS!**
 
 **Truthiness Fix Details** (Task 4.8):
 - **Root Cause**: Lua treats 0 as truthy, JS treats 0 as falsy
@@ -176,15 +178,23 @@ Lua likely missing equivalent of `parallel_renaming` or not generating parameter
 - **Solution**: Dynamically detect format variable from IR + use var_name() for mapping
 - **Result**: Works for ALL Printf integer formats (%d, %i, %x, %o, %u)!
 
-**Result**: Printf integer formats output correctly! %d → "42", %x → "ff", etc. ✅
+**Runtime I/O Bug** (Task 4.15) - **FIXED!**:
+- **Root Cause**: caml_finish_formatting() creates OCaml string table but doesn't set .length field
+- **Impact**: caml_ml_bytes_length() returns nil, causing arithmetic error in caml_ml_output()
+- **Finding**: Fast path in caml_format_int (line 244-246) uses caml_lua_string_to_ocaml which DOES set length
+- **Issue**: General path (lines 248-278) calls caml_finish_formatting which returns table WITHOUT length
+- **Solution**: Add `result.length = #buffer` in caml_finish_formatting (runtime/lua/format.lua:192)
+- **Result**: All Printf integer formats now output correctly to stdout!
 
-**Working**: print_endline, print_int, simple closures, Printf simple strings, Printf arity selection, **Printf %d format!**
+**Result**: Printf integer formats fully working! %d → "42", %x → "ff", %i → "43", %o → "10" ✅
+
+**Working**: print_endline, print_int, simple closures, Printf simple strings, Printf arity selection, **Printf integer formats!**
 
 **Test Output**:
 ```bash
-$ echo 'let () = Printf.printf "%d\n" 42' > test.ml
+$ echo 'let () = Printf.printf "%d %i %x %o\n" 42 43 255 8' > test.ml
 $ just quick-test test.ml
-42
+42 43 ff 10
 ```
 
 See `XPLAN_PHASE4_IMPLEMENTATION.md`, `XPLAN_PHASE4_FIX.md`, `XPLAN_PHASE4_DEBUGGING.md`, `XPLAN_PHASE4_ARITY_BUG.md`, `XPLAN_PHASE4_TRUTHINESS_BUG.md`, `XPLAN_PHASE4_FORMAT_STRING_BUG.md`, `XPLAN_PHASE4_FORMAT_FIX_PLAN.md`, and `XPLAN_PHASE4_FORMAT_FIX_INVESTIGATION.md`.
