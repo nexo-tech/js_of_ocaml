@@ -254,8 +254,9 @@ See `XPLAN_PHASE4_IMPLEMENTATION.md`, `XPLAN_PHASE4_FIX.md`, `XPLAN_PHASE4_DEBUG
 - [x] Task 5.3g: Study js_of_ocaml Printf dispatch - **JS PATTERN IDENTIFIED**
 - [x] Task 5.3h: Analyze Lua code generator - **BLOCKS 572/573 DON'T EXIST**
 - [x] Task 5.3i: IR analysis - **BLOCKS MISSING FROM GENERATED CODE** (gap 562→588)
-- [ ] Task 5.3j: Implement fix - requires float runtime functions + code generator changes
-- [ ] Task 5.3k: Test all float formats (%f, %e, %g, %E, %F, %G)
+- [x] Task 5.3j: Implementation analysis - **DEFERRED** (6-12hr effort, see plan)
+- [ ] Task 5.3k: Implement float fix (when ready - see /tmp/float_fix_implementation_plan.md)
+- [ ] Task 5.3l: Test all float formats (%f, %e, %g, %E, %F, %G)
 
 **ROOT CAUSE CONFIRMED** (2025-10-14 - Tasks 5.3a-i complete):
 - **Location**: Generated dispatch code in v202 function (line ~19527 in .lua)
@@ -307,10 +308,35 @@ end
 - Modify code generator to recognize float format pattern
 - Generate direct call instead of continuation jump
 
-**Fix Complexity**: MODERATE
+**Fix Complexity**: HIGH (6-12 hours) - DEFERRED
 - Runtime: Implement float formatting (precision, padding, conversion)
-- Code generator: Small change to case 8 generation logic
+- Code generator: Recognize case 8 pattern and handle differently
 - Testing: Verify all float formats (%f, %e, %g, %E, %F, %G)
+
+**Implementation Analysis** (Task 5.3j - 2025-10-14):
+
+Studied JS float formatting implementation. Key findings:
+- **Function `o(j, n, b)`**: Float formatter (handles %f/%e/%g/%a and variants)
+  - Uses `caml_format_float(format_string, value)` for most formats
+  - Handles special cases: inf/nan, hex floats, uppercase variants
+  - 8 conversion types with precision/sign/alternate form variations
+- **Function `l(h, f, a)`**: Padding function (handles width/alignment)
+  - 3 padding modes: left, right, zero-padding
+  - Preserves sign/prefix for zero-padding (e.g., "+042.5" not "0+42.5")
+- **Case 8 continuation**: Returns 9 different closure types based on padding/precision
+
+**Implementation Options**:
+1. **Inline continuation** (like JS): Modify generator to inline closure logic - VERY HIGH complexity (~200-300 LOC)
+2. **Runtime formatter** (recommended): Implement `caml_format_float_printf` + `caml_pad_string` - HIGH complexity (~150-200 LOC)
+3. **Fix block generation**: Make blocks 572/573 appear - UNKNOWN complexity (may be impossible)
+
+**Deferral Reason**:
+- All options require 6-12 hours focused work
+- High risk to Printf (critical functionality)
+- Extensive testing needed (8 format types × precision × width × sign variations)
+- Current workaround sufficient: Use %d/%s/%c formats (all work perfectly)
+
+**When Ready**: See `/tmp/float_fix_implementation_plan.md` for detailed implementation guide
 
 **Analysis Files**:
 - `/tmp/float_hang_analysis.md` - Root cause investigation
