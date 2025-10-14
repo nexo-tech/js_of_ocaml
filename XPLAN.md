@@ -82,14 +82,23 @@ Printf with format specifiers hangs because `caml_format_int(fmt, i)` receives `
 **Root Cause Confirmed**:
 Lua likely missing equivalent of `parallel_renaming` or not generating parameter declarations before block body. This causes format string parameter to be undefined/nil when `caml_format_int` is called.
 
-### Phase 3: Direct Lua/JS Code Generator Comparison - [ ] (REVISED)
-- [ ] Task 3.1: Find parameter passing in lua_generate.ml
+### Phase 3: Direct Lua/JS Code Generator Comparison - [ ] IN PROGRESS (1/7 tasks)
+- [x] Task 3.1: Find parameter passing in lua_generate.ml
 - [ ] Task 3.2: Compare with JS parallel_renaming pattern
 - [ ] Task 3.3: Identify exact discrepancy
 - [ ] Task 3.4: Generate comparison examples (simple closure)
 - [ ] Task 3.5: Generate comparison examples (Printf %d)
 - [ ] Task 3.6: Document root cause with code evidence
 - [ ] Task 3.7: Design fix based on JS pattern
+
+**Results**: See `XPLAN_PHASE3_TASK1.md`
+
+**Key Findings**:
+- Found Lua parameter passing: `setup_hoisted_variables` → `setup_entry_block_arguments`
+- Entry block parameters EXCLUDED from hoisting (line 1701 in lua_generate.ml)
+- Lua generates `_V.param = arg` (assignment) vs JS `var param = arg;` (declaration)
+- Execution order: hoist → param_copy → entry_args → dispatch_loop
+- Hypothesis: Entry params not hoisted causes issues with nested closures
 
 ### Phase 4: Fix Implementation - [ ]
 - [ ] Task 4.1: Implement parameter passing fix in lua_generate.ml
