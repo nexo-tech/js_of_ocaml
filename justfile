@@ -391,3 +391,142 @@ status:
     @test -d runtime/lua && echo "✓ Present" || echo "✗ Missing"
     @echo "Tests:"
     @find _build -name "test_*.exe" -path "*/tests-lua/*" | wc -l | xargs echo "Test executables:"
+
+# =============================================================================
+# XPLAN: Systematic Printf Fix Plan
+# =============================================================================
+
+# Show XPLAN.md progress
+xplan-progress:
+    @echo "=== XPLAN.md Progress ==="
+    @echo ""
+    @echo "Completed tasks:"
+    @grep -c "^- \[x\]" XPLAN.md || echo "0"
+    @echo ""
+    @echo "Pending tasks:"
+    @grep -c "^- \[ \]" XPLAN.md || echo "0"
+    @echo ""
+    @echo "Phase status:"
+    @grep "^### Phase" XPLAN.md | sed 's/^### /  /'
+
+# Setup test files for XPLAN Phase 1
+xplan-setup-tests:
+    @echo "=== Setting up XPLAN test files ==="
+    @echo 'let () = print_endline "test"' > /tmp/xplan_test1_basic.ml
+    @echo 'let f x = fun () -> x in let g = f 42 in Printf.printf "%d\n" (g())' > /tmp/xplan_test2_closure.ml
+    @echo 'let () = Printf.printf "Hello\n"' > /tmp/xplan_test3_printf_simple.ml
+    @echo 'let () = Printf.printf "Value: %d\n" 42' > /tmp/xplan_test4_printf_format.ml
+    @echo "✓ Created 4 test files in /tmp/"
+    @ls -lh /tmp/xplan_test*.ml
+
+# Run XPLAN Phase 1 Task 1.1: Verify current build state
+xplan-phase1-task1:
+    @echo "=== XPLAN Phase 1 Task 1.1: Verify Build State ==="
+    @echo ""
+    @echo "Step 1: Clean build"
+    just clean
+    @echo ""
+    @echo "Step 2: Build all"
+    just build-lua-all
+    @echo ""
+    @echo "Step 3: Test runtime"
+    just test-runtime-all
+    @echo ""
+    @echo "✓ Phase 1 Task 1.1 complete"
+
+# Run XPLAN Phase 1 Task 1.2: Document current failure
+xplan-phase1-task2:
+    @echo "=== XPLAN Phase 1 Task 1.2: Document Failure ==="
+    @printf 'let () = Printf.printf "Hello, World!\\n"\n' > /tmp/xplan_test_printf.ml
+    @echo ""
+    @echo "Compiling and running Printf test..."
+    @just quick-test /tmp/xplan_test_printf.ml 2>&1 | tee /tmp/xplan_failure.log || true
+    @echo ""
+    @echo "Failure log saved to: /tmp/xplan_failure.log"
+    @echo ""
+    @echo "Generated Lua stats:"
+    @wc -l /tmp/quick_test.lua 2>/dev/null || echo "Compilation failed"
+    @grep -c "^function" /tmp/quick_test.lua 2>/dev/null | xargs echo "Functions:" || echo "Functions: N/A"
+
+# Run XPLAN Phase 1 Task 1.3: Test suite
+xplan-phase1-task3:
+    @echo "=== XPLAN Phase 1 Task 1.3: Test Suite ==="
+    just xplan-setup-tests
+    @echo ""
+    @for i in 1 2 3 4; do \
+        echo "=== Test $$i ==="; \
+        just quick-test /tmp/xplan_test$$i\_*.ml 2>&1 | tee /tmp/xplan_test$$i.log || true; \
+        echo ""; \
+    done
+    @echo "✓ Test logs saved to /tmp/xplan_test[1-4].log"
+
+# Run complete XPLAN Phase 1
+xplan-phase1: xplan-phase1-task1 xplan-phase1-task2 xplan-phase1-task3
+    @echo ""
+    @echo "=== XPLAN Phase 1 Complete ==="
+    @echo "Review findings and update XPLAN.md checklist"
+
+# Generate comparison files for XPLAN Phase 4
+xplan-generate-comparisons:
+    @echo "=== Generating comparison files for XPLAN Phase 4 ==="
+    @echo ""
+    @echo "Test 1: Simple program"
+    @printf 'let () = print_endline "test"\n' > /tmp/compare1.ml
+    @just make-bytecode /tmp/compare1.ml
+    @just compile-js-pretty /tmp/compare1.ml.bc /tmp/compare1.pretty.js
+    @_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe compile /tmp/compare1.ml.bc -o /tmp/compare1.lua
+    @echo "  Generated: /tmp/compare1.{lua,pretty.js}"
+    @echo ""
+    @echo "Test 2: Simple closure"
+    @printf 'let f x = fun () -> x in let g = f 42 in print_int (g())\n' > /tmp/compare2.ml
+    @just make-bytecode /tmp/compare2.ml
+    @just compile-js-pretty /tmp/compare2.ml.bc /tmp/compare2.pretty.js
+    @_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe compile /tmp/compare2.ml.bc -o /tmp/compare2.lua
+    @echo "  Generated: /tmp/compare2.{lua,pretty.js}"
+    @echo ""
+    @echo "Test 3: Nested closure"
+    @printf 'let f x = fun () -> (fun () -> x)() in let g = f 42 in print_int (g())\n' > /tmp/compare3.ml
+    @just make-bytecode /tmp/compare3.ml
+    @just compile-js-pretty /tmp/compare3.ml.bc /tmp/compare3.pretty.js
+    @_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe compile /tmp/compare3.ml.bc -o /tmp/compare3.lua
+    @echo "  Generated: /tmp/compare3.{lua,pretty.js}"
+    @echo ""
+    @echo "Test 4: Printf simple"
+    @printf 'let () = Printf.printf "Hello\\n"\n' > /tmp/compare4.ml
+    @just make-bytecode /tmp/compare4.ml
+    @just compile-js-pretty /tmp/compare4.ml.bc /tmp/compare4.pretty.js
+    @_build/default/compiler/bin-lua_of_ocaml/lua_of_ocaml.exe compile /tmp/compare4.ml.bc -o /tmp/compare4.lua 2>&1 || true
+    @echo "  Generated: /tmp/compare4.{lua,pretty.js}"
+    @echo ""
+    @echo "✓ All comparison files generated in /tmp/"
+    @ls -lh /tmp/compare*.{lua,js} 2>/dev/null | head -20
+
+# Quick check if Printf works (XPLAN success test)
+xplan-check-printf:
+    @echo "=== XPLAN Printf Check ==="
+    @printf 'let () = Printf.printf "Hello, World!\\n"\n' > /tmp/xplan_check.ml
+    @just quick-test /tmp/xplan_check.ml 2>&1 | grep -q "Hello, World!" && echo "✓ Printf simple strings WORK!" || echo "✗ Printf still broken"
+
+# Comprehensive Printf test (all format specifiers)
+xplan-test-printf-full:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "=== XPLAN Comprehensive Printf Test ==="
+    cat > /tmp/xplan_printf_full.ml << 'EOFTEST'
+    let () =
+      Printf.printf "Test 1: Simple string\n";
+      Printf.printf "Test 2: Int %d\n" 42;
+      Printf.printf "Test 3: String %s\n" "hello";
+      Printf.printf "Test 4: Multiple %d + %d = %d\n" 2 3 5;
+      Printf.printf "Test 5: Float %.2f\n" 3.14159
+    EOFTEST
+    echo "Running comprehensive Printf test..."
+    just quick-test /tmp/xplan_printf_full.ml 2>&1 | tee /tmp/xplan_printf_full.log || true
+    echo ""
+    if grep -q "Test 5:" /tmp/xplan_printf_full.log 2>/dev/null; then
+        echo "✓ All Printf tests PASSED!"
+    elif grep -q "Test 1:" /tmp/xplan_printf_full.log 2>/dev/null; then
+        echo "⚠ Partial success: Simple strings work, format specifiers broken"
+    else
+        echo "✗ Printf completely broken"
+    fi
