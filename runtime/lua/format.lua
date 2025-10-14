@@ -187,7 +187,7 @@ function caml_finish_formatting(f, rawbuffer)
 
   local result = {}
   for i = 1, #buffer do
-    result[i] = buffer:byte(i)
+    result[i - 1] = buffer:byte(i)  -- 0-based indexing
   end
   result.length = #buffer  -- Set length field for OCaml string compatibility
   return result
@@ -199,8 +199,9 @@ function caml_ocaml_string_to_lua(s)
     return s
   end
   local chars = {}
-  for i = 1, #s do
-    table.insert(chars, string.char(s[i]))
+  local len = s.length or #s  -- Use .length field, fallback to #
+  for i = 0, len - 1 do  -- 0-based loop
+    table.insert(chars, string.char(s[i] or 0))  -- Read from s[0], s[1], ...
   end
   return table.concat(chars)
 end
@@ -209,7 +210,7 @@ end
 function caml_lua_string_to_ocaml(s)
   local result = {}
   for i = 1, #s do
-    result[i] = s:byte(i)
+    result[i - 1] = s:byte(i)  -- 0-based indexing
   end
   result.length = #s
   return result

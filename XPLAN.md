@@ -227,24 +227,24 @@ See `XPLAN_PHASE4_IMPLEMENTATION.md`, `XPLAN_PHASE4_FIX.md`, `XPLAN_PHASE4_DEBUG
 ✅ Multiple formats: `Printf.printf "%d %s %c %x\n" 42 "hello" 'A' 255` → "42 hello A ff"
 ✅ Sign forcing: %+d, % d work correctly
 ✅ Alternate form: %#x, %#o work correctly
-⚠️ Width formatting: Has length calculation bug
+✅ Width formatting: **FIXED** - all width specifiers work correctly (%5d, %05d, %-5d)
 
-**Width Formatting Bug** - DEEP INVESTIGATION COMPLETE:
+**Width Formatting Bug** - ✅ FIXED (2025-10-14):
 - Symptom: `Printf.printf "|%5d|\n" 42` outputs `|    4|` instead of `|   42|`
 - JS Output: `|   42|` (correct - 5 chars, right-aligned)
-- Lua Output: `|    4|` (wrong - digit '2' is lost)
+- Lua Output: `|    4|` (wrong - digit '2' is lost) **→ NOW FIXED: `|   42|`**
 
 **Root Cause Identified**:
 - OCaml uses 0-based string indexing (s[0] = first byte)
 - Lua tables naturally use 1-based indexing (t[1] = first element)
-- Runtime has INCONSISTENT indexing strategy:
+- Runtime had INCONSISTENT indexing strategy:
   - `caml_bytes_unsafe_get(b, i)` does `b[i]` (expects 0-based tables)
-  - `caml_lua_string_to_ocaml` creates tables with `result[i] = ...` where i=1..n (1-based!)
-  - `caml_finish_formatting` creates tables with `result[i] = ...` where i=1..n (1-based!)
+  - `caml_lua_string_to_ocaml` created tables with `result[i] = ...` where i=1..n (1-based!)
+  - `caml_finish_formatting` created tables with `result[i] = ...` where i=1..n (1-based!)
 
 **The Mismatch**:
 ```lua
--- Creation (1-based):
+-- Creation (1-based - WRONG):
 for i = 1, #s do
   result[i] = s:byte(i)  -- Creates {[1]=52, [2]=50} for "42"
 end
@@ -253,24 +253,27 @@ end
 return b[i] or 0  -- OCaml get(s, 0) → Lua b[0] → nil!
 ```
 
-**Why Digit Loss Occurs**:
+**Why Digit Loss Occurred**:
 - String "  42" stored as {[1]=32, [2]=32, [3]=32, [4]=52, [5]=50}
 - OCaml code reads: get(s,0)→nil, get(s,1)→32, get(s,2)→32, get(s,3)→32, get(s,4)→52
 - Result: "    4" (lost digit '2')
 
-**Fix Complexity**:
-- Simple fix: Change table creation to 0-based (result[i-1] = ...)
-- Problem: Lua's # operator breaks with 0-indexed tables
-- Side effects: Basic Printf broke when attempted (outputs "2" instead of "42")
-- Requires: Comprehensive audit of ALL string/bytes creation + rely on .length field
-- Scope: ~10+ runtime functions need coordinated changes
+**Fix Applied** (2025-10-14):
+- Comprehensive audit of all runtime string functions (see `/tmp/fix_plan.md`)
+- Fixed 5 functions across 2 files to use 0-based indexing:
+  - `runtime/lua/format.lua`: `caml_finish_formatting`, `caml_lua_string_to_ocaml`, `caml_ocaml_string_to_lua`
+  - `runtime/lua/buffer.lua`: `caml_buffer_contents`, `caml_ocaml_string_to_lua`
+- All creation functions now use: `result[i - 1] = s:byte(i)` (0-based)
+- All reading functions now use: `s.length` instead of `#s` (Lua # breaks on 0-indexed tables)
+- Added missing `.length` field to `caml_buffer_contents`
 
-**Next Steps**:
-- Task 5.3a: Audit all OCaml string/bytes creation in runtime
-- Task 5.3b: Systematically convert to 0-based indexing
-- Task 5.3c: Ensure all code uses .length field, never #table
-- Task 5.3d: Add runtime tests for string operations
-- Workaround: Simple formats without width work fine for now
+**Tests Passed**:
+✅ Basic Printf: `Printf.printf "%d\n" 42` → "42"
+✅ Width formatting: `Printf.printf "|%5d|\n" 42` → "|   42|"
+✅ Multi-format: `Printf.printf "%d %s %x\n" 42 "hi" 255` → "42 hi ff"
+✅ Complex formats: `Printf.printf "%05d %+d %-5d\n" 42 42 42` → "00042 +42 42   "
+✅ Left-justified: `Printf.printf "|%-5d|\n" 42` → "|42   |"
+✅ All runtime tests: `just test-runtime-all` → All pass
 
 **Total Tasks**: 31 (reduced from 42 by consolidating and focusing)
 

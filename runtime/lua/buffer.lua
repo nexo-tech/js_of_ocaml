@@ -22,8 +22,9 @@ function caml_ocaml_string_to_lua(s)
     return s
   end
   local chars = {}
-  for i = 1, #s do
-    table.insert(chars, string.char(s[i]))
+  local len = s.length or #s  -- Use .length field, fallback to #
+  for i = 0, len - 1 do  -- 0-based loop
+    table.insert(chars, string.char(s[i] or 0))  -- Read from s[0], s[1], ...
   end
   return table.concat(chars)
 end
@@ -95,8 +96,9 @@ function caml_buffer_contents(buffer)
 
   local result = {}
   for i = 1, #result_str do
-    result[i] = result_str:byte(i)
+    result[i - 1] = result_str:byte(i)  -- 0-based indexing
   end
+  result.length = #result_str  -- MUST add .length field
 
   return result
 end
