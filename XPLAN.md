@@ -82,23 +82,48 @@ Printf with format specifiers hangs because `caml_format_int(fmt, i)` receives `
 **Root Cause Confirmed**:
 Lua likely missing equivalent of `parallel_renaming` or not generating parameter declarations before block body. This causes format string parameter to be undefined/nil when `caml_format_int` is called.
 
-### Phase 3: Direct Lua/JS Code Generator Comparison - [ ] IN PROGRESS (1/7 tasks)
+### Phase 3: Direct Lua/JS Code Generator Comparison - [x] COMPLETE
 - [x] Task 3.1: Find parameter passing in lua_generate.ml
-- [ ] Task 3.2: Compare with JS parallel_renaming pattern
-- [ ] Task 3.3: Identify exact discrepancy
-- [ ] Task 3.4: Generate comparison examples (simple closure)
-- [ ] Task 3.5: Generate comparison examples (Printf %d)
-- [ ] Task 3.6: Document root cause with code evidence
-- [ ] Task 3.7: Design fix based on JS pattern
+- [x] Task 3.2: Compare with JS parallel_renaming pattern
+- [x] Task 3.3: Identify exact discrepancy
+- [~] Task 3.4-3.6: SKIPPED (Already have clear evidence and root cause)
+- [x] Task 3.7: Design fix based on JS pattern
 
-**Results**: See `XPLAN_PHASE3_TASK1.md`
+**Results**: See `XPLAN_PHASE3_TASK1.md`, `XPLAN_PHASE3_TASK2.md`, `XPLAN_PHASE3_TASK3.md`, and `XPLAN_PHASE3_TASK7.md`
 
-**Key Findings**:
+**Key Findings from Task 3.1**:
 - Found Lua parameter passing: `setup_hoisted_variables` → `setup_entry_block_arguments`
 - Entry block parameters EXCLUDED from hoisting (line 1701 in lua_generate.ml)
 - Lua generates `_V.param = arg` (assignment) vs JS `var param = arg;` (declaration)
 - Execution order: hoist → param_copy → entry_args → dispatch_loop
-- Hypothesis: Entry params not hoisted causes issues with nested closures
+
+**Key Findings from Task 3.2**:
+- **ROOT CAUSE FOUND**: Variable shadowing in nested closures!
+- JS: Captured variables accessed via lexical scoping (no re-declaration)
+- Lua: Captured variables INITIALIZED TO NIL in child _V table (shadows parent!)
+- Example: `_V.v268 = nil` in nested closure shadows parent's format function
+- Bug location: `setup_hoisted_variables` doesn't distinguish captured vs local variables
+- When nested closure accesses `_V.v268`, gets nil instead of parent's value
+- Printf fails: `caml_format_int(nil, arg)` → crash
+
+**Key Findings from Task 3.3**:
+- **EXACT BUG LOCATION**: lua_generate.ml:1701-1705 in `setup_hoisted_variables`
+- Current code: `let vars_to_init = StringSet.diff all_hoisted_vars entry_block_params`
+- This initializes ALL hoisted vars (including FREE/captured vars) to nil
+- `collect_block_variables` (line 1162) already computes defined_vars vs free_vars
+- **FIX**: Only initialize DEFINED vars in nested closures, not FREE vars
+- FREE vars should be captured from parent via __index metatable
+- Modify `collect_block_variables` to return `(defined, free)` tuple
+- Update `setup_hoisted_variables` to exclude free_vars when `ctx.inherit_var_table = true`
+
+**Key Findings from Task 3.7**:
+- **COMPLETE FIX DESIGN**: Detailed implementation plan with code examples
+- Change 1: `collect_block_variables` return type from `StringSet.t` to `(StringSet.t * StringSet.t)`
+- Change 2: `setup_hoisted_variables` conditional logic - exclude free_vars in nested closures
+- Change 3: Update call sites (line 1991 in `compile_func_decl`)
+- Low risk: Just exposing already-computed information
+- Expected: Printf with %d works, nested closures work, no regressions
+- Generated code: "Hoisted variables (5 total: 3 defined, 2 free)" with only defined vars initialized
 
 ### Phase 4: Fix Implementation - [ ]
 - [ ] Task 4.1: Implement parameter passing fix in lua_generate.ml
