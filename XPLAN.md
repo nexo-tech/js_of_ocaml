@@ -125,7 +125,7 @@ Lua likely missing equivalent of `parallel_renaming` or not generating parameter
 - Expected: Printf with %d works, nested closures work, no regressions
 - Generated code: "Hoisted variables (5 total: 3 defined, 2 free)" with only defined vars initialized
 
-### Phase 4: Fix Implementation - [~] MAJOR PROGRESS - Truthiness fixed, format string bug identified!
+### Phase 4: Fix Implementation - [~] MAJOR PROGRESS - Truthiness fixed, format string bug requires IR-level fix!
 - [x] Task 4.1: Implement parameter passing fix in lua_generate.ml
 - [x] Task 4.2: Test fix with simple closure test - ✅ WORKS
 - [x] Task 4.3: Test fix with Printf simple string - ✅ WORKS
@@ -137,12 +137,13 @@ Lua likely missing equivalent of `parallel_renaming` or not generating parameter
 - [x] Task 4.9: Printf %d now executes formatter (new bug found)
 - [x] Task 4.10: Identified format string root cause - **CRITICAL FINDING!**
 - [x] Task 4.11: Analyzed format string bug in detail - **FIX PLAN READY!**
+- [x] Task 4.12: IR investigation confirms bug is in switch args - **UPSTREAM ISSUE!**
 
-**Status**: THREE bugs fixed, fourth bug ROOT CAUSE + FIX PLAN DOCUMENTED:
+**Status**: THREE bugs fixed, fourth bug CONFIRMED TO REQUIRE IR-LEVEL FIX:
 1. ✅ Variable shadowing in nested closures - FIXED (Task 4.1)
 2. ✅ Loop block parameters misclassified as free - FIXED (Task 4.5)
 3. ✅ **Lua vs JS truthiness** - FIXED (Task 4.8) **CRITICAL FIX!**
-4. 🎯 **Format string selection bug** - ROOT CAUSE FOUND (Task 4.10)
+4. ⚠️ **Format string selection bug** - REQUIRES IR FIX (Task 4.12)
 
 **Truthiness Fix Details** (Task 4.8):
 - **Root Cause**: Lua treats 0 as truthy, JS treats 0 as falsy
@@ -150,23 +151,31 @@ Lua likely missing equivalent of `parallel_renaming` or not generating parameter
 - **Fix**: Generate inline check: `v ~= false and v ~= nil and v ~= 0 and v ~= ""`
 - **Result**: Printf now returns arity-1 closure and executes formatting code!
 
-**Format String Bug** (Tasks 4.10-4.11):
-- **Root Cause**: Switch cases don't load format string constants into v316 before calling caml_format_int
-- **JS**: Each case does `var a = Z;` to load "%d", then uses `a` after switch
-- **Lua**: Each case calls `caml_format_int(v316, ...)` but v316 is never assigned!
-- **Missing**: `_V.v316 = _V.v102` (or v103, v104, etc.) at start of each case
-- **Fix Plan**: Add load instruction generation in lua_generate.ml for switch cases
-- **Constants**: v102="%d", v103="%+d", v104="% d", etc. are already defined (line 13085)
-- **Location**: test_simple.lua:18121 (v157 closure), lua_generate.ml:2575 (switch compilation)
+**Format String Bug** (Tasks 4.10-4.12):
+- **Root Cause**: Switch IR has **empty args=[]** when it should pass format string variables!
+- **IR Investigation**: Added debug output to lua_generate.ml to analyze switch compilation
+- **Finding**: Switch v9046 (convert_int) has args=[] but should pass v102, v103, v104, etc.
+- **Working Example**: Switch v9505 correctly passes args=[v2358, v2359, v2360, v2361] to target blocks
+- **Issue**: Format string variables exist but IR doesn't pass them as switch arguments
+- **JS**: Works because switch assigns format strings (`var a = Z;`) then uses after switch
+- **Lua**: Broken because dispatch loop expects format strings as block arguments
+- **Conclusion**: Bug is in **IR generation**, not Lua code generator!
+
+**Fix Options**:
+1. **Option A**: Fix IR generation (upstream in js_of_ocaml) - correct but complex
+2. **Option B**: Workaround in Lua generator - detect empty args and generate inline loads
+3. **Option C**: Transform IR to add missing args - phi node transformation
+
+**Recommended**: Option B for quick fix, investigate Option A long-term
 
 **Working**: print_endline, print_int, simple closures, Printf simple strings, Printf arity selection
-**Broken**: Printf format string selection - code generator doesn't generate the switch logic
+**Broken**: Printf format string selection - **IR doesn't pass format strings as switch args**
 
 **Error**: `attempt to get length of local 's' (a nil value)` in `caml_format_int(nil, 42)`
 
-**Progress**: Three major bugs fixed! Printf executes correctly up to format string selection. Just need to fix format string constant selection logic in code generator.
+**Progress**: Three major bugs fixed! Printf executes correctly up to format string selection. Format string bug confirmed to be IR-level issue, not just code generator.
 
-See `XPLAN_PHASE4_IMPLEMENTATION.md`, `XPLAN_PHASE4_FIX.md`, `XPLAN_PHASE4_DEBUGGING.md`, `XPLAN_PHASE4_ARITY_BUG.md`, `XPLAN_PHASE4_TRUTHINESS_BUG.md`, `XPLAN_PHASE4_FORMAT_STRING_BUG.md`, and `XPLAN_PHASE4_FORMAT_FIX_PLAN.md`.
+See `XPLAN_PHASE4_IMPLEMENTATION.md`, `XPLAN_PHASE4_FIX.md`, `XPLAN_PHASE4_DEBUGGING.md`, `XPLAN_PHASE4_ARITY_BUG.md`, `XPLAN_PHASE4_TRUTHINESS_BUG.md`, `XPLAN_PHASE4_FORMAT_STRING_BUG.md`, `XPLAN_PHASE4_FORMAT_FIX_PLAN.md`, and `XPLAN_PHASE4_FORMAT_FIX_INVESTIGATION.md`.
 
 ### Phase 5: Validation & Polish - [ ]
 - [ ] Task 5.1: Test all Printf format specifiers (%d, %s, %f, etc.)
