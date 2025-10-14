@@ -1835,6 +1835,34 @@ and setup_entry_block_arguments ctx program start_addr entry_args func_params =
     @return List of Lua statements
 *)
 and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt switch_cases params func_params entry_args =
+  (* Task 5.3k.1: Collect all blocks needed for dispatch loop (including continuations).
+     Float format case (case 8) has blocks with Cond terminators that reference
+     continuation blocks (572/573). These must be included in the dispatch loop! *)
+  let rec collect_continuation_blocks visited addrs_to_visit =
+    match addrs_to_visit with
+    | [] -> visited
+    | addr :: rest ->
+        if Code.Addr.Set.mem addr visited then
+          collect_continuation_blocks visited rest
+        else
+          match Code.Addr.Map.find_opt addr program.Code.blocks with
+          | None -> collect_continuation_blocks visited rest
+          | Some block ->
+              let visited = Code.Addr.Set.add addr visited in
+              let successors = match block.Code.branch with
+                | Code.Return _ | Code.Raise _ | Code.Stop -> []
+                | Code.Branch (next, _) -> [next]
+                | Code.Cond (_, (t, _), (f, _)) -> [t; f]
+                | Code.Switch (_, conts) -> Array.to_list conts |> List.map ~f:fst
+                | Code.Pushtrap ((c, _), _, (h, _)) -> [c; h]
+                | Code.Poptrap (a, _) -> [a]
+              in
+              collect_continuation_blocks visited (successors @ rest)
+  in
+
+  let initial_addrs = Array.to_list switch_cases |> List.map ~f:fst in
+  let all_dispatch_blocks = collect_continuation_blocks Code.Addr.Set.empty initial_addrs in
+
   (* Task 3.3.1: Setup hoisted variables *)
   let hoist_stmts, use_table = setup_hoisted_variables ctx program entry_addr in
 
@@ -2049,9 +2077,41 @@ and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt
           [ L.If (condition, case_body, Some else_branch) ]
   in
 
+  (*Task 5.3k.1: Generate dispatch cases for continuation blocks (e.g. 572/573).
+     Some switch cases have Cond/Branch terminators that set `_next_block = 572`.
+     These continuation blocks need their own dispatch cases in the loop! *)
+  let generate_continuation_dispatch () =
+    (* Find blocks that are reachable but not switch cases *)
+    let switch_case_addrs = Array.to_list switch_cases |> List.map ~f:fst |> Code.Addr.Set.of_list in
+    let continuation_addrs = Code.Addr.Set.diff all_dispatch_blocks switch_case_addrs
+                            |> Code.Addr.Set.elements in
+
+    (* Generate if-elseif chain for continuation blocks using _next_block *)
+    let rec generate_cont_cases addrs =
+      match addrs with
+      | [] -> []
+      | addr :: rest ->
+          match Code.Addr.Map.find_opt addr program.Code.blocks with
+          | None -> generate_cont_cases rest
+          | Some block ->
+              let condition = L.BinOp (L.Eq, L.Ident "_next_block", L.Number (string_of_int addr)) in
+              let body_stmts = generate_instrs ctx block.Code.body in
+              let term_stmts = generate_last_dispatch ctx block.Code.branch in
+              let case_body = body_stmts @ term_stmts in
+              let else_branch = generate_cont_cases rest in
+              [ L.If (condition, case_body, Some else_branch) ]
+    in
+    generate_cont_cases continuation_addrs
+  in
+
   (* Task 3.3.3: Wrap everything in while loop with entry block logic first *)
   let switch_stmt = generate_switch_cases 0 in
-  let loop_body = entry_dispatcher_stmts @ switch_stmt in
+  let continuation_dispatch = generate_continuation_dispatch () in
+
+  (* Task 5.3k.1: Initialize _next_block for continuation dispatch *)
+  let init_next_block = [ L.Assign ([L.Ident "_next_block"], [L.Number "-1"]) ] in
+
+  let loop_body = init_next_block @ entry_dispatcher_stmts @ switch_stmt @ continuation_dispatch in
   let dispatch_loop_stmts = [ L.While (L.Bool true, loop_body) ] in
 
   (* Task 3.3.1: Combine in correct order (matches compile_address_based_dispatch) *)
