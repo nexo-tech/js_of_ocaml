@@ -214,14 +214,50 @@ See `XPLAN_PHASE4_IMPLEMENTATION.md`, `XPLAN_PHASE4_FIX.md`, `XPLAN_PHASE4_DEBUG
 ✅ Char format: %c works correctly
 ⚠️ Float formats: %f, %e, %g cause infinite loop/hang
 
-**Float Format Investigation**:
-- Symptom: Program hangs (times out) with Printf "%f"
-- JS Output: Works correctly - "Float %f: 3.140000"
-- Lua Behavior: Infinite loop in format string construction
-- Root Cause: Float format uses complex closure dispatch (v154) to build format string
-- Unlike integers: No simple switch/constant mapping, uses dynamic construction
-- Next Steps: Requires deeper investigation of format closure dispatch logic
-- Workaround: Float formats not yet supported, integers/strings/chars work fine
+**Float Format Investigation** - 🔍 ACTIVE (2025-10-14):
+
+**Symptom**:
+- `Printf.printf "%f\n" 3.14` hangs with infinite loop (timeout after 5+ seconds)
+- JS Output: `3.140000` (works correctly, instant)
+- Lua Output: Infinite loop/hang
+
+**Key Observations**:
+1. **Multiple caml_format_float definitions**:
+   - Line 4316: First definition (from format fragment)
+   - Line 5291: Second definition (from float fragment)
+   - Linker warning: "caml_format_float provided by multiple fragments"
+
+2. **Generated Code Pattern** (lines 21104-21132 in /tmp/test_float.lua):
+   ```lua
+   _V.v184 = 3.1400000000000001  -- Float value
+   _V.v180 = _V.v185[2]          -- Format string component
+   _V.v182 = caml_make_closure(...)  -- Closure for output
+   _V.v183 = _V.v166(_V.v182, _V.v181, _V.v180)  -- Build Printf chain
+   _V.v183(_V.v184)  -- THIS LIKELY HANGS
+   ```
+
+3. **Difference from Integer Formats**:
+   - Integer formats use direct dispatch via switch tables (working)
+   - Float format uses dynamic closure construction via v154/v166
+   - More complex CPS (Continuation Passing Style) chain
+
+**Root Cause Hypotheses**:
+- **H1**: Infinite loop in closure dispatch (v166 function)
+- **H2**: Missing format string in closure chain (similar to Phase 4 bug)
+- **H3**: Bug in one of the two caml_format_float implementations
+
+**Investigation Plan**:
+- [ ] Task 5.3a: Add debug prints to /tmp/test_float.lua to identify hang location
+- [ ] Task 5.3b: Compile to JS with --pretty --debuginfo, compare closure structure
+- [ ] Task 5.3c: Trace v166 → v183 → v184 closure dispatch chain
+- [ ] Task 5.3d: Verify format string "%f\n" propagation through closures
+- [ ] Task 5.3e: Examine both caml_format_float implementations (lines 4316, 5291)
+- [ ] Task 5.3f: Compare with working %d format closure dispatch
+- [ ] Task 5.3g: Reference js_of_ocaml Printf float handling
+- [ ] Task 5.3h: Implement fix based on JS pattern
+- [ ] Task 5.3i: Test all float formats (%f, %e, %g, %E, %F, %G)
+
+**Workaround**: Float formats not yet supported, integers/strings/chars work fine
 
 **Task 5.2 Results** (Complex Printf Patterns):
 ✅ Multiple formats: `Printf.printf "%d %s %c %x\n" 42 "hello" 'A' 255` → "42 hello A ff"
