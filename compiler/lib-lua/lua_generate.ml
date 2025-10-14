@@ -1699,9 +1699,14 @@ and setup_hoisted_variables ctx program start_addr =
           StringSet.add (var_name ctx param) acc)
   in
 
-  (* All hoisted vars = defined + free + loop params *)
-  let all_hoisted_vars =
-    StringSet.union (StringSet.union defined_vars free_vars) loop_block_params in
+  (* CRITICAL FIX: Loop block params may have been classified as free_vars
+     by collect_block_variables (since they're used but not assigned by Let/Assign).
+     But they're actually LOCAL to this closure, not free! Reclassify them. *)
+  let free_vars = StringSet.diff free_vars loop_block_params in
+  let defined_vars = StringSet.union defined_vars loop_block_params in
+
+  (* All hoisted vars = defined (including loop params) + free *)
+  let all_hoisted_vars = StringSet.union defined_vars free_vars in
   let total_vars = StringSet.cardinal all_hoisted_vars in
   let use_table =
     if ctx.inherit_var_table then ctx.use_var_table
@@ -1715,10 +1720,9 @@ and setup_hoisted_variables ctx program start_addr =
       (* CRITICAL FIX: Different logic for nested vs top-level closures *)
       let vars_to_init =
         if ctx.inherit_var_table then
-          (* NESTED CLOSURE: Only initialize DEFINED vars + loop params
+          (* NESTED CLOSURE: Only initialize DEFINED vars (includes loop params now)
              Exclude FREE vars - they'll be captured from parent via __index *)
-          let local_vars = StringSet.union defined_vars loop_block_params in
-          StringSet.diff local_vars entry_block_params
+          StringSet.diff defined_vars entry_block_params
         else
           (* TOP-LEVEL: Initialize all vars (no parent to capture from) *)
           StringSet.diff all_hoisted_vars entry_block_params
@@ -2028,7 +2032,6 @@ and compile_blocks_with_labels ctx program start_addr ?(params = []) ?(entry_arg
 and compile_address_based_dispatch ctx program start_addr params entry_args func_params () =
   (* Collect all variables that need hoisting *)
   let (defined_vars, free_vars) = collect_block_variables ctx program start_addr in
-  let hoisted_vars = StringSet.union defined_vars free_vars in
 
   (* Detect loop headers to identify block arguments that need initialization *)
   let loop_headers = detect_loop_headers program start_addr in
@@ -2057,8 +2060,14 @@ and compile_address_based_dispatch ctx program start_addr params entry_args func
           StringSet.add (var_name ctx param) acc)
   in
 
-  (* Combine regular hoisted vars with loop block parameters *)
-  let all_hoisted_vars = StringSet.union hoisted_vars loop_block_params in
+  (* CRITICAL FIX: Loop block params may have been classified as free_vars
+     by collect_block_variables (since they're used but not assigned by Let/Assign).
+     But they're actually LOCAL to this closure, not free! Reclassify them. *)
+  let free_vars = StringSet.diff free_vars loop_block_params in
+  let defined_vars = StringSet.union defined_vars loop_block_params in
+
+  (* All hoisted vars = defined (including loop params) + free *)
+  let all_hoisted_vars = StringSet.union defined_vars free_vars in
 
   (* DEBUG: Print collected variables *)
   if !debug_var_collect then
@@ -2089,10 +2098,9 @@ and compile_address_based_dispatch ctx program start_addr params entry_args func
       (* CRITICAL FIX: Different logic for nested vs top-level closures *)
       let vars_to_init =
         if ctx.inherit_var_table then
-          (* NESTED CLOSURE: Only initialize DEFINED vars + loop params
+          (* NESTED CLOSURE: Only initialize DEFINED vars (includes loop params now)
              Exclude FREE vars - they'll be captured from parent via __index *)
-          let local_vars = StringSet.union defined_vars loop_block_params in
-          StringSet.diff local_vars entry_block_params
+          StringSet.diff defined_vars entry_block_params
         else
           (* TOP-LEVEL: Initialize all vars (no parent to capture from) *)
           StringSet.diff all_hoisted_vars entry_block_params

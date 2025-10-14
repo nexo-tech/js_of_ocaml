@@ -125,17 +125,23 @@ Lua likely missing equivalent of `parallel_renaming` or not generating parameter
 - Expected: Printf with %d works, nested closures work, no regressions
 - Generated code: "Hoisted variables (5 total: 3 defined, 2 free)" with only defined vars initialized
 
-### Phase 4: Fix Implementation - [~] IMPLEMENTED BUT NEEDS DEBUGGING
+### Phase 4: Fix Implementation - [~] PARTIAL SUCCESS - Printf format specifiers still hang
 - [x] Task 4.1: Implement parameter passing fix in lua_generate.ml
-- [~] Task 4.2: Test fix with simple closure test - HANGS
-- [~] Task 4.3: Test fix with Printf simple string - print_endline WORKS
-- [~] Task 4.4: Test fix with Printf %d format specifier - HANGS
-- [ ] Task 4.5: Debug why programs hang despite fix being applied
-- [ ] Task 4.6: Run full test suite
+- [x] Task 4.2: Test fix with simple closure test - ✅ WORKS
+- [x] Task 4.3: Test fix with Printf simple string - ✅ WORKS
+- [~] Task 4.4: Test fix with Printf %d format specifier - ❌ HANGS
+- [x] Task 4.5: Fixed loop block parameter classification bug
+- [ ] Task 4.6: Debug Printf format specifier hanging issue
 - [x] Task 4.7: Document fix implementation
 
-**Status**: Fix implemented in both code paths, compiles successfully, but programs with closures hang.
-See `XPLAN_PHASE4_IMPLEMENTATION.md` for details.
+**Status**: Two bugs fixed:
+1. ✅ Variable shadowing in nested closures - FIXED
+2. ✅ Loop block parameters misclassified as free - FIXED
+
+**Working**: print_endline, simple closures, Printf without format specifiers
+**Still Broken**: Printf with format specifiers (%d, %s, etc.) - hangs in infinite loop
+
+See `XPLAN_PHASE4_IMPLEMENTATION.md` and `XPLAN_PHASE4_FIX.md` for details.
 
 ### Phase 5: Validation & Polish - [ ]
 - [ ] Task 5.1: Test all Printf format specifiers (%d, %s, %f, etc.)
