@@ -251,18 +251,61 @@ See `XPLAN_PHASE4_IMPLEMENTATION.md`, `XPLAN_PHASE4_FIX.md`, `XPLAN_PHASE4_DEBUG
 - [x] Task 5.3b: Compile to JS with --pretty --debuginfo, compare closure structure
 - [x] Task 5.3c-e: SKIPPED - Root cause found in Task 5.3f
 - [x] Task 5.3f: Compare with working %d format dispatch - **ROOT CAUSE FOUND**
-- [ ] Task 5.3g: Study js_of_ocaml code generator Printf dispatch
-- [ ] Task 5.3h: Fix Lua code generator case 8 handling
-- [ ] Task 5.3i: Test all float formats (%f, %e, %g, %E, %F, %G)
+- [x] Task 5.3g: Study js_of_ocaml Printf dispatch - **JS PATTERN IDENTIFIED**
+- [x] Task 5.3h: Analyze Lua code generator - **BLOCKS 572/573 DON'T EXIST**
+- [ ] Task 5.3i: Implement fix (deferred - requires deeper IR analysis)
+- [ ] Task 5.3j: Test all float formats (%f, %e, %g, %E, %F, %G)
 
-**ROOT CAUSE IDENTIFIED** (2025-10-14):
+**ROOT CAUSE IDENTIFIED** (2025-10-14 - Tasks 5.3a-f complete):
 - **Location**: Generated dispatch code in v202 function (line ~19527 in .lua)
-- **Bug**: Case 8 (float) sets `_next_block` but doesn't return
+- **Bug**: Case 8 (float) sets `_next_block = 572/573` but these blocks don't exist
 - **Behavior**: Falls through to cases 9, 10, 11..., creating infinite loop
-- **Comparison**: Case 4 (integer) calls formatter and returns immediately ✅
-- **Fix needed**: Code generator in `compiler/lib-lua/lua_generate.ml`
+- **Comparison**: Case 4 (integer) calls formatter (v169) and returns immediately ✅
 
-**Details**: See `/tmp/float_hang_analysis.md` for complete investigation
+**DEEPER ANALYSIS** (Tasks 5.3g-h - 2025-10-14):
+
+**JS vs Lua Pattern**:
+```javascript
+// JS (works):
+case 8:
+  break d;  // Breaks to label 'd', continues after label
+// After label 'd' closes:
+var k = f[4], m = f[3], p = f[2], j = f[1];
+// ... complex float formatting logic with o() and l() functions
+return function(b){return a(i, [4, h, o(j, ac, b)], k);};
+```
+
+```lua
+-- Lua (hangs):
+if _V.v405 == 8 then
+  _V.v350 = _V.v481[5]  -- Extracts f[4], f[3], f[2], f[1]
+  _V.v351 = _V.v481[4]
+  _V.v352 = _V.v481[3]
+  _V.v353 = _V.v481[2]
+  _next_block = 572/573  -- ❌ Blocks don't exist!
+  -- ❌ No continuation code, falls through
+end
+```
+
+**The Real Problem**:
+- JS uses labeled breaks to jump to continuation code
+- Lua sets _next_block to non-existent blocks (572/573)
+- Highest block numbers in generated code: ~836
+- Blocks 572/573 simply don't exist → infinite loop
+- This is a **bytecode structure issue** the Lua generator doesn't handle
+
+**Fix Complexity**: MODERATE-HIGH
+- Requires understanding Printf bytecode continuation structure
+- Options:
+  1. Inline float handler (like JS after label 'd')
+  2. Fix block generation to include 572/573
+  3. Runtime detection and fallback
+- Recommended: Study IR blocks to find where 572/573 should come from
+- May need significant code generator changes
+
+**Analysis Files**:
+- `/tmp/float_hang_analysis.md` - Root cause investigation
+- `/tmp/float_fix_analysis.md` - Task 5.3g findings (JS vs Lua patterns)
 
 **Workaround**: Float formats not yet supported, integers/strings/chars work fine
 
