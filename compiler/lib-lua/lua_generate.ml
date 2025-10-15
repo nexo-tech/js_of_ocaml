@@ -2280,10 +2280,15 @@ and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt
   let switch_stmt = generate_switch_cases 0 in
   let continuation_dispatch = generate_continuation_dispatch () in
 
-  (* Task 5.3k.1: Initialize _next_block for continuation dispatch *)
-  let init_next_block = [ L.Assign ([L.Ident "_next_block"], [L.Number "-1"]) ] in
+  (* Task 5.3k.1 FIX: DON'T reset _next_block inside while loop!
+     Bug: `_next_block = -1` was executed on EVERY loop iteration, preventing
+     continuation blocks from progressing (e.g., block 573 sets _next_block = 574,
+     but loop restart resets it to -1, causing infinite loop 572↔573).
 
-  let loop_body = init_next_block @ entry_dispatcher_stmts @ switch_stmt @ continuation_dispatch in
+     Solution: Remove _next_block = -1 from loop body. Entry logic and switch cases
+     set _next_block as needed. Continuation dispatch uses those values.
+     This matches how JS handles continuation: inline code after labeled break. *)
+  let loop_body = entry_dispatcher_stmts @ switch_stmt @ continuation_dispatch in
   let dispatch_loop_stmts = [ L.While (L.Bool true, loop_body) ] in
 
   (* Task 3.3.1: Combine in correct order (matches compile_address_based_dispatch) *)
