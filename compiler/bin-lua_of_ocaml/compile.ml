@@ -43,17 +43,28 @@ let run { Cmd_arg.common; bytecode; output_file; params; include_dirs; linkall; 
   let enable_source_map = match source_map with `No -> false | _ -> true in
   let need_debug = enable_source_map || Config.Flag.debuginfo () in
 
-  (* Load and link bytecode *)
+  (* Load and link bytecode - matches js_of_ocaml approach (bin-js_of_ocaml/compile.ml:407-440) *)
   let one =
     let ic = open_in_bin bytecode in
+    (* First, detect the file kind using from_channel *)
+    let kind = Parse_bytecode.from_channel ic in
     let result =
-      Parse_bytecode.from_exe
-        ~includes:include_dirs
-        ~linkall
-        ~link_info:false
-        ~include_cmis:false
-        ~debug:need_debug
-        ic
+      match kind with
+      | `Exe ->
+          (* Executable bytecode - parse with from_exe *)
+          Parse_bytecode.from_exe
+            ~includes:include_dirs
+            ~linkall
+            ~link_info:false
+            ~include_cmis:false
+            ~debug:need_debug
+            ic
+      | `Cmo _ | `Cma _ ->
+          (* Object file or library - these need special handling.
+             For now, fail with a clear error message. *)
+          failwith (Printf.sprintf "Cannot compile %s files directly. Use ocamlc to create an executable first: ocamlc -o program.byte %s"
+                      (match kind with `Cmo _ -> ".cmo" | `Cma _ -> ".cma" | `Exe -> "")
+                      bytecode)
     in
     close_in ic;
     result
