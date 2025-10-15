@@ -1849,9 +1849,15 @@ and setup_entry_block_arguments ctx program start_addr entry_args func_params =
     @return List of Lua statements
 *)
 and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt switch_cases params func_params entry_args =
-  if !debug_var_collect then
+  if !debug_var_collect then (
     Format.eprintf "[DATA-DISPATCH] Starting data-driven dispatch for entry=%d, switch_cases count=%d@."
       entry_addr (Array.length switch_cases);
+    if entry_addr = 801 then (
+      Printf.eprintf "[DATA-DISPATCH] Entry 801 switch cases:\n%!";
+      Array.iteri switch_cases ~f:(fun i (addr, _) ->
+        Printf.eprintf "  Case %d → block %d\n%!" i addr);
+    )
+  );
   (* Task 5.3k.1: Collect all blocks needed for dispatch loop (including continuations).
      Float format case (case 8) has blocks with Cond terminators that reference
      continuation blocks (572/573). These must be included in the dispatch loop! *)
@@ -2087,6 +2093,8 @@ and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt
       []
     else
       let (target_addr, _case_args) = switch_cases.(idx) in
+      if !debug_var_collect && target_addr = 592 then
+        Printf.eprintf "[SWITCH-CASE-592] Generating switch case for block 592 (idx=%d)\n%!" idx;
       match Code.Addr.Map.find_opt target_addr program.Code.blocks with
       | None -> generate_switch_cases (idx + 1)
       | Some target_block ->
@@ -2153,8 +2161,69 @@ and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt
   let generate_continuation_dispatch () =
     (* Find blocks that are reachable but not switch cases *)
     let switch_case_addrs = Array.to_list switch_cases |> List.map ~f:fst |> Code.Addr.Set.of_list in
-    let continuation_addrs = Code.Addr.Set.diff all_dispatch_blocks switch_case_addrs
-                            |> Code.Addr.Set.elements in
+
+    if !debug_var_collect && entry_addr = 801 then
+      Printf.eprintf "[DEBUG] Entry 801 raw switch_case_addrs from array: [%s]\n%!"
+        (String.concat ~sep:"," (Code.Addr.Set.elements switch_case_addrs |> List.map ~f:string_of_int));
+
+    (* Task 5.3k.1 FIX: Exclude dispatcher, entry, and true-branch blocks from continuations!
+       For Cond-based dispatch, entry block has: Cond → true=X, false=dispatcher.
+       These blocks are generated INLINE in entry block logic, not as _next_block dispatch.
+
+       Structure (see line 2022):
+         entry_body_stmts @ [ L.If (cond_expr, true_branch_stmts, None) ] @ false_branch_stmts
+
+       Entry block (801), true branch (593), and dispatcher (592) are ALL inline.
+       Must exclude them from continuation dispatch to prevent:
+       1. Duplicate generation (blocks generated twice)
+       2. Infinite loops (dispatcher's Switch sets _next_block to switch cases) *)
+    let inline_blocks =
+      match tag_var_opt with
+      | Some _ ->
+          (* Cond-based: exclude entry, true branch, and dispatcher *)
+          (match Code.Addr.Map.find_opt entry_addr program.Code.blocks with
+           | Some entry_block ->
+               (match entry_block.Code.branch with
+                | Code.Cond (_, (true_addr, _), (false_addr, _)) ->
+                    Code.Addr.Set.of_list [entry_addr; true_addr; false_addr]
+                | _ -> Code.Addr.Set.singleton entry_addr)
+           | None -> Code.Addr.Set.singleton entry_addr)
+      | None ->
+          (* Switch-based: only exclude entry block *)
+          Code.Addr.Set.singleton entry_addr
+    in
+
+    let after_switch_diff = Code.Addr.Set.diff all_dispatch_blocks switch_case_addrs in
+    if !debug_var_collect && entry_addr = 801 then
+      Printf.eprintf "[DEBUG] Entry 801 after removing switch cases: %d blocks = [%s]\n%!"
+        (Code.Addr.Set.cardinal after_switch_diff)
+        (String.concat ~sep:"," (Code.Addr.Set.elements after_switch_diff |> List.map ~f:string_of_int));
+
+    let after_inline_diff = Code.Addr.Set.diff after_switch_diff inline_blocks in
+    if !debug_var_collect && entry_addr = 801 then
+      Printf.eprintf "[DEBUG] Entry 801 after removing inline blocks: %d blocks = [%s]\n%!"
+        (Code.Addr.Set.cardinal after_inline_diff)
+        (String.concat ~sep:"," (Code.Addr.Set.elements after_inline_diff |> List.map ~f:string_of_int));
+
+    let continuation_addrs = Code.Addr.Set.elements after_inline_diff in
+
+    if !debug_var_collect then (
+      Printf.eprintf "[CONTINUATION] Continuation blocks: %d (excluding %d switch cases, %d inline blocks)\n%!"
+        (List.length continuation_addrs)
+        (Code.Addr.Set.cardinal switch_case_addrs)
+        (Code.Addr.Set.cardinal inline_blocks);
+      if entry_addr = 801 then (
+        Printf.eprintf "[CONTINUATION] Entry 801 continuation blocks: [%s]\n%!"
+          (String.concat ~sep:"," (List.map ~f:string_of_int continuation_addrs));
+        Printf.eprintf "[CONTINUATION] Entry 801 switch_case_addrs: [%s]\n%!"
+          (String.concat ~sep:"," (Code.Addr.Set.elements switch_case_addrs |> List.map ~f:string_of_int));
+        Printf.eprintf "[CONTINUATION] Entry 801 inline_blocks: [%s]\n%!"
+          (String.concat ~sep:"," (Code.Addr.Set.elements inline_blocks |> List.map ~f:string_of_int));
+        Printf.eprintf "[CONTINUATION] Entry 801 all_dispatch_blocks (%d): [%s]\n%!"
+          (Code.Addr.Set.cardinal all_dispatch_blocks)
+          (String.concat ~sep:"," (Code.Addr.Set.elements all_dispatch_blocks |> List.map ~f:string_of_int));
+      )
+    );
 
     (* Generate if-elseif chain for continuation blocks using _next_block *)
     let rec generate_cont_cases addrs =
@@ -2164,9 +2233,37 @@ and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt
           match Code.Addr.Map.find_opt addr program.Code.blocks with
           | None -> generate_cont_cases rest
           | Some block ->
+              if !debug_var_collect && addr = 592 then
+                Printf.eprintf "[CONTINUATION-592] Generating continuation block 592, terminator type: %s\n%!"
+                  (match block.Code.branch with
+                   | Code.Switch (_,conts) -> Printf.sprintf "Switch with %d targets" (Array.length conts)
+                   | Code.Cond _ -> "Cond"
+                   | Code.Branch _ -> "Branch"
+                   | Code.Return _ -> "Return"
+                   | _ -> "Other");
               let condition = L.BinOp (L.Eq, L.Ident "_next_block", L.Number (string_of_int addr)) in
               let body_stmts = generate_instrs ctx block.Code.body in
-              let term_stmts = generate_last_dispatch ctx block.Code.branch in
+
+              (* Task 5.3k.1 FIX: Handle back-edges to entry specially!
+                 When continuation block branches back to entry_addr, DON'T set _next_block.
+                 Just update entry block params and let loop restart naturally.
+                 This matches generate_switch_cases behavior (line 2125). *)
+              let term_stmts = match block.Code.branch with
+                | Code.Branch (cont_addr, cont_args) when cont_addr = entry_addr ->
+                    (* Back-edge to entry: update entry params and continue loop *)
+                    let entry_params = match Code.Addr.Map.find_opt entry_addr program.Code.blocks with
+                      | Some entry_block -> entry_block.Code.params
+                      | None -> []
+                    in
+                    let param_arg_pairs = List.combine entry_params cont_args in
+                    List.map param_arg_pairs ~f:(fun (param, arg) ->
+                      L.Assign ([var_ident ctx param], [var_ident ctx arg]))
+                    (* No _next_block assignment - loop restarts at top *)
+                | _ ->
+                    (* Not a back-edge - generate normally *)
+                    generate_last_dispatch ctx block.Code.branch
+              in
+
               let case_body = body_stmts @ term_stmts in
               let else_branch = generate_cont_cases rest in
               [ L.If (condition, case_body, Some else_branch) ]
@@ -2514,6 +2611,10 @@ and compile_address_based_dispatch ctx program start_addr params entry_args func
   (* Build list of blocks sorted by address *)
   let sorted_blocks = reachable |> Code.Addr.Set.elements |> List.sort ~cmp:compare in
 
+  if !debug_var_collect && Code.Addr.Set.mem 592 reachable then
+    Printf.eprintf "[ADDRESS-BASED] Closure start=%d contains block 592 (%d reachable blocks)\n%!"
+      start_addr (Code.Addr.Set.cardinal reachable);
+
   (* Generate code for each block with dispatch-based control flow (Lua 5.1 compatible) *)
   let block_cases =
     sorted_blocks
@@ -2521,6 +2622,14 @@ and compile_address_based_dispatch ctx program start_addr params entry_args func
          match Code.Addr.Map.find_opt addr program.Code.blocks with
          | None -> (addr, [])
          | Some block ->
+             if !debug_var_collect && addr = 592 then
+               Printf.eprintf "[BLOCK-592] Generating block 592, terminator type: %s\n%!"
+                 (match block.Code.branch with
+                  | Code.Switch (_,conts) -> Printf.sprintf "Switch with %d targets" (Array.length conts)
+                  | Code.Cond _ -> "Cond"
+                  | Code.Branch _ -> "Branch"
+                  | Code.Return _ -> "Return"
+                  | _ -> "Other");
              let body = generate_instrs ctx block.Code.body in
              let terminator = generate_last_dispatch ctx block.Code.branch in
              (addr, body @ terminator))
@@ -2767,6 +2876,10 @@ and generate_last_dispatch ctx last =
       let else_stmts = pass_false @ [ set_false ] in
       [ L.If (cond_expr, then_stmts, Some else_stmts) ]
   | Code.Switch (var, conts) ->
+      if !debug_var_collect then
+        Printf.eprintf "[SWITCH] Processing Switch with %d targets, ctx.program=%s\n%!"
+          (Array.length conts)
+          (match ctx.program with None -> "None" | Some _ -> "Some");
       let switch_var = var_ident ctx var in
 
       (* Detect convert_int-style switches that need format string assignments.
@@ -2824,10 +2937,28 @@ and generate_last_dispatch ctx last =
          This matches JS behavior where non-existent Switch targets are effectively unreachable. *)
       let grouped_filtered =
         match ctx.program with
-        | None -> grouped  (* No program context - keep all (shouldn't happen) *)
+        | None ->
+            if !debug_var_collect then
+              Printf.eprintf "[SWITCH-FILTER] WARNING: ctx.program is None, cannot filter! Keeping all %d groups\n%!" (List.length grouped);
+            grouped  (* No program context - keep all (shouldn't happen) *)
         | Some program ->
-            List.filter grouped ~f:(fun (addr, _args, _indices) ->
+            if !debug_var_collect then (
+              Printf.eprintf "[SWITCH-FILTER] Switch has %d groups before filter\n%!" (List.length grouped);
+              List.iter grouped ~f:(fun (addr, _, indices) ->
+                let exists = Code.Addr.Map.mem addr program.Code.blocks in
+                Printf.eprintf "[SWITCH-FILTER]   Group: addr=%d, indices=[%s], exists=%b\n%!"
+                  addr
+                  (String.concat ~sep:"," (List.map ~f:string_of_int indices))
+                  exists);
+            );
+            let filtered = List.filter grouped ~f:(fun (addr, _args, _indices) ->
               Code.Addr.Map.mem addr program.Code.blocks)
+            in
+            if !debug_var_collect then
+              Printf.eprintf "[SWITCH-FILTER] After filter: %d groups (filtered out %d)\n%!"
+                (List.length filtered)
+                (List.length grouped - List.length filtered);
+            filtered
       in
 
       (* Format string mapping from JS convert_int function (see test_simple.ml.pretty.js:7226)
@@ -3432,7 +3563,9 @@ let generate_module ctx program module_name =
     @param debug Enable debug output
     @return Lua program (list of statements)
 *)
-let generate ~debug program = generate_standalone (make_context_with_program ~debug program) program
+let generate ~debug program =
+  Printf.eprintf "=== GENERATE START: debug_var_collect=%b, debug=%b ===\n%!" !debug_var_collect debug;
+  generate_standalone (make_context_with_program ~debug program) program
 
 (** Generate Lua module code
     Entry point for separate module compilation
