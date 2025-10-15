@@ -256,9 +256,31 @@ See `XPLAN_PHASE4_IMPLEMENTATION.md`, `XPLAN_PHASE4_FIX.md`, `XPLAN_PHASE4_DEBUG
 - [x] Task 5.3i: IR analysis - **BLOCKS MISSING FROM GENERATED CODE** (gap 562→588)
 - [x] Task 5.3j: Implementation analysis - **DEFERRED** (6-12hr effort, see plan)
 - [x] Task 5.3k: Debug investigation - **ROOT CAUSE FOUND!** (data-driven dispatch bug)
-- [ ] Task 5.3k.1: Include continuation blocks in data-driven dispatch loop
-- [ ] Task 5.3k.2: Test float formats (%f, %e, %g, %E, %F, %G)
-- [ ] Task 5.3k.3: Verify all Printf patterns still work
+- [x] Task 5.3k.1: **DISPATCH INFRASTRUCTURE FIXED** - All blocks have dispatch cases
+- [ ] Task 5.3k.2: Implement float formatting runtime (caml_format_float_printf)
+- [ ] Task 5.3k.3: Test float formats (%f, %e, %g, %E, %F, %G)
+- [ ] Task 5.3k.4: Verify all Printf patterns still work
+
+**DISPATCH INFRASTRUCTURE FIX** (Task 5.3k.1 - 2025-10-15 - COMPLETE):
+
+**Problem**: Missing dispatch cases for blocks 246, 248, 383 (×18), 448 (×28), 827, 828
+**Solution** (commit 16ba19a3): Two fixes to block collection in data-driven dispatch:
+1. Don't exclude switch cases from continuation (they can be referenced by both tag AND _next_block)
+2. Collect from true branch terminator (true branch may reference continuation blocks)
+
+**Bisection Testing**:
+- Fix #1 alone: SAFE ✓
+- Fix #2 alone: SAFE ✓
+- Fix #3 (break in empty continuation): BREAKS %d ✗
+- Final: Fix #1 + Fix #2 applied
+
+**Results**:
+- Zero missing dispatch blocks ✓
+- Printf %d works: `Printf.printf "%d\n" 42` → "42" ✓
+- Printf %s works ✓
+- Printf %f still hangs (needs float formatter runtime impl) ⏳
+
+See commits 995e249c, 16ba19a3 and TASK_5_3K_*.md docs for complete analysis.
 
 **ROOT CAUSE CONFIRMED** (2025-10-14 - Tasks 5.3a-i complete):
 - **Location**: Generated dispatch code in v202 function (line ~19527 in .lua)
