@@ -1850,19 +1850,6 @@ and setup_entry_block_arguments ctx program start_addr entry_args func_params =
 *)
 and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt switch_cases params func_params entry_args =
   if !debug_var_collect then (
-    (* Check if this dispatch has problematic blocks *)
-    let has_problem_blocks = Array.exists switch_cases ~f:(fun (addr, _) ->
-      addr = 383 || addr = 448 || addr = 246 || addr = 248 || addr = 827 || addr = 828) in
-    if has_problem_blocks then (
-      Printf.eprintf "[DATA-DISPATCH] Entry %d has problem blocks in switch_cases (count=%d)\n%!"
-        entry_addr (Array.length switch_cases);
-      Printf.eprintf "[DATA-DISPATCH] Entry %d switch cases:\n%!" entry_addr;
-      Array.iteri switch_cases ~f:(fun i (addr, _) ->
-        if addr = 383 || addr = 448 || addr = 246 || addr = 248 || addr = 827 || addr = 828 then
-          Printf.eprintf "  Case %d → block %d *** PROBLEM BLOCK ***\n%!" i addr
-        else if i < 5 || i >= (Array.length switch_cases - 2) then
-          Printf.eprintf "  Case %d → block %d\n%!" i addr);
-    );
     Format.eprintf "[DATA-DISPATCH] Starting data-driven dispatch for entry=%d, switch_cases count=%d@."
       entry_addr (Array.length switch_cases);
     if entry_addr = 801 then (
@@ -1894,8 +1881,6 @@ and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt
           | Some block ->
               if !debug_var_collect then
                 Format.eprintf "[COLLECT] Block %d: visiting...@." addr;
-              if !debug_var_collect && (addr = 246 || addr = 248 || addr = 827 || addr = 828) then
-                Printf.eprintf "[COLLECT-%d] Block %d found in IR (entry=%d)\n%!" addr addr entry_addr;
               let visited = Code.Addr.Set.add addr visited in
               let successors = match block.Code.branch with
                 | Code.Return _ | Code.Raise _ | Code.Stop ->
@@ -1930,16 +1915,10 @@ and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt
 
   let initial_addrs = Array.to_list switch_cases |> List.map ~f:fst in
 
-  (* Task 5.3k.1 FIX: ALSO collect from true branch terminator!
-     For Cond-based dispatch, entry block has: Cond → true=X, false=dispatcher.
-     The true branch's terminator may reference continuation blocks (e.g., 246, 248).
-     Example: True block has Cond → 248, 246. These need continuation dispatch!
-
-     Current bug: Only collecting from switch_cases, missing blocks from true branch. *)
+  (* FIX #2: Collect from true branch *)
   let initial_addrs_with_true_branch =
     match tag_var_opt with
     | Some _ ->
-        (* Cond-based: Also start collection from true branch *)
         (match Code.Addr.Map.find_opt entry_addr program.Code.blocks with
          | Some entry_block ->
              (match entry_block.Code.branch with
@@ -1947,17 +1926,10 @@ and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt
                   true_addr :: initial_addrs
               | _ -> initial_addrs)
          | None -> initial_addrs)
-    | None -> initial_addrs  (* Switch-based: no true branch *)
+    | None -> initial_addrs
   in
 
   let all_dispatch_blocks = collect_continuation_blocks Code.Addr.Set.empty initial_addrs_with_true_branch in
-
-  if !debug_var_collect then (
-    let has_missing = Code.Addr.Set.mem 246 all_dispatch_blocks || Code.Addr.Set.mem 248 all_dispatch_blocks ||
-                     Code.Addr.Set.mem 827 all_dispatch_blocks || Code.Addr.Set.mem 828 all_dispatch_blocks in
-    if has_missing then
-      Printf.eprintf "[COLLECT-RESULT] Entry %d collected blocks 246/248/827/828\n%!" entry_addr;
-  );
 
   (* DEBUG: Verify all referenced blocks were collected *)
   if !debug_var_collect then (
@@ -2136,13 +2108,10 @@ and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt
       []
     else
       let (target_addr, _case_args) = switch_cases.(idx) in
-      if !debug_var_collect && (target_addr = 592 || target_addr = 383 || target_addr = 448) then
-        Printf.eprintf "[SWITCH-CASE-%d] Generating switch case for block %d (idx=%d, entry=%d)\n%!" target_addr target_addr idx entry_addr;
+      if !debug_var_collect && target_addr = 592 then
+        Printf.eprintf "[SWITCH-CASE-592] Generating switch case for block 592 (idx=%d)\n%!" idx;
       match Code.Addr.Map.find_opt target_addr program.Code.blocks with
-      | None ->
-          if !debug_var_collect && (target_addr = 383 || target_addr = 448) then
-            Printf.eprintf "[SWITCH-CASE-%d] Block %d NOT FOUND in IR, skipping (idx=%d, entry=%d)\n%!" target_addr target_addr idx entry_addr;
-          generate_switch_cases (idx + 1)
+      | None -> generate_switch_cases (idx + 1)
       | Some target_block ->
           (* Generate condition: switch_var == idx *)
           let condition =
@@ -2239,28 +2208,14 @@ and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt
           Code.Addr.Set.singleton entry_addr
     in
 
-    (* Task 5.3k.1 FIX: DON'T exclude switch cases from continuation!
-       Switch cases CAN be continuation blocks too if referenced by other blocks' terminators.
-       Example: Block 314 (case 0) has Cond → 383,315. Block 383 is BOTH:
-       - A switch case (case 22/24)
-       - A continuation block (referenced by case 0's Cond)
-
-       Only exclude inline blocks (entry, true branch, dispatcher). *)
+    (* FIX #1: Don't exclude switch cases - only exclude inline blocks *)
     let continuation_addrs = Code.Addr.Set.diff all_dispatch_blocks inline_blocks
                             |> Code.Addr.Set.elements in
 
-    if !debug_var_collect && entry_addr = 311 then (
-      Printf.eprintf "[DEBUG-311] all_dispatch_blocks: [%s]\n%!"
-        (String.concat ~sep:"," (Code.Addr.Set.elements all_dispatch_blocks |> List.map ~f:string_of_int));
-      Printf.eprintf "[DEBUG-311] inline_blocks: [%s]\n%!"
-        (String.concat ~sep:"," (Code.Addr.Set.elements inline_blocks |> List.map ~f:string_of_int));
-      Printf.eprintf "[DEBUG-311] continuation_addrs: [%s]\n%!"
-        (String.concat ~sep:"," (List.map ~f:string_of_int continuation_addrs));
-    );
-
     if !debug_var_collect then (
-      Printf.eprintf "[CONTINUATION] Continuation blocks: %d (excluding %d inline blocks only)\n%!"
+      Printf.eprintf "[CONTINUATION] Continuation blocks: %d (excluding %d switch cases, %d inline blocks)\n%!"
         (List.length continuation_addrs)
+        (Code.Addr.Set.cardinal switch_case_addrs)
         (Code.Addr.Set.cardinal inline_blocks);
       if entry_addr = 801 then (
         Printf.eprintf "[CONTINUATION] Entry 801 continuation blocks: [%s]\n%!"
@@ -2278,18 +2233,13 @@ and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt
     (* Generate if-elseif chain for continuation blocks using _next_block *)
     let rec generate_cont_cases addrs =
       match addrs with
-      | [] ->
-          (* Task 5.3k.1 FIX: When no continuation case matches, BREAK the loop!
-             Without this, loop continues with same _next_block → infinite loop.
-             This matches address-based dispatch behavior (line 2702). *)
-          [ L.Break ]
+      | [] -> []
       | addr :: rest ->
           match Code.Addr.Map.find_opt addr program.Code.blocks with
           | None -> generate_cont_cases rest
           | Some block ->
-              if !debug_var_collect && (addr = 592 || addr = 246 || addr = 248 || addr = 827 || addr = 828) then
-                Printf.eprintf "[CONTINUATION-%d] Generating continuation block %d (entry=%d), terminator type: %s\n%!"
-                  addr addr entry_addr
+              if !debug_var_collect && addr = 592 then
+                Printf.eprintf "[CONTINUATION-592] Generating continuation block 592, terminator type: %s\n%!"
                   (match block.Code.branch with
                    | Code.Switch (_,conts) -> Printf.sprintf "Switch with %d targets" (Array.length conts)
                    | Code.Cond _ -> "Cond"
@@ -2647,23 +2597,14 @@ and compile_address_based_dispatch ctx program start_addr params entry_args func
     then visited
     else
       match Code.Addr.Map.find_opt addr program.Code.blocks with
-      | None ->
-          (* Task 5.3k.1 DEBUG: Track missing block references *)
-          if !debug_var_collect && (addr = 383 || addr = 448 || addr = 246 || addr = 248 || addr = 827 || addr = 828) then
-            Printf.eprintf "[ADDRESS-COLLECT] Block %d referenced but NOT IN IR (start=%d)\n%!" addr start_addr;
-          visited
+      | None -> visited
       | Some block ->
           let visited = Code.Addr.Set.add addr visited in
           let successors =
             match block.Code.branch with
             | Code.Branch (next, _) -> [ next ]
             | Code.Cond (_, (t, _), (f, _)) -> [ t; f ]
-            | Code.Switch (_, conts) ->
-                let targets = Array.to_list conts |> List.map ~f:fst in
-                if !debug_var_collect && (List.exists targets ~f:(fun t -> t = 383 || t = 448)) then
-                  Printf.eprintf "[ADDRESS-COLLECT] Block %d has Switch to [%s] (includes 383/448)\n%!"
-                    addr (String.concat ~sep:"," (List.map ~f:string_of_int targets));
-                targets
+            | Code.Switch (_, conts) -> Array.to_list conts |> List.map ~f:fst
             | Code.Pushtrap ((c, _), _, (h, _)) -> [ c; h ]
             | Code.Poptrap (a, _) -> [ a ]
             | Code.Return _ | Code.Raise _ | Code.Stop -> []
@@ -2675,15 +2616,9 @@ and compile_address_based_dispatch ctx program start_addr params entry_args func
   (* Build list of blocks sorted by address *)
   let sorted_blocks = reachable |> Code.Addr.Set.elements |> List.sort ~cmp:compare in
 
-  (* Debug: Check for problematic blocks *)
-  if !debug_var_collect then (
-    if Code.Addr.Set.mem 592 reachable then
-      Printf.eprintf "[ADDRESS-BASED] Closure start=%d contains block 592 (%d reachable blocks)\n%!"
-        start_addr (Code.Addr.Set.cardinal reachable);
-    if Code.Addr.Set.mem 383 reachable || Code.Addr.Set.mem 448 reachable then
-      Printf.eprintf "[ADDRESS-BASED] Closure start=%d contains block 383/448 (%d reachable blocks)\n%!"
-        start_addr (Code.Addr.Set.cardinal reachable);
-  );
+  if !debug_var_collect && Code.Addr.Set.mem 592 reachable then
+    Printf.eprintf "[ADDRESS-BASED] Closure start=%d contains block 592 (%d reachable blocks)\n%!"
+      start_addr (Code.Addr.Set.cardinal reachable);
 
   (* Generate code for each block with dispatch-based control flow (Lua 5.1 compatible) *)
   let block_cases =
@@ -3633,7 +3568,9 @@ let generate_module ctx program module_name =
     @param debug Enable debug output
     @return Lua program (list of statements)
 *)
-let generate ~debug program = generate_standalone (make_context_with_program ~debug program) program
+let generate ~debug program =
+  Printf.eprintf "=== GENERATE START: debug_var_collect=%b, debug=%b ===\n%!" !debug_var_collect debug;
+  generate_standalone (make_context_with_program ~debug program) program
 
 (** Generate Lua module code
     Entry point for separate module compilation
