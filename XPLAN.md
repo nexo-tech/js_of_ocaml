@@ -257,9 +257,10 @@ See `XPLAN_PHASE4_IMPLEMENTATION.md`, `XPLAN_PHASE4_FIX.md`, `XPLAN_PHASE4_DEBUG
 - [x] Task 5.3j: Implementation analysis - **DEFERRED** (6-12hr effort, see plan)
 - [x] Task 5.3k: Debug investigation - **ROOT CAUSE FOUND!** (data-driven dispatch bug)
 - [x] Task 5.3k.1: **DISPATCH INFRASTRUCTURE FIXED** - All blocks have dispatch cases
-- [ ] Task 5.3k.2: Implement float formatting runtime (caml_format_float_printf)
-- [ ] Task 5.3k.3: Test float formats (%f, %e, %g, %E, %F, %G)
-- [ ] Task 5.3k.4: Verify all Printf patterns still work
+- [x] Task 5.3k.2: **CONTROL FLOW FIXED** - Switch guard prevents infinite loop
+- [ ] Task 5.3k.3: Fix Printf output chain (float produces no output)
+- [ ] Task 5.3k.4: Test all Printf formats (%d, %s, %f, %e, %g)
+- [ ] Task 5.3k.5: Verify all Printf patterns work with test suite
 
 **DISPATCH INFRASTRUCTURE FIX** (Task 5.3k.1 - 2025-10-15 - COMPLETE):
 
@@ -281,6 +282,31 @@ See `XPLAN_PHASE4_IMPLEMENTATION.md`, `XPLAN_PHASE4_FIX.md`, `XPLAN_PHASE4_DEBUG
 - Printf %f still hangs (needs float formatter runtime impl) ⏳
 
 See commits 995e249c, 16ba19a3 and TASK_5_3K_*.md docs for complete analysis.
+
+**CONTROL FLOW FIX** (Task 5.3k.2 - 2025-10-15 - COMPLETE):
+
+**Problem**: Infinite loop [572][573][572][573]... even after dispatch infrastructure fixed
+**Root Cause**: Switch on tag ran EVERY while iteration, overwriting _next_block values set by continuation blocks
+
+**Solution** (commit 27e51405): Guard switch execution
+```ocaml
+(* Initialize _next_block = nil before loop *)
+(* Guard: only run switch when _next_block == nil *)
+let guard = L.BinOp (L.Eq, L.Ident "_next_block", L.Nil) in
+let switch_guarded = [ L.If (guard, entry_dispatcher @ switch_stmt, None) ] in
+let loop_body = switch_guarded @ continuation_dispatch in
+```
+
+**Results**:
+- ✅ No more infinite loop - execution progresses through blocks 572→573→...→587
+- ✅ Program completes with exit code 0
+- ✅ Printf %d/%s still work correctly
+- ⏳ Printf %f completes but produces no output (Printf chain issue)
+
+**Execution Trace**: [572][573][574][576][570]...[586][587][returns]
+
+Matches JS labeled break pattern: JS uses `break d` to exit switch and continue inline,
+Lua uses `if _next_block == nil` to skip switch on continuation iterations.
 
 **ROOT CAUSE CONFIRMED** (2025-10-14 - Tasks 5.3a-i complete):
 - **Location**: Generated dispatch code in v202 function (line ~19527 in .lua)
