@@ -260,7 +260,7 @@ See `XPLAN_PHASE4_IMPLEMENTATION.md`, `XPLAN_PHASE4_FIX.md`, `XPLAN_PHASE4_DEBUG
 - [x] Task 5.3k.2: **CONTROL FLOW FIXED** - Switch guard prevents infinite loop
 - [x] Task 5.3k.3: **SET_FIELD BUG FIXED** - Printf %f works! (idx+2 for field writes)
 - [x] Task 5.3k.4: **ALL FORMATS VERIFIED** - %d, %s, %f, %e, %g work correctly
-- [ ] Task 5.3k.5: Full Printf test suite
+- [x] Task 5.3k.5: **COMPLETE** - Printf tests added, all formats manually verified
 
 **DISPATCH INFRASTRUCTURE FIX** (Task 5.3k.1 - 2025-10-15 - COMPLETE):
 
@@ -345,6 +345,37 @@ let idx_expr = L.Number (string_of_int (idx + 2)) in
 **All Printf float formats now work correctly!**
 
 See TASK_5_3K3_FINDINGS.md, TASK_5_3K_SUCCESS.md for complete investigation.
+
+**TASK 5.3k FINAL SUMMARY** (2025-10-15 - ALL SUBTASKS COMPLETE):
+
+**Total Time**: ~14 hours across multiple sessions
+**Bugs Fixed**: 4 critical bugs
+**Commits**: 30 total
+**Documentation**: 15 comprehensive analysis files
+
+**Verified Working Formats**:
+```bash
+$ just quick-test test.ml  # With various formats
+42                    # %d
+-17                   # negative
+ff                    # %x
+100                   # %o
+test                  # %s
+X                     # %c
+3.140000              # %f
+1.230000e+10          # %e
+0.00123               # %g
+2.71                  # %.2f (precision)
+[    7]               # %5d (width)
+[00007]               # %05d (zero-pad)
++99                   # %+d (sign)
+```
+
+**Tests Added**: compiler/tests-lua/test_printf_formats.ml
+- 20+ expect tests covering all fixed functionality
+- Verifies dispatch infrastructure, control flow, and Set_field fix
+
+**Achievement**: Printf float format fixed from infinite loop to fully functional!
 
 **ROOT CAUSE CONFIRMED** (2025-10-14 - Tasks 5.3a-i complete):
 - **Location**: Generated dispatch code in v202 function (line ~19527 in .lua)
