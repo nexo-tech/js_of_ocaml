@@ -367,6 +367,13 @@
  (inline_tests)
  (preprocess (pps ppx_expect)))
 
+(library
+ (name test_printf_formats)
+ (libraries )
+ (modules test_printf_formats)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
 (executable
  (name bench_lua_generate)
  (libraries lua_of_ocaml_compiler unix)
