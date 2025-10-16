@@ -258,9 +258,9 @@ See `XPLAN_PHASE4_IMPLEMENTATION.md`, `XPLAN_PHASE4_FIX.md`, `XPLAN_PHASE4_DEBUG
 - [x] Task 5.3k: Debug investigation - **ROOT CAUSE FOUND!** (data-driven dispatch bug)
 - [x] Task 5.3k.1: **DISPATCH INFRASTRUCTURE FIXED** - All blocks have dispatch cases
 - [x] Task 5.3k.2: **CONTROL FLOW FIXED** - Switch guard prevents infinite loop
-- [ ] Task 5.3k.3: **DEFERRED** - Printf %f output chain (requires Printf internals expertise)
-- [x] Task 5.3k.4: **VERIFIED** - Printf %d, %s formats work correctly
-- [ ] Task 5.3k.5: Full Printf test suite (pending 5.3k.3 completion)
+- [x] Task 5.3k.3: **SET_FIELD BUG FIXED** - Printf %f works! (idx+2 for field writes)
+- [x] Task 5.3k.4: **ALL FORMATS VERIFIED** - %d, %s, %f, %e, %g work correctly
+- [ ] Task 5.3k.5: Full Printf test suite
 
 **DISPATCH INFRASTRUCTURE FIX** (Task 5.3k.1 - 2025-10-15 - COMPLETE):
 
@@ -308,26 +308,43 @@ let loop_body = switch_guarded @ continuation_dispatch in
 Matches JS labeled break pattern: JS uses `break d` to exit switch and continue inline,
 Lua uses `if _next_block == nil` to skip switch on continuation iterations.
 
-**Printf %f OUTPUT ISSUE** (Task 5.3k.3 - 2025-10-15 - DEFERRED):
+**SET_FIELD INDEXING BUG FIX** (Task 5.3k.3 - 2025-10-15 - COMPLETE):
 
-**Problem**: Printf.printf "%f\n" 3.14 completes (exit 0) but produces no output
-**Scope**: This is Printf CHAIN issue, not dispatch infrastructure issue
+**Problem**: Printf.printf "%f\n" 3.14 completed (exit 0) but produced no output
 
-**Findings** (commits bd27612b, 337cf06e, 30aea0e1):
-- Dispatch works: blocks 572-587 execute and return ✅
-- Control flow works: no infinite loop, clean completion ✅
-- Buffer issue: caml_ml_output called with len=0 (empty buffer) ❌
-- Root cause: v14 output function called with v336 (empty format param) instead of v358 (formatted string)
-- Complexity: Requires deep Printf internals knowledge (closure chains, format spec encoding, buffer management)
+**Root Cause** (commit 9ec6cd43):
+Set_field instruction used idx+1 instead of idx+2 for field writes, causing buffer
+position to be written to wrong index (tag instead of position field).
 
-**Status**: DEFERRED - requires 4-6 hours of OCaml Printf.ml study
-**Workaround**: Printf %d and %s work for most use cases
+**Investigation Process**:
+1. Traced caml_ml_output: called with len=0 (empty buffer) ❌
+2. Traced v154 (format builder): returned "" instead of "%.6f" ❌
+3. Traced buffer state: write position=1 but read position=0 ❌
+4. Found Set_field(buf, 0, value) generated buf[1]=value ❌
+5. Should generate buf[2]=value to match Field access ✅
 
-**Next Steps** (when ready):
-1. Study OCaml stdlib/camlinternalFormat.ml
-2. Trace how formatted values flow through closure chain to buffer
-3. Fix format spec tuple construction or closure invocation order
-4. May need to modify case 8 closure creation/invocation
+**The Fix** (line 954):
+```ocaml
+(* OLD: Inconsistent with field access *)
+let idx_expr = L.Number (string_of_int (idx + 1)) in
+
+(* NEW: Matches field access (idx+2) *)
+let idx_expr = L.Number (string_of_int (idx + 2)) in
+```
+
+**Why idx+2**: Lua blocks {tag, field_0, field_1} have field_N at index N+2
+(+1 for 1-based indexing, +1 for tag offset)
+
+**Test Results**:
+- Printf %d: "42" ✅
+- Printf %s: "Hello" ✅
+- Printf %f: "3.140000" ✅
+- Printf %e: "1.230000e+10" ✅
+- Printf %g: "0.00123" ✅
+
+**All Printf float formats now work correctly!**
+
+See TASK_5_3K3_FINDINGS.md, TASK_5_3K_SUCCESS.md for complete investigation.
 
 **ROOT CAUSE CONFIRMED** (2025-10-14 - Tasks 5.3a-i complete):
 - **Location**: Generated dispatch code in v202 function (line ~19527 in .lua)
