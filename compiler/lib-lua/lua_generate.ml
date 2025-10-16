@@ -2063,22 +2063,84 @@ and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt
     num_cases >= 14 && num_cases <= 16
   in
 
-  (* Format string mapping from JS convert_int (see test_simple.ml.pretty.js:7226) *)
+  (* Build dynamic format string mapping by scanning program for string constants.
+     This replaces hardcoded variable names with actual IR variable → Lua variable mapping.
+
+     Strategy:
+     1. Scan all program blocks for Let (var, Const (String s)) where s is a format string
+     2. Build map: format_pattern → IR_var → Lua_var_name
+     3. Create case_index → Lua_var_name mapping based on Printf convert_int ordering
+
+     Printf convert_int case indices map to format strings:
+     - case 0, 13: "%d"
+     - case 1: "%+d"
+     - case 2: "% d"  (space-padded)
+     - case 3, 14: "%i"
+     - case 4: "%+i"
+     - case 5: "% i"
+     - case 6: "%x"
+     - case 7: "%#x"
+     - case 8: "%X"
+     - case 9: "%#X"
+     - case 10: "%o"
+     - case 11: "%#o"
+     - case 12, 15: "%u"
+  *)
+  let build_format_string_map () =
+    (* Scan all blocks for format string constants *)
+    let format_map = ref [] in
+    Code.Addr.Map.iter (fun _addr block ->
+      List.iter block.Code.body ~f:(fun instr ->
+        match instr with
+        | Code.Let (var, Code.Constant (Code.String fmt_str)) ->
+            (* Check if this is a format string pattern *)
+            let is_format =
+              String.length fmt_str > 0 &&
+              String.length fmt_str <= 10 &&
+              (match fmt_str with
+               | "%d" | "%+d" | "% d" | "%i" | "%+i" | "% i"
+               | "%x" | "%#x" | "%X" | "%#X"
+               | "%o" | "%#o" | "%u" -> true
+               | _ -> false)
+            in
+            if is_format then
+              let lua_var = var_name ctx var in
+              format_map := (fmt_str, lua_var) :: !format_map
+        | _ -> ())
+    ) program.Code.blocks;
+    !format_map
+  in
+
+  let format_string_map : (string * string) list = build_format_string_map () in
+
+  (* Lookup format string Lua variable name by pattern *)
+  let find_format_var (pattern : string) : string option =
+    let rec search (lst : (string * string) list) : string option =
+      match lst with
+      | [] -> None
+      | (p, lua_var) :: rest ->
+          if String.equal p pattern then Some lua_var
+          else search rest
+    in
+    search format_string_map
+  in
+
+  (* Dynamic format string mapping - uses actual variable names from IR *)
   let get_format_string_var idx =
     match idx with
-    | 0 | 13 -> Some "v102"  (* "%d" *)
-    | 1 -> Some "v103"       (* "%+d" *)
-    | 2 -> Some "v104"       (* "% d" *)
-    | 3 | 14 -> Some "v105"  (* "%i" *)
-    | 4 -> Some "v106"       (* "%+i" *)
-    | 5 -> Some "v107"       (* "% i" *)
-    | 6 -> Some "v108"       (* "%x" *)
-    | 7 -> Some "v109"       (* "%#x" *)
-    | 8 -> Some "v110"       (* "%X" *)
-    | 9 -> Some "v111"       (* "%#X" *)
-    | 10 -> Some "v112"      (* "%o" *)
-    | 11 -> Some "v113"      (* "%#o" *)
-    | 12 | 15 -> Some "v114" (* "%u" *)
+    | 0 | 13 -> find_format_var "%d"
+    | 1 -> find_format_var "%+d"
+    | 2 -> find_format_var "% d"
+    | 3 | 14 -> find_format_var "%i"
+    | 4 -> find_format_var "%+i"
+    | 5 -> find_format_var "% i"
+    | 6 -> find_format_var "%x"
+    | 7 -> find_format_var "%#x"
+    | 8 -> find_format_var "%X"
+    | 9 -> find_format_var "%#X"
+    | 10 -> find_format_var "%o"
+    | 11 -> find_format_var "%#o"
+    | 12 | 15 -> find_format_var "%u"
     | _ -> None
   in
 
@@ -2994,23 +3056,64 @@ and generate_last_dispatch ctx last =
             filtered
       in
 
-      (* Format string mapping from JS convert_int function (see test_simple.ml.pretty.js:7226)
-         Maps case index to format string variable (v102="%d", v103="%+d", etc.) *)
+      (* Dynamic format string mapping - uses actual variable names from IR.
+         This is a duplicate of the same function in data-driven dispatch section.
+         TODO: Refactor to share the code between both dispatch types. *)
+      (* NOTE: We're in address-based dispatch, reusing from get_format_string_var from data-driven.
+         In address-based dispatch, ctx.program is an option, so we need to unwrap it.
+         This context is inside compile_switch_as_dispatch which has access to the program. *)
+      let build_format_string_map_local () : (string * string) list =
+        let format_map : (string * string) list ref = ref [] in
+        let prog = match ctx.program with Some p -> p | None -> failwith "No program in context" in
+        Code.Addr.Map.iter (fun _addr block ->
+          List.iter block.Code.body ~f:(fun instr ->
+            match instr with
+            | Code.Let (var, Code.Constant (Code.String fmt_str)) ->
+                let is_format =
+                  String.length fmt_str > 0 &&
+                  String.length fmt_str <= 10 &&
+                  (match fmt_str with
+                   | "%d" | "%+d" | "% d" | "%i" | "%+i" | "% i"
+                   | "%x" | "%#x" | "%X" | "%#X"
+                   | "%o" | "%#o" | "%u" -> true
+                   | _ -> false)
+                in
+                if is_format then
+                  let lua_var = var_name ctx var in
+                  format_map := (fmt_str, lua_var) :: !format_map
+            | _ -> ())
+        ) prog.Code.blocks;
+        !format_map
+      in
+
+      let format_string_map_local : (string * string) list = build_format_string_map_local () in
+
+      let find_format_var_local (pattern : string) : string option =
+        let rec search (lst : (string * string) list) : string option =
+          match lst with
+          | [] -> None
+          | (p, lua_var) :: rest ->
+              if String.equal p pattern then Some lua_var
+              else search rest
+        in
+        search format_string_map_local
+      in
+
       let get_format_string_var idx =
         match idx with
-        | 0 | 13 -> Some "v102"  (* "%d" - corresponds to JS var Z *)
-        | 1 -> Some "v103"       (* "%+d" - corresponds to JS var _ *)
-        | 2 -> Some "v104"       (* "% d" - corresponds to JS var $ *)
-        | 3 | 14 -> Some "v105"  (* "%i" - corresponds to JS var aa/cst_i *)
-        | 4 -> Some "v106"       (* "%+i" - corresponds to JS var ab *)
-        | 5 -> Some "v107"       (* "% i" - corresponds to JS var ac *)
-        | 6 -> Some "v108"       (* "%x" - corresponds to JS var ad *)
-        | 7 -> Some "v109"       (* "%#x" - corresponds to JS var ae *)
-        | 8 -> Some "v110"       (* "%X" - corresponds to JS var af *)
-        | 9 -> Some "v111"       (* "%#X" - corresponds to JS var ag *)
-        | 10 -> Some "v112"      (* "%o" - corresponds to JS var ah *)
-        | 11 -> Some "v113"      (* "%#o" - corresponds to JS var ai *)
-        | 12 | 15 -> Some "v114" (* "%u" - corresponds to JS var aj/cst_u *)
+        | 0 | 13 -> find_format_var_local "%d"
+        | 1 -> find_format_var_local "%+d"
+        | 2 -> find_format_var_local "% d"
+        | 3 | 14 -> find_format_var_local "%i"
+        | 4 -> find_format_var_local "%+i"
+        | 5 -> find_format_var_local "% i"
+        | 6 -> find_format_var_local "%x"
+        | 7 -> find_format_var_local "%#x"
+        | 8 -> find_format_var_local "%X"
+        | 9 -> find_format_var_local "%#X"
+        | 10 -> find_format_var_local "%o"
+        | 11 -> find_format_var_local "%#o"
+        | 12 | 15 -> find_format_var_local "%u"
         | _ -> None
       in
 
