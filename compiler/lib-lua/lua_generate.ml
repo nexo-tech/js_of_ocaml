@@ -946,9 +946,12 @@ and generate_instr ctx instr =
       let source_ident = var_ident ctx source in
       L.Assign ([ target_ident ], [ source_ident ])
   | Code.Set_field (obj, idx, _field_type, value) ->
-      (* Generate field assignment: obj[idx+1] = value *)
+      (* Generate field assignment: obj[idx+2] = value
+         Task 5.3k.3 FIX: Blocks have tag at index 1, so field N is at index N+2
+         (N+1 for 1-based indexing, +1 more for tag offset).
+         This matches optimize_field_access which uses idx+2 for reads. *)
       let obj_expr = var_ident ctx obj in
-      let idx_expr = L.Number (string_of_int (idx + 1)) in
+      let idx_expr = L.Number (string_of_int (idx + 2)) in
       let field_expr = L.Index (obj_expr, idx_expr) in
       let value_expr = var_ident ctx value in
       L.Assign ([ field_expr ], [ value_expr ])
