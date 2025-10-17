@@ -39,12 +39,9 @@ local function assert_false(value, msg)
 end
 
 -- Helper to convert OCaml string (byte array) to Lua string
+-- Use the global caml_ocaml_string_to_lua from format.lua
 local function ocaml_string_to_lua(bytes)
-  local chars = {}
-  for i = 1, #bytes do
-    table.insert(chars, string.char(bytes[i]))
-  end
-  return table.concat(chars)
+  return caml_ocaml_string_to_lua(bytes)
 end
 
 print("====================================================================")
