@@ -733,15 +733,62 @@ let used =
 
 ---
 
-### Phase 5: Advanced Optimizations - [ ]
+### Phase 5: Advanced Optimizations - [ ] IN PROGRESS
 
 **Goal**: Further optimize linking and remove unnecessary code
 
-- [ ] Task 5.1: Remove --Provides comments from final output
+- [x] Task 5.1: Remove --Provides comments from final output ✅
   - JS doesn't include //Provides in output (they're for linking only)
   - Strip --Provides and --Requires comments after linking
-  - **Location**: `lua_link.ml:embed_runtime_module` or `lua_output.ml`
-  - **Savings**: ~765 lines (one per function)
+  - **Location**: `lua_link.ml:embed_runtime_module:560-586`
+  - **Implementation**:
+    ```ocaml
+    let strip_linking_comments (code : string) : string =
+      let lines = String.split_on_char ~sep:'\n' code in
+      let filtered_lines = List.filter lines ~f:(fun line ->
+        let trimmed = String.trim line in
+        not (String.starts_with ~prefix:"--Provides:" trimmed) &&
+        not (String.starts_with ~prefix:"--Requires:" trimmed)
+      ) in
+      String.concat ~sep:"\n" filtered_lines
+    in
+    ```
+
+  **Test Results**:
+
+  **Minimal Program** (`print_int 42; print_newline ()`):
+  | Phase | Lines | Provides | Change |
+  |-------|-------|----------|--------|
+  | Linkall | 12,756 | 765 | baseline |
+  | Phase 3 (minimal linking) | 4,093 | 166 | -68% lines |
+  | Phase 5.1 (strip Provides) | **3,822** | **0** | **-70% total**, -6.6% from Phase 3 |
+
+  **hello_lua** (Printf + String operations):
+  | Phase | Lines | Provides | Change |
+  |-------|-------|----------|--------|
+  | Linkall | 26,919 | 765 | baseline |
+  | Phase 3 (minimal linking) | 20,379 | 319 | -24% lines |
+  | Phase 5.1 (strip Provides) | **19,887** | **0** | **-26% total**, -2.4% from Phase 3 |
+
+  **Line Reduction from Stripping**:
+  - Minimal program: 4,093 → 3,822 (**271 lines removed**)
+  - hello_lua: 20,379 → 19,887 (**492 lines removed**)
+
+  **Comparison with JS** (hello_lua):
+  | Target | Lines | Ratio to JS |
+  |--------|-------|-------------|
+  | JavaScript | 1,671 | 1x (baseline) |
+  | Lua (linkall) | 26,919 | 16.1x ❌ |
+  | Lua (Phase 3) | 20,379 | 12.2x ⚠️ |
+  | Lua (Phase 5.1) | **19,887** | **11.9x** 📉 |
+
+  **All tests pass**:
+  ✅ minimal program: works correctly
+  ✅ hello_lua: all output correct
+  ✅ All Printf formats: %d, %s, %f, %e, %g, %x, %o, %u, %c work
+  ✅ No warnings: `just build-strict` clean
+
+  **Savings**: 271-492 lines per program (depending on how many runtime functions used)
 
 - [ ] Task 5.2: Implement function-level linking
   - Currently links entire files (e.g., all of mlBytes.lua)

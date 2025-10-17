@@ -561,9 +561,26 @@ let embed_runtime_module (frag : fragment) : string =
   let buf = Buffer.create 512 in
   (* Add comment header *)
   Buffer.add_string buf ("-- Runtime: " ^ frag.name ^ "\n");
-  (* Embed code verbatim - no module wrapping needed *)
-  Buffer.add_string buf frag.code;
-  if not (String.ends_with ~suffix:"\n" frag.code)
+
+  (* Strip --Provides: and --Requires: comments from code (like js_of_ocaml does)
+     These are only needed for linking, not for execution.
+     Reference: js_of_ocaml doesn't emit //Provides in final output. *)
+  let strip_linking_comments (code : string) : string =
+    let lines = String.split_on_char ~sep:'\n' code in
+    let filtered_lines = List.filter lines ~f:(fun line ->
+      let trimmed = String.trim line in
+      (* Remove --Provides: and --Requires: comment lines *)
+      not (String.starts_with ~prefix:"--Provides:" trimmed) &&
+      not (String.starts_with ~prefix:"--Requires:" trimmed)
+    ) in
+    String.concat ~sep:"\n" filtered_lines
+  in
+
+  let code_without_linking_comments = strip_linking_comments frag.code in
+
+  (* Embed code without linking comments *)
+  Buffer.add_string buf code_without_linking_comments;
+  if not (String.ends_with ~suffix:"\n" code_without_linking_comments)
   then Buffer.add_char buf '\n';
   Buffer.add_char buf '\n';
   Buffer.contents buf
