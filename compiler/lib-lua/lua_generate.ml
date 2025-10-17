@@ -3606,11 +3606,24 @@ let generate_standalone ctx program =
   let _ = provides_map in  (* Suppress unused warning *)
   let _ = used_primitives in  (* Suppress unused warning *)
 
-  (* 4. Resolve dependencies between needed fragments *)
-  (* TEMPORARY: Use linkall behavior - include ALL runtime modules.
-     This is needed because code generation adds primitive calls (like caml_fresh_oo_id)
-     that aren't in the original IR, so collect_used_primitives misses them.
-     TODO: Either (1) track primitives during codegen, or (2) analyze generated AST. *)
+  (* 4. Generate program code FIRST (before linking runtime)
+     This allows us to analyze the generated code to find actually-used primitives.
+     Follows js_of_ocaml pattern: generate → analyze → link (driver.ml:362-382) *)
+  let program_code = generate_module_init ctx program in
+
+  (* 5. Collect free variables from generated program code
+     Uses lua_traverse.fast_freevar to find all free variables (like js_of_ocaml).
+     Reference: compiler/lib/driver.ml:364-371 *)
+  let free_vars = Lua_traverse.collect_free_vars program_code in
+
+  (* 6. Filter to caml_* primitives only
+     We only care about caml_* functions for runtime linking.
+     Other free vars (like _V, _next_block, etc.) are generated code internals. *)
+  let caml_primitives = StringSet.filter (String.starts_with ~prefix:"caml_") free_vars in
+
+  (* 7. Resolve dependencies between needed fragments (MINIMAL LINKING!)
+     Replaces old linkall behavior with minimal linking based on free variable analysis.
+     Reference: compiler/lib/driver.ml:379-382 *)
   let sorted_fragments =
     if List.length fragments = 0
     then []
@@ -3621,41 +3634,73 @@ let generate_standalone ctx program =
           ~init:(Lua_link.init ())
           fragments
       in
-      (* resolve_deps expects SYMBOL names, not fragment names.
-         NOTE: We don't include core.lua because it conflicts with our inline runtime.
-         Specifically, core.lua's caml_register_global is for primitives (name, func)
-         while our inline version is for values (index, value, name).
-         The inline runtime already initializes _G._OCAML. *)
-      (* FORCE linkall behavior until we track primitives added during codegen *)
-      let needed_symbols =
-        (* Include all symbols from all fragments (linkall) *)
+
+      (* Get all available runtime functions *)
+      let all_provided =
         List.fold_left
           ~f:(fun acc frag ->
-            (* Skip core.lua to avoid conflicts *)
-            if String.equal frag.Lua_link.name "core" then acc
-            else
-              List.fold_left
-                ~f:(fun acc2 sym -> StringSet.add sym acc2)
-                ~init:acc
-                frag.Lua_link.provides)
+            List.fold_left
+              ~f:(fun acc2 sym -> StringSet.add sym acc2)
+              ~init:acc
+              frag.Lua_link.provides)
           ~init:StringSet.empty
           fragments
       in
+
+      (* Intersect: actually used ∩ available runtime
+         This is the key optimization - only link what's actually called!
+         Reference: compiler/lib/driver.ml:379-382 *)
+      let needed_symbols = StringSet.inter caml_primitives all_provided in
+
+      (* Exclude inline runtime functions (already inlined, don't link from runtime) *)
+      let inline_runtime_funcs = StringSet.of_list [
+        "caml_register_global";
+        "caml_register_named_value";
+        "caml_int_and";
+        "caml_int_or"
+      ] in
+      let needed_symbols = StringSet.diff needed_symbols inline_runtime_funcs in
+
+      (* Skip core.lua symbols (conflicts with inline runtime) *)
+      let needed_symbols = StringSet.filter (fun sym ->
+        (* Check if symbol is from core.lua - if so, skip it *)
+        match List.find_opt ~f:(fun frag ->
+          String.equal frag.Lua_link.name "core" &&
+          List.exists ~f:(String.equal sym) frag.Lua_link.provides
+        ) fragments with
+        | Some _ -> false  (* Skip core.lua symbols *)
+        | None -> true
+      ) needed_symbols in
+
+      (* Resolve dependencies and get sorted list *)
       let sorted_fragment_names, _missing =
         Lua_link.resolve_deps state (StringSet.elements needed_symbols)
       in
-      (* Filter out core.lua from the sorted list to avoid conflicts *)
+
+      (* Filter out core.lua from the sorted list *)
       let sorted_fragment_names = List.filter ~f:(fun name -> not (String.equal name "core")) sorted_fragment_names in
+
+      (* Debug output *)
+      if false then (
+        Printf.eprintf "[MINIMAL LINKING] Free vars found: %d\n" (StringSet.cardinal free_vars);
+        Printf.eprintf "[MINIMAL LINKING] caml_* primitives: %d\n" (StringSet.cardinal caml_primitives);
+        Printf.eprintf "[MINIMAL LINKING] Available runtime: %d\n" (StringSet.cardinal all_provided);
+        Printf.eprintf "[MINIMAL LINKING] Needed symbols: %d\n" (StringSet.cardinal needed_symbols);
+        Printf.eprintf "[MINIMAL LINKING] Fragments to link: %d\n" (List.length sorted_fragment_names);
+        Printf.eprintf "[MINIMAL LINKING] Linking:\n";
+        StringSet.iter (fun s -> Printf.eprintf "  %s\n" s) needed_symbols;
+      );
+
       List.filter_map
         ~f:(fun name -> List.find_opt ~f:(fun f -> String.equal f.Lua_link.name name) fragments)
         sorted_fragment_names
   in
 
-  (* 5. Generate code in order:
+  (* 8. Generate code in order:
      - Inline runtime (caml_register_global)
-     - Runtime modules (embedded)
+     - Runtime modules (embedded - MINIMAL, not linkall!)
      - Global wrappers (generated from used_primitives)
-     - Program code *)
+     - Program code (already generated above) *)
   let inline_runtime = generate_inline_runtime () in
   let embedded_modules =
     List.map ~f:Lua_link.embed_runtime_module sorted_fragments
@@ -3667,7 +3712,6 @@ let generate_standalone ctx program =
     then []
     else [ L.Raw wrappers_code ]
   in
-  let program_code = generate_module_init ctx program in
 
   inline_runtime @ [ L.Comment "" ] @ embedded_modules @ wrappers @ [ L.Comment "" ] @ program_code
 
