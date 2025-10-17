@@ -374,6 +374,13 @@
  (inline_tests)
  (preprocess (pps ppx_expect)))
 
+(library
+ (name test_lua_traverse)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_lua_traverse)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
 (executable
  (name bench_lua_generate)
  (libraries lua_of_ocaml_compiler unix)
