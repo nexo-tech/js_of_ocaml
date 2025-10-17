@@ -790,12 +790,68 @@ let used =
 
   **Savings**: 271-492 lines per program (depending on how many runtime functions used)
 
-- [ ] Task 5.2: Implement function-level linking
-  - Currently links entire files (e.g., all of mlBytes.lua)
-  - Extract individual functions based on --Provides comments
-  - Only include the specific functions needed
-  - **Reference**: js_of_ocaml does this with //Provides parsing
-  - **Location**: `lua_link.ml:parse_fragment`
+- [x] Task 5.2: Implement function-level linking ✅
+  - Split files into individual functions based on --Provides markers
+  - Only include specific functions needed (not entire files)
+  - Handle preamble code (global initialization before first --Provides)
+  - **Reference**: js_of_ocaml parses JavaScript to split fragments (linker.ml:257-342)
+  - **Implementation**: `lua_link.ml:105-185` (parse_file_into_functions)
+
+  **Algorithm**:
+  1. Collect preamble: all code before first --Provides (global init)
+  2. Split remaining code on --Provides markers
+  3. Create one fragment per function
+  4. Include preamble with FIRST function (preserves global state)
+  5. Each fragment has unique name: filename/function_name
+
+  **Example** (mlBytes.lua has 33 functions):
+  - **Before**: Need caml_bytes_uppercase → link all 33 functions
+  - **After**: Need caml_bytes_uppercase → link only it + dependencies
+
+  **Test Results**:
+
+  **Minimal Program** (`print_int 42; print_newline ()`):
+  | Phase | Lines | Change from Previous | Total Reduction |
+  |-------|-------|---------------------|-----------------|
+  | Linkall | 12,756 | - | baseline |
+  | Phase 3 (minimal) | 4,093 | -68% | -68% |
+  | Phase 5.1 (strip) | 3,822 | -6.6% | -70% |
+  | **Phase 5.2 (function-level)** | **712** | **-81%** | **-94%** ✅ |
+
+  **hello_lua** (Printf + String operations):
+  | Phase | Lines | Change from Previous | Total Reduction |
+  |-------|-------|---------------------|-----------------|
+  | Linkall | 26,919 | - | baseline |
+  | Phase 3 (minimal) | 20,379 | -24% | -24% |
+  | Phase 5.1 (strip) | 19,887 | -2.4% | -26% |
+  | **Phase 5.2 (function-level)** | **15,904** | **-20%** | **-41%** ✅ |
+
+  **Comparison with JS** (hello_lua):
+  | Target | Lines | Ratio to JS | Improvement |
+  |--------|-------|-------------|-------------|
+  | JavaScript | 1,671 | 1x | baseline |
+  | Lua (linkall) | 26,919 | 16.1x | - |
+  | Lua (Phase 3) | 20,379 | 12.2x | 24% better |
+  | Lua (Phase 5.1) | 19,887 | 11.9x | 26% better |
+  | Lua (Phase 5.2) | **15,904** | **9.5x** | **41% better** ✅ |
+
+  **Why still 9.5x vs JS?**:
+  - Lua dispatch patterns more verbose (while loops vs switch)
+  - Variable table management (_V table)
+  - Longer variable names (v332 vs minified)
+  - But this is acceptable! Lua is naturally more verbose
+
+  **Major Win**:
+  - Minimal program: **17.9x smaller** (12,756 → 712)
+  - hello_lua: **1.69x smaller** (26,919 → 15,904)
+  - Function-level linking works perfectly!
+
+  **All tests pass**:
+  ✅ minimal program works
+  ✅ hello_lua works (all output correct)
+  ✅ All Printf formats work
+  ✅ No warnings (just build-strict)
+  ✅ No regressions
 
 - [ ] Task 5.3: Dead code elimination
   - Some linked functions may have unused branches

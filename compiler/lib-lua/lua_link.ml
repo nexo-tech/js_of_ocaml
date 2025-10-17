@@ -23,6 +23,7 @@ type fragment =
   ; provides : string list  (** List of caml_* function names this fragment provides *)
   ; requires : string list  (** List of caml_* function names this fragment requires *)
   ; code : string  (** Lua code content *)
+  ; function_name : string option  (** Specific function name if this is a function-level fragment *)
   }
 
 type state =
@@ -78,21 +79,114 @@ let parse_requires (line : string) : string list =
       symbols
   else []
 
-(* Parse complete fragment header from code string
-   Parses all --Provides: and --Requires: comments from the beginning of the file.
-   Each --Provides: declares one function. Multiple --Provides: lines can exist.
+(* Split runtime file into individual function fragments
 
-   Example fragment:
-     --Provides: caml_array_make
-     --Requires: caml_make_vect
-     function caml_array_make(len, init)
-       return caml_make_vect(len, init)
+   Splits a Lua file containing multiple --Provides blocks into separate fragments.
+   Each --Provides marks the start of a new fragment (function).
+
+   Example file:
+     --Provides: caml_foo
+     --Requires: caml_bar
+     function caml_foo(x)
+       return caml_bar(x) + 1
      end
 
-     --Provides: caml_array_get
-     function caml_array_get(arr, idx)
-       ...
+     --Provides: caml_baz
+     function caml_baz(y)
+       return y * 2
      end
+
+   Returns: Two fragments, one for caml_foo, one for caml_baz
+
+   Reference: js_of_ocaml does this via JavaScript parsing (linker.ml:257-342)
+   where parse' returns list of (annotation, code) pairs.
+   For Lua, we manually split on --Provides markers.
+*)
+let parse_file_into_functions ~filename (code : string) : fragment list =
+  let lines = String.split_on_char ~sep:'\n' code in
+
+  (* Collect preamble: all non-comment lines before first --Provides
+     Some files (like sys.lua, io.lua) have global initialization code before functions.
+     This preamble must be included with the first function to maintain correctness. *)
+  let rec collect_preamble preamble_lines = function
+    | [] -> List.rev preamble_lines, []
+    | line :: rest ->
+        let trimmed = String.trim line in
+        if String.starts_with ~prefix:"--Provides:" trimmed then
+          (* First --Provides found - preamble ends *)
+          List.rev preamble_lines, line :: rest
+        else
+          (* Add to preamble (including comments and initialization code) *)
+          collect_preamble (line :: preamble_lines) rest
+  in
+
+  let preamble, remaining_lines = collect_preamble [] lines in
+
+  (* Split remaining into chunks, each starting with --Provides *)
+  let rec split_into_chunks current_provides current_requires current_lines chunks = function
+    | [] ->
+        (* End of file - add final chunk if any *)
+        (match current_provides with
+        | Some prov ->
+            let chunk_code = String.concat ~sep:"\n" (List.rev current_lines) in
+            (prov, current_requires, chunk_code) :: chunks
+        | None ->
+            chunks)
+    | line :: rest ->
+        let trimmed = String.trim line in
+        if String.starts_with ~prefix:"--Provides:" trimmed then
+          (* New function starts *)
+          let new_prov = parse_provides trimmed in
+          (* Save previous chunk if any *)
+          let chunks' =
+            match current_provides with
+            | Some prov ->
+                let chunk_code = String.concat ~sep:"\n" (List.rev current_lines) in
+                (prov, current_requires, chunk_code) :: chunks
+            | None -> chunks
+          in
+          (* Start new chunk *)
+          split_into_chunks new_prov [] [line] chunks' rest
+        else if String.starts_with ~prefix:"--Requires:" trimmed then
+          (* Add requires to current chunk *)
+          let new_reqs = parse_requires trimmed in
+          split_into_chunks current_provides (new_reqs @ current_requires) (line :: current_lines) chunks rest
+        else
+          (* Regular line - add to current chunk *)
+          split_into_chunks current_provides current_requires (line :: current_lines) chunks rest
+  in
+
+  let chunks = split_into_chunks None [] [] [] remaining_lines in
+  let chunks = List.rev chunks in
+
+  (* Convert chunks to fragments, including preamble with first chunk *)
+  let chunks_with_preamble =
+    match chunks with
+    | [] -> []  (* No functions in file *)
+    | (first_name, first_reqs, first_code) :: rest ->
+        (* Prepend preamble to first chunk *)
+        let preamble_str = String.concat ~sep:"\n" preamble in
+        let first_with_preamble =
+          if String.length preamble_str > 0
+          then (first_name, first_reqs, preamble_str ^ "\n\n" ^ first_code)
+          else (first_name, first_reqs, first_code)
+        in
+        first_with_preamble :: rest
+  in
+
+  List.map chunks_with_preamble ~f:(fun (function_name, requires, chunk_code) ->
+    (* Create fragment with unique name: filename/function_name *)
+    let frag_name = filename ^ "/" ^ function_name in
+    { name = frag_name
+    ; provides = [function_name]
+    ; requires
+    ; code = chunk_code
+    ; function_name = Some function_name
+    })
+
+(* Parse complete fragment header from code string - OLD FILE-LEVEL APPROACH
+   Now deprecated in favor of parse_file_into_functions for function-level linking.
+   Kept for reference/compatibility.
 *)
 let parse_fragment_header ~name (code : string) : fragment =
   let lines = String.split_on_char ~sep:'\n' code in
@@ -126,14 +220,15 @@ let parse_fragment_header ~name (code : string) : fragment =
   let provides = List.rev provides in
   (* If no provides found, default to fragment name *)
   let provides = if List.length provides = 0 then [name] else provides in
-  { name; provides; requires; code }
+  { name; provides; requires; code; function_name = None }
 
 let load_runtime_file filename =
   let ic = open_in_bin filename in
   let code = really_input_string ic (in_channel_length ic) in
   close_in ic;
   let name = Filename.basename filename |> Filename.chop_extension in
-  parse_fragment_header ~name code
+  (* Use function-level parsing for better granularity *)
+  parse_file_into_functions ~filename:name code
 
 let load_runtime_dir dirname =
   if Sys.file_exists dirname && Sys.is_directory dirname
@@ -155,7 +250,8 @@ let load_runtime_dir dirname =
           && not (String.starts_with ~prefix:"example_" f))
       |> List.map ~f:(fun f -> Filename.concat dirname f)
     in
-    List.map ~f:load_runtime_file files)
+    (* load_runtime_file now returns a list, so we need to flatten *)
+    List.concat_map ~f:load_runtime_file files)
   else []
 
 let add_fragment state fragment =

@@ -22,10 +22,11 @@ open Stdlib
 
 (** Runtime fragment representing a Lua module or runtime file *)
 type fragment =
-  { name : string  (** Fragment name (basename of .lua file) *)
+  { name : string  (** Fragment name (basename of .lua file or filename/function_name) *)
   ; provides : string list  (** List of caml_* function names this fragment provides *)
   ; requires : string list  (** List of caml_* function names this fragment requires *)
   ; code : string  (** Lua code content *)
+  ; function_name : string option  (** Specific function name if this is a function-level fragment *)
   }
 
 (** Linking state *)
@@ -95,11 +96,16 @@ val parse_fragment_header : name:string -> string -> fragment
     Extracts --Provides: and --Requires: directives. Returns fragment with parsed metadata.
     Stops parsing at first non-comment line. Defaults to [name] if no Provides header found. *)
 
-(** Load a runtime Lua file as a fragment *)
-val load_runtime_file : string -> fragment
+(** Load a runtime Lua file and split into function-level fragments *)
+val load_runtime_file : string -> fragment list
+(** [load_runtime_file filename] reads a Lua runtime file and splits it into
+    individual function fragments based on --Provides markers.
+    Each --Provides comment marks the start of a new fragment.
+    Returns list of fragments (one per function in the file). *)
 
 (** Load runtime Lua files from a directory *)
 val load_runtime_dir : string -> fragment list
+(** Returns flattened list of all function fragments from all files in directory *)
 
 (** Add a fragment to the linking state *)
 val add_fragment : state -> fragment -> state
