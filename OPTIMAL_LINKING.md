@@ -143,15 +143,81 @@ let used =
 
 ## Master Checklist
 
-### Phase 1: Understand Primitive Collection - [ ]
+### Phase 1: Understand Primitive Collection - [x] COMPLETE
 
 **Goal**: Understand how to collect actually-used primitives from IR/generated code
 
-- [ ] Task 1.1: Study js_of_ocaml primitive collection
+- [x] Task 1.1: Study js_of_ocaml primitive collection ✅
   - Read `compiler/lib/primitive.ml` to understand `get_external()`
   - Understand how it extracts primitives from Code.program
   - Document the data structures used
-  - **Reference**: `compiler/lib/primitive.ml:~60-100`
+  - **Reference**: `compiler/lib/primitive.ml:60-94`
+
+  **Findings**:
+
+  **1. Primitive Collection from Bytecode** (`parse_bytecode.ml:2650-2680`):
+  ```ocaml
+  (* Read PRIM section from bytecode - contains ALL primitives *)
+  let primitives = read_primitives toc ic in  (* 439 primitives *)
+  let primitive_table = Array.of_list primitives in
+
+  (* During bytecode parsing, when C_CALL instructions found: *)
+  let prim = primitive_name state i in  (* Index into primitive_table *)
+  Primitive.add_external prim;          (* Register primitive *)
+  ```
+
+  **2. Free Variable Collection** (`js_traverse.ml:1335-1395`):
+  ```ocaml
+  class fast_freevar f =
+    object (m)
+      inherit iter as super
+      val decl = StringSet.empty  (* Declared variables in scope *)
+
+      method ident x : unit =
+        match x with
+        | V _ -> ()
+        | S { name = Utf8 name; _ } ->
+            if not (StringSet.mem name decl) then f name  (* Free variable! *)
+  ```
+
+  **Key**: Traverses JavaScript AST, calls `f name` for every identifier not declared in scope.
+
+  **3. Minimal Linking Algorithm** (`driver.ml:365-381`):
+  ```ocaml
+  let used =
+    let free = lazy (
+      let free = ref StringSet.empty in
+      let o = new Js_traverse.fast_freevar (fun s -> free := StringSet.add s !free) in
+      o#program js;  (* Traverse generated JS *)
+      !free
+    ) in
+    match link with
+    | `Needed ->
+        let prim = Primitive.get_external () in          (* Bytecode primitives *)
+        let all_external = StringSet.union prim all_provided in  (* + runtime *)
+        StringSet.inter (Lazy.force free) all_external   (* Intersection! *)
+  ```
+
+  **The Algorithm**:
+  1. Parse bytecode → collect ALL primitives (439 for stdlib)
+  2. Generate JavaScript code
+  3. Traverse JavaScript AST → collect free variables (all referenced identifiers)
+  4. Intersect free vars with (bytecode primitives ∪ runtime functions)
+  5. Result = actually used primitives
+  6. Pass to `Linker.resolve_deps` → add dependencies → minimal set
+
+  **Test Results** (minimal program: `print_int 42; print_newline ()`):
+  - Bytecode primitives: 439 (full stdlib listed)
+  - JS linked functions: **68** (via minimal linking ✅)
+  - Lua linked functions: **682** (via linkall ❌)
+  - **Bloat factor**: 10x
+
+  **Unused functions in Lua** (examples):
+  - All bigarray ops (caml_ba_*): 50+ functions
+  - Array iteration (fold, map, iter): 15+ functions
+  - Atomic operations: 10+ functions
+  - Marshal/IO that's never called: 100+ functions
+  - Weak refs, lazy, streams, lexing: 200+ functions
 
 - [ ] Task 1.2: Study js_of_ocaml free variable analysis
   - Read `compiler/lib/js_traverse.ml` class `fast_freevar`
