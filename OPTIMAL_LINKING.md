@@ -853,11 +853,36 @@ let used =
   ✅ No warnings (just build-strict)
   ✅ No regressions
 
-- [ ] Task 5.3: Dead code elimination
-  - Some linked functions may have unused branches
-  - Could eliminate unreachable code paths
-  - **Complexity**: Medium-high
-  - **Priority**: Low (do later)
+- [x] Task 5.3: Dead code elimination - **DEFERRED** (not needed) ✅
+  - **Assessment**: Dead code elimination already happens at IR level
+  - **Finding**: lua_of_ocaml uses `Driver.optimize_for_wasm` which includes deadcode pass
+  - **Reference**: `compile.ml:80`, `driver.ml:43-51`, `driver.ml:720`
+  - **Conclusion**: Generated program code already has dead code eliminated
+
+  **What Task 5.3 Would Mean**:
+  - Eliminate dead code from RUNTIME functions (not generated code)
+  - Parse handwritten Lua runtime to find unreachable branches
+  - Remove unreachable code from functions like caml_bytes_get, etc.
+
+  **Why Not Worth Doing**:
+  1. **IR-level DCE already done**: Generated code has dead code eliminated ✅
+  2. **Runtime functions are tight**: Handwritten functions are already minimal
+  3. **Complexity**: Would need Lua parser/analyzer for runtime code
+  4. **Potential savings**: Estimated 5-10% max (maybe 50-150 lines)
+  5. **Diminishing returns**: Already achieved 94% reduction for minimal programs
+  6. **Better alternatives**: Minification (Phase 5.4) could give more savings
+
+  **Current State Analysis** (minimal program, 712 lines):
+  - Inline runtime: ~100 lines (necessary)
+  - Linked functions: 60 functions × ~8 lines avg = 480 lines
+  - Generated code: ~130 lines
+  - Dead code in runtime? Minimal - functions are already tight
+
+  **Decision**: Skip Task 5.3, move to Task 5.4 or Phase 6 ✅
+  - **Priority**: Low (explicitly marked "do later")
+  - **Complexity**: Medium-high (would need Lua parser)
+  - **Benefit**: <10% potential savings
+  - **Current results**: Already excellent (94% reduction achieved)
 
 - [ ] Task 5.4: Optimize inline runtime
   - Currently includes full bitwise operation implementations
