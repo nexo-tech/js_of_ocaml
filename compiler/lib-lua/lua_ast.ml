@@ -66,7 +66,7 @@ type unop =
   | BNot  (** ~ (bitwise not, Lua 5.3+) *)
   | Len  (** # (length operator) *)
 
-(** {2 Expressions} *)
+(** {2 Expressions and Table Fields} *)
 
 (** Lua expression *)
 type expr =
@@ -79,20 +79,37 @@ type expr =
   | Ident of ident  (** variable reference *)
   | Index of expr * expr  (** table[key] *)
   | Dot of expr * ident  (** table.field *)
+  (* Table constructor *)
+  | Table of table_field list  (** {fields} - table constructor *)
   (* Operations *)
   | BinOp of binop * expr * expr  (** binary operation *)
   | UnOp of unop * expr  (** unary operation *)
   (* Function calls *)
   | Call of expr * expr list  (** func(args) *)
   | Method_call of expr * ident * expr list  (** obj:method(args) *)
+  (* Function definition *)
+  | Function of ident list * bool * block  (** function(params) body end - params, has_vararg, body *)
+  (* Vararg *)
+  | Vararg  (** ... - vararg expression *)
+
+(** Table field in table constructor *)
+and table_field =
+  | Array_field of expr  (** {expr} - array-style field *)
+  | Rec_field of ident * expr  (** {name = expr} - record-style field *)
+  | General_field of expr * expr  (** {[key] = value} - computed key field *)
 
 (** {2 Statements} *)
 
 (** Lua statement *)
-type stat =
+and stat =
   (* Variable declarations and assignments *)
   | Local of ident list * expr list option  (** local x, y = e1, e2 *)
   | Assign of expr list * expr list  (** x, y = e1, e2 *)
+  (* Function declarations *)
+  | Function_decl of ident * ident list * bool * block
+      (** function name(params) body end - name, params, has_vararg, body *)
+  | Local_function of ident * ident list * bool * block
+      (** local function name(params) body end - name, params, has_vararg, body *)
   (* Control flow *)
   | If of expr * block * block option  (** if expr then block else block end *)
   | While of expr * block  (** while expr do block end *)
@@ -109,6 +126,9 @@ type stat =
   (* Other statements *)
   | Call_stat of expr  (** function call as statement *)
   | Block of block  (** do block end *)
+  | Comment of string  (** -- comment *)
+  | Raw of string  (** raw Lua code (for embedding runtime modules) *)
+  | Location_hint of Parse_info.t  (** Debug location marker (not emitted) *)
 
 (** Block is a list of statements *)
 and block = stat list
@@ -177,3 +197,59 @@ let call_stat e = Call_stat e
 
 (** Block statement *)
 let block stmts = Block stmts
+
+(** {2 Table Constructors} *)
+
+(** Array-style table field *)
+let array_field e = Array_field e
+
+(** Record-style table field *)
+let rec_field name value = Rec_field (name, value)
+
+(** General (computed key) table field *)
+let general_field key value = General_field (key, value)
+
+(** Table constructor *)
+let table fields = Table fields
+
+(** Empty table constructor *)
+let empty_table = Table []
+
+(** {2 Function Constructors} *)
+
+(** Function expression *)
+let function_ params has_vararg body = Function (params, has_vararg, body)
+
+(** Function expression without vararg *)
+let function_simple params body = Function (params, false, body)
+
+(** Vararg expression *)
+let vararg = Vararg
+
+(** Function declaration statement *)
+let function_decl name params has_vararg body =
+  Function_decl (name, params, has_vararg, body)
+
+(** Function declaration without vararg *)
+let function_decl_simple name params body =
+  Function_decl (name, params, false, body)
+
+(** Local function declaration *)
+let local_function name params has_vararg body =
+  Local_function (name, params, has_vararg, body)
+
+(** Local function declaration without vararg *)
+let local_function_simple name params body =
+  Local_function (name, params, false, body)
+
+(** {2 Utility Functions} *)
+
+(** Create a for loop with default step of 1 *)
+let for_num var start limit body = For_num (var, start, limit, None, body)
+
+(** Create a for loop with explicit step *)
+let for_num_step var start limit step body =
+  For_num (var, start, limit, Some step, body)
+
+(** Create a generic for loop *)
+let for_in vars exprs body = For_in (vars, exprs, body)

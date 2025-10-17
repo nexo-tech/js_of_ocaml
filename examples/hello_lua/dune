@@ -1,0 +1,20 @@
+(executable
+ (name hello)
+ (modes byte)
+ (flags (:standard -g)))
+
+(rule
+ (targets hello.bc.lua)
+ (deps hello.bc)
+ (action
+  (run %{bin:lua_of_ocaml} compile %{deps} -o %{targets})))
+
+(rule
+ (targets hello.bc.js)
+ (deps hello.bc)
+ (action
+  (run %{bin:js_of_ocaml} compile %{deps} -o %{targets})))
+
+(alias
+ (name default)
+ (deps hello.bc.lua))

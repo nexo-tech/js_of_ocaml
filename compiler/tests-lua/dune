@@ -1,0 +1,421 @@
+(executable
+ (name test_package)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_package))
+
+(executable
+ (name test_ast_construction)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_ast_construction))
+
+(executable
+ (name test_output)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_output))
+
+(executable
+ (name test_reserved)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_reserved))
+
+(library
+ (name test_mlvalue)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_mlvalue)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_lua_generate)
+ (libraries lua_of_ocaml_compiler str)
+ (modules test_lua_generate)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_direct_calls)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_direct_calls)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_closures)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_closures)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_conditional_calls)
+ (libraries lua_of_ocaml_compiler str)
+ (modules test_conditional_calls)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_lua_expr_gen)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_lua_expr_gen)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_lua_stmt_gen)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_lua_stmt_gen)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_lua_cond_gen)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_lua_cond_gen)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_lua_func_gen)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_lua_func_gen)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_lua_arith)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_lua_arith)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_lua_string)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_lua_string)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_lua_array)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_lua_array)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_lua_io)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_lua_io)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_lua_module)
+ (libraries lua_of_ocaml_compiler str)
+ (modules test_lua_module)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_lua_record_variant)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_lua_record_variant)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_lua_ffi)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_lua_ffi)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_array)
+ (libraries util str unix)
+ (modules test_array)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_exceptions)
+ (libraries util str unix)
+ (modules test_exceptions)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_functions)
+ (libraries util str unix)
+ (modules test_functions)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_closure_capture)
+ (libraries util str unix)
+ (modules test_closure_capture)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_closure_context)
+ (libraries util str unix)
+ (modules test_closure_context)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_pattern_matching_args)
+ (libraries util str unix)
+ (modules test_pattern_matching_args)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_control_flow)
+ (libraries util str unix)
+ (modules test_control_flow)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_strings)
+ (libraries util str unix)
+ (modules test_strings)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_lists)
+ (libraries util str unix)
+ (modules test_lists)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_lua_interop)
+ (libraries util str unix)
+ (modules test_lua_interop)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_records)
+ (libraries util str unix)
+ (modules test_records)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_refs)
+ (libraries util str unix)
+ (modules test_refs)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_numerical_edge_cases)
+ (libraries util str unix)
+ (modules test_numerical_edge_cases)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_polymorphism)
+ (libraries util str unix)
+ (modules test_polymorphism)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_name_collisions)
+ (libraries util str unix)
+ (modules test_name_collisions)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_calling_conventions)
+ (libraries util str unix)
+ (modules test_calling_conventions)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_stdlib_compat)
+ (libraries util str unix)
+ (modules test_stdlib_compat)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_edge_cases)
+ (libraries util str unix)
+ (modules test_edge_cases)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_bytes_and_chars)
+ (libraries util str unix)
+ (modules test_bytes_and_chars)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_module_linking)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_module_linking)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_linker)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_linker)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_variable_collection)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_variable_collection)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_primitive_coverage)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_primitive_coverage)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_ir_debug)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_ir_debug)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_execution_debug)
+ (libraries lua_of_ocaml_compiler str)
+ (modules test_execution_debug)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_execution)
+ (libraries lua_of_ocaml_compiler unix)
+ (modules test_execution)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_lua_fixes)
+ (libraries lua_of_ocaml_compiler unix)
+ (modules test_lua_fixes)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_hoisting_fix)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_hoisting_fix)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_closure_handling)
+ (libraries lua_of_ocaml_compiler unix)
+ (modules test_closure_handling)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_variable_table)
+ (libraries lua_of_ocaml_compiler unix str)
+ (modules test_variable_table)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_real_world)
+ (libraries lua_of_ocaml_compiler unix str)
+ (modules test_real_world)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_hello_lua_execution)
+ (libraries lua_of_ocaml_compiler unix str)
+ (modules test_hello_lua_execution)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(executable
+ (name minimal_exec)
+ (modes byte)
+ (flags (:standard -g))
+ (modules minimal_exec))
+
+(library
+ (name test_minimal_exec)
+ (libraries lua_of_ocaml_compiler str)
+ (modules test_minimal_exec)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_printf_formats)
+ (libraries )
+ (modules test_printf_formats)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(library
+ (name test_lua_traverse)
+ (libraries lua_of_ocaml_compiler)
+ (modules test_lua_traverse)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
+
+(executable
+ (name bench_lua_generate)
+ (libraries lua_of_ocaml_compiler unix)
+ (modules bench_lua_generate))
+
+(executable
+ (name verify_hello_lua)
+ (libraries unix str)
+ (modules verify_hello_lua))
+
+(executable
+ (name verify_fixes)
+ (libraries lua_of_ocaml_compiler)
+ (modules verify_fixes))
+
+(rule
+ (alias runtest)
+ (package lua_of_ocaml-compiler)
+ (action
+  (run ./test_package.exe)))
+
+(rule
+ (alias runtest)
+ (package lua_of_ocaml-compiler)
+ (action
+  (run ./test_ast_construction.exe)))
+
+(rule
+ (alias runtest)
+ (package lua_of_ocaml-compiler)
+ (action
+  (run ./test_output.exe)))
+
+(rule
+ (alias runtest)
+ (package lua_of_ocaml-compiler)
+ (action
+  (run ./test_reserved.exe)))

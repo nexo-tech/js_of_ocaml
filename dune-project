@@ -156,3 +156,28 @@
   (ocamlfind (< 1.5.1))
   (js_of_ocaml (< 3.0))
 ))
+
+(package
+ (name lua_of_ocaml-compiler)
+ (synopsis "Compiler from OCaml bytecode to Lua")
+ (description
+  "Lua_of_ocaml is a compiler from OCaml bytecode to Lua. It makes it possible to run pure OCaml programs in Lua environment like Neovim and other Lua-based systems")
+ (depends
+  (ocaml (>= 4.13))
+  (js_of_ocaml-compiler (= :version))
+  (num :with-test)
+  (ppx_expect (and (>= v0.14.2) :with-test))
+  (ppxlib (>= 0.35))
+  (re :with-test))
+ (conflicts
+  (js_of_ocaml (< 3.0))
+))
+
+(package
+ (name lua_of_ocaml)
+ (synopsis "FFI library for OCaml-Lua interop")
+ (description
+  "Lua_of_ocaml FFI library provides type-safe bindings for OCaml-Lua interoperability in lua_of_ocaml compiled programs")
+ (depends
+  (ocaml (>= 4.13))
+  (lua_of_ocaml-compiler (= :version))))
