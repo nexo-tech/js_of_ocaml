@@ -877,3 +877,48 @@ Runtime used: `{tag = 0, field0, field1, ...}` where .tag=0, [1]=field0, [2]=fie
 
 - a141b7eb: Added direct_int primitives, documented original bug
 - [pending]: Fix list.lua representation mismatch
+
+### Closure Ordering Bug - FIXED!
+
+**Root Cause**: Free variables incorrectly declared as local in nested closures
+
+When:
+- Parent closure uses local variables (not _V table)
+- Nested closure also uses local variables
+- Nested closure has free variables (captured from parent)
+
+Bug was: Free vars declared as local, shadowing parent's locals!
+
+```lua
+-- Parent:
+local v6 = ...
+
+-- Nested (BUG):
+local v6, v47, v48  -- v6 declared as local, shadows parent v6!
+v47 = v6(...)        -- Calls nil v6, not parent v6!
+```
+
+**Fix Applied** (compiler/lib-lua/lua_generate.ml:1787-1798, 2540-2563):
+Changed hoisting logic to detect nested closures by checking if free_vars is non-empty:
+```ocaml
+if not (StringSet.is_empty free_vars) then
+  (* NESTED: Only declare defined vars *)
+  StringSet.diff defined_vars entry_block_params
+else
+  (* TOP-LEVEL: Declare all (no free vars) *)
+  StringSet.diff all_hoisted_vars entry_block_params
+```
+
+**Test Results**:
+✅ List.map works! `List.map (fun x -> x * 2) [1; 2; 3]` succeeds
+✅ List.hd on result returns 2 (correct!)
+✅ examples/hello_lua still works perfectly
+✅ All runtime tests pass
+
+**Files Modified**:
+- compiler/lib-lua/lua_generate.ml (lines 1787-1798, 2540-2563)
+- runtime/lua/mlBytes.lua (added --Requires: to caml_ml_string_length)
+
+**Impact**: Higher-order list functions now usable!
+
+---

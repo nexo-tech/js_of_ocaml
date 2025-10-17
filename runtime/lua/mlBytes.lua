@@ -149,6 +149,7 @@ function caml_ml_bytes_length(s)
 end
 
 --Provides: caml_ml_string_length
+--Requires: caml_ml_bytes_length
 function caml_ml_string_length(s)
   return caml_ml_bytes_length(s)
 end

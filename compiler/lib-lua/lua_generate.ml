@@ -1785,21 +1785,26 @@ and setup_hoisted_variables ctx program start_addr =
     else
       (* Not using _V table - use local variables *)
       let vars_to_init =
-        if ctx.inherit_var_table then
-          (* NESTED: Only define local vars, free vars come from outer scope *)
+        (* CRITICAL FIX: If there are free vars, we're nested (not top-level)
+           Top-level has no parent to capture from, so free_vars would be empty.
+           When nested with parent using local vars, we must NOT redeclare free vars
+           as locals - they should be captured from parent's local scope. *)
+        if not (StringSet.is_empty free_vars) then
+          (* NESTED: Only define defined vars, free vars captured from parent locals *)
           StringSet.diff defined_vars entry_block_params
         else
-          (* TOP-LEVEL: Define all *)
+          (* TOP-LEVEL: Define all (no free vars to worry about) *)
           StringSet.diff all_hoisted_vars entry_block_params
       in
       let var_list = StringSet.elements vars_to_init |> List.sort ~cmp:String.compare in
       if StringSet.is_empty vars_to_init then
         [ L.Comment (Printf.sprintf "Hoisted variables (%d total)" total_vars) ]
       else
-        [ L.Comment (Printf.sprintf "Hoisted variables (%d total: %d defined, %d free)"
+        [ L.Comment (Printf.sprintf "Hoisted variables (%d total: %d defined, %d free, declaring %d locals)"
             total_vars
             (StringSet.cardinal defined_vars)
-            (StringSet.cardinal free_vars))
+            (StringSet.cardinal free_vars)
+            (List.length var_list))
         ; L.Local (var_list, None)
         ]
   in
@@ -2533,21 +2538,26 @@ and compile_address_based_dispatch ctx program start_addr params entry_args func
     else
       (* Use local declarations for ≤180 variables *)
       let vars_to_init =
-        if ctx.inherit_var_table then
-          (* NESTED: Only define local vars, free vars come from outer scope *)
+        (* CRITICAL FIX: If there are free vars, we're nested (not top-level)
+           Top-level has no parent to capture from, so free_vars would be empty.
+           When nested with parent using local vars, we must NOT redeclare free vars
+           as locals - they should be captured from parent's local scope. *)
+        if not (StringSet.is_empty free_vars) then
+          (* NESTED: Only define defined vars, free vars captured from parent locals *)
           StringSet.diff defined_vars entry_block_params
         else
-          (* TOP-LEVEL: Define all *)
+          (* TOP-LEVEL: Define all (no free vars to worry about) *)
           StringSet.diff all_hoisted_vars entry_block_params
       in
       let var_list = StringSet.elements vars_to_init |> List.sort ~cmp:String.compare in
       if StringSet.is_empty vars_to_init then
         [ L.Comment (Printf.sprintf "Hoisted variables (%d total)" total_vars) ]
       else
-        [ L.Comment (Printf.sprintf "Hoisted variables (%d total: %d defined, %d free)"
+        [ L.Comment (Printf.sprintf "Hoisted variables (%d total: %d defined, %d free, declaring %d locals)"
             total_vars
             (StringSet.cardinal defined_vars)
-            (StringSet.cardinal free_vars))
+            (StringSet.cardinal free_vars)
+            (List.length var_list))
         ; L.Local (var_list, None)
         ]
   in
