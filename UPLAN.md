@@ -99,15 +99,22 @@
     - ✅ examples/hello_lua works perfectly
   - **Success Criteria**: All runtime tests pass ✅
 
-- [ ] Task 1.3: Test all Printf format combinations
-  - Create comprehensive Printf test file
-  - Test: %d, %i, %u, %x, %X, %o (integers)
-  - Test: %s, %c (strings/chars)
-  - Test: %f, %e, %E, %g, %G (floats)
-  - Test: width, precision, flags (+, -, space, #, 0)
-  - Test: combinations like "%5d", "%.2f", "%+d"
+- [x] Task 1.3: Test all Printf format combinations
+  - Created comprehensive Printf test file: `/tmp/test_printf_comprehensive.ml`
+  - **Tests Passed** ✅:
+    - All integer formats: %d, %i, %u, %x, %X, %o
+    - All float formats: %f, %e, %E, %g, %G (with precision)
+    - String/char formats: %s, %c
+    - All flags: +, -, space, #, 0
+    - Width and precision combinations
+    - Complex combinations (multiple arguments, mixed formats)
+    - Edge cases (zero, negative zero, empty strings)
+  - **Runtime Bug Fixed**: Added missing `--Requires:` comments in mlBytes.lua
+    - Fixed: caml_string_get, caml_string_unsafe_get, caml_string_compare
+    - Fixed: caml_string_equal, caml_string_get16, caml_string_get32
   - **Command**: `just quick-test /tmp/test_printf_comprehensive.ml`
-  - **Success Criteria**: All formats work correctly
+  - **Result**: All format specifiers work correctly ✅
+  - **Success Criteria**: All formats work correctly ✅
 
 - [ ] Task 1.4: Test String module functions
   - Test: uppercase_ascii, lowercase_ascii

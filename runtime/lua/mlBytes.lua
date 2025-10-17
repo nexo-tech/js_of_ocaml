@@ -96,6 +96,7 @@ function caml_bytes_unsafe_get(b, i)
 end
 
 --Provides: caml_string_unsafe_get
+--Requires: caml_bytes_unsafe_get
 function caml_string_unsafe_get(b, i)
   return caml_bytes_unsafe_get(b, i)
 end
@@ -121,6 +122,7 @@ function caml_bytes_get(b, i)
 end
 
 --Provides: caml_string_get
+--Requires: caml_bytes_get
 function caml_string_get(b, i)
   return caml_bytes_get(b, i)
 end
@@ -217,6 +219,7 @@ function caml_bytes_compare(s1, s2)
 end
 
 --Provides: caml_string_compare
+--Requires: caml_bytes_compare
 function caml_string_compare(s1, s2)
   return caml_bytes_compare(s1, s2)
 end
@@ -228,6 +231,7 @@ function caml_bytes_equal(s1, s2)
 end
 
 --Provides: caml_string_equal
+--Requires: caml_bytes_equal
 function caml_string_equal(s1, s2)
   return caml_bytes_equal(s1, s2)
 end
@@ -340,6 +344,7 @@ function caml_bytes_get16(b, i)
 end
 
 --Provides: caml_string_get16
+--Requires: caml_bytes_get16
 function caml_string_get16(b, i)
   return caml_bytes_get16(b, i)
 end
@@ -355,6 +360,7 @@ function caml_bytes_get32(b, i)
 end
 
 --Provides: caml_string_get32
+--Requires: caml_bytes_get32
 function caml_string_get32(b, i)
   return caml_bytes_get32(b, i)
 end
