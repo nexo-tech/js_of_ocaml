@@ -3589,22 +3589,8 @@ let generate_standalone ctx program =
         []
   in
 
-  (* 3. Find fragments that provide used primitives *)
-  (* Build provides map: primitive name -> fragment *)
-  let provides_map =
-    List.fold_left
-      ~f:(fun acc frag ->
-        List.fold_left
-          ~f:(fun m prim -> StringMap.add prim frag.Lua_link.name m)
-          ~init:acc
-          frag.Lua_link.provides)
-      ~init:StringMap.empty
-      fragments
-  in
-  (* NOTE: We used to find which fragments provide needed primitives here,
-     but we now use linkall behavior since codegen adds primitives not in IR. *)
-  let _ = provides_map in  (* Suppress unused warning *)
-  let _ = used_primitives in  (* Suppress unused warning *)
+  (* 3. Primitives from IR - not used for minimal linking, we analyze generated code instead *)
+  let _ = used_primitives in  (* Collected from IR but not used - minimal linking uses free var analysis *)
 
   (* 4. Generate program code FIRST (before linking runtime)
      This allows us to analyze the generated code to find actually-used primitives.
@@ -3621,9 +3607,15 @@ let generate_standalone ctx program =
      Other free vars (like _V, _next_block, etc.) are generated code internals. *)
   let caml_primitives = StringSet.filter (String.starts_with ~prefix:"caml_") free_vars in
 
-  (* 7. Resolve dependencies between needed fragments (MINIMAL LINKING!)
-     Replaces old linkall behavior with minimal linking based on free variable analysis.
-     Reference: compiler/lib/driver.ml:379-382 *)
+  (* 7. Minimal linking: resolve dependencies for needed fragments
+     Only link runtime functions that are actually called in the generated code.
+     Algorithm:
+     - Analyze generated Lua AST to find free variables (lua_traverse.fast_freevar)
+     - Filter to caml_* primitives
+     - Intersect with available runtime functions
+     - Resolve dependencies via Lua_link.resolve_deps
+     - Result: minimal set of runtime functions needed (not all 755!)
+     Reference: compiler/lib/driver.ml:362-382 (js_of_ocaml does the same) *)
   let sorted_fragments =
     if List.length fragments = 0
     then []
@@ -3696,24 +3688,20 @@ let generate_standalone ctx program =
         sorted_fragment_names
   in
 
-  (* 8. Generate code in order:
-     - Inline runtime (caml_register_global)
-     - Runtime modules (embedded - MINIMAL, not linkall!)
-     - Global wrappers (generated from used_primitives)
-     - Program code (already generated above) *)
+  (* 8. Assemble final program with minimal runtime
+     Order:
+     - Inline runtime (caml_register_global, bitwise ops)
+     - Runtime functions (only those actually needed via minimal linking)
+     - Program code (generated in step 4)
+
+     Note: No wrappers needed - runtime functions are already global caml_* functions. *)
   let inline_runtime = generate_inline_runtime () in
   let embedded_modules =
     List.map ~f:Lua_link.embed_runtime_module sorted_fragments
     |> List.map ~f:(fun code -> L.Raw code)
   in
-  let wrappers_code = Lua_link.generate_wrappers used_primitives fragments in
-  let wrappers =
-    if String.length wrappers_code = 0
-    then []
-    else [ L.Raw wrappers_code ]
-  in
 
-  inline_runtime @ [ L.Comment "" ] @ embedded_modules @ wrappers @ [ L.Comment "" ] @ program_code
+  inline_runtime @ [ L.Comment "" ] @ embedded_modules @ [ L.Comment "" ] @ program_code
 
 (** Generate module code for separate compilation
     Creates module code that can be loaded via require()
