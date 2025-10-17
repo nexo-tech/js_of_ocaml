@@ -81,7 +81,7 @@ let%expect_test "collect_block_variables_fix" =
   let block = {
     Code.params = [];
     Code.body = [
-      Code.Let (var_local, Code.Constant (Code.Int (Targetint.of_int32_exn 42l)));
+      Code.Let (var_local, Code.Constant (Code.String "test"));
       Code.Let (Code.Var.fresh_n "closure",
                 Code.Closure ([var_captured], (1, []), None))
     ];

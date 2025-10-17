@@ -178,7 +178,8 @@ let%expect_test "embed_runtime_module - direct functions" =
             --Provides: caml_array_get\n\
             function caml_array_get(arr, idx)\n\
             \  return arr[idx]\n\
-            end\n"
+            end\n";
+    function_name = None
   } in
   let result = Lua_link.embed_runtime_module frag in
   print_endline result;
@@ -202,7 +203,8 @@ let%expect_test "embed_runtime_module - adds newline" =
     Lua_link.name = "test";
     provides = ["caml_test"];
     requires = [];
-    code = "function caml_test() return 42 end"
+    code = "function caml_test() return 42 end";
+    function_name = None
   } in
   let result = Lua_link.embed_runtime_module frag in
   let has_trailing_newline = String.ends_with ~suffix:"\n\n" result in
@@ -215,7 +217,8 @@ let%expect_test "embed_runtime_module - header format" =
     Lua_link.name = "mlBytes";
     provides = ["caml_bytes_create"];
     requires = [];
-    code = "function caml_bytes_create(n) return {} end\n"
+    code = "function caml_bytes_create(n) return {} end\n";
+    function_name = None
   } in
   let result = Lua_link.embed_runtime_module frag in
   let lines = String.split_on_char '\n' result in

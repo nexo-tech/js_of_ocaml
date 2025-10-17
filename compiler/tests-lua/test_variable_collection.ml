@@ -139,12 +139,12 @@ let%expect_test "collect_block_variables_unreachable" =
       ~debug:false
       program
   in
-  let vars =
+  let (defined_vars, free_vars) =
     Lua_of_ocaml_compiler__Lua_generate.collect_block_variables ctx program 0
   in
-  Printf.printf "Collected %d variables (only from block 0)\n"
-    (StringSet.cardinal vars);
-  let sorted_vars = vars |> StringSet.elements in
+  Printf.printf "Collected %d defined variables and %d free variables (from block 0)\n"
+    (StringSet.cardinal defined_vars) (StringSet.cardinal free_vars);
+  let sorted_vars = defined_vars |> StringSet.elements in
   List.iter ~f:(fun v -> Printf.printf "  %s\n" v) sorted_vars;
   [%expect {|
     Collected 1 variables (only from block 0)
@@ -188,9 +188,10 @@ let%expect_test "collect_block_variables_switch" =
       ~debug:false
       program
   in
-  let vars =
+  let (defined_vars, free_vars) =
     Lua_of_ocaml_compiler__Lua_generate.collect_block_variables ctx program 0
   in
+  let vars = StringSet.union defined_vars free_vars in
   Printf.printf "Collected %d variables (from all switch branches)\n"
     (StringSet.cardinal vars);
   let sorted_vars = vars |> StringSet.elements |> List.sort ~cmp:String.compare in

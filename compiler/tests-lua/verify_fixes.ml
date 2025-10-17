@@ -36,7 +36,8 @@ let test_variable_hoisting () =
     Code.free_pc = 2;
   } in
 
-  let collected = L.collect_block_variables ctx program 0 in
+  let (defined_vars, free_vars) = L.collect_block_variables ctx program 0 in
+  let collected = StringSet.union defined_vars free_vars in
   let collected_list = StringSet.elements collected in
 
   (* Should only have local_var and closure, NOT captured_var *)

@@ -326,8 +326,8 @@ let%expect_test "build_provides_map with single fragment" =
     name = "module1";
     provides = ["foo"; "bar"];
     requires = [];
-
-    code = ""
+    code = "";
+    function_name = None
   } in
   let fragments = StringMap.singleton "module1" frag in
   let provides_map = Lua_link.build_provides_map fragments in
@@ -346,14 +346,14 @@ let%expect_test "build_provides_map with multiple fragments" =
     provides = ["foo"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "module2";
     provides = ["bar"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.empty
     |> StringMap.add "module1" frag1
@@ -375,14 +375,14 @@ let%expect_test "build_provides_map with duplicate provides" =
     provides = ["foo"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "module2";
     provides = ["foo"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.empty
     |> StringMap.add "module1" frag1
@@ -406,7 +406,7 @@ let%expect_test "build_provides_map with fragment providing multiple symbols" =
     provides = ["print"; "assert"; "type"; "pairs"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.singleton "stdlib" frag in
   let provides_map = Lua_link.build_provides_map fragments in
@@ -432,14 +432,14 @@ let%expect_test "build_provides_map uses last provider on duplicate" =
     provides = ["shared"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "second";
     provides = ["shared"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.empty
     |> StringMap.add "first" frag1
@@ -459,14 +459,14 @@ let%expect_test "build_dep_graph with simple dependency" =
     provides = ["base_func"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "derived";
     provides = ["derived_func"];
     requires = ["base_func"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.empty
     |> StringMap.add "base" frag1
@@ -490,7 +490,7 @@ let%expect_test "build_dep_graph with no dependencies" =
     provides = ["func"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.singleton "standalone" frag in
   let provides_map = Lua_link.build_provides_map fragments in
@@ -511,21 +511,21 @@ let%expect_test "build_dep_graph with multiple dependencies" =
     provides = ["a"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "b";
     provides = ["b"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag3 = { Lua_link.
     name = "c";
     provides = ["c"];
     requires = ["a"; "b"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.empty
     |> StringMap.add "a" frag1
@@ -550,7 +550,7 @@ let%expect_test "build_dep_graph filters self-dependency" =
     provides = ["func1"; "func2"];
     requires = ["func1"];  (* Requires its own symbol *)
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.singleton "recursive" frag in
   let provides_map = Lua_link.build_provides_map fragments in
@@ -571,7 +571,7 @@ let%expect_test "build_dep_graph ignores missing symbols" =
     provides = ["func"];
     requires = ["missing_symbol"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.singleton "incomplete" frag in
   let provides_map = Lua_link.build_provides_map fragments in
@@ -592,21 +592,21 @@ let%expect_test "build_dep_graph with transitive dependencies" =
     provides = ["a"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "b";
     provides = ["b"];
     requires = ["a"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag3 = { Lua_link.
     name = "c";
     provides = ["c"];
     requires = ["b"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.empty
     |> StringMap.add "a" frag1
@@ -645,14 +645,14 @@ let%expect_test "calculate_in_degrees with simple dependency" =
     provides = ["base_func"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "derived";
     provides = ["derived_func"];
     requires = ["base_func"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.empty
     |> StringMap.add "base" frag1
@@ -676,7 +676,7 @@ let%expect_test "calculate_in_degrees with no dependencies" =
     provides = ["func"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.singleton "standalone" frag in
   let provides_map = Lua_link.build_provides_map fragments in
@@ -692,21 +692,21 @@ let%expect_test "calculate_in_degrees with multiple dependents" =
     provides = ["base_func"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "derived1";
     provides = ["d1"];
     requires = ["base_func"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag3 = { Lua_link.
     name = "derived2";
     provides = ["d2"];
     requires = ["base_func"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.empty
     |> StringMap.add "base" frag1
@@ -726,21 +726,21 @@ let%expect_test "calculate_in_degrees with complex graph" =
     provides = ["a"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "b";
     provides = ["b"];
     requires = ["a"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag3 = { Lua_link.
     name = "c";
     provides = ["c"];
     requires = ["a"; "b"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.empty
     |> StringMap.add "a" frag1
@@ -768,14 +768,14 @@ let%expect_test "calculate_in_degrees all fragments initialized" =
     provides = ["i1"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "isolated2";
     provides = ["i2"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.empty
     |> StringMap.add "isolated1" frag1
@@ -794,28 +794,28 @@ let%expect_test "calculate_in_degrees with linear chain" =
     provides = ["a"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "b";
     provides = ["b"];
     requires = ["a"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag3 = { Lua_link.
     name = "c";
     provides = ["c"];
     requires = ["b"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag4 = { Lua_link.
     name = "d";
     provides = ["d"];
     requires = ["c"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.empty
     |> StringMap.add "a" frag1
@@ -849,21 +849,21 @@ let%expect_test "topological_sort with linear dependencies" =
     provides = ["a"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "b";
     provides = ["b"];
     requires = ["a"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag3 = { Lua_link.
     name = "c";
     provides = ["c"];
     requires = ["b"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.empty
     |> StringMap.add "a" frag1
@@ -887,7 +887,7 @@ let%expect_test "topological_sort with no dependencies" =
     provides = ["func"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.singleton "standalone" frag in
   let provides_map = Lua_link.build_provides_map fragments in
@@ -907,28 +907,28 @@ let%expect_test "topological_sort with diamond dependency" =
     provides = ["a"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "b";
     provides = ["b"];
     requires = ["a"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag3 = { Lua_link.
     name = "c";
     provides = ["c"];
     requires = ["a"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag4 = { Lua_link.
     name = "d";
     provides = ["d"];
     requires = ["b"; "c"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.empty
     |> StringMap.add "a" frag1
@@ -956,14 +956,14 @@ let%expect_test "topological_sort with circular dependency" =
     provides = ["a"];
     requires = ["b"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "b";
     provides = ["b"];
     requires = ["a"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.empty
     |> StringMap.add "a" frag1
@@ -986,21 +986,21 @@ let%expect_test "topological_sort with multiple independent fragments" =
     provides = ["a"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "b";
     provides = ["b"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag3 = { Lua_link.
     name = "c";
     provides = ["c"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.empty
     |> StringMap.add "a" frag1
@@ -1024,21 +1024,21 @@ let%expect_test "topological_sort with complex cycle" =
     provides = ["a"];
     requires = ["b"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "b";
     provides = ["b"];
     requires = ["c"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag3 = { Lua_link.
     name = "c";
     provides = ["c"];
     requires = ["a"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.empty
     |> StringMap.add "a" frag1
@@ -1069,8 +1069,8 @@ end
     name = "test";
     provides = ["foo"; "bar"];
     requires = ["baz"];
-
-    code
+    code;
+    function_name = None
   } in
   print_endline ("provides: " ^ String.concat ~sep:", " fragment.provides);
   print_endline ("requires: " ^ String.concat ~sep:", " fragment.requires);
@@ -1085,8 +1085,8 @@ let%expect_test "add fragment to state" =
     name = "module1";
     provides = ["sym1"];
     requires = [];
-
-    code = "-- module1 code"
+    code = "-- module1 code";
+    function_name = None
   } in
   let _state' = Lua_link.add_fragment state fragment in
   print_endline "fragment added";
@@ -1100,14 +1100,14 @@ let%expect_test "find_missing_deps with no missing" =
     provides = ["a"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "b";
     provides = ["b"];
     requires = ["a"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.empty
     |> StringMap.add "a" frag1
@@ -1125,7 +1125,7 @@ let%expect_test "find_missing_deps with single missing" =
     provides = ["func"];
     requires = ["missing_dep"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.singleton "incomplete" frag in
   let provides_map = Lua_link.build_provides_map fragments in
@@ -1140,14 +1140,14 @@ let%expect_test "find_missing_deps with multiple missing" =
     provides = ["a"];
     requires = ["dep1"; "dep2"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "b";
     provides = ["b"];
     requires = ["dep3"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.empty
     |> StringMap.add "a" frag1
@@ -1165,14 +1165,14 @@ let%expect_test "find_missing_deps with partial satisfaction" =
     provides = ["dep1"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "consumer";
     provides = ["func"];
     requires = ["dep1"; "dep2"; "dep3"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.empty
     |> StringMap.add "provider" frag1
@@ -1190,14 +1190,14 @@ let%expect_test "find_missing_deps with duplicate requirements" =
     provides = ["a"];
     requires = ["missing"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "b";
     provides = ["b"];
     requires = ["missing"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.empty
     |> StringMap.add "a" frag1
@@ -1309,28 +1309,28 @@ let%expect_test "resolve_deps with diamond dependency" =
     provides = ["a"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag_b = { Lua_link.
     name = "b";
     provides = ["b"];
     requires = ["a"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag_c = { Lua_link.
     name = "c";
     provides = ["c"];
     requires = ["a"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag_d = { Lua_link.
     name = "d";
     provides = ["d"];
     requires = ["b"; "c"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let state = Lua_link.add_fragment state frag_a in
   let state = Lua_link.add_fragment state frag_b in
@@ -1362,14 +1362,14 @@ let%expect_test "resolve_deps with multiple required symbols" =
     provides = ["util1"; "util2"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "app";
     provides = ["app"];
     requires = ["util1"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let state = Lua_link.add_fragment state frag1 in
   let state = Lua_link.add_fragment state frag2 in
@@ -1388,14 +1388,14 @@ let%expect_test "resolve_deps with unused fragments" =
     provides = ["needed"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "unused";
     provides = ["unused"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let state = Lua_link.add_fragment state frag1 in
   let state = Lua_link.add_fragment state frag2 in
@@ -1416,7 +1416,7 @@ let%expect_test "resolve_deps with empty requirements" =
     provides = ["symbol"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let state = Lua_link.add_fragment state frag in
   let ordered, missing = Lua_link.resolve_deps state [] in
@@ -1434,14 +1434,14 @@ let%expect_test "resolve_deps with complex missing dependencies" =
     provides = ["a"];
     requires = ["missing1"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "b";
     provides = ["b"];
     requires = ["a"; "missing2"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let state = Lua_link.add_fragment state frag1 in
   let state = Lua_link.add_fragment state frag2 in
@@ -1505,7 +1505,7 @@ let%expect_test "generate_module_registration with empty code" =
     provides = ["empty_module"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let registration = Lua_link.generate_module_registration fragment in
   print_string registration;
@@ -1601,14 +1601,14 @@ let%expect_test "generate_loader_epilogue with fragments" =
     provides = ["test"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "other";
     provides = ["other"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let epilogue = Lua_link.generate_loader_epilogue [frag1; frag2] in
   print_string epilogue;
@@ -1754,14 +1754,14 @@ let%expect_test "select_fragments with linkall=true includes all" =
     provides = ["f1"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "frag2";
     provides = ["f2"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let state = Lua_link.add_fragment state frag1 in
   let state = Lua_link.add_fragment state frag2 in
@@ -1777,7 +1777,7 @@ let%expect_test "select_fragments with linkall=false and empty required" =
     provides = ["f"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let state = Lua_link.add_fragment state frag in
   let fragments = Lua_link.select_fragments state ~linkall:false [] in
@@ -1792,21 +1792,21 @@ let%expect_test "select_fragments with linkall=false and required symbols" =
     provides = ["base_func"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "derived";
     provides = ["derived_func"];
     requires = ["base_func"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag3 = { Lua_link.
     name = "unused";
     provides = ["unused_func"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let state = Lua_link.add_fragment state frag1 in
   let state = Lua_link.add_fragment state frag2 in
@@ -1827,21 +1827,21 @@ let%expect_test "select_fragments respects dependency order" =
     provides = ["a"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "b";
     provides = ["b"];
     requires = ["a"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag3 = { Lua_link.
     name = "c";
     provides = ["c"];
     requires = ["b"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let state = Lua_link.add_fragment state frag1 in
   let state = Lua_link.add_fragment state frag2 in
@@ -1862,21 +1862,21 @@ let%expect_test "select_fragments with multiple required symbols" =
     provides = ["s1"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "f2";
     provides = ["s2"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag3 = { Lua_link.
     name = "f3";
     provides = ["s3"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let state = Lua_link.add_fragment state frag1 in
   let state = Lua_link.add_fragment state frag2 in
@@ -2073,14 +2073,14 @@ let%expect_test "circular dependency detection - simple cycle" =
     provides = ["a"];
     requires = ["b"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag_b = { Lua_link.
     name = "b";
     provides = ["b"];
     requires = ["a"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let state = Lua_link.add_fragment state frag_a in
   let state = Lua_link.add_fragment state frag_b in
@@ -2102,21 +2102,21 @@ let%expect_test "circular dependency detection - three-way cycle" =
     provides = ["a"];
     requires = ["b"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag_b = { Lua_link.
     name = "b";
     provides = ["b"];
     requires = ["c"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag_c = { Lua_link.
     name = "c";
     provides = ["c"];
     requires = ["a"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let state = Lua_link.add_fragment state frag_a in
   let state = Lua_link.add_fragment state frag_b in
@@ -2137,7 +2137,7 @@ let%expect_test "circular dependency - self cycle" =
     provides = ["self"];
     requires = ["self"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let state = Lua_link.add_fragment state frag in
   (* Self-cycle should be detected (even though build_dep_graph filters them) *)
@@ -2154,28 +2154,28 @@ let%expect_test "no cycle with complex dependencies" =
     provides = ["base"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "mid1";
     provides = ["mid1"];
     requires = ["base"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag3 = { Lua_link.
     name = "mid2";
     provides = ["mid2"];
     requires = ["base"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag4 = { Lua_link.
     name = "top";
     provides = ["top"];
     requires = ["mid1"; "mid2"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let state = Lua_link.add_fragment state frag1 in
   let state = Lua_link.add_fragment state frag2 in
@@ -2202,7 +2202,7 @@ let%expect_test "format_missing_error with single missing symbol" =
     provides = [];
     requires = ["missing_func"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.singleton "test" frag in
   let missing = StringSet.singleton "missing_func" in
@@ -2225,14 +2225,14 @@ let%expect_test "format_missing_error with multiple missing symbols" =
     provides = [];
     requires = ["missing_a"; "missing_b"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "frag2";
     provides = [];
     requires = ["missing_b"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.empty
     |> StringMap.add "frag1" frag1
@@ -2265,7 +2265,7 @@ let%expect_test "missing dependency detection - single missing" =
     provides = ["test"];
     requires = ["nonexistent"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let state = Lua_link.add_fragment state frag in
   (* Try to resolve - should fail with missing dependency error *)
@@ -2286,14 +2286,14 @@ let%expect_test "missing dependency detection - multiple fragments" =
     provides = ["base"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "derived";
     provides = ["derived"];
     requires = ["base"; "unknown"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let state = Lua_link.add_fragment state frag1 in
   let state = Lua_link.add_fragment state frag2 in
@@ -2313,14 +2313,14 @@ let%expect_test "no missing dependencies - all provided" =
     provides = ["base"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "derived";
     provides = ["derived"];
     requires = ["base"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let state = Lua_link.add_fragment state frag1 in
   let state = Lua_link.add_fragment state frag2 in
@@ -2340,7 +2340,7 @@ let%expect_test "missing dependency error shows fragment names" =
     provides = ["my_func"];
     requires = ["mystery_func"];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let state = Lua_link.add_fragment state frag in
   (try
@@ -2361,14 +2361,14 @@ let%expect_test "check_duplicate_provides with no duplicates" =
     provides = ["sym1"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "frag2";
     provides = ["sym2"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.empty
     |> StringMap.add "frag1" frag1
@@ -2384,14 +2384,14 @@ let%expect_test "check_duplicate_provides with single duplicate" =
     provides = ["func"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "impl2";
     provides = ["func"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.empty
     |> StringMap.add "impl1" frag1
@@ -2410,21 +2410,21 @@ let%expect_test "check_duplicate_provides with multiple duplicates" =
     provides = ["x"; "y"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "b";
     provides = ["x"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag3 = { Lua_link.
     name = "c";
     provides = ["y"; "z"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let fragments = StringMap.empty
     |> StringMap.add "a" frag1
@@ -2474,21 +2474,21 @@ let%expect_test "three fragments providing same symbol" =
     provides = ["api"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag2 = { Lua_link.
     name = "v2";
     provides = ["api"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let frag3 = { Lua_link.
     name = "v3";
     provides = ["api"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let state = Lua_link.add_fragment state frag1 in
   let state = Lua_link.add_fragment state frag2 in
@@ -2736,10 +2736,10 @@ return x
 let%expect_test "dependency resolution - simple linear chain (a→b→c→d)" =
   (* Test simple linear dependency chain *)
   let state = Lua_link.init () in
-  let frag_a = { Lua_link.name = "a"; provides = ["sym_a"]; requires = ["sym_b"]; code = "-- a" } in
-  let frag_b = { Lua_link.name = "b"; provides = ["sym_b"]; requires = ["sym_c"]; code = "-- b" } in
-  let frag_c = { Lua_link.name = "c"; provides = ["sym_c"]; requires = ["sym_d"]; code = "-- c" } in
-  let frag_d = { Lua_link.name = "d"; provides = ["sym_d"]; requires = []; code = "-- d" } in
+  let frag_a = { Lua_link.name = "a"; provides = ["sym_a"]; requires = ["sym_b"]; code = "-- a"; function_name = None } in
+  let frag_b = { Lua_link.name = "b"; provides = ["sym_b"]; requires = ["sym_c"]; code = "-- b"; function_name = None } in
+  let frag_c = { Lua_link.name = "c"; provides = ["sym_c"]; requires = ["sym_d"]; code = "-- c"; function_name = None } in
+  let frag_d = { Lua_link.name = "d"; provides = ["sym_d"]; requires = []; code = "-- d"; function_name = None } in
   let state = Lua_link.add_fragment state frag_a in
   let state = Lua_link.add_fragment state frag_b in
   let state = Lua_link.add_fragment state frag_c in
@@ -2756,11 +2756,11 @@ let%expect_test "dependency resolution - complex DAG with multiple paths" =
         e → c
      Requesting 'a' and 'e' should include all fragments in correct order *)
   let state = Lua_link.init () in
-  let frag_a = { Lua_link.name = "a"; provides = ["sym_a"]; requires = ["sym_b"; "sym_c"]; code = "-- a" } in
-  let frag_b = { Lua_link.name = "b"; provides = ["sym_b"]; requires = ["sym_d"]; code = "-- b" } in
-  let frag_c = { Lua_link.name = "c"; provides = ["sym_c"]; requires = ["sym_d"]; code = "-- c" } in
-  let frag_d = { Lua_link.name = "d"; provides = ["sym_d"]; requires = []; code = "-- d" } in
-  let frag_e = { Lua_link.name = "e"; provides = ["sym_e"]; requires = ["sym_c"]; code = "-- e" } in
+  let frag_a = { Lua_link.name = "a"; provides = ["sym_a"]; requires = ["sym_b"; "sym_c"]; code = "-- a"; function_name = None } in
+  let frag_b = { Lua_link.name = "b"; provides = ["sym_b"]; requires = ["sym_d"]; code = "-- b"; function_name = None } in
+  let frag_c = { Lua_link.name = "c"; provides = ["sym_c"]; requires = ["sym_d"]; code = "-- c"; function_name = None } in
+  let frag_d = { Lua_link.name = "d"; provides = ["sym_d"]; requires = []; code = "-- d"; function_name = None } in
+  let frag_e = { Lua_link.name = "e"; provides = ["sym_e"]; requires = ["sym_c"]; code = "-- e"; function_name = None } in
   let state = Lua_link.add_fragment state frag_a in
   let state = Lua_link.add_fragment state frag_b in
   let state = Lua_link.add_fragment state frag_c in
@@ -2789,10 +2789,10 @@ let%expect_test "dependency resolution - complex DAG with multiple paths" =
 let%expect_test "dependency resolution - multiple independent entry points" =
   (* Test requesting multiple independent symbols that don't share dependencies *)
   let state = Lua_link.init () in
-  let frag_a = { Lua_link.name = "a"; provides = ["sym_a"]; requires = ["sym_b"]; code = "-- a" } in
-  let frag_b = { Lua_link.name = "b"; provides = ["sym_b"]; requires = []; code = "-- b" } in
-  let frag_x = { Lua_link.name = "x"; provides = ["sym_x"]; requires = ["sym_y"]; code = "-- x" } in
-  let frag_y = { Lua_link.name = "y"; provides = ["sym_y"]; requires = []; code = "-- y" } in
+  let frag_a = { Lua_link.name = "a"; provides = ["sym_a"]; requires = ["sym_b"]; code = "-- a"; function_name = None } in
+  let frag_b = { Lua_link.name = "b"; provides = ["sym_b"]; requires = []; code = "-- b"; function_name = None } in
+  let frag_x = { Lua_link.name = "x"; provides = ["sym_x"]; requires = ["sym_y"]; code = "-- x"; function_name = None } in
+  let frag_y = { Lua_link.name = "y"; provides = ["sym_y"]; requires = []; code = "-- y"; function_name = None } in
   let state = Lua_link.add_fragment state frag_a in
   let state = Lua_link.add_fragment state frag_b in
   let state = Lua_link.add_fragment state frag_x in
@@ -2815,13 +2815,13 @@ let%expect_test "dependency resolution - multiple independent entry points" =
 let%expect_test "dependency resolution - deep DAG (7 levels)" =
   (* Test deep dependency graph to ensure algorithm handles depth correctly *)
   let state = Lua_link.init () in
-  let frag_1 = { Lua_link.name = "level1"; provides = ["l1"]; requires = ["l2a"; "l2b"]; code = "" } in
-  let frag_2a = { Lua_link.name = "level2a"; provides = ["l2a"]; requires = ["l3"]; code = "" } in
-  let frag_2b = { Lua_link.name = "level2b"; provides = ["l2b"]; requires = ["l3"]; code = "" } in
-  let frag_3 = { Lua_link.name = "level3"; provides = ["l3"]; requires = ["l4"]; code = "" } in
-  let frag_4 = { Lua_link.name = "level4"; provides = ["l4"]; requires = ["l5"]; code = "" } in
-  let frag_5 = { Lua_link.name = "level5"; provides = ["l5"]; requires = ["l6"]; code = "" } in
-  let frag_6 = { Lua_link.name = "level6"; provides = ["l6"]; requires = []; code = "" } in
+  let frag_1 = { Lua_link.name = "level1"; provides = ["l1"]; requires = ["l2a"; "l2b"]; code = ""; function_name = None } in
+  let frag_2a = { Lua_link.name = "level2a"; provides = ["l2a"]; requires = ["l3"]; code = ""; function_name = None } in
+  let frag_2b = { Lua_link.name = "level2b"; provides = ["l2b"]; requires = ["l3"]; code = ""; function_name = None } in
+  let frag_3 = { Lua_link.name = "level3"; provides = ["l3"]; requires = ["l4"]; code = ""; function_name = None } in
+  let frag_4 = { Lua_link.name = "level4"; provides = ["l4"]; requires = ["l5"]; code = ""; function_name = None } in
+  let frag_5 = { Lua_link.name = "level5"; provides = ["l5"]; requires = ["l6"]; code = ""; function_name = None } in
+  let frag_6 = { Lua_link.name = "level6"; provides = ["l6"]; requires = []; code = ""; function_name = None } in
   let state = Lua_link.add_fragment state frag_1 in
   let state = Lua_link.add_fragment state frag_2a in
   let state = Lua_link.add_fragment state frag_2b in
@@ -2844,12 +2844,12 @@ let%expect_test "dependency resolution - wide DAG (many parallel dependencies)" 
   (* Test wide dependency graph where one fragment depends on many others *)
   let state = Lua_link.init () in
   let frag_root = { Lua_link.name = "root"; provides = ["root"];
-                    requires = ["d1"; "d2"; "d3"; "d4"; "d5"]; code = "" } in
-  let frag_d1 = { Lua_link.name = "dep1"; provides = ["d1"]; requires = []; code = "" } in
-  let frag_d2 = { Lua_link.name = "dep2"; provides = ["d2"]; requires = []; code = "" } in
-  let frag_d3 = { Lua_link.name = "dep3"; provides = ["d3"]; requires = []; code = "" } in
-  let frag_d4 = { Lua_link.name = "dep4"; provides = ["d4"]; requires = []; code = "" } in
-  let frag_d5 = { Lua_link.name = "dep5"; provides = ["d5"]; requires = []; code = "" } in
+                    requires = ["d1"; "d2"; "d3"; "d4"; "d5"]; code = ""; function_name = None } in
+  let frag_d1 = { Lua_link.name = "dep1"; provides = ["d1"]; requires = []; code = ""; function_name = None } in
+  let frag_d2 = { Lua_link.name = "dep2"; provides = ["d2"]; requires = []; code = ""; function_name = None } in
+  let frag_d3 = { Lua_link.name = "dep3"; provides = ["d3"]; requires = []; code = ""; function_name = None } in
+  let frag_d4 = { Lua_link.name = "dep4"; provides = ["d4"]; requires = []; code = ""; function_name = None } in
+  let frag_d5 = { Lua_link.name = "dep5"; provides = ["d5"]; requires = []; code = ""; function_name = None } in
   let state = Lua_link.add_fragment state frag_root in
   let state = Lua_link.add_fragment state frag_d1 in
   let state = Lua_link.add_fragment state frag_d2 in
@@ -2876,10 +2876,10 @@ let%expect_test "dependency resolution - wide DAG (many parallel dependencies)" 
 let%expect_test "dependency resolution - circular with multiple entry points" =
   (* Test that circular dependencies are detected even with multiple entry points *)
   let state = Lua_link.init () in
-  let frag_a = { Lua_link.name = "a"; provides = ["sym_a"]; requires = ["sym_b"]; code = "" } in
-  let frag_b = { Lua_link.name = "b"; provides = ["sym_b"]; requires = ["sym_c"]; code = "" } in
-  let frag_c = { Lua_link.name = "c"; provides = ["sym_c"]; requires = ["sym_a"]; code = "" } in
-  let frag_x = { Lua_link.name = "x"; provides = ["sym_x"]; requires = []; code = "" } in
+  let frag_a = { Lua_link.name = "a"; provides = ["sym_a"]; requires = ["sym_b"]; code = ""; function_name = None } in
+  let frag_b = { Lua_link.name = "b"; provides = ["sym_b"]; requires = ["sym_c"]; code = ""; function_name = None } in
+  let frag_c = { Lua_link.name = "c"; provides = ["sym_c"]; requires = ["sym_a"]; code = ""; function_name = None } in
+  let frag_x = { Lua_link.name = "x"; provides = ["sym_x"]; requires = []; code = ""; function_name = None } in
   let state = Lua_link.add_fragment state frag_a in
   let state = Lua_link.add_fragment state frag_b in
   let state = Lua_link.add_fragment state frag_c in
@@ -2894,8 +2894,8 @@ let%expect_test "dependency resolution - circular with multiple entry points" =
 let%expect_test "dependency resolution - missing with multiple entry points" =
   (* Test that missing dependencies are detected across multiple entry points *)
   let state = Lua_link.init () in
-  let frag_a = { Lua_link.name = "a"; provides = ["sym_a"]; requires = ["missing_a"]; code = "" } in
-  let frag_b = { Lua_link.name = "b"; provides = ["sym_b"]; requires = ["missing_b"]; code = "" } in
+  let frag_a = { Lua_link.name = "a"; provides = ["sym_a"]; requires = ["missing_a"]; code = ""; function_name = None } in
+  let frag_b = { Lua_link.name = "b"; provides = ["sym_b"]; requires = ["missing_b"]; code = ""; function_name = None } in
   let state = Lua_link.add_fragment state frag_a in
   let state = Lua_link.add_fragment state frag_b in
   (try
@@ -2914,9 +2914,9 @@ let%expect_test "dependency resolution - missing with multiple entry points" =
 let%expect_test "dependency resolution - partial satisfaction with multiple entry points" =
   (* Test where some entry points are satisfied and others have missing deps *)
   let state = Lua_link.init () in
-  let frag_a = { Lua_link.name = "a"; provides = ["sym_a"]; requires = ["sym_b"]; code = "" } in
-  let frag_b = { Lua_link.name = "b"; provides = ["sym_b"]; requires = []; code = "" } in
-  let frag_x = { Lua_link.name = "x"; provides = ["sym_x"]; requires = ["missing"]; code = "" } in
+  let frag_a = { Lua_link.name = "a"; provides = ["sym_a"]; requires = ["sym_b"]; code = ""; function_name = None } in
+  let frag_b = { Lua_link.name = "b"; provides = ["sym_b"]; requires = []; code = ""; function_name = None } in
+  let frag_x = { Lua_link.name = "x"; provides = ["sym_x"]; requires = ["missing"]; code = ""; function_name = None } in
   let state = Lua_link.add_fragment state frag_a in
   let state = Lua_link.add_fragment state frag_b in
   let state = Lua_link.add_fragment state frag_x in
@@ -2930,7 +2930,7 @@ let%expect_test "dependency resolution - partial satisfaction with multiple entr
 let%expect_test "dependency resolution - empty requirements returns empty" =
   (* Test that requesting no symbols returns empty list *)
   let state = Lua_link.init () in
-  let frag_a = { Lua_link.name = "a"; provides = ["sym_a"]; requires = []; code = "" } in
+  let frag_a = { Lua_link.name = "a"; provides = ["sym_a"]; requires = []; code = ""; function_name = None } in
   let state = Lua_link.add_fragment state frag_a in
   let ordered, _missing = Lua_link.resolve_deps state [] in
   print_endline ("count: " ^ string_of_int (List.length ordered));
@@ -2944,7 +2944,7 @@ let%expect_test "loader generation - single fragment with single symbol" =
   (* Test loader generation for simplest case: one fragment, one symbol *)
   let frag = { Lua_link.name = "math"; provides = ["add"]; requires = [];
 
-               code = "local function add(a, b) return a + b end" } in
+               code = "local function add(a, b) return a + b end"; function_name = None } in
   let loader = Lua_link.generate_loader [frag] in
   (* Verify structure *)
   let has_prologue = String.contains loader 'L' in  (* "Lua_of_ocaml" *)
@@ -2966,10 +2966,10 @@ let%expect_test "loader generation - multiple fragments in dependency order" =
   (* Test that loader preserves dependency order: dependencies registered first *)
   let frag_a = { Lua_link.name = "a"; provides = ["sym_a"]; requires = ["sym_b"];
 
-                 code = "-- code a\nrequire('sym_b')" } in
+                 code = "-- code a\nrequire('sym_b')"; function_name = None } in
   let frag_b = { Lua_link.name = "b"; provides = ["sym_b"]; requires = [];
 
-                 code = "-- code b" } in
+                 code = "-- code b"; function_name = None } in
   (* Pass in dependency order: b before a *)
   let loader = Lua_link.generate_loader [frag_b; frag_a] in
   (* Find positions of fragment markers *)
@@ -3033,7 +3033,7 @@ let%expect_test "loader generation - fragment with multiple symbols" =
                provides = ["util_a"; "util_b"; "util_c"];
                requires = [];
 
-               code = "local utils = {}" } in
+               code = "local utils = {}"; function_name = None } in
   let loader = Lua_link.generate_loader [frag] in
   (* Each symbol should appear in package.loaded registration *)
   let has_util_a = String.contains loader 'a' in
@@ -3052,10 +3052,10 @@ let%expect_test "loader generation - verify Lua syntax validity (basic check)" =
   (* Test that generated loader has valid Lua syntax markers *)
   let frag1 = { Lua_link.name = "base"; provides = ["base_init"]; requires = [];
 
-                code = "local base = { version = '1.0' }\nreturn base" } in
+                code = "local base = { version = '1.0' }\nreturn base"; function_name = None } in
   let frag2 = { Lua_link.name = "app"; provides = ["app_run"]; requires = ["base_init"];
 
-                code = "local app = {}\nfunction app.run() end\nreturn app" } in
+                code = "local app = {}\nfunction app.run() end\nreturn app"; function_name = None } in
   let loader = Lua_link.generate_loader [frag1; frag2] in
   (* Check for Lua syntax elements *)
   let has_local = String.contains loader 'l' in  (* "local" keyword *)
@@ -3078,10 +3078,10 @@ let%expect_test "loader generation - verify Lua syntax validity (basic check)" =
 
 let%expect_test "loader generation - correct registration order with complex DAG" =
   (* Test loader generation with complex dependency graph *)
-  let frag_d = { Lua_link.name = "d"; provides = ["d"]; requires = []; code = "-- d" } in
-  let frag_c = { Lua_link.name = "c"; provides = ["c"]; requires = ["d"]; code = "-- c" } in
-  let frag_b = { Lua_link.name = "b"; provides = ["b"]; requires = ["d"]; code = "-- b" } in
-  let frag_a = { Lua_link.name = "a"; provides = ["a"]; requires = ["b"; "c"]; code = "-- a" } in
+  let frag_d = { Lua_link.name = "d"; provides = ["d"]; requires = []; code = "-- d"; function_name = None } in
+  let frag_c = { Lua_link.name = "c"; provides = ["c"]; requires = ["d"]; code = "-- c"; function_name = None } in
+  let frag_b = { Lua_link.name = "b"; provides = ["b"]; requires = ["d"]; code = "-- b"; function_name = None } in
+  let frag_a = { Lua_link.name = "a"; provides = ["a"]; requires = ["b"; "c"]; code = "-- a"; function_name = None } in
   (* Pass in correct dependency order: d, then b and c (either order), then a *)
   let loader = Lua_link.generate_loader [frag_d; frag_b; frag_c; frag_a] in
   (* Verify all fragments are present *)
@@ -3118,7 +3118,7 @@ let%expect_test "loader generation - code indentation preserved" =
   (* Test that fragment code maintains proper indentation *)
   let frag = { Lua_link.name = "indent_test"; provides = ["test"]; requires = [];
 
-               code = "local x = 1\n  local y = 2\n    local z = 3" } in
+               code = "local x = 1\n  local y = 2\n    local z = 3"; function_name = None } in
   let loader = Lua_link.generate_loader [frag] in
   (* Check that indentation exists (spaces or tabs) *)
   let has_indentation = String.contains loader ' ' in
@@ -3176,7 +3176,7 @@ let%expect_test "loader generation - verify registration happens before code exe
   (* Test that package.loaded registration comes before actual code execution *)
   let frag = { Lua_link.name = "test"; provides = ["test_fn"]; requires = [];
 
-               code = "local function test() print('executed') end\nreturn test" } in
+               code = "local function test() print('executed') end\nreturn test"; function_name = None } in
   let loader = Lua_link.generate_loader [frag] in
   (* Find positions of key markers *)
   let package_pos = String.index_opt loader 'p' in  (* package.loaded *)
@@ -3241,7 +3241,7 @@ let%expect_test "integration - complete link with empty program" =
   let state = Lua_link.init () in
   let frag = { Lua_link.name = "runtime"; provides = ["init"]; requires = [];
 
-               code = "local function init() return 'ready' end" } in
+               code = "local function init() return 'ready' end"; function_name = None } in
   let state = Lua_link.add_fragment state frag in
   let program = [] in  (* Empty program *)
   let linked = Lua_link.link ~state ~program ~linkall:true in
@@ -3258,10 +3258,10 @@ let%expect_test "integration - complete link with linkall=true includes all frag
   let state = Lua_link.init () in
   let frag1 = { Lua_link.name = "used"; provides = ["used"]; requires = [];
 
-                code = "-- used fragment" } in
+                code = "-- used fragment"; function_name = None } in
   let frag2 = { Lua_link.name = "unused"; provides = ["unused"]; requires = [];
 
-                code = "-- unused fragment" } in
+                code = "-- unused fragment"; function_name = None } in
   let state = Lua_link.add_fragment state frag1 in
   let state = Lua_link.add_fragment state frag2 in
   let program = [] in
@@ -3328,10 +3328,10 @@ let%expect_test "integration - complete link with linkall=false only includes ne
   let state = Lua_link.init () in
   let frag_needed = { Lua_link.name = "needed"; provides = ["needed"]; requires = [];
 
-                      code = "-- needed" } in
+                      code = "-- needed"; function_name = None } in
   let frag_extra = { Lua_link.name = "extra"; provides = ["extra"]; requires = [];
 
-                     code = "-- extra" } in
+                     code = "-- extra"; function_name = None } in
   let state = Lua_link.add_fragment state frag_needed in
   let state = Lua_link.add_fragment state frag_extra in
   (* Program that doesn't require any symbols *)
@@ -3406,20 +3406,20 @@ let%expect_test "integration - link with complex dependency tree" =
   *)
   let frag_core = { Lua_link.name = "core"; provides = ["core_init"]; requires = [];
 
-                    code = "local core = { version = '1.0' }" } in
+                    code = "local core = { version = '1.0' }"; function_name = None } in
   let frag_ui = { Lua_link.name = "ui"; provides = ["ui_render"]; requires = ["core_init"];
 
-                  code = "local ui = { render = function() end }" } in
+                  code = "local ui = { render = function() end }"; function_name = None } in
   let frag_data = { Lua_link.name = "data"; provides = ["data_load"]; requires = ["core_init"];
 
-                    code = "local data = { load = function() end }" } in
+                    code = "local data = { load = function() end }"; function_name = None } in
   let frag_utils = { Lua_link.name = "utils"; provides = ["utils_helpers"]; requires = [];
 
-                     code = "local utils = {}" } in
+                     code = "local utils = {}"; function_name = None } in
   let frag_app = { Lua_link.name = "app"; provides = ["app_main"];
                    requires = ["ui_render"; "data_load"; "utils_helpers"];
 
-                   code = "local app = { main = function() end }" } in
+                   code = "local app = { main = function() end }"; function_name = None } in
   let state = Lua_link.add_fragment state frag_core in
   let state = Lua_link.add_fragment state frag_ui in
   let state = Lua_link.add_fragment state frag_data in
@@ -3498,7 +3498,7 @@ let%expect_test "integration - link preserves program statements order" =
   let state = Lua_link.init () in
   let frag = { Lua_link.name = "lib"; provides = ["lib"]; requires = [];
 
-               code = "local lib = {}" } in
+               code = "local lib = {}"; function_name = None } in
   let state = Lua_link.add_fragment state frag in
 
   (* Create program with multiple statements *)
@@ -3573,10 +3573,10 @@ let%expect_test "integration - link preserves program statements order" =
 let%expect_test "integration - link with transitive dependencies resolved correctly" =
   (* Test that transitive dependencies are automatically included *)
   let state = Lua_link.init () in
-  let frag_a = { Lua_link.name = "a"; provides = ["a"]; requires = ["b"]; code = "-- a" } in
-  let frag_b = { Lua_link.name = "b"; provides = ["b"]; requires = ["c"]; code = "-- b" } in
-  let frag_c = { Lua_link.name = "c"; provides = ["c"]; requires = ["d"]; code = "-- c" } in
-  let frag_d = { Lua_link.name = "d"; provides = ["d"]; requires = []; code = "-- d" } in
+  let frag_a = { Lua_link.name = "a"; provides = ["a"]; requires = ["b"]; code = "-- a"; function_name = None } in
+  let frag_b = { Lua_link.name = "b"; provides = ["b"]; requires = ["c"]; code = "-- b"; function_name = None } in
+  let frag_c = { Lua_link.name = "c"; provides = ["c"]; requires = ["d"]; code = "-- c"; function_name = None } in
+  let frag_d = { Lua_link.name = "d"; provides = ["d"]; requires = []; code = "-- d"; function_name = None } in
   let state = Lua_link.add_fragment state frag_a in
   let state = Lua_link.add_fragment state frag_b in
   let state = Lua_link.add_fragment state frag_c in
@@ -3641,10 +3641,10 @@ let%expect_test "integration - link with transitive dependencies resolved correc
 let%expect_test "integration - link with diamond dependency pattern" =
   (* Test diamond dependency: A depends on B and C, both depend on D *)
   let state = Lua_link.init () in
-  let frag_d = { Lua_link.name = "d"; provides = ["d"]; requires = []; code = "-- d" } in
-  let frag_b = { Lua_link.name = "b"; provides = ["b"]; requires = ["d"]; code = "-- b" } in
-  let frag_c = { Lua_link.name = "c"; provides = ["c"]; requires = ["d"]; code = "-- c" } in
-  let frag_a = { Lua_link.name = "a"; provides = ["a"]; requires = ["b"; "c"]; code = "-- a" } in
+  let frag_d = { Lua_link.name = "d"; provides = ["d"]; requires = []; code = "-- d"; function_name = None } in
+  let frag_b = { Lua_link.name = "b"; provides = ["b"]; requires = ["d"]; code = "-- b"; function_name = None } in
+  let frag_c = { Lua_link.name = "c"; provides = ["c"]; requires = ["d"]; code = "-- c"; function_name = None } in
+  let frag_a = { Lua_link.name = "a"; provides = ["a"]; requires = ["b"; "c"]; code = "-- a"; function_name = None } in
   let state = Lua_link.add_fragment state frag_d in
   let state = Lua_link.add_fragment state frag_b in
   let state = Lua_link.add_fragment state frag_c in
@@ -3718,10 +3718,10 @@ let%expect_test "integration - link generates syntactically complete output" =
   let state = Lua_link.init () in
   let frag1 = { Lua_link.name = "math"; provides = ["add"; "sub"]; requires = [];
 
-                code = "local function add(a,b) return a+b end\nlocal function sub(a,b) return a-b end" } in
+                code = "local function add(a,b) return a+b end\nlocal function sub(a,b) return a-b end"; function_name = None } in
   let frag2 = { Lua_link.name = "calc"; provides = ["calc"]; requires = ["add"];
 
-                code = "local function calc(x) return add(x, 10) end" } in
+                code = "local function calc(x) return add(x, 10) end"; function_name = None } in
   let state = Lua_link.add_fragment state frag1 in
   let state = Lua_link.add_fragment state frag2 in
 
@@ -3861,7 +3861,7 @@ let%expect_test "integration - link handles fragments with no provides gracefull
   (* Test edge case: fragment with empty provides list *)
   let state = Lua_link.init () in
   let frag = { Lua_link.name = "init"; provides = []; requires = [];
-               code = "-- initialization code with side effects" } in
+               code = "-- initialization code with side effects"; function_name = None } in
   let state = Lua_link.add_fragment state frag in
   let program = [] in
   let linked = Lua_link.link ~state ~program ~linkall:true in
@@ -4003,7 +4003,7 @@ let%expect_test "parse_primitive_name with truly single-part name" =
 let%expect_test "find_primitive_implementation via naming convention" =
   let fragments = [
     { Lua_link.name = "array"; provides = ["array"]; requires = [];
-      code = "local M = {} function M.make() end return M" }
+      code = "local M = {} function M.make() end return M"; function_name = None }
   ] in
   let result = Lua_link.find_primitive_implementation "caml_array_make" fragments in
   (match result with
@@ -4017,7 +4017,7 @@ let%expect_test "find_primitive_implementation via export fallback" =
   let fragments = [
     { Lua_link.name = "mlBytes"; provides = ["mlBytes"]; requires = [];
       exports = [("create", "caml_create_bytes")];
-      code = "local M = {} function M.create() end return M" }
+      code = "local M = {} function M.create() end return M"; function_name = None }
   ] in
   let result = Lua_link.find_primitive_implementation "caml_create_bytes" fragments in
   (match result with
@@ -4029,7 +4029,7 @@ let%expect_test "find_primitive_implementation via export fallback" =
 let%expect_test "find_primitive_implementation with missing primitive" =
   let fragments = [
     { Lua_link.name = "array"; provides = ["array"]; requires = [];
-      code = "local M = {} return M" }
+      code = "local M = {} return M"; function_name = None }
   ] in
   let result = Lua_link.find_primitive_implementation "caml_unknown_primitive" fragments in
   (match result with
@@ -4044,7 +4044,7 @@ let%expect_test "find_primitive_implementation prefers naming convention over ex
   let fragments = [
     { Lua_link.name = "array"; provides = ["array"]; requires = [];
       exports = [("legacy_make", "caml_array_make")];
-      code = "local M = {} function M.make() end function M.legacy_make() end return M" }
+      code = "local M = {} function M.make() end function M.legacy_make() end return M"; function_name = None }
   ] in
   let result = Lua_link.find_primitive_implementation "caml_array_make" fragments in
   (match result with
@@ -4145,7 +4145,7 @@ let%expect_test "generate_wrapper_for_primitive creates correct wrapper" =
     provides = ["array"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let wrapper = Lua_link.generate_wrapper_for_primitive "caml_array_make" frag "make" in
   print_endline wrapper;
@@ -4164,7 +4164,7 @@ let%expect_test "generate_wrapper_for_primitive with multi-part function name" =
     provides = ["array"];
     requires = [];
 
-    code = ""
+    code = "";    function_name = None
   } in
   let wrapper = Lua_link.generate_wrapper_for_primitive "caml_array_unsafe_get" frag "unsafe_get" in
   print_endline wrapper;
@@ -4178,9 +4178,9 @@ let%expect_test "generate_wrapper_for_primitive with multi-part function name" =
 let%expect_test "generate_wrappers returns empty after refactoring" =
   let fragments = [
     { Lua_link.name = "array"; provides = ["caml_array_make"; "caml_array_get"]; requires = [];
-      code = "" };
+      code = ""; function_name = None };
     { Lua_link.name = "mlBytes"; provides = ["caml_bytes_create"]; requires = [];
-      code = "" }
+      code = ""; function_name = None }
   ] in
   let used_primitives = StringSet.of_list ["caml_array_make"; "caml_array_get"] in
   let wrappers = Lua_link.generate_wrappers used_primitives fragments in
@@ -4193,7 +4193,7 @@ let%expect_test "generate_wrappers with export directive fallback" =
   let fragments = [
     { Lua_link.name = "mlBytes"; provides = ["mlBytes"]; requires = [];
       exports = [("create", "caml_create_bytes")];
-      code = "" }
+      code = ""; function_name = None }
   ] in
   let used_primitives = StringSet.of_list ["caml_create_bytes"] in
   let wrappers = Lua_link.generate_wrappers used_primitives fragments in
@@ -4209,7 +4209,7 @@ let%expect_test "generate_wrappers with export directive fallback" =
 let%expect_test "generate_wrappers always returns empty after refactoring" =
   let fragments = [
     { Lua_link.name = "array"; provides = ["caml_array_make"]; requires = [];
-      code = "" }
+      code = ""; function_name = None }
   ] in
   let used_primitives = StringSet.of_list ["caml_array_make"; "caml_unknown_primitive"] in
   let wrappers = Lua_link.generate_wrappers used_primitives fragments in
@@ -4219,7 +4219,7 @@ let%expect_test "generate_wrappers always returns empty after refactoring" =
 let%expect_test "generate_wrappers with empty set also returns empty" =
   let fragments = [
     { Lua_link.name = "array"; provides = ["caml_array_make"]; requires = [];
-      code = "" }
+      code = ""; function_name = None }
   ] in
   let used_primitives = StringSet.empty in
   let wrappers = Lua_link.generate_wrappers used_primitives fragments in
@@ -4285,7 +4285,7 @@ let%expect_test "compare module - hybrid resolution for int_compare" =
       ("int_compare", "caml_nativeint_compare");
       ("float_compare", "caml_float_compare")
     ];
-    code = ""
+    code = "";    function_name = None
   } in
 
   let fragments = [compare_fragment] in
