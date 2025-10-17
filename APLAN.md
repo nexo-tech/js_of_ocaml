@@ -3,7 +3,7 @@
 **Created**: 2025-10-16
 **Completed**: 2025-10-16
 **Goal**: Ensure `examples/hello_lua` compiles and runs successfully
-**Status**: ✅ COMPLETE - hello_lua works perfectly!
+**Status**: ✅ COMPLETE - hello_lua works perfectly! (2 bugs fixed)
 
 ## Fix Summary
 
@@ -28,6 +28,41 @@ Uppercase: LUA?OF?OCAML
 ```
 
 All Printf formats work: %d, %+d, % d, %i, %x, %o, %u, %s, %c, %f, %e, %g
+
+---
+
+## Additional Bug Found & Fixed: String.uppercase_ascii
+
+**Issue**: `String.uppercase_ascii "lua_of_ocaml"` returned `"LUA?OF?OCAML"` (underscores became '?')
+
+**Root Cause**: Unsigned comparison bug in code generator
+- JS: `25 < (c - 97) >>> 0` - the `>>> 0` converts negative to unsigned (e.g., -2 → 4294967294)
+- Lua (before fix): `25 < (c - 97)` - negative stays negative (e.g., -2 < 25 = true ❌)
+
+**For underscore (ASCII 95)**:
+- Check: Is (95 - 97) > 25 to decide if it's a lowercase letter?
+- JS: (95 - 97) >>> 0 = 4294967294, and 4294967294 > 25 = TRUE → keep '_' ✅
+- Lua (broken): -2 > 25 = FALSE → "uppercase" by subtracting 32 → 95-32=63='?' ❌
+
+**The Fix**:
+1. Added `caml_unsigned()` runtime function in `runtime/lua/ints.lua` (mimics JS `>>> 0`)
+2. Fixed `Code.Ult` (unsigned less than) in `compiler/lib-lua/lua_generate.ml:389-395`
+   - Before: `L.BinOp (L.Lt, e1, e2)` - treated as signed ❌
+   - After: `L.BinOp (L.Lt, caml_unsigned(e1), caml_unsigned(e2))` ✅
+
+**Test Results**:
+```bash
+$ lua _build/default/examples/hello_lua/hello.bc.lua
+Hello from Lua_of_ocaml!
+Factorial of 5 is: 120
+Testing string operations...
+Length of 'lua_of_ocaml': 12
+Uppercase: LUA_OF_OCAML  ✅ FIXED!
+```
+
+**Files Modified**:
+- `runtime/lua/ints.lua`: Added `caml_unsigned()` function
+- `compiler/lib-lua/lua_generate.ml`: Fixed Ult primitive handling (line 389-395)
 
 ---
 
@@ -249,16 +284,16 @@ These hardcoded variable names only work for programs where the format strings h
 
 ---
 
-### Phase 5: Commit & Update Tracking - [ ] IN PROGRESS
+### Phase 5: Commit & Update Tracking - [x] COMPLETE
 
 **Goal**: Document the fix and update project tracking
 
-- [ ] Task 5.1: Update APLAN.md
+- [x] Task 5.1: Update APLAN.md
   - Mark all tasks complete
   - Document the fix that was implemented
   - Add before/after examples
 
-- [ ] Task 5.2: Commit the fix
+- [x] Task 5.2: Commit the fixes (Printf format + unsigned comparison)
   - Commit message format:
     ```
     fix(lua): Fix Printf format string variable collision in complex programs
@@ -278,12 +313,12 @@ These hardcoded variable names only work for programs where the format strings h
     See: APLAN.md for complete analysis
     ```
 
-- [ ] Task 5.3: Update XPLAN.md
+- [x] Task 5.3: Update XPLAN.md
   - Note that XPLAN Task 4.14 fix was incomplete
   - Reference APLAN.md for the proper fix
   - Mark as superseded by APLAN
 
-- [ ] Task 5.4: Push to repository
+- [x] Task 5.4: Push to repository
   - `git push origin lua`
   - Verify CI passes (if applicable)
 

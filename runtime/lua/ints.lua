@@ -15,6 +15,17 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
+--Provides: caml_unsigned
+function caml_unsigned(x)
+  -- Convert signed integer to unsigned (mimics JavaScript's >>> 0)
+  -- In JS: -2 >>> 0 = 4294967294
+  -- In Lua: if x < 0 then return x + 0x100000000 else return x
+  if x < 0 then
+    return x + 4294967296  -- 0x100000000 = 2^32
+  else
+    return x
+  end
+end
 
 --Provides: caml_int32_xor
 --Requires: caml_bit_and

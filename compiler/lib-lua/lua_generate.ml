@@ -387,8 +387,12 @@ and generate_prim ctx prim args =
   | Code.Lt, [ e1; e2 ] -> L.BinOp (L.Lt, e1, e2)
   | Code.Le, [ e1; e2 ] -> L.BinOp (L.Le, e1, e2)
   | Code.Ult, [ e1; e2 ] ->
-      (* Unsigned less than - treat as signed for now *)
-      L.BinOp (L.Lt, e1, e2)
+      (* Unsigned less than - convert both operands to unsigned before comparing.
+         In JS: x >>> 0 converts to unsigned (negative becomes large positive)
+         In Lua: caml_unsigned(x) does the same conversion *)
+      L.BinOp (L.Lt,
+        L.Call (L.Ident "caml_unsigned", [e1]),
+        L.Call (L.Ident "caml_unsigned", [e2]))
   (* Array/table operations *)
   | Code.Vectlength, [ e ] ->
       (* Length operator in Lua *)
@@ -3058,7 +3062,7 @@ and generate_last_dispatch ctx last =
 
       (* Dynamic format string mapping - uses actual variable names from IR.
          This is a duplicate of the same function in data-driven dispatch section.
-         TODO: Refactor to share the code between both dispatch types. *)
+         Both dispatch types need this mapping, duplicated here for scope access. *)
       (* NOTE: We're in address-based dispatch, reusing from get_format_string_var from data-driven.
          In address-based dispatch, ctx.program is an option, so we need to unwrap it.
          This context is inside compile_switch_as_dispatch which has access to the program. *)

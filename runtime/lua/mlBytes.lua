@@ -274,6 +274,8 @@ function caml_bytes_uppercase(b)
 
   for i = 0, len - 1 do
     local c = caml_bytes_unsafe_get(b, i)
+    -- Only uppercase lowercase letters (a-z = 97-122)
+    -- Must check both bounds to avoid uppercasing characters like '_' (95)
     if c >= 97 and c <= 122 then
       c = c - 32
     end
