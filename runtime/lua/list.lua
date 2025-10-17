@@ -7,7 +7,7 @@ end
 
 --Provides: caml_list_cons
 function caml_list_cons(hd, tl)
-  return {tag = 0, hd, tl}
+  return {0, hd, tl}
 end
 
 
@@ -16,7 +16,7 @@ function caml_list_hd(list)
   if list == 0 then
     error("hd")
   end
-  return list[1]
+  return list[2]
 end
 
 --Provides: caml_list_tl
@@ -24,7 +24,7 @@ function caml_list_tl(list)
   if list == 0 then
     error("tl")
   end
-  return list[2]
+  return list[3]
 end
 
 --Provides: caml_list_is_empty
@@ -38,7 +38,7 @@ function caml_list_length(list)
   local len = 0
   while list ~= 0 do
     len = len + 1
-    list = list[2]
+    list = list[3]
   end
   return len
 end
@@ -50,10 +50,10 @@ function caml_list_nth(list, n)
   local index = 0
   while current ~= 0 do
     if index == n then
-      return current[1]
+      return current[2]
     end
     index = index + 1
-    current = current[2]
+    current = current[3]
   end
   error("nth")
 end
@@ -64,10 +64,10 @@ function caml_list_nth_opt(list, n)
   local index = 0
   while current ~= 0 do
     if index == n then
-      return {tag = 0, current[1]}  -- Some(value)
+      return {0, current[2]}  -- Some(value)
     end
     index = index + 1
-    current = current[2]
+    current = current[3]
   end
   return 0  -- None
 end
@@ -77,8 +77,8 @@ end
 function caml_list_rev(list)
   local result = 0
   while list ~= 0 do
-    result = {tag = 0, list[1], result}
-    list = list[2]
+    result = {0, list[2], result}
+    list = list[3]
   end
   return result
 end
@@ -87,8 +87,8 @@ end
 function caml_list_rev_append(list1, list2)
   local result = list2
   while list1 ~= 0 do
-    result = {tag = 0, list1[1], result}
-    list1 = list1[2]
+    result = {0, list1[2], result}
+    list1 = list1[3]
   end
   return result
 end
@@ -102,13 +102,13 @@ function caml_list_append(list1, list2)
   local rev = 0
   local current = list1
   while current ~= 0 do
-    rev = {tag = 0, current[1], rev}
-    current = current[2]
+    rev = {0, current[2], rev}
+    current = current[3]
   end
   local result = list2
   while rev ~= 0 do
-    result = {tag = 0, rev[1], result}
-    rev = rev[2]
+    result = {0, rev[2], result}
+    rev = rev[3]
   end
   return result
 end
@@ -119,12 +119,12 @@ function caml_list_concat(lists)
   local result = 0
   local rev_lists = 0
   while lists ~= 0 do
-    rev_lists = {tag = 0, lists[1], rev_lists}
-    lists = lists[2]
+    rev_lists = {0, lists[2], rev_lists}
+    lists = lists[3]
   end
   while rev_lists ~= 0 do
-    result = caml_list_append(rev_lists[1], result)
-    rev_lists = rev_lists[2]
+    result = caml_list_append(rev_lists[2], result)
+    rev_lists = rev_lists[3]
   end
   return result
 end
@@ -139,8 +139,8 @@ end
 --Provides: caml_list_iter
 function caml_list_iter(f, list)
   while list ~= 0 do
-    f(list[1])
-    list = list[2]
+    f(list[2])
+    list = list[3]
   end
 end
 
@@ -148,8 +148,8 @@ end
 function caml_list_iteri(f, list)
   local i = 0
   while list ~= 0 do
-    f(i, list[1])
-    list = list[2]
+    f(i, list[2])
+    list = list[3]
     i = i + 1
   end
 end
@@ -163,8 +163,8 @@ function caml_list_map(f, list)
   end
   local rev = 0
   while list ~= 0 do
-    rev = {tag = 0, f(list[1]), rev}
-    list = list[2]
+    rev = {0, f(list[2]), rev}
+    list = list[3]
   end
   return caml_list_rev(rev)
 end
@@ -178,8 +178,8 @@ function caml_list_mapi(f, list)
   local rev = 0
   local i = 0
   while list ~= 0 do
-    rev = {tag = 0, f(i, list[1]), rev}
-    list = list[2]
+    rev = {0, f(i, list[2]), rev}
+    list = list[3]
     i = i + 1
   end
   return caml_list_rev(rev)
@@ -189,8 +189,8 @@ end
 function caml_list_rev_map(f, list)
   local result = 0
   while list ~= 0 do
-    result = {tag = 0, f(list[1]), result}
-    list = list[2]
+    result = {0, f(list[2]), result}
+    list = list[3]
   end
   return result
 end
@@ -200,11 +200,11 @@ end
 function caml_list_filter_map(f, list)
   local rev = 0
   while list ~= 0 do
-    local opt = f(list[1])
+    local opt = f(list[2])
     if opt ~= 0 then  -- Some(value)
-      rev = {tag = 0, opt[1], rev}
+      rev = {0, opt[2], rev}
     end
-    list = list[2]
+    list = list[3]
   end
   return caml_list_rev(rev)
 end
@@ -215,12 +215,12 @@ function caml_list_concat_map(f, list)
   local result = 0
   local rev_parts = 0
   while list ~= 0 do
-    rev_parts = {tag = 0, f(list[1]), rev_parts}
-    list = list[2]
+    rev_parts = {0, f(list[2]), rev_parts}
+    list = list[3]
   end
   while rev_parts ~= 0 do
-    result = caml_list_append(rev_parts[1], result)
-    rev_parts = rev_parts[2]
+    result = caml_list_append(rev_parts[2], result)
+    rev_parts = rev_parts[3]
   end
   return result
 end
@@ -229,8 +229,8 @@ end
 --Provides: caml_list_fold_left
 function caml_list_fold_left(f, acc, list)
   while list ~= 0 do
-    acc = f(acc, list[1])
-    list = list[2]
+    acc = f(acc, list[2])
+    list = list[3]
   end
   return acc
 end
@@ -240,8 +240,8 @@ end
 function caml_list_fold_right(f, list, acc)
   local rev = caml_list_rev(list)
   while rev ~= 0 do
-    acc = f(rev[1], acc)
-    rev = rev[2]
+    acc = f(rev[2], acc)
+    rev = rev[3]
   end
   return acc
 end
@@ -250,10 +250,10 @@ end
 --Provides: caml_list_for_all
 function caml_list_for_all(pred, list)
   while list ~= 0 do
-    if not pred(list[1]) then
+    if not pred(list[2]) then
       return false
     end
-    list = list[2]
+    list = list[3]
   end
   return true
 end
@@ -261,10 +261,10 @@ end
 --Provides: caml_list_exists
 function caml_list_exists(pred, list)
   while list ~= 0 do
-    if pred(list[1]) then
+    if pred(list[2]) then
       return true
     end
-    list = list[2]
+    list = list[3]
   end
   return false
 end
@@ -272,10 +272,10 @@ end
 --Provides: caml_list_mem
 function caml_list_mem(x, list)
   while list ~= 0 do
-    if list[1] == x then
+    if list[2] == x then
       return true
     end
-    list = list[2]
+    list = list[3]
   end
   return false
 end
@@ -290,10 +290,10 @@ end
 --Provides: caml_list_find
 function caml_list_find(pred, list)
   while list ~= 0 do
-    if pred(list[1]) then
-      return list[1]
+    if pred(list[2]) then
+      return list[2]
     end
-    list = list[2]
+    list = list[3]
   end
   error("Not_found")
 end
@@ -301,10 +301,10 @@ end
 --Provides: caml_list_find_opt
 function caml_list_find_opt(pred, list)
   while list ~= 0 do
-    if pred(list[1]) then
-      return {tag = 0, list[1]}  -- Some(value)
+    if pred(list[2]) then
+      return {0, list[2]}  -- Some(value)
     end
-    list = list[2]
+    list = list[3]
   end
   return 0  -- None
 end
@@ -312,11 +312,11 @@ end
 --Provides: caml_list_find_map
 function caml_list_find_map(f, list)
   while list ~= 0 do
-    local opt = f(list[1])
+    local opt = f(list[2])
     if opt ~= 0 then  -- Some(value)
       return opt
     end
-    list = list[2]
+    list = list[3]
   end
   return 0  -- None
 end
@@ -326,10 +326,10 @@ end
 function caml_list_filter(pred, list)
   local rev = 0
   while list ~= 0 do
-    if pred(list[1]) then
-      rev = {tag = 0, list[1], rev}
+    if pred(list[2]) then
+      rev = {0, list[2], rev}
     end
-    list = list[2]
+    list = list[3]
   end
   return caml_list_rev(rev)
 end
@@ -340,12 +340,12 @@ function caml_list_partition(pred, list)
   local true_list = 0
   local false_list = 0
   while list ~= 0 do
-    if pred(list[1]) then
-      true_list = {tag = 0, list[1], true_list}
+    if pred(list[2]) then
+      true_list = {0, list[2], true_list}
     else
-      false_list = {tag = 0, list[1], false_list}
+      false_list = {0, list[2], false_list}
     end
-    list = list[2]
+    list = list[3]
   end
   return {caml_list_rev(true_list), caml_list_rev(false_list)}
 end
@@ -354,11 +354,11 @@ end
 --Provides: caml_list_assoc
 function caml_list_assoc(key, list)
   while list ~= 0 do
-    local pair = list[1]
-    if pair[1] == key then
-      return pair[2]
+    local pair = list[2]
+    if pair[2] == key then
+      return pair[3]
     end
-    list = list[2]
+    list = list[3]
   end
   error("Not_found")
 end
@@ -366,11 +366,11 @@ end
 --Provides: caml_list_assoc_opt
 function caml_list_assoc_opt(key, list)
   while list ~= 0 do
-    local pair = list[1]
-    if pair[1] == key then
-      return {tag = 0, pair[2]}  -- Some(value)
+    local pair = list[2]
+    if pair[2] == key then
+      return {0, pair[3]}  -- Some(value)
     end
-    list = list[2]
+    list = list[3]
   end
   return 0  -- None
 end
@@ -390,11 +390,11 @@ end
 --Provides: caml_list_mem_assoc
 function caml_list_mem_assoc(key, list)
   while list ~= 0 do
-    local pair = list[1]
-    if pair[1] == key then
+    local pair = list[2]
+    if pair[2] == key then
       return true
     end
-    list = list[2]
+    list = list[3]
   end
   return false
 end
@@ -411,21 +411,21 @@ function caml_list_remove_assoc(key, list)
   if list == 0 then
     return 0
   end
-  local pair = list[1]
-  if pair[1] == key then
-    return list[2]  -- Skip this element
+  local pair = list[2]
+  if pair[2] == key then
+    return list[3]  -- Skip this element
   end
   local rev = 0
   local current = list
   local found = false
   while current ~= 0 do
-    local p = current[1]
-    if not found and p[1] == key then
+    local p = current[2]
+    if not found and p[2] == key then
       found = true
     else
-      rev = {tag = 0, p, rev}
+      rev = {0, p, rev}
     end
-    current = current[2]
+    current = current[3]
   end
   return caml_list_rev(rev)
 end
@@ -443,10 +443,10 @@ function caml_list_split(list)
   local list1 = 0
   local list2 = 0
   while list ~= 0 do
-    local pair = list[1]
-    list1 = {tag = 0, pair[1], list1}
-    list2 = {tag = 0, pair[2], list2}
-    list = list[2]
+    local pair = list[2]
+    list1 = {0, pair[2], list1}
+    list2 = {0, pair[3], list2}
+    list = list[3]
   end
   return {caml_list_rev(list1), caml_list_rev(list2)}
 end
@@ -457,9 +457,9 @@ function caml_list_combine(list1, list2)
   local result = 0
   local rev = 0
   while list1 ~= 0 and list2 ~= 0 do
-    rev = {tag = 0, {list1[1], list2[1]}, rev}
-    list1 = list1[2]
-    list2 = list2[2]
+    rev = {0, {list1[2], list2[2]}, rev}
+    list1 = list1[3]
+    list2 = list2[3]
   end
   if list1 ~= 0 or list2 ~= 0 then
     error("Invalid_argument")
@@ -470,19 +470,19 @@ end
 
 --Provides: caml_list_sort
 function caml_list_sort(cmp, list)
-  if list == 0 or list[2] == 0 then
+  if list == 0 or list[3] == 0 then
     return list
   end
   local arr = {}
   local current = list
   while current ~= 0 do
-    table.insert(arr, current[1])
-    current = current[2]
+    table.insert(arr, current[2])
+    current = current[3]
   end
   table.sort(arr, function(a, b) return cmp(a, b) < 0 end)
   local result = 0
   for i = #arr, 1, -1 do
-    result = {tag = 0, arr[i], result}
+    result = {0, arr[i], result}
   end
   return result
 end
@@ -506,16 +506,16 @@ function caml_list_sort_uniq(cmp, list)
     return 0
   end
   local sorted = caml_list_sort(cmp, list)
-  local result = {tag = 0, sorted[1], 0}
+  local result = {0, sorted[2], 0}
   local tail = result
-  sorted = sorted[2]
+  sorted = sorted[3]
   while sorted ~= 0 do
-    if cmp(tail[1], sorted[1]) ~= 0 then
-      local new_tail = {tag = 0, sorted[1], 0}
-      tail[2] = new_tail
+    if cmp(tail[2], sorted[2]) ~= 0 then
+      local new_tail = {0, sorted[2], 0}
+      tail[3] = new_tail
       tail = new_tail
     end
-    sorted = sorted[2]
+    sorted = sorted[3]
   end
   return result
 end
@@ -531,18 +531,18 @@ function caml_list_merge(cmp, list1, list2)
   end
   local rev = 0
   while list1 ~= 0 and list2 ~= 0 do
-    if cmp(list1[1], list2[1]) <= 0 then
-      rev = {tag = 0, list1[1], rev}
-      list1 = list1[2]
+    if cmp(list1[2], list2[2]) <= 0 then
+      rev = {0, list1[2], rev}
+      list1 = list1[3]
     else
-      rev = {tag = 0, list2[1], rev}
-      list2 = list2[2]
+      rev = {0, list2[2], rev}
+      list2 = list2[3]
     end
   end
   local remaining = list1 ~= 0 and list1 or list2
   while remaining ~= 0 do
-    rev = {tag = 0, remaining[1], rev}
-    remaining = remaining[2]
+    rev = {0, remaining[2], rev}
+    remaining = remaining[3]
   end
   return caml_list_rev(rev)
 end

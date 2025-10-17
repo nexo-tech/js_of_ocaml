@@ -824,3 +824,56 @@ Task 5.3k: ✅ COMPLETE
 
 ### ALL PHASES COMPLETE:
 **🎉 lua_of_ocaml is production-ready and well-documented!**
+
+---
+
+## 🐛 Critical Bug Fix Session - 2025-10-17
+
+### Bug Investigation: List Operations Failing
+
+**Initial Symptom**: List.map, filter, fold_left, fold_right, append all failing with:
+```
+lua: attempt to index field 'vXXX' (a number value)
+```
+
+### Root Cause Analysis
+
+**Investigation Process**:
+1. Created minimal test case: `List.map (fun x -> x + x) [1; 2; 3]`
+2. Analyzed generated Lua code - Field accesses using [2] and [3]
+3. Checked runtime list.lua - using `{tag = 0, hd, tl}` with [1] and [2]
+4. Compared with js_of_ocaml - uses `[tag, hd, tl]` with [0], [1], [2]
+
+**Root Cause**: **Block Representation Mismatch**
+
+Compiler assumes: `{tag, field0, field1, ...}` where [1]=tag, [2]=field0, [3]=field1  
+Runtime used: `{tag = 0, field0, field1, ...}` where .tag=0, [1]=field0, [2]=field1
+
+**Fix Applied**: Updated runtime/lua/list.lua to match compiler/JS representation
+- Changed `{tag = 0, hd, tl}` → `{0, hd, tl}`
+- Changed all [1] accesses to [2] (head/field0)
+- Changed all [2] accesses to [3] (tail/field1)
+
+### Test Results After Fix
+
+✅ **Runtime list tests**: All pass
+✅ **examples/hello_lua**: Works perfectly
+✅ **Basic List operations**: length, hd, tl, nth, rev, concat, iter, iteri all work
+✅ **List representation consistency**: Now matches compiler and js_of_ocaml
+
+⚠️ **Remaining Issue**: Closure initialization ordering bug
+- List.map still fails due to unrelated closure dependency bug
+- Error: "attempt to call local 'vX' (a nil value)"
+- Root cause: Closures reference each other before being defined
+- Impact: List.map and similar higher-order functions still unusable
+- Status: Requires separate investigation (not a list representation issue)
+
+### Files Modified
+
+- `runtime/lua/list.lua` - Fixed all 28 functions to use correct block representation
+- `compiler/lib-lua/lua_generate.ml` - Added %direct_int_* primitives, fixed Lua 5.1 division
+
+### Commits
+
+- a141b7eb: Added direct_int primitives, documented original bug
+- [pending]: Fix list.lua representation mismatch
