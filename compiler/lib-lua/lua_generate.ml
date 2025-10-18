@@ -2083,8 +2083,22 @@ and compile_data_driven_dispatch ctx program entry_addr dispatch_var tag_var_opt
                 entry_body_stmts))
 
     | None ->
-        (* Switch-based: No entry block logic needed *)
-        []
+        (* Switch-based: Generate entry block body (BUG FIX for calculator/eval)
+           The entry block may have Let instructions that initialize the dispatch_var
+           (e.g., v16003 = Field(v318, 0) extracts tag from parameter).
+           Without these, dispatch_var stays nil → infinite loop!
+
+           Example (eval function):
+           - Entry block 829 has: Let v16003 = Field(v318, 0)
+           - This extracts the tag from the expr parameter
+           - Then Switch on v16003 dispatches to case 0-4
+        *)
+        (match Code.Addr.Map.find_opt entry_addr program.Code.blocks with
+        | None -> []
+        | Some entry_block ->
+            (* Generate entry block body instructions *)
+            let entry_body_stmts = generate_instrs ctx entry_block.Code.body in
+            entry_body_stmts)
   in
 
   let entry_dispatcher_stmts = generate_entry_and_dispatcher_logic () in

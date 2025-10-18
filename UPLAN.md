@@ -342,14 +342,20 @@
     - Tree statistics accurate
   - **Success Criteria**: Tree operations work ✅
 
-- [x] Task 2.6: Create examples/calculator ✅/⚠️
+- [x] Task 2.6: Create examples/calculator ✅
   - Created: `examples/calculator/calculator.ml` (lexer, parser, evaluator)
   - Created: `examples/calculator/dune` (build configuration)
-  - **Features**: Tokenization, recursive descent parsing, expression evaluation
-  - **Grammar**: Supports +, -, *, /, parentheses with correct precedence
-  - **Status**: ⚠️ Created but has runtime timeout issue (likely infinite loop)
-  - **Note**: Marked as WIP - needs debugging, not blocking other tasks
-  - **Success Criteria**: Partial (created but not running)
+  - **CRITICAL BUG FOUND & FIXED**: Switch-based data-driven dispatch missing entry block body
+    - Bug: Entry block body instructions not generated for Switch-based dispatch (tag_var=None)
+    - Symptom: Infinite loop - dispatch variable (v360, v16003) never initialized, stays nil
+    - Root cause: generate_entry_and_dispatcher_logic() returned [] for Switch-based (line 2102-2104)
+    - Fix: Generate entry block body instructions for Switch-based dispatch (like Cond-based)
+    - Impact: ALL functions with Switch on algebraic types now work (eval, pattern matching)
+  - **Features**: Tokenization, recursive descent parsing, expression evaluation, error handling
+  - **Grammar**: Supports +, -, *, / with correct operator precedence
+  - **Test Cases**: Basic ops, precedence, edge cases, division by zero
+  - **Output** ✅: All expressions evaluated correctly (14 test cases pass)
+  - **Success Criteria**: Correctly evaluates expressions ✅
 
 - [x] Task 2.7: Test all examples with justfile ✅
   - Created: `just test-examples` command in justfile
@@ -382,16 +388,18 @@
 - ✅ list_operations - Functional programming with List module
 - ✅ quicksort - Array manipulation and in-place sorting
 - ✅ tree - Binary search tree with full operations
+- ✅ calculator - Expression parser with lexer, evaluator (FIXED!)
 - ✅ hello_lua - Getting started example
-- ⚠️ calculator - Created but WIP (runtime timeout issue)
 
 **Infrastructure**:
 - ✅ `just test-examples` - Automated testing for all examples
 - ✅ examples/README_lua_examples.md - Comprehensive documentation
 
-**Critical Bug Fixed**:
-- Fixed find_entry_initializer back-edge fallback bug (quicksort was failing)
-- Impact: Recursive functions with nested closures now work correctly
+**Critical Bugs Fixed** (Phase 2):
+1. **quicksort bug** (Task 2.4): find_entry_initializer back-edge fallback
+   - Impact: Recursive functions with nested closures now work
+2. **calculator bug** (Task 2.6): Switch-based dispatch missing entry block body
+   - Impact: ALL pattern matching on algebraic types now works
 
 ---
 

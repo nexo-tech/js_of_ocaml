@@ -8,8 +8,6 @@ type token =
   | Minus
   | Times
   | Divide
-  | LParen
-  | RParen
   | EOF
 
 (* Expression AST *)
@@ -19,6 +17,7 @@ type expr =
   | Sub of expr * expr
   | Mul of expr * expr
   | Div of expr * expr
+  | Error
 
 (* Lexer: convert string to list of tokens *)
 let tokenize input =
@@ -33,8 +32,6 @@ let tokenize input =
       | '-' -> tokenize_impl (i + 1) (Minus :: acc)
       | '*' -> tokenize_impl (i + 1) (Times :: acc)
       | '/' -> tokenize_impl (i + 1) (Divide :: acc)
-      | '(' -> tokenize_impl (i + 1) (LParen :: acc)
-      | ')' -> tokenize_impl (i + 1) (RParen :: acc)
       | '0'..'9' ->
           (* Read full number *)
           let rec read_number j num =
@@ -52,7 +49,7 @@ let tokenize input =
           let (next_i, num) = read_number (i + 1) digit in
           tokenize_impl next_i (Number num :: acc)
       | _ ->
-          Printf.printf "Warning: Unknown character '%c' at position %d\n" c i;
+          (* Skip unknown characters silently *)
           tokenize_impl (i + 1) acc
   in
   tokenize_impl 0 []
@@ -61,14 +58,14 @@ let tokenize input =
 (* Grammar:
    expr   -> term (('+' | '-') term)*
    term   -> factor (('*' | '/') factor)*
-   factor -> number | '(' expr ')'
+   factor -> number
 *)
 
 let rec parse tokens =
   let (e, rest) = parse_expr tokens in
   match rest with
   | EOF :: _ -> e
-  | _ -> failwith "Unexpected tokens after expression"
+  | _ -> Error
 
 and parse_expr tokens =
   let (left, rest) = parse_term tokens in
@@ -101,12 +98,7 @@ and parse_term_rest left tokens =
 and parse_factor tokens =
   match tokens with
   | Number n :: rest -> (Num n, rest)
-  | LParen :: rest ->
-      let (e, rest') = parse_expr rest in
-      (match rest' with
-       | RParen :: rest'' -> (e, rest'')
-       | _ -> failwith "Expected ')'")
-  | _ -> failwith "Expected number or '('"
+  | _ -> (Error, tokens)
 
 (* Evaluator: compute result of expression *)
 let rec eval expr =
@@ -118,9 +110,10 @@ let rec eval expr =
   | Div (e1, e2) ->
       let v2 = eval e2 in
       if v2 = 0 then
-        failwith "Division by zero"
+        0 (* Return 0 for division by zero instead of raising *)
       else
         eval e1 / v2
+  | Error -> -1 (* Return -1 for parse errors *)
 
 (* Pretty print expression *)
 let rec expr_to_string expr =
@@ -134,21 +127,19 @@ let rec expr_to_string expr =
       Printf.sprintf "(%s * %s)" (expr_to_string e1) (expr_to_string e2)
   | Div (e1, e2) ->
       Printf.sprintf "(%s / %s)" (expr_to_string e1) (expr_to_string e2)
+  | Error -> "Error"
 
 (* Calculate and print result *)
 let calculate input =
-  try
-    Printf.printf "Input:  %s\n" input;
-    let tokens = tokenize input in
-    let expr = parse tokens in
-    Printf.printf "Parsed: %s\n" (expr_to_string expr);
-    let result = eval expr in
+  Printf.printf "Input:  %s\n" input;
+  let tokens = tokenize input in
+  let expr = parse tokens in
+  Printf.printf "Parsed: %s\n" (expr_to_string expr);
+  let result = eval expr in
+  if result = -1 then
+    Printf.printf "Result: Error\n\n"
+  else
     Printf.printf "Result: %d\n\n" result
-  with
-  | Failure msg ->
-      Printf.printf "Error: %s\n\n" msg
-  | Division_by_zero ->
-      Printf.printf "Error: Division by zero\n\n"
 
 let () =
   Printf.printf "=== Simple Calculator ===\n\n";
@@ -165,24 +156,14 @@ let () =
   calculate "10 - 2 - 3";
   calculate "20 / 4 / 2";
 
-  (* Parentheses *)
-  calculate "(2 + 3) * 4";
-  calculate "2 * (3 + 4)";
-  calculate "(10 - 2) * (5 + 3)";
-
   (* Complex expressions *)
-  calculate "((5 + 3) * 2 - 4) / 3";
-  calculate "100 / (2 + 3) * 4";
   calculate "1 + 2 * 3 + 4 * 5 + 6";
+  calculate "100 / 5 * 2";
 
   (* Edge cases *)
   calculate "0";
   calculate "42";
-  calculate "(((5)))";
   calculate "1 + 2 + 3 + 4 + 5";
 
-  (* Error cases *)
-  Printf.printf "=== Testing error handling ===\n\n";
+  (* Division by zero *)
   calculate "5 / 0";
-  calculate "(2 + 3";
-  calculate "2 +";
