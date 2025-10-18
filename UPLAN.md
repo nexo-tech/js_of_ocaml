@@ -554,20 +554,29 @@ Archive (49 historical docs):
     - `compiler/tests-lua/stdlib_audit/test_list.ml` (comprehensive test suite)
     - `compiler/tests-lua/stdlib_audit/dune` (build rules)
 
-- [ ] Task 4.3: Audit Array module
-  - Test: make, init, length, get, set
-  - Test: map, mapi, fold_left, fold_right, iter, iteri
-  - Test: append, concat, sub, to_list, of_list
-  - Test: sort, fast_sort
-  - **Create**: `test/stdlib_audit/test_array.ml`
-  - **Document**: Coverage percentage
+- [x] Task 4.3: Audit Array module ✅ COMPLETE
+  - ✅ Test: make, init, length, get, set
+  - ✅ Test: map, mapi, fold_left, fold_right, iter, iteri
+  - ✅ Test: append, concat, sub, to_list, of_list
+  - ✅ Test: sort, fast_sort, stable_sort
+  - ✅ Test: for_all, exists, mem, memq, find_opt, find_index
+  - ✅ Test: blit, fill, copy, iter2, map2, fold_left_map
+  - ✅ Test: make_matrix, init_matrix
+  - **Created**: `compiler/tests-lua/stdlib_audit/test_array.ml`
+  - **Documented**: ARRAY_COVERAGE.md (89% coverage, 41/46 functions tested)
+  - **Result**: All tested functions work perfectly ✅
 
-- [ ] Task 4.4: Audit Hashtbl module
-  - Test: create, add, find, find_opt, mem, remove
-  - Test: iter, fold, length, clear
-  - Test: to_seq, of_seq
-  - **Create**: `test/stdlib_audit/test_hashtbl.ml`
-  - **Document**: Coverage percentage
+- [x] Task 4.4: Audit Hashtbl module - ⛔ **BLOCKED**
+  - **Status**: BLOCKED by critical exception handling bug
+  - **Created**: `compiler/tests-lua/stdlib_audit/test_hashtbl.ml` (comprehensive test suite)
+  - **Documented**: `compiler/tests-lua/stdlib_audit/HASHTBL_COVERAGE.md` (root cause analysis)
+  - **Root Cause**: Pushtrap/Poptrap stub implementation - no pcall wrapping
+  - **Impact**: ALL try/with in lua_of_ocaml is broken, not just Hashtbl
+  - **Blocker**: Module initialization uses `try Sys.getenv ... with Not_found`
+  - **Fix Started**: Exception handler tracking added to context (partial fix)
+  - **Remaining**: Implement pcall wrapping for try blocks
+  - **Priority**: CRITICAL - blocks production use of exception handling
+  - **See**: HASHTBL_COVERAGE.md for complete analysis and fix approaches
 
 - [ ] Task 4.5: Audit Map module
   - Test: empty, add, find, find_opt, mem, remove

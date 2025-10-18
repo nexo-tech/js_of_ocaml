@@ -35,3 +35,41 @@
   (progn
    (run lua %{deps})
    (diff? test_list.expected test_list.output))))
+
+(executable
+ (name test_array)
+ (modes byte)
+ (flags (:standard -g)))
+
+(rule
+ (targets test_array.bc.lua)
+ (deps test_array.bc)
+ (action
+  (run %{bin:lua_of_ocaml} compile %{deps} -o %{targets})))
+
+(rule
+ (alias runtest)
+ (deps test_array.bc.lua)
+ (action
+  (progn
+   (run lua %{deps})
+   (diff? test_array.expected test_array.output))))
+
+(executable
+ (name test_hashtbl)
+ (modes byte)
+ (flags (:standard -g)))
+
+(rule
+ (targets test_hashtbl.bc.lua)
+ (deps test_hashtbl.bc)
+ (action
+  (run %{bin:lua_of_ocaml} compile %{deps} -o %{targets})))
+
+(rule
+ (alias runtest)
+ (deps test_hashtbl.bc.lua)
+ (action
+  (progn
+   (run lua %{deps})
+   (diff? test_hashtbl.expected test_hashtbl.output))))

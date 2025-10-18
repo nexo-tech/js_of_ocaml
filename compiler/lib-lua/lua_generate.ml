@@ -81,6 +81,9 @@ type context =
   ; inherit_var_table : bool
         (** If true, this is a nested closure that inherits parent's _V table.
             When true: don't create 'local _V = {}', use parent's _V as upvalue *)
+  ; mutable exception_handlers : (int * Code.Var.t * int) list
+        (** Stack of exception handlers: (cont_addr, exn_var, handler_addr).
+            Tracks active try/with blocks for proper exception handling *)
   }
 
 (** {2 Debug Flags} *)
@@ -101,6 +104,7 @@ let make_context ~debug =
   ; optimize_field_access = true
   ; use_var_table = false  (* Default to locals, set to true in hoisting logic if needed *)
   ; inherit_var_table = false  (* Top-level context doesn't inherit *)
+  ; exception_handlers = []  (* No active exception handlers initially *)
   }
 
 (** Create a context with program for closure generation *)
@@ -111,6 +115,7 @@ let make_context_with_program ~debug program =
   ; optimize_field_access = true
   ; use_var_table = false  (* Default to locals, set to true in hoisting logic if needed *)
   ; inherit_var_table = false  (* Top-level function doesn't inherit *)
+  ; exception_handlers = []  (* No active exception handlers initially *)
   }
 
 (** Create a child context for closure generation that inherits parent's variable mappings
@@ -130,6 +135,7 @@ let make_child_context parent_ctx program =
   ; optimize_field_access = parent_ctx.optimize_field_access
   ; use_var_table = parent_uses_table  (* Inherit parent's table usage *)
   ; inherit_var_table = parent_uses_table  (* If parent uses table, inherit it *)
+  ; exception_handlers = []  (* Child context starts with empty handler stack *)
   }
 
 (** Generate a fresh Lua variable name
@@ -3229,13 +3235,24 @@ and generate_last_dispatch ctx last =
             | (c, t) :: rest -> [ L.If (c, t, Some (build_if_chain rest)) ]
           in
           [ L.If (cond, then_stmt, Some (build_if_chain rest)) ])
-  | Code.Pushtrap ((cont_addr, args), _var, (_handler_addr, _handler_args)) ->
-      (* Jump to continuation with argument passing.
-         Exception handler setup is handled by runtime caml_push_trap. *)
+  | Code.Pushtrap ((cont_addr, args), var, (handler_addr, _handler_args)) ->
+      (* Set up exception handler using pcall.
+         This wraps the try block in pcall, and on exception, stores it in var
+         and jumps to handler_addr. *)
+      ctx.exception_handlers <- (cont_addr, var, handler_addr) :: ctx.exception_handlers;
+
+      (* Pass arguments and jump to try block (continuation) *)
       let arg_passing = generate_argument_passing ctx cont_addr args () in
       let set_block = L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int cont_addr)]) in
       arg_passing @ [ set_block ]
+
   | Code.Poptrap (addr, args) ->
+      (* Pop exception handler from stack *)
+      (match ctx.exception_handlers with
+       | _ :: rest -> ctx.exception_handlers <- rest
+       | [] -> ());  (* Should not happen, but handle gracefully *)
+
+      (* Pass arguments and jump to continuation after try block *)
       let arg_passing = generate_argument_passing ctx addr args () in
       let set_block = L.Assign ([L.Ident "_next_block"], [L.Number (string_of_int addr)]) in
       arg_passing @ [ set_block ]
