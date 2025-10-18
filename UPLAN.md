@@ -241,55 +241,73 @@
 **Priority**: 🟡 HIGH (Shows the system works)
 **Time Estimate**: 4-6 hours
 
-- [ ] Task 2.1: Create examples/factorial
-  - Simple recursive function example
-  - File: `examples/factorial/factorial.ml`
-  - Content:
-    ```ocaml
-    let rec factorial n =
-      if n <= 1 then 1
-      else n * factorial (n - 1)
-
-    let () =
-      for i = 1 to 10 do
-        Printf.printf "factorial(%d) = %d\n" i (factorial i)
-      done
+- [x] Task 2.1: Create examples/factorial ✅
+  - Created: `examples/factorial/factorial.ml` (simple recursive function)
+  - Created: `examples/factorial/dune` (build configuration)
+  - **Output** ✅:
+    ```
+    factorial(1) = 1
+    factorial(2) = 2
+    factorial(3) = 6
+    factorial(4) = 24
+    factorial(5) = 120
+    factorial(6) = 720
+    factorial(7) = 5040
+    factorial(8) = 40320
+    factorial(9) = 362880
+    factorial(10) = 3628800
     ```
   - **Commands**:
     ```bash
-    cd examples/factorial
-    dune build factorial.bc.lua
-    lua _build/default/factorial.bc.lua
+    dune build examples/factorial/factorial.bc.lua
+    lua _build/default/examples/factorial/factorial.bc.lua
     ```
-  - **Success Criteria**: Outputs factorials 1-10 correctly
+  - **Success Criteria**: Outputs factorials 1-10 correctly ✅
 
-- [ ] Task 2.2: Create examples/fibonacci
-  - Demonstrates recursion and memoization
-  - File: `examples/fibonacci/fibonacci.ml`
-  - Content: Recursive and iterative fibonacci
-  - Test both approaches, compare performance
-  - **Success Criteria**: Outputs first 20 Fibonacci numbers
-
-- [ ] Task 2.3: Create examples/list_operations
-  - Demonstrates List module usage
-  - File: `examples/list_operations/list_ops.ml`
-  - Content:
-    ```ocaml
-    let () =
-      let lst = [1; 2; 3; 4; 5] in
-      Printf.printf "Original: ";
-      List.iter (Printf.printf "%d ") lst;
-      Printf.printf "\n";
-
-      let doubled = List.map (fun x -> x * 2) lst in
-      Printf.printf "Doubled: ";
-      List.iter (Printf.printf "%d ") doubled;
-      Printf.printf "\n";
-
-      let sum = List.fold_left (+) 0 lst in
-      Printf.printf "Sum: %d\n" sum
+- [x] Task 2.2: Create examples/fibonacci ✅
+  - Created: `examples/fibonacci/fibonacci.ml` (3 implementations: recursive, iterative, memoized)
+  - Created: `examples/fibonacci/dune` (build configuration)
+  - **Implementations**:
+    - fib_recursive: Simple exponential-time recursion
+    - fib_iterative: Linear-time loop-based
+    - fib_memoized: Linear-time with array memoization
+  - **Output** ✅:
+    - First 20 Fibonacci numbers (0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181)
+    - Comparison of all 3 methods for fib(15): all return 610
+    - Large Fibonacci: fib(40) = 102334155
+  - **Commands**:
+    ```bash
+    dune build examples/fibonacci/fibonacci.bc.lua
+    lua _build/default/examples/fibonacci/fibonacci.bc.lua
     ```
-  - **Success Criteria**: List operations work correctly
+  - **Success Criteria**: Outputs first 20 Fibonacci numbers ✅
+
+- [x] Task 2.3: Create examples/list_operations ✅
+  - Created: `examples/list_operations/list_ops.ml` (comprehensive List module demo)
+  - Created: `examples/list_operations/dune` (build configuration)
+  - **Features Demonstrated**:
+    - List.map (transform elements)
+    - List.filter (select elements)
+    - List.fold_left (reduce to single value)
+    - List.append (@ operator)
+    - List.rev (reverse)
+    - List.sort (sorting)
+    - Chained operations (filter → map → fold)
+  - **Output** ✅:
+    - Original: 1 2 3 4 5
+    - Doubled: 2 4 6 8 10 (via map)
+    - Evens only: 2 4 (via filter)
+    - Sum: 15, Product: 120 (via fold)
+    - Combined lists: 1 2 3 4 5 6 7 8 9 10 (via append)
+    - Reversed: 5 4 3 2 1
+    - Sorted: 1 1 2 3 4 5 6 9
+    - Chained result: 220 (sum of squares of evens from [1..10])
+  - **Commands**:
+    ```bash
+    dune build examples/list_operations/list_ops.bc.lua
+    lua _build/default/examples/list_operations/list_ops.bc.lua
+    ```
+  - **Success Criteria**: List operations work correctly ✅
 
 - [ ] Task 2.4: Create examples/quicksort
   - Demonstrates arrays and comparison

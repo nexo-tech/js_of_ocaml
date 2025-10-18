@@ -1,0 +1,14 @@
+(executable
+ (name fibonacci)
+ (modes byte)
+ (flags (:standard -g)))
+
+(rule
+ (targets fibonacci.bc.lua)
+ (deps fibonacci.bc)
+ (action
+  (run %{bin:lua_of_ocaml} compile %{deps} -o %{targets})))
+
+(alias
+ (name default)
+ (deps fibonacci.bc.lua))

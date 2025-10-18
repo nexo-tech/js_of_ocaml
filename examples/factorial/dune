@@ -1,0 +1,14 @@
+(executable
+ (name factorial)
+ (modes byte)
+ (flags (:standard -g)))
+
+(rule
+ (targets factorial.bc.lua)
+ (deps factorial.bc)
+ (action
+  (run %{bin:lua_of_ocaml} compile %{deps} -o %{targets})))
+
+(alias
+ (name default)
+ (deps factorial.bc.lua))
