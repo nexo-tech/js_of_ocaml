@@ -1,0 +1,14 @@
+(executable
+ (name quicksort)
+ (modes byte)
+ (flags (:standard -g)))
+
+(rule
+ (targets quicksort.bc.lua)
+ (deps quicksort.bc)
+ (action
+  (run %{bin:lua_of_ocaml} compile %{deps} -o %{targets})))
+
+(alias
+ (name default)
+ (deps quicksort.bc.lua))

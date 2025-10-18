@@ -1105,19 +1105,24 @@ and find_entry_initializer program entry_addr =
     not is_reachable
   ) in
 
-  (* If no true initializers found, use first candidate as fallback (even if back-edge)
-     This handles cases where the entire closure is one big loop with no external entry *)
+  (* BUG FIX for quicksort:
+     If no true initializers found, return None instead of using back-edge fallback.
+     The fallback was causing normal function entries (like quicksort at block 809)
+     to incorrectly start at loop bodies (like block 797) instead of the proper entry.
+
+     The old fallback logic was designed for Printf where the entire closure is a loop,
+     but it breaks normal recursive functions. If all candidates are back-edges,
+     it means the entry block IS the proper start - don't redirect elsewhere.
+  *)
   let result = match initializers with
-    | [] when List.is_empty candidates -> None  (* No candidates at all *)
     | [] ->
-        (* All candidates were back-edges - use first one as fallback *)
-        (match candidates with
-        | [] -> None
-        | (addr, args) :: _rest ->
-            if !debug_var_collect then
-              Format.eprintf "  No true initializers, using first candidate %d as fallback@." addr;
-            Some (addr, args))
-    | (addr, args) :: _rest -> Some (addr, args)  (* Use first true initializer *)
+        (* No true initializers - don't use back-edge fallback *)
+        if !debug_var_collect then
+          Format.eprintf "  No true initializers found, returning None@.";
+        None
+    | (addr, args) :: _rest ->
+        (* Use first true initializer *)
+        Some (addr, args)
   in
 
   if !debug_var_collect then (

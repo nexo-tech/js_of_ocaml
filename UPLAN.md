@@ -309,12 +309,23 @@
     ```
   - **Success Criteria**: List operations work correctly ✅
 
-- [ ] Task 2.4: Create examples/quicksort
-  - Demonstrates arrays and comparison
-  - File: `examples/quicksort/quicksort.ml`
-  - Classic quicksort implementation
-  - Print before/after arrays
-  - **Success Criteria**: Correctly sorts array of integers
+- [x] Task 2.4: Create examples/quicksort ✅
+  - Created: `examples/quicksort/quicksort.ml` (in-place quicksort with partition)
+  - Created: `examples/quicksort/dune` (build configuration)
+  - **CRITICAL BUG FOUND & FIXED**: find_entry_initializer back-edge fallback
+    - Bug: Function entries incorrectly started at loop bodies instead of proper entry
+    - Symptom: "attempt to compare nil with number" - uninitialized variables
+    - Root cause: Fallback logic used back-edges when no true initializers found
+    - Fix: Removed fallback - return None instead, use entry block directly
+    - Impact: Recursive functions with nested closures now work correctly
+  - **Test Cases**: Random, sorted, reverse, duplicates, single, two elements
+  - **Output** ✅: All arrays sorted correctly
+  - **Commands**:
+    ```bash
+    dune build examples/quicksort/quicksort.bc.lua
+    lua _build/default/examples/quicksort/quicksort.bc.lua
+    ```
+  - **Success Criteria**: Correctly sorts arrays of integers ✅
 
 - [ ] Task 2.5: Create examples/tree
   - Binary tree data structure
