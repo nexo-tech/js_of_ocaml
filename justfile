@@ -564,6 +564,11 @@ test-examples:
     @_build/install/default/bin/lua_of_ocaml compile examples/tree/tree.bc -o /tmp/tree.lua 2>/dev/null
     @lua /tmp/tree.lua
     @echo ""
+    @echo "Testing calculator..."
+    @ocamlc -o examples/calculator/calculator.bc examples/calculator/calculator.ml 2>/dev/null
+    @_build/install/default/bin/lua_of_ocaml compile examples/calculator/calculator.bc -o /tmp/calculator.lua 2>/dev/null
+    @lua /tmp/calculator.lua
+    @echo ""
     @echo "Testing hello_lua..."
     @ocamlc -o examples/hello_lua/hello.bc examples/hello_lua/hello.ml 2>/dev/null
     @_build/install/default/bin/lua_of_ocaml compile examples/hello_lua/hello.bc -o /tmp/hello.lua 2>/dev/null
