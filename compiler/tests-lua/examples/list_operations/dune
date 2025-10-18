@@ -1,0 +1,14 @@
+(executable
+ (name list_ops)
+ (modes byte)
+ (flags (:standard -g)))
+
+(rule
+ (targets list_ops.bc.lua)
+ (deps list_ops.bc)
+ (action
+  (run %{bin:lua_of_ocaml} compile %{deps} -o %{targets})))
+
+(alias
+ (name default)
+ (deps list_ops.bc.lua))

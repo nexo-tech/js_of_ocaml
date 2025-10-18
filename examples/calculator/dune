@@ -1,0 +1,14 @@
+(executable
+ (name calculator)
+ (modes byte)
+ (flags (:standard -g)))
+
+(rule
+ (targets calculator.bc.lua)
+ (deps calculator.bc)
+ (action
+  (run %{bin:lua_of_ocaml} compile %{deps} -o %{targets})))
+
+(alias
+ (name default)
+ (deps calculator.bc.lua))

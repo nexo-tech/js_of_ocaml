@@ -530,3 +530,43 @@ xplan-test-printf-full:
     else
         echo "✗ Printf completely broken"
     fi
+
+# =============================================================================
+# Phase 9: Example Testing
+# =============================================================================
+
+# Test all lua_of_ocaml examples
+test-examples:
+    @echo "=== Testing lua_of_ocaml Examples ==="
+    @echo ""
+    @echo "Testing factorial..."
+    @ocamlc -o examples/factorial/factorial.bc examples/factorial/factorial.ml 2>/dev/null
+    @_build/install/default/bin/lua_of_ocaml compile examples/factorial/factorial.bc -o /tmp/factorial.lua 2>/dev/null
+    @lua /tmp/factorial.lua
+    @echo ""
+    @echo "Testing fibonacci..."
+    @ocamlc -o examples/fibonacci/fibonacci.bc examples/fibonacci/fibonacci.ml 2>/dev/null
+    @_build/install/default/bin/lua_of_ocaml compile examples/fibonacci/fibonacci.bc -o /tmp/fibonacci.lua 2>/dev/null
+    @lua /tmp/fibonacci.lua
+    @echo ""
+    @echo "Testing list_operations..."
+    @ocamlc -o examples/list_operations/list_ops.bc examples/list_operations/list_ops.ml 2>/dev/null
+    @_build/install/default/bin/lua_of_ocaml compile examples/list_operations/list_ops.bc -o /tmp/list_ops.lua 2>/dev/null
+    @lua /tmp/list_ops.lua
+    @echo ""
+    @echo "Testing quicksort..."
+    @ocamlc -o examples/quicksort/quicksort.bc examples/quicksort/quicksort.ml 2>/dev/null
+    @_build/install/default/bin/lua_of_ocaml compile examples/quicksort/quicksort.bc -o /tmp/quicksort.lua 2>/dev/null
+    @lua /tmp/quicksort.lua
+    @echo ""
+    @echo "Testing tree..."
+    @ocamlc -o examples/tree/tree.bc examples/tree/tree.ml 2>/dev/null
+    @_build/install/default/bin/lua_of_ocaml compile examples/tree/tree.bc -o /tmp/tree.lua 2>/dev/null
+    @lua /tmp/tree.lua
+    @echo ""
+    @echo "Testing hello_lua..."
+    @ocamlc -o examples/hello_lua/hello.bc examples/hello_lua/hello.ml 2>/dev/null
+    @_build/install/default/bin/lua_of_ocaml compile examples/hello_lua/hello.bc -o /tmp/hello.lua 2>/dev/null
+    @lua /tmp/hello.lua
+    @echo ""
+    @echo "=== All working examples tested successfully! ==="

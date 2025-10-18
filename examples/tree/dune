@@ -1,0 +1,14 @@
+(executable
+ (name tree)
+ (modes byte)
+ (flags (:standard -g)))
+
+(rule
+ (targets tree.bc.lua)
+ (deps tree.bc)
+ (action
+  (run %{bin:lua_of_ocaml} compile %{deps} -o %{targets})))
+
+(alias
+ (name default)
+ (deps tree.bc.lua))
