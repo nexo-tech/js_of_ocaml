@@ -1,0 +1,18 @@
+(executable
+ (name test_string)
+ (modes byte)
+ (flags (:standard -g)))
+
+(rule
+ (targets test_string.bc.lua)
+ (deps test_string.bc)
+ (action
+  (run %{bin:lua_of_ocaml} compile %{deps} -o %{targets})))
+
+(rule
+ (alias runtest)
+ (deps test_string.bc.lua)
+ (action
+  (progn
+   (run lua %{deps})
+   (diff? test_string.expected test_string.output))))
