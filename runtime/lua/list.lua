@@ -250,34 +250,34 @@ end
 --Provides: caml_list_for_all
 function caml_list_for_all(pred, list)
   while list ~= 0 do
-    if not pred(list[2]) then
-      return false
+    if pred(list[2]) == 0 then
+      return 0  -- OCaml false
     end
     list = list[3]
   end
-  return true
+  return 1  -- OCaml true
 end
 
 --Provides: caml_list_exists
 function caml_list_exists(pred, list)
   while list ~= 0 do
-    if pred(list[2]) then
-      return true
+    if pred(list[2]) ~= 0 then
+      return 1  -- OCaml true
     end
     list = list[3]
   end
-  return false
+  return 0  -- OCaml false
 end
 
 --Provides: caml_list_mem
 function caml_list_mem(x, list)
   while list ~= 0 do
     if list[2] == x then
-      return true
+      return 1  -- OCaml true
     end
     list = list[3]
   end
-  return false
+  return 0  -- OCaml false
 end
 
 --Provides: caml_list_memq
@@ -392,11 +392,11 @@ function caml_list_mem_assoc(key, list)
   while list ~= 0 do
     local pair = list[2]
     if pair[2] == key then
-      return true
+      return 1  -- OCaml true
     end
     list = list[3]
   end
-  return false
+  return 0  -- OCaml false
 end
 
 --Provides: caml_list_mem_assq

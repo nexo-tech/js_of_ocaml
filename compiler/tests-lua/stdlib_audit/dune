@@ -16,3 +16,22 @@
   (progn
    (run lua %{deps})
    (diff? test_string.expected test_string.output))))
+
+(executable
+ (name test_list)
+ (modes byte)
+ (flags (:standard -g)))
+
+(rule
+ (targets test_list.bc.lua)
+ (deps test_list.bc)
+ (action
+  (run %{bin:lua_of_ocaml} compile %{deps} -o %{targets})))
+
+(rule
+ (alias runtest)
+ (deps test_list.bc.lua)
+ (action
+  (progn
+   (run lua %{deps})
+   (diff? test_list.expected test_list.output))))

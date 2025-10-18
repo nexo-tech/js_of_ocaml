@@ -21,15 +21,9 @@ function caml_is_ocaml_string(v)
   if type(v) ~= "table" then
     return false
   end
-  if v.tag ~= nil then
-    return false
-  end
-  for k, val in pairs(v) do
-    if type(k) ~= "number" or type(val) ~= "number" then
-      return false
-    end
-  end
-  return true
+  -- OCaml strings (bytes) are represented as tables with .length field
+  -- Example: {length = 3, [0] = 97, [1] = 98, [2] = 99} for "abc"
+  return v.length ~= nil and type(v.length) == "number"
 end
 
 --Provides: caml_is_ocaml_block
@@ -37,7 +31,8 @@ function caml_is_ocaml_block(v)
   if type(v) ~= "table" then
     return false
   end
-  return v.tag ~= nil and type(v.tag) == "number"
+  -- Blocks are represented as {tag, field1, field2, ...} where tag is at index [1]
+  return v[1] ~= nil and type(v[1]) == "number"
 end
 
 --Provides: caml_compare_tag
@@ -59,7 +54,7 @@ function caml_compare_tag(v)
     if caml_is_ocaml_string(v) then
       return 252
     elseif caml_is_ocaml_block(v) then
-      local tag = v.tag
+      local tag = v[1]  -- Tag is at index [1]
       if tag == 250 then
         return 250
       end
@@ -177,11 +172,21 @@ function caml_compare_val(a, b, total)
         elseif tag_a == 1247 then
           error("compare: functional value")
         elseif tag_a == 1001 or tag_a == 1004 then
-          if a < b then
-            return -1
-          elseif a > b then
-            return 1
+          -- Lua doesn't allow < or > on tables, so wrap in pcall
+          local success, cmp_result = pcall(function()
+            if a < b then
+              return -1
+            elseif a > b then
+              return 1
+            else
+              return nil
+            end
+          end)
+
+          if success and cmp_result ~= nil then
+            return cmp_result
           elseif a ~= b then
+            -- If comparison failed or values are not equal
             if total then
               return 1
             else

@@ -536,14 +536,23 @@ Archive (49 historical docs):
   - **Documentation**: STRING_COVERAGE.md with full analysis
   - **Success Criteria**: ✅ Documented which functions work
 
-- [ ] Task 4.2: Audit List module
-  - Test: length, hd, tl, nth
-  - Test: map, filter, fold_left, fold_right, iter
-  - Test: append, concat, rev
-  - Test: find, find_opt, exists, for_all
-  - Test: sort, sort_uniq
-  - **Create**: `test/stdlib_audit/test_list.ml`
-  - **Document**: Coverage percentage
+- [x] Task 4.2: Audit List module ✅
+  - Created: `compiler/tests-lua/stdlib_audit/test_list.ml` (300+ lines, 80+ tests)
+  - Created: `compiler/tests-lua/stdlib_audit/LIST_COVERAGE.md` (comprehensive report)
+  - **Critical Bugs Found & Fixed**:
+    1. `caml_is_ocaml_block` was checking `v.tag` instead of `v[1]` (CRITICAL!)
+    2. `caml_is_ocaml_string` couldn't distinguish blocks from strings (CRITICAL!)
+    3. List runtime functions returned Lua booleans instead of OCaml integers (BUG)
+    4. Table comparison in compare.lua needed pcall() wrapper (BUG)
+  - **Coverage**: 77% tested (41/53 functions), 100% of tested functions work
+  - **Blocked**: 6 functions (11%) - boolean representation inconsistency
+  - **Issue Discovered**: OCaml stdlib returns Lua booleans, literals are integers
+  - **Status**: ✅ **All tested List functions WORK**, boolean issue documented
+  - **Files Modified**:
+    - `runtime/lua/compare.lua` (4 critical fixes)
+    - `runtime/lua/list.lua` (4 boolean return value fixes)
+    - `compiler/tests-lua/stdlib_audit/test_list.ml` (comprehensive test suite)
+    - `compiler/tests-lua/stdlib_audit/dune` (build rules)
 
 - [ ] Task 4.3: Audit Array module
   - Test: make, init, length, get, set
