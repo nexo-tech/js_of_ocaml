@@ -177,16 +177,34 @@
   - **Result**: All Array functions work correctly ✅
   - **Success Criteria**: All tested functions work ✅
 
-- [ ] Task 1.7: Verify minimal linking still works
-  - Test with various program sizes
-  - Verify output sizes are correct
-  - Check that unused functions are not linked
+- [x] Task 1.7: Verify minimal linking still works
+  - Created test programs: `/tmp/tiny.ml` (print_int 42), `/tmp/medium.ml` (Printf, String, List.map)
+  - **Test Results** ✅:
+    - **Tiny program** (`print_int 42; print_newline ()`):
+      - Lines: **712** (matches OPTIMAL_LINKING baseline exactly!)
+      - Functions: **19** (down from baseline ~60, even better!)
+      - Only essential I/O functions linked (caml_ml_output, caml_ml_flush, etc.)
+      - NO Printf/String/List/Array functions (correctly excluded!)
+    - **Medium program** (Printf, String, List.map, closures):
+      - Lines: **16,238**
+      - Functions: **61**
+      - Includes Printf, String, List functions as expected
+      - NO Array functions (correctly excluded since not used!)
+    - **hello_lua** (baseline check):
+      - Lines: **15,914** (baseline was 15,904, +10 lines from bug fixes)
+      - Functions: **61**
+      - All output correct, works perfectly
+  - **Verification** ✅:
+    - ✅ Minimal linking works - only needed functions included
+    - ✅ Appropriate scaling - tiny (712) < hello (15,914) < medium (16,238)
+    - ✅ Unused functions NOT linked (verified with grep)
+    - ✅ Output sizes match OPTIMAL_LINKING baselines
   - **Commands**:
     ```bash
-    just quick-test /tmp/tiny.ml && wc -l /tmp/quick_test.lua
-    just quick-test /tmp/medium.ml && wc -l /tmp/quick_test.lua
+    just quick-test /tmp/tiny.ml && wc -l /tmp/quick_test.lua  # 712 lines
+    just quick-test /tmp/medium.ml && wc -l /tmp/quick_test.lua  # 16,238 lines
     ```
-  - **Success Criteria**: Appropriate scaling of output size
+  - **Success Criteria**: Appropriate scaling of output size ✅
 
 - [ ] Task 1.8: Fix any test failures found
   - Address failures from Tasks 1.1-1.7
