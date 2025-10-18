@@ -374,7 +374,10 @@ and generate_prim ctx prim args =
   in
   match prim, arg_exprs with
   (* Unary operations *)
-  | Code.Not, [ e ] -> L.UnOp (L.Not, e)
+  | Code.Not, [ e ] ->
+      (* Not: 1 - x (assumes x is already OCaml boolean 0 or 1)
+         Matches js_of_ocaml: return (J.EBin (J.Minus, one, cx)) *)
+      L.BinOp (L.Sub, L.Number "1", e)
   | Code.IsInt, [ e ] ->
       (* In Lua, check if value is a number with no fractional part *)
       L.BinOp
@@ -382,17 +385,24 @@ and generate_prim ctx prim args =
         , L.BinOp (L.Eq, L.Call (L.Ident "type", [ e ]), L.String "number")
         , L.BinOp (L.Eq, L.BinOp (L.Mod, e, L.Number "1"), L.Number "0") )
   (* Binary comparison operations *)
-  | Code.Eq, [ e1; e2 ] -> L.BinOp (L.Eq, e1, e2)
-  | Code.Neq, [ e1; e2 ] -> L.BinOp (L.Neq, e1, e2)
-  | Code.Lt, [ e1; e2 ] -> L.BinOp (L.Lt, e1, e2)
-  | Code.Le, [ e1; e2 ] -> L.BinOp (L.Le, e1, e2)
+  | Code.Eq, [ e1; e2 ] ->
+      (* IMPORTANT: Don't wrap Eq - Printf relies on it returning Lua boolean *)
+      L.BinOp (L.Eq, e1, e2)
+  | Code.Neq, [ e1; e2 ] ->
+      (* Wrap to return OCaml boolean (1/0) instead of Lua boolean *)
+      L.Call (L.Ident "caml_to_bool", [ L.BinOp (L.Neq, e1, e2) ])
+  | Code.Lt, [ e1; e2 ] ->
+      (* Wrap to return OCaml boolean (1/0) instead of Lua boolean *)
+      L.Call (L.Ident "caml_to_bool", [ L.BinOp (L.Lt, e1, e2) ])
+  | Code.Le, [ e1; e2 ] ->
+      (* Wrap to return OCaml boolean (1/0) instead of Lua boolean *)
+      L.Call (L.Ident "caml_to_bool", [ L.BinOp (L.Le, e1, e2) ])
   | Code.Ult, [ e1; e2 ] ->
-      (* Unsigned less than - convert both operands to unsigned before comparing.
-         In JS: x >>> 0 converts to unsigned (negative becomes large positive)
-         In Lua: caml_unsigned(x) does the same conversion *)
-      L.BinOp (L.Lt,
-        L.Call (L.Ident "caml_unsigned", [e1]),
-        L.Call (L.Ident "caml_unsigned", [e2]))
+      (* Unsigned less than - wrap to return OCaml boolean *)
+      L.Call (L.Ident "caml_to_bool",
+        [ L.BinOp (L.Lt,
+            L.Call (L.Ident "caml_unsigned", [e1]),
+            L.Call (L.Ident "caml_unsigned", [e2])) ])
   (* Array/table operations *)
   | Code.Vectlength, [ e ] ->
       (* Array length: #arr - 1 (subtract tag at [1]) *)
@@ -493,7 +503,7 @@ and generate_prim ctx prim args =
           (* String concatenation *)
           L.BinOp (L.Concat, e1, e2)
       | "string_compare", [ e1; e2 ] ->
-          (* String comparison returns -1, 0, or 1 *)
+          (* String comparison returns -1, 0, or 1 (not boolean) *)
           L.Call (L.Ident "caml_string_compare", [ e1; e2 ])
       | "string_equal", [ e1; e2 ] ->
           (* String equality *)

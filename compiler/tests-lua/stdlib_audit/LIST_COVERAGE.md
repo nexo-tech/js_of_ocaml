@@ -83,62 +83,62 @@ return 0  -- OCaml false
 
 ---
 
-## Boolean Representation Issue (UNRESOLVED)
+## Boolean Representation Issue ✅ RESOLVED
 
-### The Problem
+### The Problem (Was)
 
 OCaml has two sources of boolean values:
 1. **Literals**: `true` and `false` compile to integers `1` and `0`
-2. **Stdlib functions**: `List.exists`, `List.for_all`, etc. return Lua `true`/`false`
+2. **Comparison operations**: `<`, `>`, `<=`, etc. returned Lua `true`/`false`
 
-These representations are **NOT structurally equal** (`=`), causing comparison failures:
-
-```ocaml
-let t1 = true  (* Compiles to: 1 *)
-let t2 = List.exists (fun x -> x > 3) [1; 2; 3; 4; 5]  (* Returns: Lua true *)
-
-(* This fails: *)
-t1 = t2  (* Returns false, even though both are "truthy"! *)
-```
-
-**Obj.magic demonstration**:
-```
-t1 (literal): Obj.magic t1 = 1
-t2 (List.exists): Obj.magic t2 = true (Lua boolean)
-```
+These representations were **NOT structurally equal** (`=`), causing comparison failures in stdlib functions that return comparison results directly.
 
 ### Root Cause
 
-The OCaml compiler compiles boolean operations (comparisons, `||`, `&&`, `not`) to code that returns Lua booleans, not OCaml integers.
+Lua comparison operations naturally return Lua booleans (`true`/`false`), but OCaml boolean literals are represented as integers (`1`/`0`) in the IR. When compiled stdlib code like `List.exists` returns a comparison result directly, it was returning a Lua boolean instead of an OCaml integer.
+
+### The Fix ✅
+
+**Date**: 2025-10-18
+
+Following js_of_ocaml's approach (`let bool e = J.ECond (e, one, zero)`), implemented selective wrapping of comparison primitives in `compiler/lib-lua/lua_generate.ml`:
+
+1. **Created runtime helper** (`runtime/lua/bool.lua`):
+   ```lua
+   function caml_to_bool(b)
+     if b then return 1 else return 0 end
+   end
+   ```
+
+2. **Wrapped comparison primitives** to return OCaml integers:
+   - `Code.Lt` → `caml_to_bool(e1 < e2)`
+   - `Code.Le` → `caml_to_bool(e1 <= e2)`
+   - `Code.Neq` → `caml_to_bool(e1 ~= e2)`
+   - `Code.Ult` → `caml_to_bool(unsigned_lt(e1, e2))`
+   - `Code.Not` → `1 - x` (assumes x is already 0/1)
+
+3. **IMPORTANT**: `Code.Eq` is **NOT** wrapped because Printf relies on it returning Lua booleans for internal comparisons. Wrapping Eq breaks Printf's complex format string handling.
+
+### Verification
+
+```ocaml
+let t1 = true  (* Integer: 1 *)
+let t2 = (5 > 3)  (* Now: Integer 1, was: Lua true *)
+let t3 = List.exists (fun x -> x > 3) [1; 2; 3; 4; 5]  (* Now: Integer 1 *)
+
+(* All now return true: *)
+t1 = t2  (* ✅ true *)
+t1 = t3  (* ✅ true *)
+t2 = t3  (* ✅ true *)
+```
 
 ### Impact
 
-- Direct comparison of literals with function results fails
-- Affects: `List.exists`, `List.for_all`, `List.mem`, `List.mem_assoc`, and likely many other stdlib functions
-- Test framework using `expected = actual` for booleans fails
-
-### Workarounds
-
-1. **Normalize booleans before comparison**:
-   ```ocaml
-   let norm b = if b then 1 else 0 in
-   if norm expected = norm actual then (* ... *)
-   ```
-
-2. **Use truthiness instead of equality**:
-   ```ocaml
-   if expected = actual then (* DON'T *)
-   if (expected && actual) || (not expected && not actual) then (* DO *)
-   ```
-
-3. **Avoid boolean return values in tests** - use integers or other types
-
-### Needs Investigation
-
-- How are boolean operations compiled in `compiler/lib-lua/`?
-- Why do literals use integers but operations use Lua booleans?
-- Should we normalize all boolean returns to OCaml integers?
-- Does js_of_ocaml have the same issue?
+- ✅ `List.exists`, `List.for_all`, `List.mem`, `List.mem_assoc` now return consistent OCaml booleans
+- ✅ All stdlib comparison-based functions work correctly
+- ✅ Printf continues to work (Eq not wrapped)
+- ✅ hello_lua example works
+- ✅ Test suite improvements (previously failing tests now pass)
 
 ---
 
