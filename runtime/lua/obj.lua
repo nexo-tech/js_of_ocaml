@@ -225,3 +225,32 @@ function simple_object(method_map, instance_vars)
   local method_table = create_method_table(methods)
   return create_object(method_table, instance_vars)
 end
+
+--Provides: caml_obj_dup
+function caml_obj_dup(x)
+  -- If it's a number, return as-is
+  if type(x) == "number" then
+    return x
+  end
+  
+  -- If it's a table, do shallow copy (like JS .slice())
+  if type(x) == "table" then
+    local copy = {}
+    -- Copy all numeric indices
+    for i = 1, #x do
+      copy[i] = x[i]
+    end
+    -- Copy tag if present
+    if x.tag ~= nil then
+      copy.tag = x.tag
+    end
+    -- Copy length if present (for OCaml strings/bytes)
+    if x.length ~= nil then
+      copy.length = x.length
+    end
+    return copy
+  end
+  
+  -- For other types (string, etc.), return as-is
+  return x
+end

@@ -155,12 +155,27 @@
   - **Result**: Basic List functions work, advanced functions have codegen bug ⚠️
   - **Success Criteria**: Tested functions documented (partial success)
 
-- [ ] Task 1.6: Test Array module functions
-  - Test: make, init, length, get, set
-  - Test: map, fold_left, fold_right, iter
-  - Test: append, concat, sub
+- [x] Task 1.6: Test Array module functions
+  - Created comprehensive Array test file: `/tmp/test_array_ops.ml`
+  - **Critical Bug Found**: Array representation mismatch (same as List bug!)
+  - **Fixes Applied**:
+    - Fixed runtime/lua/array.lua to use `{tag, elem0, elem1, ...}` representation
+    - Fixed compiler primitives: Vectlength, Array_get, Array_set
+    - Added missing primitives: caml_obj_dup, caml_check_bound, caml_array_unsafe_set_addr
+  - **Tests Passed** ✅:
+    - ✅ Array creation: make, init, literals
+    - ✅ Array access: get, length
+    - ✅ Array modification: set
+    - ✅ Higher-order functions: map, mapi
+    - ✅ Iteration: iter, iteri
+    - ✅ Folding: fold_left, fold_right
+    - ✅ Array operations: append, concat, sub
+    - ✅ Predicates: for_all, exists
+    - ✅ List conversion: to_list, of_list
+    - ✅ Edge cases and combined operations
   - **Command**: `just quick-test /tmp/test_array_ops.ml`
-  - **Success Criteria**: All tested functions work
+  - **Result**: All Array functions work correctly ✅
+  - **Success Criteria**: All tested functions work ✅
 
 - [ ] Task 1.7: Verify minimal linking still works
   - Test with various program sizes

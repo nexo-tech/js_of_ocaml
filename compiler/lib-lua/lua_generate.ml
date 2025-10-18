@@ -395,11 +395,11 @@ and generate_prim ctx prim args =
         L.Call (L.Ident "caml_unsigned", [e2]))
   (* Array/table operations *)
   | Code.Vectlength, [ e ] ->
-      (* Length operator in Lua *)
-      L.UnOp (L.Len, e)
+      (* Array length: #arr - 1 (subtract tag at [1]) *)
+      L.BinOp (L.Sub, L.UnOp (L.Len, e), L.Number "1")
   | Code.Array_get, [ arr; idx ] ->
-      (* Array access: arr[idx + 1] (Lua is 1-indexed) *)
-      L.Index (arr, L.BinOp (L.Add, idx, L.Number "1"))
+      (* Array access: arr[idx + 2] (tag at [1], elem0 at [2]) *)
+      L.Index (arr, L.BinOp (L.Add, idx, L.Number "2"))
   (* External primitive call - map common operations to Lua operators *)
   | Code.Extern name, args -> (
       match name, args with
@@ -571,16 +571,25 @@ and generate_prim ctx prim args =
           L.Call (L.Ident "caml_blit_bytes", [ src; src_pos; dst; dst_pos; len ])
       (* Array operations *)
       | "array_get", [ arr; idx ] ->
-          (* Array access with 1-based indexing *)
-          L.Index (arr, L.BinOp (L.Add, idx, L.Number "1"))
+          (* Array access: elem0 at [2] (tag at [1]) *)
+          L.Index (arr, L.BinOp (L.Add, idx, L.Number "2"))
       | "array_set", [ arr; idx; value ] ->
           (* Array set - needs to return unit, use runtime call *)
           L.Call (L.Ident "caml_array_set", [ arr; idx; value ])
       | "array_unsafe_get", [ arr; idx ] ->
-          (* Unsafe array access *)
-          L.Index (arr, L.BinOp (L.Add, idx, L.Number "1"))
+          (* Unsafe array access: elem0 at [2] *)
+          L.Index (arr, L.BinOp (L.Add, idx, L.Number "2"))
       | "array_unsafe_set", [ arr; idx; value ] ->
           (* Unsafe array set *)
+          L.Call (L.Ident "caml_array_unsafe_set", [ arr; idx; value ])
+      | "caml_array_unsafe_set", [ arr; idx; value ] ->
+          (* Unsafe array set (prefixed version) *)
+          L.Call (L.Ident "caml_array_unsafe_set", [ arr; idx; value ])
+      | "caml_array_unsafe_set_float", [ arr; idx; value ] ->
+          (* Unsafe float array set *)
+          L.Call (L.Ident "caml_floatarray_unsafe_set", [ arr; idx; value ])
+      | "caml_array_unsafe_set_addr", [ arr; idx; value ] ->
+          (* Unsafe array set for addresses (same as unsafe_set) *)
           L.Call (L.Ident "caml_array_unsafe_set", [ arr; idx; value ])
       | "make_vect", [ len; init ] ->
           (* Create array of given length initialized with value *)
@@ -978,10 +987,10 @@ and generate_instr ctx instr =
       let new_val = L.BinOp (L.Add, current_val, offset_expr) in
       L.Assign ([ field_expr ], [ new_val ])
   | Code.Array_set (arr, idx, value) ->
-      (* Generate array assignment: arr[idx+1] = value *)
+      (* Generate array assignment: arr[idx+2] = value (tag at [1], elem0 at [2]) *)
       let arr_expr = var_ident ctx arr in
       let idx_var = var_ident ctx idx in
-      let idx_adjusted = L.BinOp (L.Add, idx_var, L.Number "1") in
+      let idx_adjusted = L.BinOp (L.Add, idx_var, L.Number "2") in
       let elem_expr = L.Index (arr_expr, idx_adjusted) in
       let value_expr = var_ident ctx value in
       L.Assign ([ elem_expr ], [ value_expr ])
